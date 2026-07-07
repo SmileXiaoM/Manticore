@@ -219,26 +219,22 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
-              <ShieldAlert className="w-5 h-5 text-amber-500" />
-              <span>三化决策规则配置</span>
-            </h1>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-md mt-2 flex items-start space-x-2 max-w-4xl">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-800 space-y-1">
-                <span className="font-bold">重要业务导读 (UCD 评审要点)：</span>
-                <p>
-                  此模块属于<strong className="font-semibold text-amber-900">三阶段（三化决策）的规则中心</strong>。系统在二阶段根据属性、名称等计算出纯客观的相似度得分（像不像）后，三化决策模块将分数对应到管理阈值线，并加载硬性控制或强考规则，输出最终的业务治理建议（能不能直接复用 / 是否需要人工复核 / 是否允许新建），
-                  <strong className="text-amber-900 font-semibold">不负责相似度分数的计算本身。应用端查找时只输出建议，不硬性拦截用户新建。</strong>
-                </p>
-              </div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5 text-amber-500" />
+                <span>三化决策规则配置</span>
+              </h1>
+              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-semibold border border-amber-200">
+                [正式系统界面]
+              </span>
             </div>
+            <p className="text-xs text-slate-500 mt-1.5 flex items-center">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mr-2"></span>
+              三化决策规则：用于将相似度结果转换为复用、复核、新建等业务建议，不负责相似度计算本身。
+            </p>
           </div>
-          <div className="flex flex-col items-end space-y-1 text-right">
-            <span className="text-xs text-amber-800 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded font-semibold">
-              三阶段：业务决策输出
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">回答：“能不能/判不判”</span>
+          <div className="flex items-center space-x-2 text-xs text-slate-400 font-mono">
+            <span>决策引擎版本: V1.2.0</span>
           </div>
         </div>
 
@@ -314,30 +310,6 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         
         {activeTab === 'threshold' && (
           <div className="space-y-4">
-            {/* Legend / Standard Threshold Scale Card */}
-            <div className="bg-gradient-to-r from-amber-50 to-blue-50 border border-amber-100 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-800 block mb-1">💡 UCD 评审导读：标准三化审核阈值口径划分</span>
-                <span className="text-[11px] text-slate-500">
-                  相似度得分由二阶段主引擎算出后，系统会依据下方阈值区间决定推荐流程动作，这属于辅助建议层，应用端不直接卡死新建。
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 mt-3 md:mt-0">
-                <span className="flex items-center space-x-1 text-xs bg-emerald-500/10 text-emerald-700 px-2.5 py-1 rounded border border-emerald-500/20 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  <span>建议复用: &gt;= 86%</span>
-                </span>
-                <span className="flex items-center space-x-1 text-xs bg-amber-500/10 text-amber-700 px-2.5 py-1 rounded border border-amber-500/20 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span>建议复核: 68% - 86%</span>
-                </span>
-                <span className="flex items-center space-x-1 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded border border-slate-200 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                  <span>允许新建: &lt; 68%</span>
-                </span>
-              </div>
-            </div>
-
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -411,32 +383,6 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
         {activeTab === 'hard' && (
           <div className="space-y-4">
-            {/* Hard rule logic guidelines */}
-            <div className="bg-red-50 border border-red-100 rounded-lg p-4">
-              <span className="text-xs font-bold text-red-900 block mb-1">🚫 强制复核与硬性控制规则设计 (规避核心物理/业务漏洞)</span>
-              <span className="text-[11px] text-red-700 block mb-2">
-                为规避底层主数据冲突风险，当物料命中特定红线（如材质严重冲突、生命周期处于停用状态）时，即便二阶段属性算分高达 99%，也将直接绕过纯相似度，直接判为 [建议复核] 或 [禁止复用]。
-              </span>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2 text-[11px]">
-                <div className="bg-white border border-red-100 p-2 rounded shadow-xs">
-                  <span className="font-semibold text-slate-800 block mb-0.5">材质大类不一致</span>
-                  <span className="text-slate-500">关键用料冲突，相似度再高也必须降级为 <strong className="text-amber-600">强制复核</strong></span>
-                </div>
-                <div className="bg-white border border-red-100 p-2 rounded shadow-xs">
-                  <span className="font-semibold text-slate-800 block mb-0.5">公差尺寸溢出</span>
-                  <span className="text-slate-500">物理规格差异超限，强制降级为 <strong className="text-amber-600">强制复核</strong></span>
-                </div>
-                <div className="bg-white border border-red-100 p-2 rounded shadow-xs">
-                  <span className="font-semibold text-slate-800 block mb-0.5">候选件状态已作废</span>
-                  <span className="text-slate-500">主数据状态已失效或停产，强制判定为 <strong className="text-red-600">禁止复用</strong></span>
-                </div>
-                <div className="bg-white border border-red-100 p-2 rounded shadow-xs">
-                  <span className="font-semibold text-slate-800 block mb-0.5">关键耐压/封装严重不同</span>
-                  <span className="text-slate-500">阻容感核心安全特性不符，强制降级至 <strong className="text-amber-600">建议复核</strong></span>
-                </div>
-              </div>
-            </div>
-
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -608,6 +554,65 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           </div>
         )}
 
+      </div>
+
+      {/* ⬇️ [设计/评审说明] 区域 (非产品正式操作界面) ⬇️ */}
+      <div className="mx-6 mb-6 p-4 bg-amber-500/5 border-2 border-dashed border-amber-300 rounded-lg shrink-0 space-y-4">
+        <div className="flex items-center space-x-2">
+          <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-bold">
+            [设计/评审说明]
+          </span>
+          <h4 className="text-xs font-bold text-slate-800">UCD 评审要点、阈值标准与硬控规则示例</h4>
+        </div>
+
+        <div className="text-[11px] text-slate-600 space-y-3 leading-relaxed">
+          {/* Business Guide */}
+          <div>
+            <span className="font-semibold text-slate-700 block mb-0.5">💡 重要业务导读：</span>
+            <p>
+              此模块属于<strong>三阶段（三化决策）的规则中心</strong>。系统在二阶段根据属性、名称等计算出纯客观的相似度得分（像不像）后，三化决策模块将分数对应到管理阈值线，并加载硬性控制或强考规则，输出最终的业务治理建议（能不能直接复用 / 是否需要人工复核 / 是否允许新建），不负责相似度分数的计算本身。应用端查找时只输出建议，不硬性拦截用户新建。
+            </p>
+          </div>
+
+          {/* Scale Legend */}
+          <div className="pt-2 border-t border-slate-200">
+            <span className="font-semibold text-slate-700 block mb-1">📊 默认三化审核阈值口径划分（供参考）：</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center space-x-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+                <span>建议复用: &gt;= 86%</span>
+              </span>
+              <span className="flex items-center space-x-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200 font-bold">
+                <span>建议复核: 68% - 86%</span>
+              </span>
+              <span className="flex items-center space-x-1 bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-bold">
+                <span>允许新建: &lt; 68%</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Hard Control Examples */}
+          <div className="pt-2 border-t border-slate-200">
+            <span className="font-semibold text-slate-700 block mb-1.5">🚫 典型硬控降级业务场景示例：</span>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+              <div className="bg-white p-2 rounded border border-slate-200">
+                <span className="font-semibold text-slate-800 block mb-0.5">材质大类不一致</span>
+                <span className="text-[10px] text-slate-500">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
+              </div>
+              <div className="bg-white p-2 rounded border border-slate-200">
+                <span className="font-semibold text-slate-800 block mb-0.5">公差尺寸溢出</span>
+                <span className="text-[10px] text-slate-500">物理规格差异超限，强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
+              </div>
+              <div className="bg-white p-2 rounded border border-slate-200">
+                <span className="font-semibold text-slate-800 block mb-0.5">候选件状态已作废</span>
+                <span className="text-[10px] text-slate-500">候选件已失效或退市停产，强制判定为 <strong className="text-red-600 font-medium">禁止复用</strong></span>
+              </div>
+              <div className="bg-white p-2 rounded border border-slate-200">
+                <span className="font-semibold text-slate-800 block mb-0.5">关键耐压/封装不同</span>
+                <span className="text-[10px] text-slate-500">阻容感核心安全或物理特性冲突，强制判定为 <strong className="text-amber-600 font-medium">建议复核</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* RENDER POPUP EDITING FOR DECISION RULES */}

@@ -243,27 +243,25 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
-              <Settings className="w-5 h-5 text-slate-500" />
-              <span>数据处理规则 (算分前置清洗)</span>
-            </h1>
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-md mt-2 flex items-start space-x-2 max-w-4xl">
-              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-blue-800 space-y-1">
-                <span className="font-bold">重要业务导读 (UCD 评审要点)：</span>
-                <p>
-                  此模块属于<strong className="font-semibold text-blue-900">二阶段（字段属性相似度算分）的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直直径" 映射清洗为规范规格，或进行同义词主副匹配），
-                  <strong className="text-blue-900 font-semibold">不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。</strong>
-                </p>
-              </div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                <Settings className="w-5 h-5 text-slate-500" />
+                <span>数据处理规则 (算分前置清洗)</span>
+              </h1>
+              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-semibold border border-blue-200">
+                [正式系统界面]
+              </span>
             </div>
+            <p className="text-xs text-slate-500 mt-1.5 flex items-center">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+              数据处理规则：用于字段相似度计算前的单位、格式、同义词和分类归一，不直接配置字段权重。
+            </p>
           </div>
 
-          <div className="flex flex-col items-end space-y-1">
-            <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded font-mono font-medium">
-              算分链路：1. [前置数据清洗] → 2. [主算分引擎] → 3. [三化决策输出]
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] text-slate-400 font-mono">
+              v2.4.0 (生产同步中)
             </span>
-            <span className="text-[10px] text-amber-600 font-semibold">★ 二阶段辅助预处理层</span>
           </div>
         </div>
 
@@ -549,6 +547,26 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           </div>
         )}
 
+      </div>
+
+      {/* ⬇️ [设计/评审说明] 区域 (非产品正式操作界面) ⬇️ */}
+      <div className="mx-6 mb-6 p-4 bg-amber-500/5 border-2 border-dashed border-amber-300 rounded-lg shrink-0">
+        <div className="flex items-center space-x-2 mb-2">
+          <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-bold">
+            [设计/评审说明]
+          </span>
+          <h4 className="text-xs font-bold text-slate-800">UCD 评审要点与二阶段说明</h4>
+        </div>
+        <div className="text-[11px] text-slate-600 space-y-2 leading-relaxed">
+          <p>
+            <span className="font-semibold text-slate-700">💡 重要业务导读：</span>
+            此模块属于<strong>二阶段（字段属性相似度算分）的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
+          </p>
+          <div className="pt-1.5 border-t border-slate-200 flex flex-wrap items-center gap-4 text-slate-500">
+            <span><strong>算分完整链路方案：</strong> 1. [前置数据清洗] (当前页) → 2. [主算分引擎] → 3. [三化决策输出]</span>
+            <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">二阶段辅助预处理层</span>
+          </div>
+        </div>
       </div>
 
       {/* RENDER MODAL POPUP FOR CRUD */}
