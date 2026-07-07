@@ -13,13 +13,23 @@ import { AttributeEnumsView } from './components/AttributeEnumsView';
 import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
 
+// Three-Standardization Audit Views
+import { FieldWhitelistView } from './components/FieldWhitelistView';
+import { ThresholdRuleView } from './components/ThresholdRuleView';
+import { HardRuleView } from './components/HardRuleView';
+import { CategoryCoverageView } from './components/CategoryCoverageView';
+
 // Data
 import { 
   initialFieldRules, 
   initialStandardizationRules, 
   initialSynonymRules, 
   initialAlignmentRules, 
-  initialPublishRecords 
+  initialPublishRecords,
+  initialFieldWhitelists,
+  initialThresholdRules,
+  initialHardRules,
+  initialCategoryCoverages
 } from './data';
 
 import { 
@@ -27,7 +37,11 @@ import {
   StandardizationRule, 
   SynonymRule, 
   ClassificationAlignmentRule, 
-  PublishRecord 
+  PublishRecord,
+  FieldWhitelistItem,
+  ThresholdRule,
+  HardRule,
+  CategoryCoverage
 } from './types';
 
 export default function App() {
@@ -37,6 +51,12 @@ export default function App() {
   const [synonymRules, setSynonymRules] = useState<SynonymRule[]>(initialSynonymRules);
   const [alignmentRules, setAlignmentRules] = useState<ClassificationAlignmentRule[]>(initialAlignmentRules);
   const [publishRecords, setPublishRecords] = useState<PublishRecord[]>(initialPublishRecords);
+
+  // New "三化审核最小闭环" State Arrays
+  const [whitelists, setWhitelists] = useState<FieldWhitelistItem[]>(initialFieldWhitelists);
+  const [thresholdRules, setThresholdRules] = useState<ThresholdRule[]>(initialThresholdRules);
+  const [hardRules, setHardRules] = useState<HardRule[]>(initialHardRules);
+  const [coverages, setCoverages] = useState<CategoryCoverage[]>(initialCategoryCoverages);
   
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
@@ -156,6 +176,35 @@ export default function App() {
               {currentView === 'client-find-similar' && (
                 <ClientFindSimilarView />
               )}
+
+              {/* Three-Standardization (三化审核) Configuration Views */}
+              {currentView === 'field-whitelists' && (
+                <FieldWhitelistView 
+                  whitelists={whitelists} 
+                  onUpdateWhitelists={setWhitelists} 
+                />
+              )}
+
+              {currentView === 'threshold-rules' && (
+                <ThresholdRuleView 
+                  rules={thresholdRules} 
+                  onUpdateRules={setThresholdRules} 
+                />
+              )}
+
+              {currentView === 'hard-rules' && (
+                <HardRuleView 
+                  rules={hardRules} 
+                  onUpdateRules={setHardRules} 
+                />
+              )}
+
+              {currentView === 'category-coverages' && (
+                <CategoryCoverageView 
+                  coverages={coverages} 
+                  onUpdateCoverages={setCoverages} 
+                />
+              )}
             </main>
           </div>
         </div>
@@ -176,8 +225,14 @@ export default function App() {
           <option value="publish-records">9. 发布记录与版本对比</option>
           <option value="attribute-types">10. 属性类型对应说明 (无壳)</option>
           <option value="attribute-enums">11. 属性枚举对应说明 (无壳)</option>
+          
+          <option value="field-whitelists">2.1 字段白名单配置</option>
+          <option value="threshold-rules">2.2 决策阈值规则配置</option>
+          <option value="hard-rules">2.3 一票否决强控配置</option>
+          <option value="category-coverages">2.4 分类覆盖绑定配置</option>
+
           <option value="query-preview">12. 相似度查询预览</option>
-          <option value="client-find-similar">13. 应用端查找相似件</option>
+          <option value="client-find-similar">13. 应用端查找相似件 (三化闭环)</option>
         </select>
       </div>
 

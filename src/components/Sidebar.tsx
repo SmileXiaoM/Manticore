@@ -12,7 +12,8 @@ import {
   ChevronDown, 
   ChevronRight,
   Database,
-  Grid
+  Grid,
+  ShieldAlert
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,8 +22,9 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
-  // Always expand "相似度配置" by default, as specified
+  // Collapsible submenus - expand both by default for clear review
   const [configExpanded, setConfigExpanded] = useState(true);
+  const [auditExpanded, setAuditExpanded] = useState(true);
 
   // Determine if a view is part of the config submenu
   const isConfigSubView = [
@@ -31,6 +33,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
     'synonym-rules', 
     'alignment-rules',
     'publish-records'
+  ].includes(currentView);
+
+  // Determine if a view is part of the audit submenu
+  const isAuditSubView = [
+    'field-whitelists',
+    'threshold-rules',
+    'hard-rules',
+    'category-coverages'
   ].includes(currentView);
 
   return (
@@ -44,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
         
-        {/* Core Submenu trigger */}
+        {/* Submenu 1: Physical Similarity Config */}
         <div>
           <button
             onClick={() => setConfigExpanded(!configExpanded)}
@@ -76,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <span>字段相似度规则</span>
+                <span>1. 字段相似度规则</span>
                 {currentView === 'field-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
               </button>
 
@@ -88,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <span>标准化规则</span>
+                <span>3. 标准化规则</span>
                 {currentView === 'standardization-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
               </button>
 
@@ -100,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <span>同义词规则</span>
+                <span>5. 同义词规则</span>
                 {currentView === 'synonym-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
               </button>
 
@@ -112,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <span>分类 / 类型归一</span>
+                <span>7. 分类 / 类型归一</span>
                 {currentView === 'alignment-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
               </button>
 
@@ -124,8 +134,83 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <span>发布记录</span>
+                <span>9. 发布记录</span>
                 {currentView === 'publish-records' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Submenu 2: Three-Standardization Audit Config */}
+        <div>
+          <button
+            onClick={() => setAuditExpanded(!auditExpanded)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              isAuditSubView 
+                ? 'bg-slate-800/40 text-white' 
+                : 'hover:bg-slate-800/50 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center space-x-2.5">
+              <ShieldAlert className="w-4 h-4 text-amber-500" />
+              <span>三化审核配置</span>
+            </div>
+            {auditExpanded ? (
+              <ChevronDown className="w-4 h-4 text-slate-500" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-500" />
+            )}
+          </button>
+
+          {/* Submenu Children */}
+          {auditExpanded && (
+            <div className="mt-1 ml-4 pl-3 border-l border-slate-800 space-y-1">
+              <button
+                onClick={() => onNavigate('field-whitelists')}
+                className={`w-full flex items-center space-x-2 px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                  currentView === 'field-whitelists'
+                    ? 'bg-amber-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <span>2.1 字段白名单配置</span>
+                {currentView === 'field-whitelists' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              </button>
+
+              <button
+                onClick={() => onNavigate('threshold-rules')}
+                className={`w-full flex items-center space-x-2 px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                  currentView === 'threshold-rules'
+                    ? 'bg-amber-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <span>2.2 决策阈值规则配置</span>
+                {currentView === 'threshold-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              </button>
+
+              <button
+                onClick={() => onNavigate('hard-rules')}
+                className={`w-full flex items-center space-x-2 px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                  currentView === 'hard-rules'
+                    ? 'bg-amber-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <span>2.3 一票否决强控配置</span>
+                {currentView === 'hard-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              </button>
+
+              <button
+                onClick={() => onNavigate('category-coverages')}
+                className={`w-full flex items-center space-x-2 px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                  currentView === 'category-coverages'
+                    ? 'bg-amber-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <span>2.4 分类覆盖绑定配置</span>
+                {currentView === 'category-coverages' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
               </button>
             </div>
           )}

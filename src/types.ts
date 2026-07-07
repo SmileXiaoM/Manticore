@@ -141,4 +141,85 @@ export interface QueryResultItem {
   hitReason: string; // 命中原因
   diffFields: string; // 差异字段
   scoreDetail: { fieldName: string; score: number; weight: number; matchInfo: string }[];
+  // 三化审核增强属性
+  auditSuggestion?: 'RECOMMEND_REUSE' | 'RECOMMEND_REVIEW' | 'ALLOW_CREATE' | 'PROHIBIT_REUSE'; // 三化建议
+  auditReason?: string; // 建议原因
+  triggeredRules?: string[]; // 触发规则
+  forceReviewReasons?: string[]; // 强制复核原因
+  nonReusableReasons?: string[]; // 不可复用原因
+  differenceDetail?: string; // 差异字段说明
+  // 源件详情 (用于展示)
+  sourceObjectType?: string;
+  sourceCategoryPath?: string;
+  sourceCoreFields?: string;
+  sourceLifecycle?: string;
+  sourceSystem?: string;
+  sourceSyncStatus?: string;
+}
+
+// 1. 字段白名单配置
+export interface FieldWhitelistItem {
+  id: string;
+  objectType: ObjectType;
+  fieldName: string; // 字段中文名
+  propertyCode: string; // 属性编码
+  fieldType: 'TEXT' | 'NUMBER' | 'ENUM' | 'CLASS_TREE' | 'DATE' | 'OBJECT_REF'; // 字段类型
+  isEnabled: boolean; // 是否启用
+  isFilterActive: boolean; // 是否参与过滤
+  isScoreActive: boolean; // 是否参与相似度评分
+  isTextMatchActive: boolean; // 是否参与文本匹配
+  isRequiredForAudit: boolean; // 是否为审核必填
+  showInApp: boolean; // 是否在应用端展示
+  showDifference: boolean; // 是否展示差异
+  defaultMatchMethod: string; // 默认匹配方式
+  defaultWeight: number; // 默认权重
+  sortOrder: number; // 排序
+  status: 'ACTIVE' | 'INACTIVE'; // 状态
+  lastEditor: string; // 最后维护人
+  lastEditTime: string; // 最后维护时间
+}
+
+// 2. 阈值规则配置
+export interface ThresholdRule {
+  id: string;
+  ruleName: string; // 规则名称
+  applicableObjectType: ObjectType; // 适用对象类型
+  applicableCategory: string; // 适用分类
+  reuseThreshold: number; // 建议复用阈值 (>= 86%)
+  reviewThresholdMin: number; // 建议复核下限 (68%)
+  reviewThresholdMax: number; // 建议复核上限 (86%)
+  isEnabled: boolean; // 是否启用
+  version: string; // 生效版本
+  remarks: string; // 备注说明
+}
+
+// 3. 强制复核 / 不可复用规则配置
+export interface HardRule {
+  id: string;
+  ruleName: string; // 规则名称
+  ruleType: 'FORCE_REVIEW' | 'NON_REUSABLE' | 'RISK_ALERT'; // 规则类型
+  applicableObjectType: ObjectType; // 适用对象类型
+  applicableCategory: string; // 适用分类
+  triggerField: string; // 触发字段
+  triggerCondition: string; // 触发条件
+  triggerExample: string; // 触发示例
+  actionAfterTrigger: 'RECOMMEND_REVIEW' | 'PROHIBIT_REUSE' | 'ONLY_ALERT'; // 触发后动作
+  priority: number; // 优先级
+  isEnabled: boolean; // 是否启用
+  remarks: string; // 备注
+}
+
+// 4. 分类覆盖配置
+export interface CategoryCoverage {
+  id: string;
+  categoryPath: string; // 分类路径
+  objectType: ObjectType; // 对象类型
+  whitelistId: string; // 使用的字段白名单
+  similarityRuleSetId: string; // 使用的字段相似度规则集
+  thresholdRuleId: string; // 使用的阈值规则
+  hardRuleSetIds: string[]; // 使用的强制复核规则集
+  weightOverrideInfo: string; // 权重覆盖说明
+  inheritParent: boolean; // 是否继承父分类
+  isEnabled: boolean; // 是否启用
+  version: string; // 生效版本
 }

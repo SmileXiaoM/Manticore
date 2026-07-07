@@ -11,7 +11,11 @@ import {
   VersionDiffItem,
   AttributeTypeItem,
   AttributeEnumItem,
-  QueryResultItem
+  QueryResultItem,
+  FieldWhitelistItem,
+  ThresholdRule,
+  HardRule,
+  CategoryCoverage
 } from './types';
 
 // 1. 字段相似度规则初始数据
@@ -627,7 +631,7 @@ export const attributeEnums: AttributeEnumItem[] = [
   }
 ];
 
-// 9. 查询预览模拟结果 (包含：相似度、对象标识、名称、材料、分类路径、生命周期、命中原因、差异字段、字段得分明细)
+// 9. 查询预览模拟结果 (包含：相似度、对象标识、名称、材料、分类路径、生命周期、命中原因、差异字段、字段得分明细及三化审核增强参数)
 export const queryResults: QueryResultItem[] = [
   {
     similarityScore: 98.4,
@@ -644,7 +648,19 @@ export const queryResults: QueryResultItem[] = [
       { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
       { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径/标准路径一致' },
       { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }
-    ]
+    ],
+    auditSuggestion: 'RECOMMEND_REUSE',
+    auditReason: '总相似度得分 98.4% 超过建议复用阈值(>= 86%)。材质、规格、直径、螺距等核心工程属性完全对准，建议直接复用以节省模具及采购成本。',
+    triggeredRules: ['紧固件大类三化阈值规则 (TR-001)'],
+    forceReviewReasons: [],
+    nonReusableReasons: [],
+    differenceDetail: '拟申请件要求的表面处理为[钝化]，而当前候选件为[无表面处理]，需要确认是否可替换。规格尾部图纸标注文字有微小差异。',
+    sourceObjectType: 'PART_MECHANICAL',
+    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
+    sourceLifecycle: '设计中 (In Work)',
+    sourceSystem: '总部 PLM (Windchill)',
+    sourceSyncStatus: '已同步完毕'
   },
   {
     similarityScore: 89.1,
@@ -661,7 +677,19 @@ export const queryResults: QueryResultItem[] = [
       { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
       { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径一致' },
       { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }
-    ]
+    ],
+    auditSuggestion: 'RECOMMEND_REUSE',
+    auditReason: '总相似度 89.1% 仍落入建议复用区间(>= 86%)。虽然由于长度相差5mm(50mm vs 45mm)造成扣分，但国标中材质及主要几何外廓一致，建议结合装配位置评估借用可行性。',
+    triggeredRules: ['紧固件大类三化阈值规则 (TR-001)'],
+    forceReviewReasons: [],
+    nonReusableReasons: [],
+    differenceDetail: '核心不同差异点主要在长度（拟申请50mm，该物料45mm）以及国家标准标注用词差异（“圆柱头螺钉”与“螺栓”）。',
+    sourceObjectType: 'PART_MECHANICAL',
+    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
+    sourceLifecycle: '设计中 (In Work)',
+    sourceSystem: '总部 PLM (Windchill)',
+    sourceSyncStatus: '已同步完毕'
   },
   {
     similarityScore: 76.5,
@@ -678,7 +706,19 @@ export const queryResults: QueryResultItem[] = [
       { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
       { fieldName: '分类路径 (category_path)', score: 4.0, weight: 15, matchInfo: '分类树同级退避相似 (折扣系数0.85)' },
       { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }
-    ]
+    ],
+    auditSuggestion: 'RECOMMEND_REVIEW',
+    auditReason: '相似度(76.5%)落入建议人工复核区间(68% - 86%)。另外，由于驱动几何型式(外六角 vs 内六角)存在显著结构差异，触发了硬规则：几何装配界面差异大，强制提报复核。',
+    triggeredRules: ['紧固件大类三化阈值规则 (TR-001)', '主材/分类不重叠强制复核规则 (HR-001)'],
+    forceReviewReasons: ['几何驱动头型式不一致：拟申请[内六角]，已有件[外六角/GB5783]，可能影响螺丝装配扳手拧紧空间。', '表面处理材质等级不完全吻合：[A2-70] vs [304/钝化]'],
+    nonReusableReasons: [],
+    differenceDetail: '驱动型式存在根本分歧：拟申请为内六角圆柱头（需用内六角扳手在轴向装配），而该件为外六角头（需用套筒或双头扳手，占据较大侧向扭转空间）。',
+    sourceObjectType: 'PART_MECHANICAL',
+    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
+    sourceLifecycle: '设计中 (In Work)',
+    sourceSystem: '总部 PLM (Windchill)',
+    sourceSyncStatus: '已同步完毕'
   },
   {
     similarityScore: 54.0,
@@ -695,7 +735,48 @@ export const queryResults: QueryResultItem[] = [
       { fieldName: '标称直径 (nominal_diameter)', score: 0.0, weight: 15, matchInfo: '值不匹配 (8mm !== 10mm)' },
       { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径一致' },
       { fieldName: '螺距 (thread_pitch)', score: 0.0, weight: 10, matchInfo: '值不匹配 (1.25mm !== 1.5mm)' }
-    ]
+    ],
+    auditSuggestion: 'ALLOW_CREATE',
+    auditReason: '相似度得分(54.0%)低于三化复核下限(< 68%)。允许研发继续新建物料申请，物理属性存在核心装配无法替换性（直径相差 2mm，材料受力与耐蚀度不一致）。',
+    triggeredRules: ['紧固件大类三化阈值规则 (TR-001)'],
+    forceReviewReasons: [],
+    nonReusableReasons: [],
+    differenceDetail: '螺丝直径相差 2mm（拟申请 M10，该件 M8），无法在同一个螺纹过孔中装配。材质为[碳钢] vs 拟申请[304 不锈钢]，在化学防锈和载荷强度上完全不可复用。',
+    sourceObjectType: 'PART_MECHANICAL',
+    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
+    sourceLifecycle: '设计中 (In Work)',
+    sourceSystem: '总部 PLM (Windchill)',
+    sourceSyncStatus: '已同步完毕'
+  },
+  {
+    similarityScore: 92.0,
+    objectId: 'PART-2023-001099',
+    objectName: '内六角螺栓 M10x50 (作废备件)',
+    material: '304 不锈钢',
+    classificationPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    lifecycleState: '已作废 (Obsolete)',
+    hitReason: '分类完全一致 (得15分)；规格高度吻合 (得27分)；材质完全对准 (得25分)；直径完全一致 (得15分)；螺距对准 (得10分)。但在全生命周期中处于已作废状态。',
+    diffFields: '生命周期状态为已作废/淘汰。',
+    scoreDetail: [
+      { fieldName: '规格描述 (spec_description)', score: 27.0, weight: 35, matchInfo: 'TF-IDF 相似度: 92%' },
+      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '精确等值' },
+      { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值' },
+      { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径一致' },
+      { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值' }
+    ],
+    auditSuggestion: 'PROHIBIT_REUSE',
+    auditReason: '触发不可复用硬规则：候选件生命周期为【已作废】。即使相似度跑分极高（92.0%），在业务上也不允许复用已被工艺与设计团队废弃的旧零件，防止装配问题重演。',
+    triggeredRules: ['生命周期状态为停用/作废不可复用硬规则 (HR-003)'],
+    forceReviewReasons: [],
+    nonReusableReasons: ['该候选物料已在 PLM 系统中标记为“已作废 (Obsolete)”，被标准化办明确限制借用。'],
+    differenceDetail: '各项几何参数和材料特性完全相同。核心差异仅在物料生命周期状态，候选件已退市废弃。',
+    sourceObjectType: 'PART_MECHANICAL',
+    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
+    sourceLifecycle: '设计中 (In Work)',
+    sourceSystem: '总部 PLM (Windchill)',
+    sourceSyncStatus: '已同步完毕'
   }
 ];
 
@@ -709,3 +790,297 @@ export const draftStateInfo = {
   lastDraftEditor: '李晓华 (工艺数据管理员)',
   lastDraftEditTime: '2026-07-06 18:24:00'
 };
+
+// 10. 字段白名单初始数据
+export const initialFieldWhitelists: FieldWhitelistItem[] = [
+  {
+    id: 'WL-001',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '规格描述',
+    propertyCode: 'spec_description',
+    fieldType: 'TEXT',
+    isEnabled: true,
+    isFilterActive: false,
+    isScoreActive: true,
+    isTextMatchActive: true,
+    isRequiredForAudit: true,
+    showInApp: true,
+    showDifference: true,
+    defaultMatchMethod: 'TF-IDF 文本相似度',
+    defaultWeight: 35,
+    sortOrder: 10,
+    status: 'ACTIVE',
+    lastEditor: '张建国 (系统架构师)',
+    lastEditTime: '2026-07-06 14:30:00'
+  },
+  {
+    id: 'WL-002',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '主要材质',
+    propertyCode: 'core_material',
+    fieldType: 'ENUM',
+    isEnabled: true,
+    isFilterActive: true,
+    isScoreActive: true,
+    isTextMatchActive: false,
+    isRequiredForAudit: true,
+    showInApp: true,
+    showDifference: true,
+    defaultMatchMethod: '精确对齐/同义词归一',
+    defaultWeight: 25,
+    sortOrder: 20,
+    status: 'ACTIVE',
+    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditTime: '2026-07-06 14:32:15'
+  },
+  {
+    id: 'WL-003',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '标称直径',
+    propertyCode: 'nominal_diameter',
+    fieldType: 'NUMBER',
+    isEnabled: true,
+    isFilterActive: true,
+    isScoreActive: true,
+    isTextMatchActive: false,
+    isRequiredForAudit: true,
+    showInApp: true,
+    showDifference: true,
+    defaultMatchMethod: '数值范围容差匹配 (+/- 0.2mm)',
+    defaultWeight: 15,
+    sortOrder: 30,
+    status: 'ACTIVE',
+    lastEditor: '王明 (机械工程师)',
+    lastEditTime: '2026-07-05 10:11:45'
+  },
+  {
+    id: 'WL-004',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '螺距',
+    propertyCode: 'thread_pitch',
+    fieldType: 'NUMBER',
+    isEnabled: true,
+    isFilterActive: false,
+    isScoreActive: true,
+    isTextMatchActive: false,
+    isRequiredForAudit: false,
+    showInApp: true,
+    showDifference: true,
+    defaultMatchMethod: '数值等值匹配',
+    defaultWeight: 10,
+    sortOrder: 40,
+    status: 'ACTIVE',
+    lastEditor: '王明 (机械工程师)',
+    lastEditTime: '2026-07-05 11:22:00'
+  },
+  {
+    id: 'WL-005',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '分类路径',
+    propertyCode: 'category_path',
+    fieldType: 'CLASS_TREE',
+    isEnabled: true,
+    isFilterActive: true,
+    isScoreActive: true,
+    isTextMatchActive: false,
+    isRequiredForAudit: true,
+    showInApp: true,
+    showDifference: false,
+    defaultMatchMethod: '层级深度折扣匹配',
+    defaultWeight: 15,
+    sortOrder: 50,
+    status: 'ACTIVE',
+    lastEditor: '张建国 (系统架构师)',
+    lastEditTime: '2026-07-06 09:15:30'
+  },
+  {
+    id: 'WL-006',
+    objectType: 'PART_ELECTRICAL',
+    fieldName: '工作电压',
+    propertyCode: 'working_voltage',
+    fieldType: 'NUMBER',
+    isEnabled: true,
+    isFilterActive: true,
+    isScoreActive: true,
+    isTextMatchActive: false,
+    isRequiredForAudit: true,
+    showInApp: true,
+    showDifference: true,
+    defaultMatchMethod: '数值范围退让比对',
+    defaultWeight: 30,
+    sortOrder: 10,
+    status: 'ACTIVE',
+    lastEditor: '赵丽 (电气工程师)',
+    lastEditTime: '2026-07-06 11:30:22'
+  }
+];
+
+// 11. 阈值规则初始数据
+export const initialThresholdRules: ThresholdRule[] = [
+  {
+    id: 'TR-001',
+    ruleName: '紧固件大类三化准则',
+    applicableObjectType: 'PART_MECHANICAL',
+    applicableCategory: '/国家标准分类/紧固件',
+    reuseThreshold: 86,
+    reviewThresholdMin: 68,
+    reviewThresholdMax: 86,
+    isEnabled: true,
+    version: 'v2.4.0',
+    remarks: '针对通用型五金标准紧固件，设定较高的复用要求。相似度 >= 86% 时建议复用已有件；介于 68% 到 86% 之间建议人工复核；低于 68% 允许继续新建物料申请。'
+  },
+  {
+    id: 'TR-002',
+    ruleName: '机械加工定制件三化准则',
+    applicableObjectType: 'PART_MECHANICAL',
+    applicableCategory: '/自定义零组件/非标定制件/机加工件',
+    reuseThreshold: 92,
+    reviewThresholdMin: 75,
+    reviewThresholdMax: 92,
+    isEnabled: true,
+    version: 'v2.4.0',
+    remarks: '定制件的相似度要求更严，避免错误复用。>= 92% 建议复用已有件；75% - 92% 建议人工复核；< 75% 允许继续新建。'
+  },
+  {
+    id: 'TR-003',
+    ruleName: '阻容感电子元器件三化准则',
+    applicableObjectType: 'PART_ELECTRICAL',
+    applicableCategory: '/电气元器件/基础阻容感',
+    reuseThreshold: 80,
+    reviewThresholdMin: 60,
+    reviewThresholdMax: 80,
+    isEnabled: true,
+    version: 'v2.4.0',
+    remarks: '电子元器件具有规格标准性，复用阈值适当下调。>= 80% 建议复用；60% - 80% 建议人工复核；< 60% 允许继续新建。'
+  }
+];
+
+// 12. 强制复核 / 不可复用规则初始数据
+export const initialHardRules: HardRule[] = [
+  {
+    id: 'HR-001',
+    ruleName: '主材不一致一票强制复核',
+    ruleType: 'FORCE_REVIEW',
+    applicableObjectType: 'PART_MECHANICAL',
+    applicableCategory: 'ALL',
+    triggerField: 'core_material',
+    triggerCondition: '源与候选物料材质牌号不同，且无法经由标准化规则自动收敛',
+    triggerExample: '源: SUS304 vs 候选: Q235 钢',
+    actionAfterTrigger: 'RECOMMEND_REVIEW',
+    priority: 1,
+    isEnabled: true,
+    remarks: '在相似度较高的情况下（如100%几何相同，但材质一铜一铁），材质不同不可自动通过，必须强制复核。'
+  },
+  {
+    id: 'HR-002',
+    ruleName: '尺寸超出容差强制复核',
+    ruleType: 'FORCE_REVIEW',
+    applicableObjectType: 'PART_MECHANICAL',
+    applicableCategory: 'ALL',
+    triggerField: 'nominal_diameter',
+    triggerCondition: '直径绝对误差超过容差设定的 0.5mm 边界',
+    triggerExample: '源: 10mm vs 候选: 12mm',
+    actionAfterTrigger: 'RECOMMEND_REVIEW',
+    priority: 2,
+    isEnabled: true,
+    remarks: '尺寸超出基本机械装配限制时，即使整体文本匹配分高，也必须强制提醒研发复核。'
+  },
+  {
+    id: 'HR-003',
+    ruleName: '生命周期为停用/作废禁止复用',
+    ruleType: 'NON_REUSABLE',
+    applicableObjectType: 'ALL',
+    applicableCategory: 'ALL',
+    triggerField: 'lifecycle_state',
+    triggerCondition: '候选件状态 === Obsolete (作废) / Inactive (停用)',
+    triggerExample: '候选件状态: 已作废 (Obsolete)',
+    actionAfterTrigger: 'PROHIBIT_REUSE',
+    priority: 3,
+    isEnabled: true,
+    remarks: '禁止复用已进入淘汰状态、老项目废弃的零部件，避免新项目错误引入劣质或已断供备件。'
+  },
+  {
+    id: 'HR-004',
+    ruleName: '表面处理不一致提示风险',
+    ruleType: 'RISK_ALERT',
+    applicableObjectType: 'PART_MECHANICAL',
+    applicableCategory: 'ALL',
+    triggerField: 'surface_treatment',
+    triggerCondition: '源与目标表面处理工艺不重叠 (如镀锌 vs 阳极氧化)',
+    triggerExample: '源: 钝化 vs 候选: 镀白锌',
+    actionAfterTrigger: 'ONLY_ALERT',
+    priority: 4,
+    isEnabled: true,
+    remarks: '表面处理不一致会影响腐蚀寿命或电化学接触，提示装配兼容性风险。'
+  },
+  {
+    id: 'HR-005',
+    ruleName: '来源系统数据未同步完成提示复核',
+    ruleType: 'FORCE_REVIEW',
+    applicableObjectType: 'ALL',
+    applicableCategory: 'ALL',
+    triggerField: 'source_system',
+    triggerCondition: '候选件来源系统状态显示为“同步中(SYNC_IN_PROGRESS)”',
+    triggerExample: '数据状态: 同步中',
+    actionAfterTrigger: 'RECOMMEND_REVIEW',
+    priority: 5,
+    isEnabled: true,
+    remarks: '由于ERP与PLM中间集成状态存在延迟，未完成全部属性对齐的物料不可盲目复用。'
+  }
+];
+
+// 13. 分类覆盖配置初始数据
+export const initialCategoryCoverages: CategoryCoverage[] = [
+  {
+    id: 'CC-001',
+    categoryPath: 'ALL (全局默认规则)',
+    objectType: 'ALL',
+    whitelistId: 'WL-001, WL-002, WL-003, WL-004, WL-005',
+    similarityRuleSetId: '机械通用相似度评分参数集',
+    thresholdRuleId: 'TR-001 (紧固件大类三化准则)',
+    hardRuleSetIds: ['HR-001', 'HR-002', 'HR-003', 'HR-004', 'HR-005'],
+    weightOverrideInfo: '无 (采用系统预置全局默认权重比例)',
+    inheritParent: false,
+    isEnabled: true,
+    version: 'v2.4.0'
+  },
+  {
+    id: 'CC-002',
+    categoryPath: '/国家标准分类/紧固件',
+    objectType: 'PART_MECHANICAL',
+    whitelistId: 'WL-001, WL-002, WL-003, WL-004, WL-005',
+    similarityRuleSetId: '紧固件专用精密评分参数集',
+    thresholdRuleId: 'TR-001 (紧固件大类三化准则)',
+    hardRuleSetIds: ['HR-001', 'HR-002', 'HR-003', 'HR-004', 'HR-005'],
+    weightOverrideInfo: '螺距权重上调至 15%, 标称直径权重上调至 20%, 规格描述降为 30%',
+    inheritParent: true,
+    isEnabled: true,
+    version: 'v2.4.0'
+  },
+  {
+    id: 'CC-003',
+    categoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
+    objectType: 'PART_MECHANICAL',
+    whitelistId: 'WL-001, WL-002, WL-003, WL-004, WL-005',
+    similarityRuleSetId: '紧固件专用精密评分参数集',
+    thresholdRuleId: 'TR-001 (紧固件大类三化准则)',
+    hardRuleSetIds: ['HR-001', 'HR-002', 'HR-003', 'HR-004', 'HR-005'],
+    weightOverrideInfo: '继承父分类【紧固件】全部覆盖参数，未作独立子类偏差设定',
+    inheritParent: true,
+    isEnabled: true,
+    version: 'v2.4.0'
+  },
+  {
+    id: 'CC-004',
+    categoryPath: '/自定义零组件/非标定制件/机加工件',
+    objectType: 'PART_MECHANICAL',
+    whitelistId: 'WL-001, WL-002, WL-003',
+    similarityRuleSetId: '非标件几何包络及公差专用评分集',
+    thresholdRuleId: 'TR-002 (机械加工定制件三化准则)',
+    hardRuleSetIds: ['HR-001', 'HR-002', 'HR-003'],
+    weightOverrideInfo: '剔除螺距字段，将主要材质权重调整至 40%, 规格包络描述权重 45%',
+    inheritParent: false,
+    isEnabled: true,
+    version: 'v2.4.0'
+  }
+];

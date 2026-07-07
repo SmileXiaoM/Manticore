@@ -335,15 +335,29 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                         {isExpanded && (
                           <tr>
                             <td colSpan={9} className="px-8 py-4 bg-slate-50 border-y border-slate-200">
-                              <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
+                              <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
                                 
-                                <span className="font-semibold text-slate-800 block text-xs border-b border-slate-100 pb-1.5">
-                                  📊 [Manticore 矩阵跑分明细] {candidate.objectId} 的二阶段权重扣减记录：
-                                </span>
+                                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-2 gap-2">
+                                  <span className="font-semibold text-slate-800 block text-xs">
+                                    📊 [Manticore 规则沙盒调试面板] {candidate.objectId} 的运行明细及判定链：
+                                  </span>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-[10px] text-slate-400">三化建议结论:</span>
+                                    {candidate.auditSuggestion === 'RECOMMEND_REUSE' ? (
+                                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-0.5 font-bold text-[10px]">建议复用 (RECOMMEND_REUSE)</span>
+                                    ) : candidate.auditSuggestion === 'RECOMMEND_REVIEW' ? (
+                                      <span className="bg-amber-50 text-amber-800 border border-amber-200 rounded px-2 py-0.5 font-bold text-[10px]">强制复核 (RECOMMEND_REVIEW)</span>
+                                    ) : candidate.auditSuggestion === 'PROHIBIT_REUSE' ? (
+                                      <span className="bg-rose-100 text-rose-800 border border-rose-300 rounded px-2 py-0.5 font-extrabold text-[10px]">绝对禁选 (PROHIBIT_REUSE)</span>
+                                    ) : (
+                                      <span className="bg-slate-100 text-slate-700 border border-slate-200 rounded px-2 py-0.5 text-[10px]">允许新建 (ALLOW_CREATE)</span>
+                                    )}
+                                  </div>
+                                </div>
 
+                                {/* Row: Score Cards */}
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
                                   {candidate.scoreDetail.map((scoreItem, sIdx) => {
-                                    // Math computation percent
                                     const percent = (scoreItem.score / scoreItem.weight) * 100;
                                     const scoreColor = percent >= 99 
                                       ? 'text-emerald-600' 
@@ -372,8 +386,69 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                                   })}
                                 </div>
 
+                                {/* New Section: Rules Trigger Trace */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+                                  
+                                  {/* Left block: Audit details and Reason */}
+                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-2">
+                                    <span className="font-bold text-slate-700 block">⚙ 判定支撑依据 (Audit Trace):</span>
+                                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                                      {candidate.auditReason}
+                                    </p>
+                                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                                      <span className="font-semibold block text-slate-700 mb-0.5">🔍 物理差异明细 (Difference details):</span>
+                                      <span>{candidate.differenceDetail || '核心几何与材料无突出偏差'}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Right block: Triggered rules and Exceptions */}
+                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-2">
+                                    <span className="font-bold text-slate-700 block">🚩 命中硬控或决策规则记录 (Triggered Rules):</span>
+                                    
+                                    <div className="space-y-1.5 text-[11px]">
+                                      {/* Normal rules */}
+                                      <div className="flex flex-wrap gap-1">
+                                        <span className="text-[10px] text-slate-400 font-medium block w-full mb-0.5">触发的全部准则标号:</span>
+                                        {(candidate.triggeredRules || []).map((rule, idx) => (
+                                          <span key={idx} className="bg-slate-200 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                                            {rule}
+                                          </span>
+                                        ))}
+                                        {(candidate.triggeredRules || []).length === 0 && (
+                                          <span className="text-slate-400 italic">无规则触发记录</span>
+                                        )}
+                                      </div>
+
+                                      {/* Hard rules - force review reasons */}
+                                      {(candidate.forceReviewReasons || []).length > 0 && (
+                                        <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded p-2 mt-1">
+                                          <strong className="block text-amber-900 mb-0.5">⚠️ 一票强制复核因子:</strong>
+                                          <ul className="list-disc pl-4 space-y-0.5 font-sans">
+                                            {candidate.forceReviewReasons?.map((reason, rIdx) => (
+                                              <li key={rIdx}>{reason}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Non-reusable rules - prohibit reuse reasons */}
+                                      {(candidate.nonReusableReasons || []).length > 0 && (
+                                        <div className="bg-rose-50 text-rose-800 border border-rose-200 rounded p-2 mt-1">
+                                          <strong className="block text-rose-900 mb-0.5">🚫 阻断性禁选指标:</strong>
+                                          <ul className="list-disc pl-4 space-y-0.5 font-sans">
+                                            {candidate.nonReusableReasons?.map((reason, rIdx) => (
+                                              <li key={rIdx}>{reason}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                </div>
+
                                 <span className="text-[10px] text-slate-400 block pt-1 leading-normal font-sans">
-                                  💡 <strong>重算说明：</strong>该相似得分是由各属性所得分数直接累加：{candidate.scoreDetail.map(s => s.score.toFixed(1)).join(' + ')} = <strong>{candidate.similarityScore.toFixed(1)}分</strong>。一阶段全文检索不贡献本分数，二阶段计算已完全激活标准化和同义词规则集。
+                                  💡 <strong>重算算法说明：</strong>该相似得分是由各属性所得分数直接累加：{candidate.scoreDetail.map(s => s.score.toFixed(1)).join(' + ')} = <strong>{candidate.similarityScore.toFixed(1)}分</strong>。一阶段全文检索不贡献本分数，二阶段计算已完全激活标准化和同义词规则集。
                                 </span>
 
                               </div>
