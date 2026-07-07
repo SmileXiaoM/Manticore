@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Plus, 
   Save, 
@@ -62,6 +62,103 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formHitReasonTemplate, setFormHitReasonTemplate] = useState('');
   const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState('');
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
+  // Refs and states for template configuration
+  const hitReasonRef = useRef<HTMLTextAreaElement>(null);
+  const diffFieldsRef = useRef<HTMLTextAreaElement>(null);
+  const [showVariableGuide, setShowVariableGuide] = useState(false);
+
+  // Helper to generate live template preview with mock data
+  const getPreviewText = (template: string, fieldType: string) => {
+    let src = "内六角螺栓 M10";
+    let tgt = "六角螺栓 M10";
+    let diff = "0.2mm";
+    let match = "归一化匹配一致";
+    let score = "85";
+    let cat = "紧固件/螺栓";
+
+    if (fieldType.includes("数字") || fieldType.includes("NUMBER") || fieldType.includes("数值")) {
+      src = "10mm";
+      tgt = "10.2mm";
+      diff = "0.2mm";
+      match = "数值差分比对";
+      score = "50";
+    } else if (fieldType.includes("分类") || fieldType.includes("CLASS_TREE") || fieldType.includes("分类树")) {
+      src = "紧固件/螺栓";
+      tgt = "标准件/螺栓";
+      diff = "无";
+      match = "分类层级对齐";
+      score = "90";
+      cat = "紧固件/螺栓";
+    } else if (fieldType.includes("枚举") || fieldType.includes("ENUM") || fieldType.includes("枚举 (ENUM)")) {
+      src = "SUS304";
+      tgt = "304不锈钢";
+      diff = "无";
+      match = "同义词词典拉平";
+      score = "100";
+    }
+
+    return template
+      .replace(/\{score\}/g, score)
+      .replace(/\{source_val\}/g, src)
+      .replace(/\{target_val\}/g, tgt)
+      .replace(/\{match\}/g, match)
+      .replace(/\{diff_val\}/g, diff)
+      .replace(/\{category\}/g, cat);
+  };
+
+  // Helper to check for invalid/unknown variables
+  const getInvalidVariables = (text: string) => {
+    const matches = text.match(/\{[^{}]*\}/g) || [];
+    const validVars = ['{score}', '{source_val}', '{target_val}', '{match}', '{diff_val}', '{category}'];
+    const invalid = matches.filter(v => !validVars.includes(v));
+    return invalid;
+  };
+
+  // Click insert helper at cursor position
+  const handleInsertVariable = (
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>,
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setter(prev => prev + value);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+
+    setter(before + value + after);
+
+    // Reset cursor position after React re-renders
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = start + value.length;
+      textarea.selectionEnd = start + value.length;
+    }, 0);
+  };
+
+  const getAvailableVariablesForType = (fieldType: string) => {
+    const common = ['{score}', '{source_val}', '{target_val}'];
+    if (fieldType.includes('TEXT') || fieldType.includes('文本')) {
+      return [...common, '{match}'];
+    }
+    if (fieldType.includes('NUMBER') || fieldType.includes('数字')) {
+      return [...common, '{diff_val}'];
+    }
+    if (fieldType.includes('CLASS_TREE') || fieldType.includes('分类')) {
+      return [...common, '{category}'];
+    }
+    if (fieldType.includes('ENUM') || fieldType.includes('枚举')) {
+      return [...common, '{match}'];
+    }
+    return common;
+  };
 
   // 1. List Filter Logic
   const filteredRules = useMemo(() => {
@@ -152,8 +249,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormIsAppEndActive(true);
     setFormShowHitReason(true);
     setFormShowDiffFields(true);
-    setFormHitReasonTemplate('字段匹配，得 {score}分');
-    setFormDiffFieldsTemplate('字段值差异: 源[{source_val}] vs 目标[{target_val}]');
+    setFormHitReasonTemplate('字段匹配，源值「{source_val}」与目标值「{target_val}」通过 {match}，得 {score} 分');
+    setFormDiffFieldsTemplate('字段值存在差异：源值「{source_val}」，目标值「{target_val}」');
   };
 
   // Handle Delete
@@ -167,6 +264,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleSaveForm = (asDraft: boolean) => {
     if (!formFieldName || !formPropertyCode) {
       alert('请输入字段显示名称和属性编码！');
+      return;
+    }
+
+    const hitReasonInvalid = formShowHitReason ? getInvalidVariables(formHitReasonTemplate) : [];
+    const diffFieldsInvalid = formShowDiffFields ? getInvalidVariables(formDiffFieldsTemplate) : [];
+
+    if (hitReasonInvalid.length > 0) {
+      alert(`【命中原因解释文字模板】存在未知变量: ${hitReasonInvalid.join(', ')}，系统无法自动替换，请修正或从可用变量中选择。`);
+      return;
+    }
+    if (diffFieldsInvalid.length > 0) {
+      alert(`【物理差异标注文字模板】存在未知变量: ${diffFieldsInvalid.join(', ')}，系统无法自动替换，请修正或从可用变量中选择。`);
       return;
     }
 
@@ -954,68 +1063,190 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </div>
 
                 {/* Templates Inputs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Hit Reason Template */}
-                  <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-2">
+                <div className="space-y-4">
+                  {/* Variable Guide Panel */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 text-[11px]">1. 命中原理解释文字模板</span>
-                      <span className="text-[10px] text-slate-400">开启[生成命中原因]时激活</span>
+                      <span className="text-[11px] font-bold text-slate-700 flex items-center">
+                        <HelpCircle className="w-4 h-4 text-slate-500 mr-1.5" />
+                        📋 模板变量配置指南（占位符说明）
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowVariableGuide(!showVariableGuide)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded border border-blue-100 transition-colors"
+                      >
+                        {showVariableGuide ? '收起说明 ↑' : '展开说明 ↓'}
+                      </button>
                     </div>
-                    <textarea
-                      rows={2}
-                      value={formHitReasonTemplate}
-                      onChange={(e) => setFormHitReasonTemplate(e.target.value)}
-                      placeholder="例如: 属性比对通过，相似算分 {score}分"
-                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-mono"
-                      disabled={!formShowHitReason}
-                    />
-                    <div className="flex items-center space-x-1 flex-wrap">
-                      <span className="text-[10px] text-slate-400">标签:</span>
-                      {['{score}', '{match}', '{source_val}', '{target_val}'].map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => {
-                            setFormHitReasonTemplate(prev => prev + v);
-                          }}
-                          disabled={!formShowHitReason}
-                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] font-mono"
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      变量是由系统根据客观计算结果自动动态替换的占位符，<strong className="text-slate-700">配置人员无需在此处手工填写 Manticore 物理编码字段</strong>（Manticore 字段可在上面的「属性物理编码」中进行维护配置）。
+                    </p>
+                    {showVariableGuide && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-[10px] text-slate-600">
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{score}`}</code>
+                          <span className="ml-1 text-slate-500">：当前字段得分，例如 25</span>
+                        </div>
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{source_val}`}</code>
+                          <span className="ml-1 text-slate-500">：源对象属性值，例如 SUS304</span>
+                        </div>
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{target_val}`}</code>
+                          <span className="ml-1 text-slate-500">：目标候选属性值，例如 304不锈钢</span>
+                        </div>
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{match}`}</code>
+                          <span className="ml-1 text-slate-500">：命中归一说明，例如 归一化一致</span>
+                        </div>
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{diff_val}`}</code>
+                          <span className="ml-1 text-slate-500">：数值差异，例如 0.2</span>
+                        </div>
+                        <div className="bg-white p-1.5 rounded border border-slate-200">
+                          <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10px]">{`{category}`}</code>
+                          <span className="ml-1 text-slate-500">：分类归一结果，例如 紧固件/螺栓</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Diff Fields Template */}
-                  <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 text-[11px]">2. 物理差异标注文字模板</span>
-                      <span className="text-[10px] text-slate-400">开启[计算并展示差异]时激活</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Hit Reason Template */}
+                    <div className={`border rounded-lg p-3.5 space-y-3 transition-all duration-200 ${!formShowHitReason ? 'bg-slate-50 opacity-60 border-slate-200 select-none' : 'bg-white border-slate-200 shadow-xs'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                          <span className="font-bold text-slate-700 text-xs">1. 命中原理解释文字模板</span>
+                        </div>
+                        {!formShowHitReason ? (
+                          <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">未开启命中日志</span>
+                        ) : (
+                          <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-200 font-semibold">编辑中</span>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <textarea
+                          ref={hitReasonRef}
+                          rows={2}
+                          value={formHitReasonTemplate}
+                          onChange={(e) => setFormHitReasonTemplate(e.target.value)}
+                          placeholder="例如: 字段匹配，源值「{source_val}」与目标值「{target_val}」通过 {match}，得 {score} 分"
+                          className={`w-full border rounded p-2 text-xs font-mono transition-colors focus:ring-1 focus:ring-blue-500 outline-hidden ${!formShowHitReason ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-800'}`}
+                          disabled={!formShowHitReason}
+                        />
+                      </div>
+
+                      {/* Validation Warning */}
+                      {formShowHitReason && getInvalidVariables(formHitReasonTemplate).length > 0 && (
+                        <div className="text-[10px] text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-start space-x-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                          <span>
+                            <strong>未知变量：</strong> {getInvalidVariables(formHitReasonTemplate).join(', ')}。系统无法替换，请从可插入变量中选择。
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Insert Buttons */}
+                      <div className="flex items-center space-x-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold text-slate-500">可插入变量:</span>
+                        {getAvailableVariablesForType(formFieldType).map(v => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => handleInsertVariable(hitReasonRef, v, setFormHitReasonTemplate)}
+                            disabled={!formShowHitReason}
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${!formShowHitReason ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-50/50 hover:bg-blue-50 text-blue-600 border-blue-200 active:scale-95'}`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Preview Box */}
+                      <div className={`p-2.5 rounded border ${!formShowHitReason ? 'bg-slate-100 border-slate-200' : 'bg-slate-50 border-slate-200/60'}`}>
+                        <div className="text-[10px] font-bold text-slate-400 mb-1 flex items-center">
+                          <span className="inline-block w-1 h-3 bg-slate-300 mr-1.5 rounded-xs"></span>
+                          预览效果
+                        </div>
+                        <div className={`text-xs break-all leading-relaxed font-mono ${!formShowHitReason ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                          {formShowHitReason ? (
+                            getPreviewText(formHitReasonTemplate, formFieldType) || <span className="text-slate-400 italic">（空模板）</span>
+                          ) : (
+                            <span>未开启“生成命中原因日志”</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <textarea
-                      rows={2}
-                      value={formDiffFieldsTemplate}
-                      onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
-                      placeholder="例如: 材质不符，原[{source_val}] 现[{target_val}]"
-                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-mono"
-                      disabled={!formShowDiffFields}
-                    />
-                    <div className="flex items-center space-x-1 flex-wrap">
-                      <span className="text-[10px] text-slate-400">标签:</span>
-                      {['{source_val}', '{target_val}', '{score}'].map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => {
-                            setFormDiffFieldsTemplate(prev => prev + v);
-                          }}
+
+                    {/* Diff Fields Template */}
+                    <div className={`border rounded-lg p-3.5 space-y-3 transition-all duration-200 ${!formShowDiffFields ? 'bg-slate-50 opacity-60 border-slate-200 select-none' : 'bg-white border-slate-200 shadow-xs'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                          <span className="font-bold text-slate-700 text-xs">2. 物理差异标注文字模板</span>
+                        </div>
+                        {!formShowDiffFields ? (
+                          <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">未开启物理差异</span>
+                        ) : (
+                          <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 font-semibold">编辑中</span>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <textarea
+                          ref={diffFieldsRef}
+                          rows={2}
+                          value={formDiffFieldsTemplate}
+                          onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
+                          placeholder="例如: 字段值存在差异：源值「{source_val}」，目标值「{target_val}」"
+                          className={`w-full border rounded p-2 text-xs font-mono transition-colors focus:ring-1 focus:ring-amber-500 outline-hidden ${!formShowDiffFields ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-800'}`}
                           disabled={!formShowDiffFields}
-                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] font-mono"
-                        >
-                          {v}
-                        </button>
-                      ))}
+                        />
+                      </div>
+
+                      {/* Validation Warning */}
+                      {formShowDiffFields && getInvalidVariables(formDiffFieldsTemplate).length > 0 && (
+                        <div className="text-[10px] text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-start space-x-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                          <span>
+                            <strong>未知变量：</strong> {getInvalidVariables(formDiffFieldsTemplate).join(', ')}。系统无法替换，请从可插入变量中选择。
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Insert Buttons */}
+                      <div className="flex items-center space-x-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold text-slate-500">可插入变量:</span>
+                        {getAvailableVariablesForType(formFieldType).map(v => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => handleInsertVariable(diffFieldsRef, v, setFormDiffFieldsTemplate)}
+                            disabled={!formShowDiffFields}
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${!formShowDiffFields ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-50/50 hover:bg-amber-50 text-amber-600 border-amber-200 active:scale-95'}`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Preview Box */}
+                      <div className={`p-2.5 rounded border ${!formShowDiffFields ? 'bg-slate-100 border-slate-200' : 'bg-slate-50 border-slate-200/60'}`}>
+                        <div className="text-[10px] font-bold text-slate-400 mb-1 flex items-center">
+                          <span className="inline-block w-1 h-3 bg-slate-300 mr-1.5 rounded-xs"></span>
+                          预览效果
+                        </div>
+                        <div className={`text-xs break-all leading-relaxed font-mono ${!formShowDiffFields ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                          {formShowDiffFields ? (
+                            getPreviewText(formDiffFieldsTemplate, formFieldType) || <span className="text-slate-400 italic">（空模板）</span>
+                          ) : (
+                            <span>未开启“计算并展示物理差异”</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
