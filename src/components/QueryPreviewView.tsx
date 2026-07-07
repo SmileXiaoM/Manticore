@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Search, 
   Play, 
-  CheckCircle, 
+  CheckCircle2, 
   AlertTriangle, 
   ChevronRight, 
   Sliders, 
@@ -11,7 +11,11 @@ import {
   Eye,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  SlidersHorizontal,
+  XCircle,
+  TrendingUp,
+  FileText
 } from 'lucide-react';
 import { queryResults } from '../data';
 
@@ -43,223 +47,193 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
       
-      {/* Title block */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
+      {/* Title Block - Clean & Jargon-free */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
-            <span>调试与验证</span>
+            <span>验证与应用</span>
             <ChevronRight className="w-3 h-3" />
             <span className="text-slate-800 font-medium">相似度查询预览</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Manticore 二阶段相似算法沙盒预览</h1>
+          <h1 className="text-xl font-bold text-slate-900">相似度与决策查询预览</h1>
           <p className="text-xs text-slate-500 mt-1">
-            用于对已经配置好的标准规则（支持未发布草稿池规则和历史已发布版本）进行检索跑分验证，调试命中原因和差异高亮是否符合预期。
+            管理端沙盒验证工具：同时验证二阶段相似度算分与三阶段三化决策推荐，提供全链条模拟对齐。
           </p>
         </div>
 
-        {/* Warning Badge explaining rule constraint */}
-        <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-lg flex items-start space-x-2 max-w-md">
-          <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-          <span className="text-[11px] text-amber-800 leading-normal">
-            <strong>⚠️ 机制说明：</strong>查询预览可用于验证
-            <span className="underline font-bold text-amber-900 mx-1">草稿规则</span>
-            或已发布规则；但应用生产端检索（如物料申请防重）<strong>严格且仅</strong>拉取已发布版本。
-          </span>
+        {/* Selected Config Info Box */}
+        <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col space-y-1 text-[11px] text-slate-600 max-w-md">
+          <div className="flex items-center justify-between space-x-4">
+            <span><strong>字段相似度规则版本:</strong> <span className="font-mono text-blue-600 font-bold">{ruleVersion === 'DRAFT_POOL' ? '草稿池(最新)' : 'v2.4.0'}</span></span>
+            <span><strong>三化决策规则版本:</strong> <span className="font-mono text-amber-600 font-bold">v2.4.0</span></span>
+          </div>
+          <div className="flex items-center justify-between space-x-4">
+            <span><strong>建议复用阈值线:</strong> <span className="font-mono text-emerald-600 font-bold">&gt;= 86%</span></span>
+            <span><strong>强控机制验证:</strong> <span className="text-emerald-600 font-semibold">已启用</span></span>
+          </div>
         </div>
       </div>
 
-      {/* Workspace Split */}
+      {/* Main Sandbox Workspace */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
-        {/* Left Side: Parameters input & Source Object Key attributes */}
+        {/* Left Control Panel */}
         <div className="w-full lg:w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto p-4 space-y-4">
           
-          {/* Query Params Card */}
-          <div className="border border-slate-200 rounded-lg p-3.5 space-y-3.5">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-100 pb-1.5">
-              1. 设定沙盒运行参数
+          <div className="border border-slate-200 rounded-lg p-3.5 space-y-3.5 bg-slate-50/50">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-1.5">
+              1. 设定模拟查询源
             </span>
 
-            {/* Selector: Object Type */}
+            {/* Object Type */}
             <div className="space-y-1 text-xs">
               <label className="block text-slate-600 font-medium">物料对象类型:</label>
               <select
                 value={objectType}
                 onChange={(e) => setObjectType(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded p-1.5 text-xs font-medium focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-semibold focus:ring-1 focus:ring-blue-500"
               >
                 <option value="PART_MECHANICAL">机械零件 (PART_MECHANICAL)</option>
                 <option value="PART_ELECTRICAL">电气元器件 (PART_ELECTRICAL)</option>
               </select>
             </div>
 
-            {/* Input: Object ID */}
+            {/* Object ID */}
             <div className="space-y-1 text-xs">
-              <label className="block text-slate-600 font-medium">源对象标识 (ID):</label>
-              <div className="flex space-x-1.5">
-                <input
-                  type="text"
-                  value={objectId}
-                  onChange={(e) => setObjectId(e.target.value)}
-                  placeholder="输入物料标识号"
-                  className="flex-1 bg-slate-50 border border-slate-300 rounded p-1.5 font-mono text-xs focus:ring-1 focus:ring-blue-500 font-semibold text-slate-800"
-                />
-              </div>
+              <label className="block text-slate-600 font-medium">源物料代码 (模拟输入):</label>
+              <input
+                type="text"
+                value={objectId}
+                onChange={(e) => setObjectId(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded p-1.5 font-mono text-xs font-bold text-slate-800"
+              />
             </div>
 
-            {/* Selector: Rule Snapshot Version */}
+            {/* Rule Snapshot */}
             <div className="space-y-1 text-xs">
-              <label className="block text-slate-600 font-medium">运行规则快照版本:</label>
+              <label className="block text-slate-600 font-medium">调试规则版本:</label>
               <select
                 value={ruleVersion}
                 onChange={(e) => setRuleVersion(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded p-1.5 text-xs font-semibold focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-semibold"
               >
-                <option value="DRAFT_POOL">DRAFT_POOL (当前草稿池 - 包含未发布规则)</option>
-                <option value="v2.4.0">v2.4.0 (线上已发布生效版本)</option>
-                <option value="v2.3.8">v2.3.8 (历史备份版本)</option>
+                <option value="DRAFT_POOL">当前草稿池规则 (含未发布更改)</option>
+                <option value="v2.4.0">线上已发布规则 (v2.4.0)</option>
               </select>
-              {ruleVersion === 'DRAFT_POOL' ? (
-                <span className="text-[10px] text-amber-600 font-bold block mt-1 animate-pulse">
-                  ⚡ 处于未发布草稿调试态
-                </span>
-              ) : (
-                <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
-                  ✔ 正在验证已发布配置
-                </span>
-              )}
             </div>
 
-            {/* Run Button */}
+            {/* Run button */}
             <button
               onClick={handleRunSearch}
               disabled={isSearching}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-xs font-semibold shadow-xs flex items-center justify-center space-x-1.5 transition-all disabled:opacity-50"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white p-2 rounded text-xs font-semibold shadow-xs flex items-center justify-center space-x-1.5 transition-all"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{isSearching ? '二阶段矩阵重算中...' : '运行沙盒规则匹配'}</span>
+              <span>{isSearching ? '计算模拟结果中...' : '启动沙盒试算'}</span>
             </button>
           </div>
 
-          {/* Source Object Key attributes card */}
-          <div className="border border-slate-200 rounded-lg p-3.5 space-y-2.5 bg-slate-50">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                2. 源对象属性预览
-              </span>
-              <span className="text-[10px] bg-slate-200 px-1 rounded font-mono text-slate-600">
-                已拉取
-              </span>
-            </div>
+          {/* Core Properties Preview of source part */}
+          <div className="border border-slate-200 rounded-lg p-3.5 space-y-2.5 bg-slate-50/50">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-1.5">
+              2. 源物料申请信息
+            </span>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-2 text-xs">
               <div>
-                <span className="text-[10px] text-slate-500 block leading-none">对象名称 (Name):</span>
-                <span className="font-semibold text-slate-800 text-[11px] block mt-0.5">内六角螺栓 M10x50 SUS304</span>
+                <span className="text-[10px] text-slate-400 block">拟申请名称:</span>
+                <span className="font-semibold text-slate-800 block">内六角螺栓 M10x50 SUS304</span>
               </div>
-              
               <div>
-                <span className="text-[10px] text-slate-500 block leading-none">分类路径 (Category):</span>
-                <span className="font-mono text-slate-600 text-[10px] block mt-0.5 truncate" title="/物料分类树/标准件/紧固件/螺纹副/内六角螺栓">
-                  .../标准件/紧固件/螺纹副/内六角螺栓
+                <span className="text-[10px] text-slate-400 block">计划分类:</span>
+                <span className="text-slate-600 font-mono block text-[10px] truncate">
+                  /紧固件/螺纹副/内六角螺栓
                 </span>
               </div>
-
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[10px] text-slate-500 block leading-none">主要材质:</span>
-                  <span className="font-semibold text-slate-800 block mt-0.5 font-mono">SUS304</span>
+                  <span className="text-[10px] text-slate-400 block">主要材质:</span>
+                  <span className="font-bold text-slate-800 block">SUS304</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 block leading-none">标称直径:</span>
-                  <span className="font-semibold text-slate-800 block mt-0.5 font-mono">10 mm</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500 block leading-none">螺距:</span>
-                  <span className="font-semibold text-slate-800 block mt-0.5 font-mono">1.5 mm</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block leading-none">生命周期状态:</span>
-                  <span className="text-emerald-700 font-semibold block mt-0.5">设计中 (In Work)</span>
+                  <span className="text-[10px] text-slate-400 block">标称直径:</span>
+                  <span className="font-bold text-slate-800 block">10 mm</span>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Quick Sandbox Stats */}
-          <div className="text-[10px] text-slate-400 font-mono text-center pt-2">
-            <div>Manticore Compute Time: 4.8ms</div>
-            <div>Scored matrix items: 4 candidates</div>
           </div>
 
         </div>
 
-        {/* Right Side: High-density results & Field scoring breakdown */}
+        {/* Right Panel: Results & Breakdown */}
         <div className="flex-1 flex flex-col overflow-hidden p-4 space-y-4">
           
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex items-center justify-between shrink-0">
-            <span className="text-xs text-slate-500">
-              运行结论: 已经使用 <strong className="text-slate-800 font-mono">DRAFT_POOL</strong> 规则快照，成功在二阶段矩阵中对源 <strong className="text-blue-700 font-mono">PART-2026-000100</strong> 进行重算跑分。结果已剔除不匹配的硬过滤，并输出命中自然语言日志。
-            </span>
+          {/* Top Info Alert */}
+          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-center justify-between shrink-0 text-xs text-amber-800">
+            <div className="flex items-center space-x-2">
+              <Info className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>沙盒试算结论:</strong> 模拟申请件与底层库相似匹配完成。测试命中 <strong className="text-slate-900 font-mono">4</strong> 个候选件，已匹配三化决策规则。
+              </span>
+            </div>
+            
             <button 
               onClick={onPublishClick}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-xs transition-all shrink-0 ml-4"
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors shrink-0 ml-4"
             >
-              一键发布测试通过草稿
+              一键发布草稿到引擎
             </button>
           </div>
 
-          {/* Similarity Candidate list */}
+          {/* Results Table */}
           <div className="flex-1 overflow-y-auto">
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-              
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
-                    <th className="px-3 py-2.5 text-center">展开得分明细</th>
-                    <th className="px-4 py-2.5 text-center">相似度 (%)</th>
-                    <th className="px-4 py-2.5">候选对象标识</th>
-                    <th className="px-4 py-2.5">对象中文名称</th>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
+                    <th className="px-3 py-2.5 text-center">得分明细</th>
+                    <th className="px-4 py-2.5 text-center">相似度</th>
+                    <th className="px-4 py-2.5">三化建议</th>
+                    <th className="px-4 py-2.5">候选物料编号</th>
+                    <th className="px-4 py-2.5">候选物料名称</th>
                     <th className="px-4 py-2.5">主要材质</th>
-                    <th className="px-4 py-2.5">归一标准分类路径</th>
-                    <th className="px-3 py-2.5 text-center">生命周期</th>
-                    <th className="px-5 py-2.5">自然语言命中原因日志</th>
-                    <th className="px-4 py-2.5 text-center">操作</th>
+                    <th className="px-4 py-2.5">分类路径</th>
+                    <th className="px-3 py-2.5">生命周期</th>
+                    <th className="px-4 py-2.5">命中原因</th>
+                    <th className="px-4 py-2.5">差异字段</th>
+                    <th className="px-4 py-2.5">触发规则</th>
+                    <th className="px-3 py-2.5 text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {queryResults.map((candidate) => {
                     const isExpanded = expandedRow === candidate.objectId;
                     
-                    // Style matching percentages
-                    const barColor = candidate.similarityScore >= 95 
-                      ? 'bg-emerald-500' 
-                      : candidate.similarityScore >= 80 
-                      ? 'bg-blue-500' 
-                      : candidate.similarityScore >= 70 
-                      ? 'bg-amber-500' 
-                      : 'bg-slate-400';
-
-                    const textColor = candidate.similarityScore >= 95 
-                      ? 'text-emerald-700' 
-                      : candidate.similarityScore >= 80 
-                      ? 'text-blue-700' 
-                      : candidate.similarityScore >= 70 
-                      ? 'text-amber-700' 
-                      : 'text-slate-600';
+                    // Determine colors for suggestions and similarities
+                    let suggestionBadge = '';
+                    let isHitException = false;
+                    
+                    if (candidate.auditSuggestion === 'RECOMMEND_REUSE') {
+                      suggestionBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    } else if (candidate.auditSuggestion === 'RECOMMEND_REVIEW') {
+                      suggestionBadge = 'bg-amber-50 text-amber-700 border-amber-200';
+                      isHitException = (candidate.forceReviewReasons || []).length > 0;
+                    } else if (candidate.auditSuggestion === 'PROHIBIT_REUSE') {
+                      suggestionBadge = 'bg-red-50 text-red-700 border-red-200';
+                      isHitException = true;
+                    } else {
+                      suggestionBadge = 'bg-slate-50 text-slate-600 border-slate-200';
+                    }
 
                     return (
                       <React.Fragment key={candidate.objectId}>
-                        {/* Parent Candidate Row */}
-                        <tr className={`hover:bg-slate-50/70 border-b border-slate-100 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
+                        <tr className={`hover:bg-slate-50/50 border-b border-slate-100 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
                           {/* Toggle cell */}
                           <td className="px-3 py-3 text-center">
                             <button
                               onClick={() => setExpandedRow(isExpanded ? null : candidate.objectId)}
-                              className="p-1 hover:bg-slate-200 rounded text-slate-600"
+                              className="p-1 hover:bg-slate-200 rounded text-slate-600 flex items-center justify-center mx-auto"
+                              title="查看字段打分明细"
                             >
                               {isExpanded ? (
                                 <ChevronUp className="w-4 h-4 text-blue-600" />
@@ -269,188 +243,154 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                             </button>
                           </td>
 
-                          {/* Similarity Percentage with high contrast bar */}
-                          <td className="px-4 py-3 text-center font-bold font-mono">
-                            <div className="flex flex-col items-center justify-center space-y-1">
-                              <span className={`${textColor} text-sm font-bold`}>{candidate.similarityScore.toFixed(1)}%</span>
-                              <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                <div className={`${barColor} h-full`} style={{ width: `${candidate.similarityScore}%` }}></div>
-                              </div>
-                            </div>
+                          {/* Similarity Score */}
+                          <td className="px-4 py-3 text-center font-bold font-mono text-slate-800">
+                            <span className="text-[13px]">{candidate.similarityScore.toFixed(1)}%</span>
                           </td>
 
-                          {/* Candidate ID */}
-                          <td className="px-4 py-3 font-mono font-semibold text-slate-800">
+                          {/* Three-Standardization Recommendation */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded border font-bold text-[10px] ${suggestionBadge}`}>
+                              {candidate.auditSuggestion === 'RECOMMEND_REUSE' ? '建议复用' :
+                               candidate.auditSuggestion === 'RECOMMEND_REVIEW' ? '建议复核' :
+                               candidate.auditSuggestion === 'PROHIBIT_REUSE' ? '禁止复用' : '允许新建'}
+                            </span>
+                          </td>
+
+                          {/* Candidate Code */}
+                          <td className="px-4 py-3 font-mono font-semibold text-slate-700">
                             {candidate.objectId}
                           </td>
 
                           {/* Candidate Name */}
-                          <td className="px-4 py-3 font-semibold text-slate-900 font-sans">
+                          <td className="px-4 py-3 font-semibold text-slate-900">
                             {candidate.objectName}
                           </td>
 
                           {/* Material */}
-                          <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-mono">
-                            {candidate.material}
-                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-600">{candidate.material}</td>
 
-                          {/* Class path */}
-                          <td className="px-4 py-3 text-slate-500 font-mono max-w-[180px] truncate" title={candidate.classificationPath}>
+                          {/* Category path */}
+                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[120px]" title={candidate.classificationPath}>
                             {candidate.classificationPath}
                           </td>
 
                           {/* Lifecycle */}
-                          <td className="px-3 py-3 text-center whitespace-nowrap">
-                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-sans">
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">
                               {candidate.lifecycleState.split(' ')[0]}
                             </span>
                           </td>
 
-                          {/* Hit reason Template output */}
-                          <td className="px-5 py-3 text-slate-600 max-w-[300px] leading-relaxed">
-                            <p className="line-clamp-2" title={candidate.hitReason}>{candidate.hitReason}</p>
-                            
-                            {/* Highlighted Difference box */}
-                            {candidate.diffFields && (
-                              <div className="mt-1 bg-red-50 text-red-700 border border-red-100 rounded px-1.5 py-0.5 text-[10px] font-sans">
-                                <strong>💡 差异差异:</strong> {candidate.diffFields}
-                              </div>
-                            )}
+                          {/* Hit reason */}
+                          <td className="px-4 py-3 text-slate-600 max-w-xs truncate" title={candidate.hitReason}>
+                            {candidate.hitReason}
                           </td>
 
-                          {/* Action Entry */}
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                          {/* Diff fields */}
+                          <td className="px-4 py-3 text-red-600 font-medium max-w-xs truncate" title={candidate.diffFields}>
+                            {candidate.diffFields || <span className="text-slate-300 italic">无</span>}
+                          </td>
+
+                          {/* Triggered rule */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1">
+                              {(candidate.triggeredRules || []).map((rule, index) => (
+                                <span key={index} className="bg-slate-100 text-slate-700 border border-slate-200 px-1 py-0.5 rounded font-mono text-[10px]">
+                                  {rule}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+
+                          {/* Comparison action */}
+                          <td className="px-3 py-3 text-center">
                             <button
-                              onClick={() => {
-                                alert(`在 PLM 系统中直接对比源 ${objectId} 与相似件 ${candidate.objectId}！`);
-                              }}
-                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 font-medium font-sans"
+                              onClick={() => alert(`在对齐看板中对比: ${objectId} vs ${candidate.objectId}`)}
+                              className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded border border-slate-300 font-medium whitespace-nowrap"
                             >
-                              对比零件
+                              对比明细
                             </button>
                           </td>
                         </tr>
 
-                        {/* Child Score Detail Breakdown accordion row */}
+                        {/* score breakdown drawer detail row */}
                         {isExpanded && (
                           <tr>
-                            <td colSpan={9} className="px-8 py-4 bg-slate-50 border-y border-slate-200">
+                            <td colSpan={12} className="px-6 py-4 bg-slate-50 border-y border-slate-200">
                               <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
-                                
-                                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-2 gap-2">
-                                  <span className="font-semibold text-slate-800 block text-xs">
-                                    📊 [Manticore 规则沙盒调试面板] {candidate.objectId} 的运行明细及判定链：
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                  <span className="font-bold text-slate-800 text-xs">
+                                    📊 [二阶段字段得分分解与匹配规则跟踪] {candidate.objectId} 的运行明细：
                                   </span>
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-[10px] text-slate-400">三化建议结论:</span>
-                                    {candidate.auditSuggestion === 'RECOMMEND_REUSE' ? (
-                                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-0.5 font-bold text-[10px]">建议复用 (RECOMMEND_REUSE)</span>
-                                    ) : candidate.auditSuggestion === 'RECOMMEND_REVIEW' ? (
-                                      <span className="bg-amber-50 text-amber-800 border border-amber-200 rounded px-2 py-0.5 font-bold text-[10px]">强制复核 (RECOMMEND_REVIEW)</span>
-                                    ) : candidate.auditSuggestion === 'PROHIBIT_REUSE' ? (
-                                      <span className="bg-rose-100 text-rose-800 border border-rose-300 rounded px-2 py-0.5 font-extrabold text-[10px]">绝对禁选 (PROHIBIT_REUSE)</span>
-                                    ) : (
-                                      <span className="bg-slate-100 text-slate-700 border border-slate-200 rounded px-2 py-0.5 text-[10px]">允许新建 (ALLOW_CREATE)</span>
-                                    )}
-                                  </div>
+                                  {isHitException && (
+                                    <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-0.5 rounded border border-red-100 flex items-center space-x-1">
+                                      <AlertTriangle className="w-3 h-3" />
+                                      <span>命中一票否决/强控红线</span>
+                                    </span>
+                                  )}
                                 </div>
 
-                                {/* Row: Score Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
-                                  {candidate.scoreDetail.map((scoreItem, sIdx) => {
-                                    const percent = (scoreItem.score / scoreItem.weight) * 100;
-                                    const scoreColor = percent >= 99 
-                                      ? 'text-emerald-600' 
-                                      : percent >= 80 
-                                      ? 'text-blue-600' 
-                                      : 'text-amber-600';
-
+                                {/* Score Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                  {candidate.scoreDetail.map((item, idx) => {
+                                    const scorePct = (item.score / item.weight) * 100;
+                                    const pctColor = scorePct >= 100 ? 'text-emerald-600' : scorePct >= 70 ? 'text-blue-600' : 'text-amber-600';
                                     return (
-                                      <div key={sIdx} className="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-1">
-                                        <span className="text-[10px] text-slate-500 block leading-none truncate" title={scoreItem.fieldName}>
-                                          {scoreItem.fieldName.split(' ')[0]}
-                                        </span>
-                                        
-                                        <div className="flex items-baseline space-x-1 font-mono">
-                                          <span className={`text-base font-bold ${scoreColor}`}>
-                                            {scoreItem.score.toFixed(1)}
-                                          </span>
-                                          <span className="text-[10px] text-slate-400">/ {scoreItem.weight}分</span>
+                                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded p-2.5">
+                                        <span className="text-[10px] text-slate-400 block truncate" title={item.fieldName}>{item.fieldName}</span>
+                                        <div className="flex items-baseline space-x-1 font-mono mt-0.5">
+                                          <span className={`text-base font-bold ${pctColor}`}>{item.score.toFixed(1)}</span>
+                                          <span className="text-[10px] text-slate-400">/ {item.weight}分</span>
                                         </div>
-
-                                        <span className="text-[10px] text-slate-400 leading-none block font-mono truncate" title={scoreItem.matchInfo}>
-                                          {scoreItem.matchInfo}
+                                        <span className="text-[10px] text-slate-400 truncate block mt-1 leading-none font-mono" title={item.matchInfo}>
+                                          {item.matchInfo}
                                         </span>
                                       </div>
                                     );
                                   })}
                                 </div>
 
-                                {/* New Section: Rules Trigger Trace */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
-                                  
-                                  {/* Left block: Audit details and Reason */}
-                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-2">
-                                    <span className="font-bold text-slate-700 block">⚙ 判定支撑依据 (Audit Trace):</span>
+                                {/* Decision summary and Rationale */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans mt-2">
+                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-1.5">
+                                    <span className="font-bold text-slate-700 block">三化决策链依据:</span>
                                     <p className="text-slate-600 text-[11px] leading-relaxed">
                                       {candidate.auditReason}
                                     </p>
-                                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                                      <span className="font-semibold block text-slate-700 mb-0.5">🔍 物理差异明细 (Difference details):</span>
-                                      <span>{candidate.differenceDetail || '核心几何与材料无突出偏差'}</span>
+                                    <div className="text-[10px] text-slate-400 border-t border-slate-200/60 pt-1.5 mt-1.5">
+                                      <strong>物理材质工艺差异:</strong> {candidate.differenceDetail || '核心几何参数一致，属于同一特征螺纹系列'}
                                     </div>
                                   </div>
 
-                                  {/* Right block: Triggered rules and Exceptions */}
-                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-2">
-                                    <span className="font-bold text-slate-700 block">🚩 命中硬控或决策规则记录 (Triggered Rules):</span>
-                                    
-                                    <div className="space-y-1.5 text-[11px]">
-                                      {/* Normal rules */}
-                                      <div className="flex flex-wrap gap-1">
-                                        <span className="text-[10px] text-slate-400 font-medium block w-full mb-0.5">触发的全部准则标号:</span>
-                                        {(candidate.triggeredRules || []).map((rule, idx) => (
-                                          <span key={idx} className="bg-slate-200 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                                            {rule}
-                                          </span>
-                                        ))}
-                                        {(candidate.triggeredRules || []).length === 0 && (
-                                          <span className="text-slate-400 italic">无规则触发记录</span>
-                                        )}
-                                      </div>
-
-                                      {/* Hard rules - force review reasons */}
+                                  <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-1.5">
+                                    <span className="font-bold text-slate-700 block">触发强控异常或规则明细:</span>
+                                    <div className="space-y-1 text-[11px]">
                                       {(candidate.forceReviewReasons || []).length > 0 && (
-                                        <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded p-2 mt-1">
-                                          <strong className="block text-amber-900 mb-0.5">⚠️ 一票强制复核因子:</strong>
-                                          <ul className="list-disc pl-4 space-y-0.5 font-sans">
-                                            {candidate.forceReviewReasons?.map((reason, rIdx) => (
-                                              <li key={rIdx}>{reason}</li>
-                                            ))}
+                                        <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded p-2">
+                                          <strong className="block text-amber-900 mb-0.5">强制降级因素:</strong>
+                                          <ul className="list-disc pl-4 space-y-0.5">
+                                            {candidate.forceReviewReasons?.map((r, i) => <li key={i}>{r}</li>)}
                                           </ul>
                                         </div>
                                       )}
-
-                                      {/* Non-reusable rules - prohibit reuse reasons */}
                                       {(candidate.nonReusableReasons || []).length > 0 && (
-                                        <div className="bg-rose-50 text-rose-800 border border-rose-200 rounded p-2 mt-1">
-                                          <strong className="block text-rose-900 mb-0.5">🚫 阻断性禁选指标:</strong>
-                                          <ul className="list-disc pl-4 space-y-0.5 font-sans">
-                                            {candidate.nonReusableReasons?.map((reason, rIdx) => (
-                                              <li key={rIdx}>{reason}</li>
-                                            ))}
+                                        <div className="bg-red-50 text-red-800 border border-red-200 rounded p-2">
+                                          <strong className="block text-red-900 mb-0.5">绝对禁用指标:</strong>
+                                          <ul className="list-disc pl-4 space-y-0.5">
+                                            {candidate.nonReusableReasons?.map((r, i) => <li key={i}>{r}</li>)}
                                           </ul>
                                         </div>
+                                      )}
+                                      {(candidate.forceReviewReasons || []).length === 0 && (candidate.nonReusableReasons || []).length === 0 && (
+                                        <span className="text-emerald-700 font-semibold flex items-center space-x-1">
+                                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                          <span>未触发任何一票否决指标，完全基于相似度数值计算决策。</span>
+                                        </span>
                                       )}
                                     </div>
                                   </div>
-
                                 </div>
-
-                                <span className="text-[10px] text-slate-400 block pt-1 leading-normal font-sans">
-                                  💡 <strong>重算算法说明：</strong>该相似得分是由各属性所得分数直接累加：{candidate.scoreDetail.map(s => s.score.toFixed(1)).join(' + ')} = <strong>{candidate.similarityScore.toFixed(1)}分</strong>。一阶段全文检索不贡献本分数，二阶段计算已完全激活标准化和同义词规则集。
-                                </span>
-
                               </div>
                             </td>
                           </tr>
@@ -460,7 +400,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                   })}
                 </tbody>
               </table>
-
             </div>
           </div>
 

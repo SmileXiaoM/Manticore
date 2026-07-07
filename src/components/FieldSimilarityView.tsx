@@ -61,6 +61,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formShowDiffFields, setFormShowDiffFields] = useState(true);
   const [formHitReasonTemplate, setFormHitReasonTemplate] = useState('');
   const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState('');
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   // 1. List Filter Logic
   const filteredRules = useMemo(() => {
@@ -663,175 +664,213 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="max-w-4xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             
             {/* Form Segment Header */}
-            <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-800">
-                {isNew ? '第一步：配置核心元数据与匹配折扣' : `正在编辑：[${editingRule?.id}] ${formFieldName}`}
-              </span>
-              <span className="text-xs font-mono bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
-                二阶段 Manticore 权重比对节点
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  {isNew ? '创建字段相似度规则' : `正在编辑规则：[${editingRule?.id}] ${formFieldName}`}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">配置二阶段属性对比规则，供相似度算法在沙盒或业务端调用打分。</p>
+              </div>
+              <span className="text-xs font-mono bg-white px-2 py-1 rounded border border-slate-200 text-slate-500 font-semibold">
+                Manticore 二阶段规则
               </span>
             </div>
 
-            {/* Form grid */}
+            {/* Form Content */}
             <div className="p-6 space-y-6 text-xs">
               
-              {/* Row 1: Object Type & Display Name & Property Code */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">对象类型 <span className="text-red-500">*</span></label>
-                  <select
-                    value={formObjectType}
-                    onChange={(e) => setFormObjectType(e.target.value as ObjectType)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="PART_MECHANICAL">机械零件 (PART_MECHANICAL)</option>
-                    <option value="PART_ELECTRICAL">电气元器件 (PART_ELECTRICAL)</option>
-                    <option value="DOCUMENT">图纸文档 (DOCUMENT)</option>
-                    <option value="CAD_MODEL">CAD模型实体 (CAD_MODEL)</option>
-                    <option value="ALL">全部通用类型 (ALL)</option>
-                  </select>
-                </div>
+              {/* BLOCK 1: 基础信息 */}
+              <div className="bg-slate-50/50 border border-slate-200 rounded-lg p-4 space-y-4">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2 flex items-center space-x-1.5">
+                  <span className="w-1 h-3.5 bg-blue-600 rounded"></span>
+                  <span>1. 字段基础信息 (元数据)</span>
+                </span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">适用物料类型 <span className="text-red-500">*</span></label>
+                    <select
+                      value={formObjectType}
+                      onChange={(e) => setFormObjectType(e.target.value as ObjectType)}
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-medium focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="PART_MECHANICAL">机械零件 (PART_MECHANICAL)</option>
+                      <option value="PART_ELECTRICAL">电气元器件 (PART_ELECTRICAL)</option>
+                      <option value="DOCUMENT">图纸文档 (DOCUMENT)</option>
+                      <option value="CAD_MODEL">CAD模型实体 (CAD_MODEL)</option>
+                      <option value="ALL">全部通用类型 (ALL)</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">字段显示名称 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={formFieldName}
-                    onChange={(e) => setFormFieldName(e.target.value)}
-                    placeholder="例如：主要材质 (Material)"
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">属性编码 / Manticore 字段 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={formPropertyCode}
-                    onChange={(e) => setFormPropertyCode(e.target.value)}
-                    placeholder="例如：core_material"
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Field Type & Weight & Match Type */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">字段数据类型</label>
-                  <select
-                    value={formFieldType}
-                    onChange={(e) => setFormFieldType(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="文本 (TEXT)">文本 (TEXT)</option>
-                    <option value="长文本 (LONG_TEXT)">长文本 (LONG_TEXT)</option>
-                    <option value="数字 (NUMBER)">数字 (NUMBER)</option>
-                    <option value="枚举 (ENUM)">枚举 (ENUM)</option>
-                    <option value="日期 (DATE)">日期 (DATE)</option>
-                    <option value="分类树 (CLASS_TREE)">分类树 (CLASS_TREE)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">评分权重比重 (%) <span className="text-red-500">*</span></label>
-                  <div className="flex items-center space-x-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">字段中文名 <span className="text-red-500">*</span></label>
                     <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={formWeight}
-                      onChange={(e) => setFormWeight(Number(e.target.value))}
-                      className="w-24 bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-mono"
+                      type="text"
+                      value={formFieldName}
+                      onChange={(e) => setFormFieldName(e.target.value)}
+                      placeholder="例如：主要材质"
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-medium focus:ring-1 focus:ring-blue-500"
                     />
-                    <span className="text-slate-500">满分：100% (当前合计: {weightSummary.mechTotal}%)</span>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">属性物理编码 <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={formPropertyCode}
+                      onChange={(e) => setFormPropertyCode(e.target.value)}
+                      placeholder="例如：core_material"
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-mono font-bold text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">字段数据类型</label>
+                    <select
+                      value={formFieldType}
+                      onChange={(e) => setFormFieldType(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-medium"
+                    >
+                      <option value="文本 (TEXT)">文本 (TEXT)</option>
+                      <option value="长文本 (LONG_TEXT)">长文本 (LONG_TEXT)</option>
+                      <option value="数字 (NUMBER)">数字 (NUMBER)</option>
+                      <option value="枚举 (ENUM)">枚举 (ENUM)</option>
+                      <option value="日期 (DATE)">日期 (DATE)</option>
+                      <option value="分类树 (CLASS_TREE)">分类树 (CLASS_TREE)</option>
+                    </select>
                   </div>
                 </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">匹配算法方式</label>
-                  <select
-                    value={formMatchType}
-                    onChange={(e) => setFormMatchType(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="精确值匹配">精确值匹配 (Exact Match)</option>
-                    <option value="TF-IDF 文本相似度 / Manticore 权重词匹配">TF-IDF 文本相似度 / Manticore 权重词匹配</option>
-                    <option value="数值范围容差匹配 (+/- 0.2mm)">数值范围容差匹配 (+/- 0.2mm)</option>
-                    <option value="数值范围退让比对">数值范围退让比对</option>
-                    <option value="层级深度折扣匹配">层级深度折扣匹配</option>
-                    <option value="Cosine 向量余弦值">Cosine 向量余弦值 (二阶段语义计算)</option>
-                  </select>
-                </div>
               </div>
 
-              {/* Row 3: Null Handling & Rule Sets */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">空值/缺失值处理</label>
-                  <select
-                    value={formNullHandling}
-                    onChange={(e) => setFormNullHandling(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="设为默认空字符串 (不扣分)">设为默认空字符串 (不扣分)</option>
-                    <option value="缺失判定为不匹配 (扣减该项权重分 25分)">缺失判定为不匹配 (扣减该项全额权重)</option>
-                    <option value="缺失不参与计算 (分摊到其他字段)">缺失不参与计算 (分摊到其他字段)</option>
-                    <option value="视为不匹配 (扣减10分)">视为不匹配 (固定扣减10分)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">关联标准化规则集</label>
-                  <select
-                    value={formStandardSet}
-                    onChange={(e) => setFormStandardSet(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 text-blue-600 font-medium"
-                  >
-                    <option value="无">-- 无 (不执行标准化) --</option>
-                    <option value="机械物料规格标准化规则集">机械物料规格标准化规则集</option>
-                    <option value="不锈钢/碳钢牌号归一规则">不锈钢/碳钢牌号归一规则</option>
-                    <option value="螺纹尺寸标准化映射">螺纹尺寸标准化映射</option>
-                    <option value="电压单位换算归一化 (V/mV/kV)">电压单位换算归一化 (V/mV/kV)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">关联同义词规则集</label>
-                  <select
-                    value={formSynonymSet}
-                    onChange={(e) => setFormSynonymSet(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 text-purple-600 font-medium"
-                  >
-                    <option value="无">-- 无 (不执行同义词扩展) --</option>
-                    <option value="紧固件规格同义词规则集">紧固件规格同义词规则集</option>
-                    <option value="金属材料等级同义词集">金属材料等级同义词集</option>
-                    <option value="电气阻容规格同义词集">电气阻容规格同义词集</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">分类/类型归一策略</label>
-                  <select
-                    value={formCategoryAlign}
-                    onChange={(e) => setFormCategoryAlign(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 text-emerald-600 font-medium"
-                  >
-                    <option value="无">-- 无 (不执行分类树归一) --</option>
-                    <option value="分类继承归一策略">分类继承归一策略</option>
-                    <option value="材料层级关系退避策略">材料层级关系退避策略</option>
-                    <option value="标准分类树深度计算策略">标准分类树深度计算策略</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Toggles/Switches */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <span className="font-semibold text-slate-800 block mb-3">第二步：规则生效与展现行为配置 (开关集)</span>
+              {/* BLOCK 2: 算分规则 */}
+              <div className="bg-slate-50/50 border border-slate-200 rounded-lg p-4 space-y-4">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2 flex items-center space-x-1.5">
+                  <span className="w-1 h-3.5 bg-blue-600 rounded"></span>
+                  <span>2. 相似度算分规则</span>
+                </span>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                  {/* Toggle 1: isScoreActive */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">计算权重 (%) <span className="text-red-500">*</span></label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formWeight}
+                        onChange={(e) => setFormWeight(Number(e.target.value))}
+                        className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-mono font-bold focus:ring-1 focus:ring-blue-500"
+                      />
+                      <span className="text-[10px] text-slate-400 shrink-0">满分权重：100%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">物理匹配算法</label>
+                    <select
+                      value={formMatchType}
+                      onChange={(e) => setFormMatchType(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-medium focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="精确值匹配">精确值匹配 (Exact Match)</option>
+                      <option value="TF-IDF 文本相似度 / Manticore 权重词匹配">TF-IDF 文本相似度 / Manticore 权重词匹配</option>
+                      <option value="数值范围容差匹配 (+/- 0.2mm)">数值范围容差匹配 (+/- 0.2mm)</option>
+                      <option value="数值范围退让比对">数值范围退让比对</option>
+                      <option value="层级深度折扣匹配">层级深度折扣匹配</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">缺失空值比对处理</label>
+                    <select
+                      value={formNullHandling}
+                      onChange={(e) => setFormNullHandling(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-medium focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="设为默认空字符串 (不扣分)">设为默认空字符串 (不扣分)</option>
+                      <option value="缺失判定为不匹配 (扣减该项全额权重)">缺失判定为不匹配 (扣减该项全额权重)</option>
+                      <option value="缺失不参与计算 (分摊到其他字段)">缺失不参与计算 (分摊到其他字段)</option>
+                      <option value="视为不匹配 (固定扣减10分)">视为不匹配 (固定扣减10分)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOCK 3: 算分前处理 (高级处理 - Default Collapsed) */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                  className="w-full bg-slate-50 px-4 py-3 border-b border-slate-200 hover:bg-slate-100 flex items-center justify-between text-left transition-colors"
+                >
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <span className="w-1 h-3.5 bg-purple-600 rounded"></span>
+                    <span>3. 算分前处理规约 (高级处理 - 选填)</span>
+                  </span>
+                  <div className="flex items-center space-x-2 text-[11px] text-slate-500">
+                    <span>{isAdvancedOpen ? '收起配置' : '展开标准化及扩展集'}</span>
+                    {isAdvancedOpen ? <span className="text-xs">▲</span> : <span className="text-xs">▼</span>}
+                  </div>
+                </button>
+
+                {isAdvancedOpen && (
+                  <div className="p-4 bg-white space-y-4 border-b border-slate-200 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1 text-[11px]">关联标准化规则集</label>
+                        <select
+                          value={formStandardSet}
+                          onChange={(e) => setFormStandardSet(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="无">-- 暂不挂载规则 --</option>
+                          <option value="机械物料规格标准化规则集">机械物料规格标准化规则集</option>
+                          <option value="不锈钢/碳钢牌号归一规则">不锈钢/碳钢牌号归一规则</option>
+                          <option value="螺纹尺寸标准化映射">螺纹尺寸标准化映射</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1 text-[11px]">关联同义词扩展规则集</label>
+                        <select
+                          value={formSynonymSet}
+                          onChange={(e) => setFormSynonymSet(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-semibold text-purple-700 focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="无">-- 暂不挂载规则 --</option>
+                          <option value="紧固件规格同义词规则集">紧固件规格同义词规则集</option>
+                          <option value="金属材料等级同义词集">金属材料等级同义词集</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1 text-[11px]">关联分类/类型归一策略</label>
+                        <select
+                          value={formCategoryAlign}
+                          onChange={(e) => setFormCategoryAlign(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded p-2 text-xs font-semibold text-emerald-700 focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="无">-- 暂不挂载规则 --</option>
+                          <option value="分类继承归一策略">分类继承归一策略</option>
+                          <option value="材料层级关系退避策略">材料层级关系退避策略</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* BLOCK 4: 展示解释 */}
+              <div className="bg-slate-50/50 border border-slate-200 rounded-lg p-4 space-y-4">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2 flex items-center space-x-1.5">
+                  <span className="w-1 h-3.5 bg-blue-600 rounded"></span>
+                  <span>4. 展现行为与审计开关配置</span>
+                </span>
+                
+                {/* Switch list */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-200 pb-4">
+                  {/* Score active */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
                     <input
                       type="checkbox"
                       checked={formIsScoreActive}
@@ -839,13 +878,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                     />
                     <div>
-                      <span className="font-medium text-slate-800 block">参与相似度评分 (Active Scoring)</span>
-                      <span className="text-[11px] text-slate-500">此字段的分值比对是否贡献给总评分(最高100分)</span>
+                      <span className="font-semibold text-slate-800 block">参与相似度评分</span>
+                      <span className="text-[10px] text-slate-400">此字段的比对得分是否贡献给总相似评分</span>
                     </div>
                   </label>
 
-                  {/* Toggle 2: isFilterCondition */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
+                  {/* Hard filter */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
                     <input
                       type="checkbox"
                       checked={formIsFilterCondition}
@@ -853,27 +892,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                     />
                     <div>
-                      <span className="font-medium text-slate-800 block">作为过滤条件 (Hard Filter)</span>
-                      <span className="text-[11px] text-slate-500">一阶段索引召回时作为强过滤（不匹配直接一票否决）</span>
+                      <span className="font-semibold text-slate-800 block">参与索引强过滤</span>
+                      <span className="text-[10px] text-slate-400">作为硬匹配条件（不匹配时一票否决/强制剔除）</span>
                     </div>
                   </label>
 
-                  {/* Toggle 3: isQueryPreviewAvailable */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formIsQueryPreviewAvailable}
-                      onChange={(e) => setFormIsQueryPreviewAvailable(e.target.checked)}
-                      className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                    />
-                    <div>
-                      <span className="font-medium text-slate-800 block">查询预览可用 (Preview Active)</span>
-                      <span className="text-[11px] text-slate-500">是否支持在管理后台的“相似度查询预览”中展示调试</span>
-                    </div>
-                  </label>
-
-                  {/* Toggle 4: isAppEndActive */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
+                  {/* App end active / display */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
                     <input
                       type="checkbox"
                       checked={formIsAppEndActive}
@@ -881,13 +906,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                     />
                     <div>
-                      <span className="font-medium text-slate-800 block">应用端实际生效 (Production Active)</span>
-                      <span className="text-[11px] text-slate-500">开启后，应用端（如零部件申请去重）会拉取本条规则</span>
+                      <span className="font-semibold text-slate-800 block">在应用端展示</span>
+                      <span className="text-[10px] text-slate-400">开启后此字段才会在研发端物料相似列表中陈列</span>
                     </div>
                   </label>
 
-                  {/* Toggle 5: showHitReason */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
+                  {/* Show hit reason */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
                     <input
                       type="checkbox"
                       checked={formShowHitReason}
@@ -895,13 +920,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                     />
                     <div>
-                      <span className="font-medium text-slate-800 block">展示命中原因 (Explain Hits)</span>
-                      <span className="text-[11px] text-slate-500">在结果列表页输出解析好的自然语言理由</span>
+                      <span className="font-semibold text-slate-800 block">生成命中原因日志</span>
+                      <span className="text-[10px] text-slate-400">在审计和沙盒验证中输出该字段的比对文字分析</span>
                     </div>
                   </label>
 
-                  {/* Toggle 6: showDiffFields */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
+                  {/* Show diff fields */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
                     <input
                       type="checkbox"
                       checked={formShowDiffFields}
@@ -909,74 +934,92 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                     />
                     <div>
-                      <span className="font-medium text-slate-800 block">展示差异字段 (Highlight Diff)</span>
-                      <span className="text-[11px] text-slate-500">在结果列表页中高亮并详细标注与源物料的不同之处</span>
+                      <span className="font-semibold text-slate-800 block">计算并展示物理差异</span>
+                      <span className="text-[10px] text-slate-400">当分值不为满分时，输出高亮且详细的差异文本</span>
+                    </div>
+                  </label>
+
+                  {/* Is Required for Audit (审核必填 placeholder) */}
+                  <label className="flex items-start space-x-3 cursor-pointer p-2 bg-white rounded border border-slate-200">
+                    <input
+                      type="checkbox"
+                      defaultChecked={true}
+                      className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    <div>
+                      <span className="font-semibold text-slate-800 block">提报审核必填校验</span>
+                      <span className="text-[10px] text-slate-400">申请人在业务端填写属性时此属性为必填项</span>
                     </div>
                   </label>
                 </div>
-              </div>
 
-              {/* Template Dynamic Expressions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Hit Reason Template */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-slate-800">命中原因模板 (Natural Language Template)</span>
-                    <span className="text-[10px] text-slate-400">仅在开启[展示命中原因]时输出</span>
+                {/* Templates Inputs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Hit Reason Template */}
+                  <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 text-[11px]">1. 命中原理解释文字模板</span>
+                      <span className="text-[10px] text-slate-400">开启[生成命中原因]时激活</span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={formHitReasonTemplate}
+                      onChange={(e) => setFormHitReasonTemplate(e.target.value)}
+                      placeholder="例如: 属性比对通过，相似算分 {score}分"
+                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-mono"
+                      disabled={!formShowHitReason}
+                    />
+                    <div className="flex items-center space-x-1 flex-wrap">
+                      <span className="text-[10px] text-slate-400">标签:</span>
+                      {['{score}', '{match}', '{source_val}', '{target_val}'].map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            setFormHitReasonTemplate(prev => prev + v);
+                          }}
+                          disabled={!formShowHitReason}
+                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] font-mono"
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <textarea
-                    rows={3}
-                    value={formHitReasonTemplate}
-                    onChange={(e) => setFormHitReasonTemplate(e.target.value)}
-                    placeholder="输入自然语言及变量，例如: 规格文本相似度达 {score}%, 命中了相同模式: {match}"
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-sans"
-                    disabled={!formShowHitReason}
-                  />
-                  <div className="flex items-center space-x-1.5 mt-2 flex-wrap">
-                    <span className="text-[10px] text-slate-400">快捷变量:</span>
-                    {['{score}', '{match}', '{val}', '{source_val}', '{target_val}'].map(v => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => insertVariable(v, 'hit')}
-                        disabled={!formShowHitReason}
-                        className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-[10px] text-slate-600 font-mono transition-colors disabled:opacity-50"
-                      >
-                        {v}
-                      </button>
-                    ))}
+
+                  {/* Diff Fields Template */}
+                  <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 text-[11px]">2. 物理差异标注文字模板</span>
+                      <span className="text-[10px] text-slate-400">开启[计算并展示差异]时激活</span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={formDiffFieldsTemplate}
+                      onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
+                      placeholder="例如: 材质不符，原[{source_val}] 现[{target_val}]"
+                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-mono"
+                      disabled={!formShowDiffFields}
+                    />
+                    <div className="flex items-center space-x-1 flex-wrap">
+                      <span className="text-[10px] text-slate-400">标签:</span>
+                      {['{source_val}', '{target_val}', '{score}'].map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            setFormDiffFieldsTemplate(prev => prev + v);
+                          }}
+                          disabled={!formShowDiffFields}
+                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] font-mono"
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Diff Fields Template */}
-                <div className="border border-slate-200 rounded-lg p-4 bg-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-slate-800">差异字段模板 (Difference Highlight Template)</span>
-                    <span className="text-[10px] text-slate-400">仅在开启[展示差异字段]时输出</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    value={formDiffFieldsTemplate}
-                    onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
-                    placeholder="输入自然语言及变量，例如: 规格中存在差异: 源[{source_val}] vs 目标[{target_val}]"
-                    className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-sans"
-                    disabled={!formShowDiffFields}
-                  />
-                  <div className="flex items-center space-x-1.5 mt-2 flex-wrap">
-                    <span className="text-[10px] text-slate-400">快捷变量:</span>
-                    {['{source_val}', '{target_val}', '{diff_val}', '{score}'].map(v => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => insertVariable(v, 'diff')}
-                        disabled={!formShowDiffFields}
-                        className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-[10px] text-slate-600 font-mono transition-colors disabled:opacity-50"
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -993,13 +1036,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 onClick={() => handleSaveForm(true)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded text-xs font-semibold text-slate-800 transition-colors"
               >
-                保存为草稿 (不生效)
+                保存为草稿 (不发布)
               </button>
               <button
                 onClick={() => handleSaveForm(false)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs font-semibold text-white shadow-xs transition-colors"
               >
-                确定 (提交草稿池)
+                确定提交 (草稿池)
               </button>
             </div>
 
