@@ -187,15 +187,15 @@ export default function App() {
 
               {currentView === 'threshold-rules' && (
                 <ThresholdRuleView 
-                  rules={thresholdRules} 
-                  onUpdateRules={setThresholdRules} 
+                  thresholdRules={thresholdRules} 
+                  onUpdateThresholdRules={setThresholdRules} 
                 />
               )}
 
               {currentView === 'hard-rules' && (
                 <HardRuleView 
-                  rules={hardRules} 
-                  onUpdateRules={setHardRules} 
+                  hardRules={hardRules} 
+                  onUpdateHardRules={setHardRules} 
                 />
               )}
 
