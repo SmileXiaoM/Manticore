@@ -12,6 +12,8 @@ import { AttributeTypesView } from './components/AttributeTypesView';
 import { AttributeEnumsView } from './components/AttributeEnumsView';
 import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
+import { DataProcessingView } from './components/DataProcessingView';
+import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
 
 // Three-Standardization Audit Views
 import { FieldWhitelistView } from './components/FieldWhitelistView';
@@ -205,6 +207,28 @@ export default function App() {
                   onUpdateCoverages={setCoverages} 
                 />
               )}
+
+              {currentView === 'data-processing' && (
+                <DataProcessingView
+                  standardizationRules={standardizationRules}
+                  onUpdateStandardizationRules={setStandardizationRules}
+                  synonymRules={synonymRules}
+                  onUpdateSynonymRules={setSynonymRules}
+                  alignmentRules={alignmentRules}
+                  onUpdateAlignmentRules={setAlignmentRules}
+                />
+              )}
+
+              {currentView === 'decision-rules' && (
+                <ThreeStandardDecisionView
+                  thresholdRules={thresholdRules}
+                  onUpdateThresholdRules={setThresholdRules}
+                  hardRules={hardRules}
+                  onUpdateHardRules={setHardRules}
+                  coverages={coverages}
+                  onUpdateCoverages={setCoverages}
+                />
+              )}
             </main>
           </div>
         </div>
@@ -219,6 +243,7 @@ export default function App() {
           className="bg-slate-800 text-white rounded border border-slate-600 px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 cursor-pointer"
         >
           <option value="field-rules">1. 字段相似度规则列表</option>
+          <option value="data-processing">2. 数据处理规则 (联合面板)</option>
           <option value="standardization-rules">3. 标准化规则列表</option>
           <option value="synonym-rules">5. 同义词规则列表</option>
           <option value="alignment-rules">7. 分类/类型归一列表</option>
@@ -226,6 +251,7 @@ export default function App() {
           <option value="attribute-types">10. 属性类型对应说明 (无壳)</option>
           <option value="attribute-enums">11. 属性枚举对应说明 (无壳)</option>
           
+          <option value="decision-rules">2.0 三化决策规则 (联合面板)</option>
           <option value="field-whitelists">2.1 字段白名单配置</option>
           <option value="threshold-rules">2.2 决策阈值规则配置</option>
           <option value="hard-rules">2.3 一票否决强控配置</option>
