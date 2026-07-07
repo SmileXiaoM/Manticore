@@ -234,34 +234,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Embedded Floating Quick Switch for demo convenience */}
-      <div className="fixed bottom-3 right-3 bg-slate-900/90 text-white px-3 py-2 rounded-lg shadow-xl z-50 text-xs flex items-center space-x-2 border border-slate-700 backdrop-blur-xs">
-        <span className="font-semibold text-blue-300">📱 快速视图切换 (演示参考):</span>
-        <select 
-          value={currentView} 
-          onChange={(e) => setCurrentView(e.target.value)}
-          className="bg-slate-800 text-white rounded border border-slate-600 px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 cursor-pointer"
-        >
-          <option value="field-rules">1. 字段相似度规则列表</option>
-          <option value="data-processing">2. 数据处理规则 (联合面板)</option>
-          <option value="standardization-rules">3. 标准化规则列表</option>
-          <option value="synonym-rules">5. 同义词规则列表</option>
-          <option value="alignment-rules">7. 分类/类型归一列表</option>
-          <option value="publish-records">9. 发布记录与版本对比</option>
-          <option value="attribute-types">10. 属性类型对应说明 (无壳)</option>
-          <option value="attribute-enums">11. 属性枚举对应说明 (无壳)</option>
-          
-          <option value="decision-rules">2.0 三化决策规则 (联合面板)</option>
-          <option value="field-whitelists">2.1 字段白名单配置</option>
-          <option value="threshold-rules">2.2 决策阈值规则配置</option>
-          <option value="hard-rules">2.3 一票否决强控配置</option>
-          <option value="category-coverages">2.4 分类覆盖绑定配置</option>
-
-          <option value="query-preview">12. 相似度查询预览</option>
-          <option value="client-find-similar">13. 应用端查找相似件 (三化闭环)</option>
-        </select>
-      </div>
-
     </div>
   );
 }

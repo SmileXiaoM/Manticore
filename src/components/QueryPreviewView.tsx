@@ -177,12 +177,20 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
               </span>
             </div>
             
-            <button 
-              onClick={onPublishClick}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors shrink-0 ml-4"
-            >
-              一键发布草稿到引擎
-            </button>
+            <div className="flex items-center space-x-2 shrink-0 ml-4">
+              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                沙盒独立验证中
+              </span>
+              <button 
+                onClick={() => {
+                  alert("📋 已提交发布申请！沙盒验证相似度与决策模型契合预期。系统已生成发布申请，即将跳转至发布历史说明页进行审计。");
+                  onPublishClick();
+                }}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors shadow-sm"
+              >
+                提交发布申请
+              </button>
+            </div>
           </div>
 
           {/* Results Table */}

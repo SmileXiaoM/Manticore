@@ -148,7 +148,7 @@ export const ClientFindSimilarView: React.FC = () => {
             </div>
             
             <div>
-              <span className="text-slate-400 block mb-0.5">拟建字段中文名:</span>
+              <span className="text-slate-400 block mb-0.5">申请物料名称:</span>
               <span className="font-semibold text-slate-900 text-sm">内六角螺栓 M10x50 SUS304</span>
             </div>
 
@@ -348,7 +348,7 @@ export const ClientFindSimilarView: React.FC = () => {
                                   onClick={() => handleInitiateReview(candidate.objectId)}
                                   className="w-full px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold text-[11px]"
                                 >
-                                  发起复核
+                                  发起人工复核
                                 </button>
 
                                 <button

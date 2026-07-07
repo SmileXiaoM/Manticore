@@ -20,8 +20,8 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xs bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                  设计说明画板 (无产品外壳)
+                <span className="text-xs bg-amber-500/20 text-amber-300 font-sans px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                  设计说明 / 配置对齐说明 / 非产品界面
                 </span>
                 <span className="text-xs text-slate-400 font-mono">Frame 10 / 13</span>
               </div>
