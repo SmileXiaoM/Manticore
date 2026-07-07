@@ -560,7 +560,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         <div className="text-[11px] text-slate-600 space-y-2 leading-relaxed">
           <p>
             <span className="font-semibold text-slate-700">💡 重要业务导读：</span>
-            此模块属于<strong>二阶段（字段属性相似度算分）的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
+            此模块属于<strong>二阶段（字段属性相似度算分）的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
           </p>
           <div className="pt-1.5 border-t border-slate-200 flex flex-wrap items-center gap-4 text-slate-500">
             <span><strong>算分完整链路方案：</strong> 1. [前置数据清洗] (当前页) → 2. [主算分引擎] → 3. [三化决策输出]</span>
@@ -674,7 +674,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       rows={3}
                       value={editingRule.item.rawValue}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, rawValue: e.target.value }})}
-                      placeholder="φ&#10;D&#10;直径&#10;直直径"
+                      placeholder="φ&#10;D&#10;直径"
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-mono"
                     />
                   </div>
