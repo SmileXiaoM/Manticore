@@ -19,66 +19,13 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { FieldSimilarityRule, ObjectType } from '../types';
+import { stage1MappedFields } from '../data';
 
 interface FieldSimilarityViewProps {
   rules: FieldSimilarityRule[];
   onUpdateRules: (newRules: FieldSimilarityRule[]) => void;
   onPublish: () => void;
 }
-
-// 一阶段已映射字段目录 (Metadata directory from Stage 1)
-const STAGE_1_FIELDS = [
-  {
-    fieldName: '名称',
-    propertyCode: 'spec_name',
-    fieldType: '文本 (TEXT)',
-    manticoreType: 'VARCHAR',
-    source: '无',
-    unitFamily: '无',
-    baseUnit: '无',
-    indexStatus: '已索引'
-  },
-  {
-    fieldName: '长度',
-    propertyCode: 'length',
-    fieldType: '数字 (NUMBER)',
-    manticoreType: 'DOUBLE',
-    source: '无',
-    unitFamily: '长度',
-    baseUnit: 'm',
-    indexStatus: '已索引'
-  },
-  {
-    fieldName: '主要材质',
-    propertyCode: 'core_material',
-    fieldType: '枚举 (ENUM)',
-    manticoreType: 'VARCHAR',
-    source: '物料材质牌号字典',
-    unitFamily: '无',
-    baseUnit: '无',
-    indexStatus: '已索引'
-  },
-  {
-    fieldName: '分类路径',
-    propertyCode: 'category_path',
-    fieldType: '分类树 (CLASS_TREE)',
-    manticoreType: 'VARCHAR',
-    source: 'PLM原生分类树',
-    unitFamily: '无',
-    baseUnit: '无',
-    indexStatus: '已索引'
-  },
-  {
-    fieldName: '生命周期状态',
-    propertyCode: 'lifecycle_state',
-    fieldType: '枚举 (ENUM)',
-    manticoreType: 'VARCHAR',
-    source: '生命周期状态枚举',
-    unitFamily: '无',
-    baseUnit: '无',
-    indexStatus: '已索引'
-  }
-];
 
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
   rules, 
@@ -284,16 +231,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setIsNew(false);
 
     // Find Stage 1 Meta
-    const meta = STAGE_1_FIELDS.find(f => f.propertyCode === rule.propertyCode) || {
+    const meta = stage1MappedFields.find(f => f.fieldCode === rule.propertyCode) || {
       manticoreType: 'VARCHAR',
-      source: '无',
+      enumOrCategorySource: '无',
       unitFamily: '无',
       baseUnit: '无',
       indexStatus: '已索引'
     };
 
     setManticoreType(meta.manticoreType);
-    setEnumOrCategorySource(meta.source);
+    setEnumOrCategorySource(meta.enumOrCategorySource);
     setUnitFamily(meta.unitFamily);
     setBaseUnit(meta.baseUnit);
     setIndexStatus(meta.indexStatus);
@@ -353,27 +300,27 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   };
 
   // Selection from Stage 1 Mapped Fields
-  const handleSelectFieldFromStage1 = (f: typeof STAGE_1_FIELDS[0]) => {
-    setFormFieldName(f.fieldName);
-    setFormPropertyCode(f.propertyCode);
-    setFormFieldType(f.fieldType);
+  const handleSelectFieldFromStage1 = (f: typeof stage1MappedFields[0]) => {
+    setFormFieldName(f.displayName);
+    setFormPropertyCode(f.fieldCode);
+    setFormFieldType(f.businessFieldType);
     setManticoreType(f.manticoreType);
-    setEnumOrCategorySource(f.source);
+    setEnumOrCategorySource(f.enumOrCategorySource);
     setUnitFamily(f.unitFamily);
     setBaseUnit(f.baseUnit);
     setIndexStatus(f.indexStatus);
 
     // Set matching method defaults based on field type
-    if (f.fieldType.includes('NUMBER')) {
+    if (f.businessFieldType.includes('NUMBER')) {
       setFormMatchType('数值容差匹配');
       setFormDisplayUnit('mm');
       setExampleRefVal('50.0');
       setExampleCandVal('50.1');
-    } else if (f.fieldType.includes('TEXT')) {
+    } else if (f.businessFieldType.includes('TEXT')) {
       setFormMatchType('文本相似匹配 (非 AI)');
       setExampleRefVal('六角法兰面螺栓');
       setExampleCandVal('内六角法兰面螺栓');
-    } else if (f.fieldType.includes('CLASS_TREE')) {
+    } else if (f.businessFieldType.includes('CLASS_TREE')) {
       setFormMatchType('层级关系匹配');
       setExampleRefVal('/紧固件/螺栓');
       setExampleCandVal('/紧固件/螺栓/内六角螺栓');
@@ -442,8 +389,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       hitReasonTemplate: formHitReasonTemplate,
       diffFieldsTemplate: formDiffFieldsTemplate,
       
-      status: asDraft ? 'CHANGED' : 'PUBLISHED',
-      publishVersion: asDraft ? '草稿未发布' : 'v2.4.0',
+      status: 'CHANGED',
+      publishVersion: '草稿未发布',
       lastEditor: '李晓华 (工艺数据管理员)',
       lastEditTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
     };
@@ -454,6 +401,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       onUpdateRules(rules.map(r => r.id === updated.id ? updated : r));
     }
 
+    alert(`已成功保存为变更草稿。您可以在列表页面右上角点击“发布到检索集群”使所有草稿变更正式一击生效并更新版本记录。`);
     setIsNew(false);
     setEditingRule(null);
   };
@@ -835,14 +783,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </div>
           </div>
 
-          {/* UCD Specification footer */}
-          <div className="mx-6 mb-6 p-4 bg-slate-100 border border-slate-200 rounded-lg">
-            <span className="text-xs font-bold text-slate-700 block mb-1">📐 设计/评审说明 (UCD Specification)</span>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              本页面展示的是 PLM 物料库二阶段物理属性相似度计算的底层逻辑配置。本评审版通过整合二阶段的“白名单字段”与“相似度评分规则”，删除了无关的高级处理。
-              注意：本标记与评审说明在真实生产环境打包时，将移动至 Figma 注释，不会呈现在最终业务产品中。
-            </p>
-          </div>
+          <div className="mx-6 mb-6"></div>
         </div>
       ) : (
         // FORM EDITOR VIEW
@@ -1660,33 +1601,35 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {STAGE_1_FIELDS.map((f, i) => {
-                      const isUsed = rules.some(r => r.propertyCode === f.propertyCode && r.objectType === formObjectType);
-                      return (
-                        <tr key={i} className={`hover:bg-slate-50 transition-colors ${isUsed ? 'opacity-55' : ''}`}>
-                          <td className="px-3 py-2.5 font-bold text-slate-900">{f.fieldName}</td>
-                          <td className="px-3 py-2.5 font-mono text-slate-600">{f.propertyCode}</td>
-                          <td className="px-3 py-2.5 text-slate-500">{f.fieldType}</td>
-                          <td className="px-3 py-2.5 font-mono text-slate-600">{f.unitFamily}</td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-1.5 py-0.5 rounded font-bold text-[9px]">{f.indexStatus}</span>
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            {isUsed ? (
-                              <span className="text-slate-400 font-semibold">当前类型已使用</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleSelectFieldFromStage1(f)}
-                                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-[10px]"
-                              >
-                                选择该字段
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {stage1MappedFields
+                      .filter(f => f.objectType === formObjectType)
+                      .map((f, i) => {
+                        const isUsed = rules.some(r => r.propertyCode === f.fieldCode && r.objectType === formObjectType);
+                        return (
+                          <tr key={i} className={`hover:bg-slate-50 transition-colors ${isUsed ? 'opacity-55' : ''}`}>
+                            <td className="px-3 py-2.5 font-bold text-slate-900">{f.displayName}</td>
+                            <td className="px-3 py-2.5 font-mono text-slate-600">{f.fieldCode}</td>
+                            <td className="px-3 py-2.5 text-slate-500">{f.businessFieldType}</td>
+                            <td className="px-3 py-2.5 font-mono text-slate-600">{f.unitFamily}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-1.5 py-0.5 rounded font-bold text-[9px]">{f.indexStatus}</span>
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              {isUsed ? (
+                                <span className="text-slate-400 font-semibold">当前类型已使用</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectFieldFromStage1(f)}
+                                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-[10px]"
+                                >
+                                  选择该字段
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>

@@ -474,7 +474,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           <div className="space-y-4">
             {/* Category inheritance guidelines */}
             <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 text-xs">
-              <span className="font-bold text-emerald-900 block mb-1">🌲 分类策略继承与差异化覆盖策略 (UCD 演示提示)</span>
+              <span className="font-bold text-emerald-900 block mb-1">🌲 分类策略继承与差异化覆盖策略</span>
               <ul className="list-disc pl-4 space-y-1 text-emerald-800 text-[11px]">
                 <li><strong>高阶大类直接继承</strong>：缺省配置下，所有子分类会自动继承父分类的相似度字段权重和决策阈值，避免配置雪崩。</li>
                 <li><strong>差异化细化重置</strong>：针对特定需要高度敏感控制的细类（如 "芯片"、"标准螺钉"），管理员可以新建绑定记录，覆盖其白名单和计算模型，从而执行更严格/更宽松的业务门槛。</li>
@@ -556,19 +556,18 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
       </div>
 
-      {/* ⬇️ [设计/评审说明] 区域 (非产品正式操作界面) ⬇️ */}
-      <div className="mx-6 mb-6 p-4 bg-amber-500/5 border-2 border-dashed border-amber-300 rounded-lg shrink-0 space-y-4">
+      {/* 业务指南 */}
+      <div className="mx-6 mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg shrink-0 space-y-4">
         <div className="flex items-center space-x-2">
-          <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-bold">
-            [设计/评审说明]
+          <span className="px-2 py-0.5 bg-slate-600 text-white rounded text-[10px] font-bold">
+            业务指南
           </span>
-          <h4 className="text-xs font-bold text-slate-800">UCD 评审要点、阈值标准与硬控规则示例</h4>
+          <h4 className="text-xs font-bold text-slate-800">三化决策规则与管理阈值说明</h4>
         </div>
 
         <div className="text-[11px] text-slate-600 space-y-3 leading-relaxed">
           {/* Business Guide */}
           <div>
-            <span className="font-semibold text-slate-700 block mb-0.5">💡 重要业务导读：</span>
             <p>
               此模块属于<strong>三阶段（三化决策）的规则中心</strong>。系统在二阶段根据属性、名称等计算出纯客观的相似度得分（像不像）后，三化决策模块将分数对应到管理阈值线，并加载硬性控制或强控规则，输出最终的业务治理建议（能不能直接复用 / 是否需要人工复核 / 是否允许新建），不负责相似度分数的计算本身。应用端查找时只输出建议，不硬性拦截用户新建。
             </p>
@@ -576,7 +575,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
           {/* Scale Legend */}
           <div className="pt-2 border-t border-slate-200">
-            <span className="font-semibold text-slate-700 block mb-1">📊 默认三化审核阈值口径划分（供参考）：</span>
+            <span className="font-semibold text-slate-700 block mb-1">📊 三化审核阈值口径划分（供参考）：</span>
             <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center space-x-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-bold">
                 <span>建议复用: &gt;= 86%</span>

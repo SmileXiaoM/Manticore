@@ -15,20 +15,157 @@ import {
   FieldWhitelistItem,
   ThresholdRule,
   HardRule,
-  CategoryCoverage
+  CategoryCoverage,
+  ObjectType,
+  MatchConfig
 } from './types';
+
+// 0. 一阶段对齐已映射字段目录 (Stage 1 Mapped Fields Directory)
+export interface Stage1MappedField {
+  objectType: ObjectType;
+  fieldId: string;
+  displayName: string;
+  fieldCode: string;
+  businessFieldType: string;
+  manticoreType: string;
+  enumOrCategorySource: string;
+  unitFamily: string;
+  baseUnit: string;
+  indexStatus: string;
+  enabled: boolean;
+}
+
+export const stage1MappedFields: Stage1MappedField[] = [
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'spec_name_stage1',
+    displayName: '名称',
+    fieldCode: 'spec_name',
+    businessFieldType: '文本 (TEXT)',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'spec_description_stage1',
+    displayName: '规格描述',
+    fieldCode: 'spec_description',
+    businessFieldType: '长文本 (LONG_TEXT)',
+    manticoreType: 'TEXT',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'core_material_stage1',
+    displayName: '主要材质',
+    fieldCode: 'core_material',
+    businessFieldType: '枚举 (ENUM)',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '物料材质牌号字典',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'nominal_diameter_stage1',
+    displayName: '标称直径',
+    fieldCode: 'nominal_diameter',
+    businessFieldType: '带单位数值 (NUMBER)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'length_stage1',
+    displayName: '长度',
+    fieldCode: 'length',
+    businessFieldType: '带单位数值 (NUMBER)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'thread_pitch_stage1',
+    displayName: '螺距',
+    fieldCode: 'thread_pitch',
+    businessFieldType: '带单位数值 (NUMBER)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'category_path_stage1',
+    displayName: '分类路径',
+    fieldCode: 'category_path',
+    businessFieldType: '分类树 (CLASS_TREE)',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: 'PLM原生分类树',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'lifecycle_state_stage1',
+    displayName: '生命周期状态',
+    fieldCode: 'lifecycle_state',
+    businessFieldType: '枚举 (ENUM)',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '生命周期状态枚举',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_ELECTRICAL',
+    fieldId: 'working_voltage_stage1',
+    displayName: '工作电压',
+    fieldCode: 'working_voltage',
+    businessFieldType: '带单位数值 (NUMBER)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '电压',
+    baseUnit: 'V',
+    indexStatus: '已索引',
+    enabled: true
+  }
+];
 
 // 1. 字段相似度规则初始数据
 export const initialFieldRules: FieldSimilarityRule[] = [
   {
     id: 'F-001',
     objectType: 'PART_MECHANICAL',
-    fieldName: '规格描述 (Specification)',
+    fieldName: '规格描述',
     propertyCode: 'spec_description',
     fieldType: '长文本 (LONG_TEXT)',
     weight: 35,
-    matchType: 'TF-IDF 文本相似度 / Manticore 权重词匹配',
-    nullHandling: '设为默认空字符串 (不扣分)',
+    matchType: '文本相似匹配 (非 AI)',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '机械物料规格标准化规则集',
     synonymRuleSet: '紧固件规格同义词规则集',
     categoryAlignmentStrategy: '分类继承归一策略',
@@ -43,17 +180,24 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     status: 'PUBLISHED',
     publishVersion: 'v2.4.0',
     lastEditor: '张建国 (系统架构师)',
-    lastEditTime: '2026-07-02 14:32:15'
+    lastEditTime: '2026-07-02 14:32:15',
+    fieldId: 'spec_description_stage1',
+    manticoreType: 'TEXT',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: { kind: 'TEXT_SIMILARITY', threshold: 60 }
   },
   {
     id: 'F-002',
     objectType: 'PART_MECHANICAL',
-    fieldName: '主要材质 (Material)',
+    fieldName: '主要材质',
     propertyCode: 'core_material',
     fieldType: '枚举 (ENUM)',
     weight: 25,
-    matchType: '精确匹配 / 别名及归一化匹配',
-    nullHandling: '缺失判定为不匹配 (扣减该项权重分 25分)',
+    matchType: '精确值匹配',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '不锈钢/碳钢牌号归一规则',
     synonymRuleSet: '金属材料等级同义词集',
     categoryAlignmentStrategy: '材料层级关系退避策略',
@@ -63,22 +207,29 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     isAppEndActive: true,
     showHitReason: true,
     showDiffFields: true,
-    hitReasonTemplate: '材质完全匹配 (归一化值: {val})',
+    hitReasonTemplate: '材质完全匹配 (归一化值: {source_val})',
     diffFieldsTemplate: '材质不一致: 源[{source_val}] vs 目标[{target_val}]',
     status: 'CHANGED',
     publishVersion: 'v2.4.0 (草稿修改中)',
     lastEditor: '李晓华 (工艺数据管理员)',
-    lastEditTime: '2026-07-06 18:24:00'
+    lastEditTime: '2026-07-06 18:24:00',
+    fieldId: 'core_material_stage1',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '物料材质牌号字典',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: { kind: 'EXACT' }
   },
   {
     id: 'F-003',
     objectType: 'PART_MECHANICAL',
-    fieldName: '标称直径 (Nominal Diameter)',
+    fieldName: '标称直径',
     propertyCode: 'nominal_diameter',
-    fieldType: '数字 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER)',
     weight: 15,
-    matchType: '数值范围容差匹配 (+/- 0.2mm)',
-    nullHandling: '缺失不参与计算 (分摊到其他字段)',
+    matchType: '数值容差匹配',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '螺纹尺寸标准化映射',
     synonymRuleSet: '无',
     categoryAlignmentStrategy: '无',
@@ -93,17 +244,29 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     status: 'PUBLISHED',
     publishVersion: 'v2.4.0',
     lastEditor: '王明 (机械工程师)',
-    lastEditTime: '2026-06-28 10:11:45'
+    lastEditTime: '2026-06-28 10:11:45',
+    fieldId: 'nominal_diameter_stage1',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    displayUnit: 'mm',
+    matchConfig: {
+      kind: 'NUMERIC_TOLERANCE',
+      toleranceType: 'ABSOLUTE',
+      toleranceValue: 0.2,
+      direction: 'BOTH'
+    }
   },
   {
     id: 'F-004',
     objectType: 'PART_MECHANICAL',
-    fieldName: '螺距 (Thread Pitch)',
+    fieldName: '螺距',
     propertyCode: 'thread_pitch',
-    fieldType: '数字 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER)',
     weight: 10,
-    matchType: '数值精确匹配',
-    nullHandling: '视为不匹配 (扣减10分)',
+    matchType: '精确值匹配',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '无',
     synonymRuleSet: '无',
     categoryAlignmentStrategy: '无',
@@ -118,17 +281,24 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     status: 'PUBLISHED',
     publishVersion: 'v2.3.8',
     lastEditor: '王明 (机械工程师)',
-    lastEditTime: '2026-05-15 16:45:00'
+    lastEditTime: '2026-05-15 16:45:00',
+    fieldId: 'thread_pitch_stage1',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    displayUnit: 'mm',
+    matchConfig: { kind: 'EXACT' }
   },
   {
     id: 'F-005',
     objectType: 'PART_MECHANICAL',
-    fieldName: '分类路径 (Category Path)',
+    fieldName: '分类路径',
     propertyCode: 'category_path',
     fieldType: '分类树 (CLASS_TREE)',
     weight: 15,
-    matchType: '层级深度折扣匹配',
-    nullHandling: '抛出异常/不参与评分',
+    matchType: '层级关系匹配',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '分类结构映射归一策略',
     synonymRuleSet: '无',
     categoryAlignmentStrategy: '标准分类树深度计算策略',
@@ -143,17 +313,29 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     status: 'PUBLISHED',
     publishVersion: 'v2.4.0',
     lastEditor: '张建国 (系统架构师)',
-    lastEditTime: '2026-07-01 09:15:30'
+    lastEditTime: '2026-07-01 09:15:30',
+    fieldId: 'category_path_stage1',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: 'PLM原生分类树',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: {
+      kind: 'NATIVE_HIERARCHY',
+      maxLevelGap: 3,
+      relation: 'ANCESTOR_DESCENDANT',
+      deductionPerLevel: 5
+    }
   },
   {
     id: 'F-006',
     objectType: 'PART_ELECTRICAL',
-    fieldName: '工作电压 (Voltage)',
+    fieldName: '工作电压',
     propertyCode: 'working_voltage',
-    fieldType: '数字 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER)',
     weight: 30,
-    matchType: '数值范围退让比对',
-    nullHandling: '缺失视为不兼容 (扣除30分)',
+    matchType: '数值容差匹配',
+    nullHandling: '候选缺失按 0 分',
     standardizationRuleSet: '电压单位换算归一化 (V/mV/kV)',
     synonymRuleSet: '无',
     categoryAlignmentStrategy: '无',
@@ -166,9 +348,21 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     hitReasonTemplate: '电压额定范围匹配: 源[{source_val}V] 覆盖 目标[{target_val}V]',
     diffFieldsTemplate: '电压范围冲突: 源[{source_val}V] vs 目标[{target_val}V]',
     status: 'DRAFT',
-    publishVersion: '草稿 (未发布)',
+    publishVersion: '草稿未发布',
     lastEditor: '赵丽 (电气工程师)',
-    lastEditTime: '2026-07-06 11:30:22'
+    lastEditTime: '2026-07-06 11:30:22',
+    fieldId: 'working_voltage_stage1',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '电压',
+    baseUnit: 'V',
+    displayUnit: 'V',
+    matchConfig: {
+      kind: 'NUMERIC_TOLERANCE',
+      toleranceType: 'ABSOLUTE',
+      toleranceValue: 12,
+      direction: 'BOTH'
+    }
   }
 ];
 

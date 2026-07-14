@@ -4,6 +4,34 @@
 
 export type ObjectType = 'PART_MECHANICAL' | 'PART_ELECTRICAL' | 'DOCUMENT' | 'CAD_MODEL' | 'ALL';
 
+export type MatchConfig =
+  | { kind: 'EXACT' }
+  | { kind: 'TEXT_SIMILARITY'; threshold: number }
+  | {
+      kind: 'NUMERIC_TOLERANCE';
+      toleranceType: 'ABSOLUTE' | 'PERCENTAGE';
+      toleranceValue: number;
+      direction: 'BOTH' | 'HIGHER' | 'LOWER';
+    }
+  | {
+      kind: 'NUMERIC_DECAY';
+      fullScoreRange: number;
+      zeroScoreBoundary: number;
+      direction: 'BOTH' | 'HIGHER' | 'LOWER';
+    }
+  | {
+      kind: 'DATE_TOLERANCE';
+      toleranceValue: number;
+      toleranceUnit: 'DAY' | 'HOUR';
+      direction: 'BOTH' | 'HIGHER' | 'LOWER';
+    }
+  | {
+      kind: 'NATIVE_HIERARCHY';
+      maxLevelGap: number;
+      relation: 'PARENT_CHILD' | 'ANCESTOR_DESCENDANT';
+      deductionPerLevel: number;
+    };
+
 export interface FieldSimilarityRule {
   id: string;
   objectType: ObjectType;
@@ -28,6 +56,15 @@ export interface FieldSimilarityRule {
   publishVersion: string;
   lastEditor: string;
   lastEditTime: string;
+  
+  // 扩展属性
+  fieldId?: string; // 一阶段字段标识
+  manticoreType?: string; // Manticore 字段类型
+  enumOrCategorySource?: string; // 枚举、分类或单位来源
+  unitFamily?: string; // 单位族
+  baseUnit?: string; // 基准单位
+  displayUnit?: string; // 显示单位
+  matchConfig?: MatchConfig; // 匹配方式对应的动态参数
 }
 
 export interface StandardizationRule {

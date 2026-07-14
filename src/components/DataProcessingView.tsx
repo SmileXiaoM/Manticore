@@ -549,22 +549,20 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
       </div>
 
-      {/* ⬇️ [设计/评审说明] 区域 (非产品正式操作界面) ⬇️ */}
-      <div className="mx-6 mb-6 p-4 bg-amber-500/5 border-2 border-dashed border-amber-300 rounded-lg shrink-0">
+      {/* 业务指南 */}
+      <div className="mx-6 mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg shrink-0">
         <div className="flex items-center space-x-2 mb-2">
-          <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-bold">
-            [设计/评审说明]
+          <span className="px-2 py-0.5 bg-slate-600 text-white rounded text-[10px] font-bold">
+            业务指南
           </span>
-          <h4 className="text-xs font-bold text-slate-800">UCD 评审要点与二阶段说明</h4>
+          <h4 className="text-xs font-bold text-slate-800">前置数据清洗与归一说明</h4>
         </div>
         <div className="text-[11px] text-slate-600 space-y-2 leading-relaxed">
           <p>
-            <span className="font-semibold text-slate-700">💡 重要业务导读：</span>
-            此模块属于<strong>二阶段（字段属性相似度算分）的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
+            此模块属于<strong>字段属性相似度算分的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
           </p>
-          <div className="pt-1.5 border-t border-slate-200 flex flex-wrap items-center gap-4 text-slate-500">
-            <span><strong>算分完整链路方案：</strong> 1. [前置数据清洗] (当前页) → 2. [主算分引擎] → 3. [三化决策输出]</span>
-            <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">二阶段辅助预处理层</span>
+          <div className="pt-1.5 border-t border-slate-200 flex flex-wrap items-center gap-4 text-slate-500 font-mono text-[10px]">
+            <span><strong>算分完整链路方案：</strong> 1. 前置数据清洗 (当前页) → 2. 相似度评分引擎 → 3. 业务决策输出</span>
           </div>
         </div>
       </div>
