@@ -445,7 +445,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1.5">属性物理数据类型</label>
+                  <label className="block font-medium text-slate-700 mb-1.5">属性字段数据类型</label>
                   <select
                     value={formPropertyType}
                     onChange={(e) => setFormPropertyType(e.target.value)}

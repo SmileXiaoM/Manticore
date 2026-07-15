@@ -595,19 +595,19 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
               <div className="bg-white p-2 rounded border border-slate-200">
                 <span className="font-semibold text-slate-800 block mb-0.5">材质大类不一致</span>
-                <span className="text-[10px] text-slate-500">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
+                <span className="text-xs text-slate-500">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
               </div>
               <div className="bg-white p-2 rounded border border-slate-200">
                 <span className="font-semibold text-slate-800 block mb-0.5">公差尺寸溢出</span>
-                <span className="text-[10px] text-slate-500">物理规格差异超限，强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
+                <span className="text-xs text-slate-500">规格字段差异超限，强制判定为 <strong className="text-amber-600 font-medium">强制复核</strong></span>
               </div>
               <div className="bg-white p-2 rounded border border-slate-200">
                 <span className="font-semibold text-slate-800 block mb-0.5">候选件状态已作废</span>
-                <span className="text-[10px] text-slate-500">候选件已失效或退市停产，强制判定为 <strong className="text-red-600 font-medium">禁止复用</strong></span>
+                <span className="text-xs text-slate-500">候选件已失效或退市停产，强制判定为 <strong className="text-red-600 font-medium">禁止复用</strong></span>
               </div>
               <div className="bg-white p-2 rounded border border-slate-200">
                 <span className="font-semibold text-slate-800 block mb-0.5">关键耐压/封装不同</span>
-                <span className="text-[10px] text-slate-500">阻容感核心安全或物理特性冲突，强制判定为 <strong className="text-amber-600 font-medium">建议复核</strong></span>
+                <span className="text-xs text-slate-500">阻容感核心安全或核心字段属性冲突，强制判定为 <strong className="text-amber-600 font-medium">建议复核</strong></span>
               </div>
             </div>
           </div>

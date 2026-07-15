@@ -528,7 +528,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-slate-600 font-semibold">物料模型物理编码 (属性Code) <span className="text-rose-500">*</span></label>
+                  <label className="block text-slate-600 font-semibold">物料模型属性编码 (属性Code) <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     value={formPropertyCode}

@@ -168,7 +168,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
           </div>
           <h1 className="text-xl font-bold text-slate-900">阈值规则配置</h1>
           <p className="text-xs text-slate-500 mt-1">
-            将 Manticore 评分节点算出的 0-100% 物理相似度，根据业务规则划分三大去重决策带。从而指导研发借用、标准化审查以及自由新建。
+            将 Manticore 评分节点算出的 0-100% 字段属性相似度，根据业务规则划分三大去重决策带。从而指导研发借用、标准化审查以及自由新建。
           </p>
         </div>
 

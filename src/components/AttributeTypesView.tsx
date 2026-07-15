@@ -42,7 +42,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
         
         <p className="text-slate-300 text-xs mt-3 leading-relaxed max-w-4xl">
           用于指导 Figma 团队建立底层字段组件、查询接口映射及标准化能力的数据规范定义页。
-          在此详细梳理不同物理类型对应在 Manticore 全文检索、二阶段评分时的候选能力，是系统底层的逻辑元数据基石。
+          在此详细梳理不同属性类型对应在 Manticore 全文检索、二阶段评分时的候选能力，是系统底层的逻辑元数据基石。
         </p>
       </div>
 
@@ -52,26 +52,26 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
         {/* Typology explanation legends */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
           <div className="text-xs">
-            <span className="font-bold text-slate-800 block mb-1">📐 支持物理类型</span>
-            <span className="text-slate-500 text-[11px] leading-relaxed block">
+            <span className="font-bold text-slate-800 block mb-1">📐 支持属性类型</span>
+            <span className="text-slate-500 text-xs leading-relaxed block">
               涵盖 PLM 全域的 <strong>TEXT, LONG_TEXT, NUMBER, DATE, ENUM, BOOLEAN, CLASS_TREE, OBJECT_REF</strong>。
             </span>
           </div>
           <div className="text-xs">
             <span className="font-bold text-slate-800 block mb-1">⚙️ 配置侧组件</span>
-            <span className="text-slate-500 text-[11px] leading-relaxed block">
+            <span className="text-slate-500 text-xs leading-relaxed block">
               管理端录入规范，指导表单生成：<strong>TextArea, Select, MultiSelect, NumberInput, DatePicker, ObjectPicker</strong> 等。
             </span>
           </div>
           <div className="text-xs">
             <span className="font-bold text-slate-800 block mb-1">🔍 检索侧组件</span>
-            <span className="text-slate-500 text-[11px] leading-relaxed block">
+            <span className="text-slate-500 text-xs leading-relaxed block">
               客户端或预览页的查询控件：如带容差(+/- Tol)的数值检索、层级树选择器、单/多选枚举。
             </span>
           </div>
           <div className="text-xs">
             <span className="font-bold text-slate-800 block mb-1">⚡ 可选匹配方式</span>
-            <span className="text-slate-500 text-[11px] leading-relaxed block">
+            <span className="text-slate-500 text-xs leading-relaxed block">
               Manticore 引擎底层可选的相似算法：包含 <strong>TF-IDF, Cosine 向量, 双向容差, 层级衰减</strong>。
             </span>
           </div>
@@ -85,13 +85,13 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
                 <th className="px-4 py-3 border-r border-slate-200">对象大类</th>
                 <th className="px-4 py-3 border-r border-slate-200">属性中文名称</th>
                 <th className="px-4 py-3 border-r border-slate-200">标准属性编码</th>
-                <th className="px-4 py-3 border-r border-slate-200">物理数据类型</th>
+                <th className="px-4 py-3 border-r border-slate-200">属性数据类型</th>
                 <th className="px-4 py-3 border-r border-slate-200">管理端配置组件</th>
                 <th className="px-4 py-3 border-r border-slate-200">查询端搜索组件</th>
                 <th className="px-3 py-3 text-center border-r border-slate-200">是否枚举</th>
                 <th className="px-4 py-3 border-r border-slate-200">可选二阶段匹配算法 (Manticore)</th>
                 <th className="px-4 py-3 border-r border-slate-200">可选标准化 / 归一化策略</th>
-                <th className="px-4 py-3">字段物理含义及设计指导说明</th>
+                <th className="px-4 py-3">字段属性含义及设计指导说明</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 font-sans">
@@ -142,7 +142,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
                   <td className="px-4 py-3 border-r border-slate-200 max-w-[200px]">
                     <div className="flex flex-col space-y-1">
                       {item.optionalMatchTypes.map((t, idx) => (
-                        <span key={idx} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] border border-blue-100 block font-mono">
+                        <span key={idx} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs border border-blue-100 block font-mono">
                           • {t}
                         </span>
                       ))}
@@ -153,7 +153,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
                   <td className="px-4 py-3 border-r border-slate-200 max-w-[180px]">
                     <div className="flex flex-col space-y-1">
                       {item.optionalStandardization.map((s, idx) => (
-                        <span key={idx} className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-100 block font-mono">
+                        <span key={idx} className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-xs border border-purple-100 block font-mono">
                           • {s}
                         </span>
                       ))}
@@ -172,7 +172,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
 
         {/* Visual spec checklist footer */}
         <div className="border-t border-slate-200 pt-5 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500">
-          <span>PLM / Manticore 二阶段相似度匹配底层模型规范. 最终交付：工艺数据管理办公室</span>
+          <span>PLM / Manticore 二阶段相似度匹配底层模型规范. 最终交付：工艺数据 management 办公室</span>
           <span className="text-slate-400">最后更新: 2026-07-06 20:00:00</span>
         </div>
 

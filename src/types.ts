@@ -168,7 +168,7 @@ export interface AttributeEnumItem {
   description: string;
 }
 
-export interface QueryResultItem {
+export interface SimilarityCandidate {
   similarityScore: number; // 相似度 (0-100)
   objectId: string; // 对象标识
   objectName: string; // 名称
@@ -178,13 +178,18 @@ export interface QueryResultItem {
   hitReason: string; // 命中原因
   diffFields: string; // 差异字段
   scoreDetail: { fieldName: string; score: number; weight: number; matchInfo: string }[];
-  // 三化审核增强属性
+  differenceDetail?: string; // 差异字段说明
+}
+
+export interface GovernanceDecisionResult {
   auditSuggestion?: 'RECOMMEND_REUSE' | 'RECOMMEND_REVIEW' | 'ALLOW_CREATE' | 'PROHIBIT_REUSE'; // 三化建议
   auditReason?: string; // 建议原因
   triggeredRules?: string[]; // 触发规则
   forceReviewReasons?: string[]; // 强制复核原因
   nonReusableReasons?: string[]; // 不可复用原因
-  differenceDetail?: string; // 差异字段说明
+}
+
+export interface QueryResultItem extends SimilarityCandidate, GovernanceDecisionResult {
   // 源件详情 (用于展示)
   sourceObjectType?: string;
   sourceCategoryPath?: string;

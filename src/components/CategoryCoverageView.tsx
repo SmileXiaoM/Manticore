@@ -279,7 +279,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                     <th className="px-4 py-3">分类目录路径 (PLM)</th>
                     <th className="px-4 py-3">物料大类</th>
                     <th className="px-4 py-3">字段白名单集</th>
-                    <th className="px-4 py-3">物理相似度算法集</th>
+                    <th className="px-4 py-3">字段属性相似度算法集</th>
                     <th className="px-4 py-3">三化阈值准则</th>
                     <th className="px-4 py-3">硬性一票否决规则集</th>
                     <th className="px-4 py-3">继承父类</th>
@@ -381,7 +381,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                           <button
                             onClick={() => handleDelete(item.id, item.categoryPath)}
                             className="p-1 hover:bg-rose-50 text-rose-600 rounded hover:text-rose-800 transition-colors"
-                            title="物理删除覆盖规则"
+                            title="删除覆盖规则"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -409,7 +409,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                 <span className="w-1.5 h-3 bg-blue-600 rounded-full"></span>
                 <span>{isNew ? '新建分类规则绑定覆盖关系' : `编辑分类覆盖关系 - ${editingItem?.categoryPath}`}</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">Figma Mapping Spec v2.4</span>
+              <span className="text-xs text-slate-400 font-mono">Figma Mapping Spec v2.4</span>
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-5 text-xs text-slate-700">
@@ -417,7 +417,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
               {/* Row 1: Category path and Object Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-slate-600 font-semibold">PLM 分类树节点物理路径 (前缀强匹配) <span className="text-rose-500">*</span></label>
+                  <label className="block text-slate-600 font-semibold">PLM 分类树节点路径 (前缀强匹配) <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     value={formCategoryPath}
@@ -463,7 +463,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
 
                   {/* Similarity configuration */}
                   <div className="space-y-1">
-                    <label className="block text-slate-600 font-semibold">2. 物理相似度算法评分集</label>
+                    <label className="block text-slate-600 font-semibold">2. 字段属性相似度匹配方法集</label>
                     <input
                       type="text"
                       value={formSimilarityRuleSetId}

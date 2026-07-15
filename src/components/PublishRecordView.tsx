@@ -37,15 +37,8 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
           </div>
           <h1 className="text-xl font-bold text-slate-900">版本发布与配置审计历史</h1>
           <p className="text-xs text-slate-500 mt-1">
-            追溯 Manticore 二阶段相似度规则每次发布生成的版本快照，支持线上配置的差异对比及一键回滚。
+            追溯 Manticore 二阶段相似度规则每次发布生成的版本快照，支持线上配置的差异对比及复制为新草稿。
           </p>
-        </div>
-
-        <div className="flex items-center space-x-2 text-xs">
-          <span className="text-slate-500 font-mono">当前节点健康度:</span>
-          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
-            100% 同步
-          </span>
         </div>
       </div>
 
@@ -59,7 +52,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
               <History className="w-3.5 h-3.5 text-blue-500" />
               <span>版本快照发布日志 (点击行切换查看详细版本差异)</span>
             </span>
-            <span className="text-[10px] text-slate-400">仅审计已同步生效配置</span>
+            <span className="text-xs text-slate-400">仅审计已同步生效配置</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -92,7 +85,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
                       <td className="px-4 py-2.5 font-bold text-slate-900 font-mono">
                         {rec.versionCode}
                         {rec.status === 'ACTIVE' && (
-                          <span className="ml-1.5 text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-1 rounded-full font-sans">
+                          <span className="ml-1.5 text-xs bg-emerald-100 text-emerald-800 border border-emerald-200 px-1 rounded-full font-sans">
                             当前生效
                           </span>
                         )}
@@ -157,7 +150,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
                               e.stopPropagation();
                               alert(`查看版本 ${rec.versionCode} 完整的静态配置文件 JSON！`);
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-[11px] font-medium flex items-center space-x-0.5"
+                            className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-0.5"
                           >
                             <Eye className="w-3 h-3" />
                             <span>查看</span>
@@ -168,7 +161,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
                               e.stopPropagation();
                               alert(`生成当前草稿与已发布版本 ${rec.versionCode} 差异报告！`);
                             }}
-                            className="text-slate-600 hover:text-slate-800 text-[11px] font-medium flex items-center space-x-0.5"
+                            className="text-slate-600 hover:text-slate-800 text-xs font-medium flex items-center space-x-0.5"
                           >
                             <GitCompare className="w-3 h-3" />
                             <span>对比</span>
@@ -178,14 +171,14 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm(`警告！确定要一键将当前 Manticore 节点的回落策略整体回滚到 ${rec.versionCode} 吗？`)) {
+                                if (window.confirm(`确定要将版本 ${rec.versionCode} 的所有规则配置复制为新草稿吗？这不会直接更改当前线上生效的版本。`)) {
                                   onRollback(rec.versionCode);
                                 }
                               }}
-                              className="text-red-600 hover:text-red-800 text-[11px] font-medium flex items-center space-x-0.5"
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-0.5"
                             >
                               <RotateCcw className="w-3 h-3" />
-                              <span>回滚</span>
+                              <span>复制为新草稿</span>
                             </button>
                           )}
                         </div>
@@ -207,7 +200,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
               <span>所选版本差异对照细节: </span>
               <strong className="text-blue-700 font-bold font-mono text-sm">{selectedRecord.versionCode}</strong>
             </span>
-            <span className="text-[10px] text-slate-500 flex items-center space-x-1 bg-white border border-slate-200 px-2 py-0.5 rounded">
+            <span className="text-xs text-slate-500 flex items-center space-x-1 bg-white border border-slate-200 px-2 py-0.5 rounded">
               <Info className="w-3.5 h-3.5 text-blue-500" />
               <span>影响说明旨在减少上线冲突风险</span>
             </span>

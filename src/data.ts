@@ -152,6 +152,32 @@ export const stage1MappedFields: Stage1MappedField[] = [
     baseUnit: 'V',
     indexStatus: '已索引',
     enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'surface_treatment_stage1',
+    displayName: '表面处理 (演示置灰)',
+    fieldCode: 'surface_treatment',
+    businessFieldType: '文本 (TEXT)',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '未索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'material_thickness_stage1',
+    displayName: '材料厚度 (演示置灰)',
+    fieldCode: 'material_thickness',
+    businessFieldType: '带单位数值 (NUMBER)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '长度',
+    baseUnit: 'm',
+    indexStatus: '已索引',
+    enabled: false
   }
 ];
 

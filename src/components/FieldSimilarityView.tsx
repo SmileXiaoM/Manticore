@@ -25,12 +25,14 @@ interface FieldSimilarityViewProps {
   rules: FieldSimilarityRule[];
   onUpdateRules: (newRules: FieldSimilarityRule[]) => void;
   onPublish: () => void;
+  onNavigate?: (view: string) => void;
 }
 
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
   rules, 
   onUpdateRules,
-  onPublish
+  onPublish,
+  onNavigate
 }) => {
   // State for editor toggle
   const [editingRule, setEditingRule] = useState<FieldSimilarityRule | null>(null);
@@ -213,6 +215,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     });
   }, [rules, keyword, filterObjectType, filterType, filterScore, filterFilter, filterStatus]);
 
+  // Helper for available matching types and cleaned field type name
+  const availableMatchTypesCount = useMemo(() => {
+    if (formFieldType.includes('TEXT')) return 2;
+    if (formFieldType.includes('NUMBER')) return 3;
+    if (formFieldType.includes('CLASS_TREE')) return 2;
+    if (formFieldType.includes('ENUM')) return 1;
+    if (formFieldType.includes('DATE')) return 2;
+    return 1;
+  }, [formFieldType]);
+
+  const cleanFieldTypeName = useMemo(() => {
+    return formFieldType.split(' ')[0] || '默认';
+  }, [formFieldType]);
+
   // Weight Statistics
   const weightSummary = useMemo(() => {
     const activeRules = rules.filter(r => r.isScoreActive && r.objectType === 'PART_MECHANICAL');
@@ -229,6 +245,22 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleEdit = (rule: FieldSimilarityRule) => {
     setEditingRule(rule);
     setIsNew(false);
+
+    // Reset all type-exclusive dynamic states first to isolate cross-rule states
+    setFormDisplayUnit('mm');
+    setParamMinTextThreshold(60);
+    setParamNumToleranceType('ABSOLUTE');
+    setParamNumToleranceVal(0.2);
+    setParamNumToleranceDirection('BOTH');
+    setParamDecayFullScore(0.1);
+    setParamDecayZeroBoundary(1.0);
+    setParamDecayDirection('BOTH');
+    setParamDateToleranceVal(7);
+    setParamDateToleranceUnit('DAY');
+    setParamDateToleranceDirection('BOTH');
+    setParamHierarchyMaxDiff(3);
+    setParamHierarchyRequirement('ANCESTOR_DESCENDANT');
+    setParamHierarchyDeduction(5);
 
     // Find Stage 1 Meta
     const meta = stage1MappedFields.find(f => f.fieldCode === rule.propertyCode) || {
@@ -257,14 +289,52 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormIsScoreActive(rule.isScoreActive);
     setFormIsFilterCondition(rule.isFilterCondition);
     setFormHitReasonTemplate(rule.hitReasonTemplate || '字段比对，源值「{source_val}」与候选值「{target_val}」通过 {match}，得分 {score}');
-    setFormDiffFieldsTemplate(rule.diffFieldsTemplate || '物理差异：源「{source_val}」与候选「{target_val}」不一致');
+    setFormDiffFieldsTemplate(rule.diffFieldsTemplate || '字段差异：源「{source_val}」与候选「{target_val}」不一致');
 
-    // Default dynamic mock states
+    // Restore unit if exists
+    if (rule.displayUnit) {
+      setFormDisplayUnit(rule.displayUnit);
+    }
+
+    // Restore match config parameters
+    if (rule.matchConfig) {
+      const config = rule.matchConfig;
+      if (config.kind === 'TEXT_SIMILARITY') {
+        setParamMinTextThreshold(config.threshold);
+      } else if (config.kind === 'NUMERIC_TOLERANCE') {
+        setParamNumToleranceType(config.toleranceType);
+        setParamNumToleranceVal(config.toleranceValue);
+        setParamNumToleranceDirection(config.direction);
+      } else if (config.kind === 'NUMERIC_DECAY') {
+        setParamDecayFullScore(config.fullScoreRange);
+        setParamDecayZeroBoundary(config.zeroScoreBoundary);
+        setParamDecayDirection(config.direction);
+      } else if (config.kind === 'DATE_TOLERANCE') {
+        setParamDateToleranceVal(config.toleranceValue);
+        setParamDateToleranceUnit(config.toleranceUnit);
+        setParamDateToleranceDirection(config.direction);
+      } else if (config.kind === 'NATIVE_HIERARCHY') {
+        setParamHierarchyMaxDiff(config.maxLevelGap);
+        setParamHierarchyRequirement(config.relation);
+        setParamHierarchyDeduction(config.deductionPerLevel);
+      }
+    }
+
+    // Populate interactive examples based on field type
     if (rule.fieldType.includes('NUMBER')) {
-      setFormDisplayUnit('mm');
-      setParamNumToleranceVal(0.2);
-      setExampleRefVal('50.0');
-      setExampleCandVal('50.1');
+      if (rule.fieldName.includes('直径') || rule.propertyCode === 'nominal_diameter') {
+        setExampleRefVal('50.0');
+        setExampleCandVal('50.1');
+      } else {
+        setExampleRefVal('10.0');
+        setExampleCandVal('10.1');
+      }
+    } else if (rule.fieldType.includes('TEXT')) {
+      setExampleRefVal('六角法兰面螺栓');
+      setExampleCandVal('内六角法兰面螺栓');
+    } else if (rule.fieldType.includes('CLASS_TREE')) {
+      setExampleRefVal('/紧固件/螺栓');
+      setExampleCandVal('/紧固件/螺栓/内六角螺栓');
     } else {
       setExampleRefVal('SUS304');
       setExampleCandVal('SUS304');
@@ -293,7 +363,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormIsScoreActive(true);
     setFormIsFilterCondition(false);
     setFormHitReasonTemplate('字段比对，源值「{source_val}」与候选值「{target_val}」通过 {match}，得分 {score}');
-    setFormDiffFieldsTemplate('物理差异：源「{source_val}」与候选「{target_val}」不一致');
+    setFormDiffFieldsTemplate('字段差异：源「{source_val}」与候选「{target_val}」不一致');
 
     // Trigger modal immediately to keep flow smooth
     setShowFieldSelector(true);
@@ -353,17 +423,45 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
 
-    // Check unknown templates
-    const hitReasonInvalid = getInvalidVariables(formHitReasonTemplate);
-    const diffFieldsInvalid = getInvalidVariables(formDiffFieldsTemplate);
 
-    if (hitReasonInvalid.length > 0) {
-      alert(`【命中原因解释文字模板】存在未知变量: ${hitReasonInvalid.join(', ')}。请使用系统预置合法的模板变量！`);
-      return;
-    }
-    if (diffFieldsInvalid.length > 0) {
-      alert(`【物理差异标注文字模板】存在未知变量: ${diffFieldsInvalid.join(', ')}。请使用系统预置合法的模板变量！`);
-      return;
+
+    // Construct matchConfig based on selected formMatchType
+    let matchConfig: FieldSimilarityRule['matchConfig'] = undefined;
+    if (formMatchType === '精确值匹配') {
+      matchConfig = { kind: 'EXACT' };
+    } else if (formMatchType === '文本相似匹配 (非 AI)') {
+      matchConfig = {
+        kind: 'TEXT_SIMILARITY',
+        threshold: Number(paramMinTextThreshold)
+      };
+    } else if (formMatchType === '数值容差匹配') {
+      matchConfig = {
+        kind: 'NUMERIC_TOLERANCE',
+        toleranceType: paramNumToleranceType as 'ABSOLUTE' | 'PERCENTAGE',
+        toleranceValue: Number(paramNumToleranceVal),
+        direction: paramNumToleranceDirection as 'BOTH' | 'HIGHER' | 'LOWER'
+      };
+    } else if (formMatchType === '数值距离衰减') {
+      matchConfig = {
+        kind: 'NUMERIC_DECAY',
+        fullScoreRange: Number(paramDecayFullScore),
+        zeroScoreBoundary: Number(paramDecayZeroBoundary),
+        direction: paramDecayDirection as 'BOTH' | 'HIGHER' | 'LOWER'
+      };
+    } else if (formMatchType === '日期容差匹配') {
+      matchConfig = {
+        kind: 'DATE_TOLERANCE',
+        toleranceValue: Number(paramDateToleranceVal),
+        toleranceUnit: paramDateToleranceUnit as 'DAY' | 'HOUR',
+        direction: paramDateToleranceDirection as 'BOTH' | 'HIGHER' | 'LOWER'
+      };
+    } else if (formMatchType === '层级关系匹配') {
+      matchConfig = {
+        kind: 'NATIVE_HIERARCHY',
+        maxLevelGap: Number(paramHierarchyMaxDiff),
+        relation: paramHierarchyRequirement as 'PARENT_CHILD' | 'ANCESTOR_DESCENDANT',
+        deductionPerLevel: Number(paramHierarchyDeduction)
+      };
     }
 
     const updated: FieldSimilarityRule = {
@@ -389,6 +487,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       hitReasonTemplate: formHitReasonTemplate,
       diffFieldsTemplate: formDiffFieldsTemplate,
       
+      manticoreType: manticoreType,
+      enumOrCategorySource: enumOrCategorySource,
+      unitFamily: unitFamily,
+      baseUnit: baseUnit,
+      displayUnit: formDisplayUnit,
+      matchConfig: matchConfig,
+
       status: 'CHANGED',
       publishVersion: '草稿未发布',
       lastEditor: '李晓华 (工艺数据管理员)',
@@ -401,7 +506,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       onUpdateRules(rules.map(r => r.id === updated.id ? updated : r));
     }
 
-    alert(`已成功保存为变更草稿。您可以在列表页面右上角点击“发布到检索集群”使所有草稿变更正式一击生效并更新版本记录。`);
+    alert(`已成功保存为变更草稿。您可以点击列表上方的“正式发布”使草稿变更生效。`);
     setIsNew(false);
     setEditingRule(null);
   };
@@ -485,7 +590,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {isNew ? '新建字段相似度规则' : editingRule ? '编辑字段相似度规则' : '字段相似度规则管理（二阶段）'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            配置 Manticore 二阶段精确物理属性对比规则，由系统计算各字段匹配比重得分，自动形成命中原理解释与物理差异标注。
+            配置 Manticore 二阶段精确字段对比规则，由系统计算各字段匹配比重得分，自动形成命中原因解释与字段差异标注。
           </p>
         </div>
 
@@ -506,7 +611,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold shadow-xs transition-colors"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>发布配置到检索集群</span>
+              <span>正式发布</span>
             </button>
             <button
               onClick={handleNew}
@@ -527,17 +632,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </button>
             <button
               onClick={() => handleSaveForm(true)}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded text-xs font-semibold transition-colors"
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold shadow-xs transition-colors"
             >
               <Save className="w-3.5 h-3.5" />
               <span>保存草稿</span>
             </button>
             <button
-              onClick={() => handleSaveForm(false)}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold shadow-xs transition-colors"
+              onClick={() => {
+                handleSaveForm(true);
+                if (onNavigate) {
+                  onNavigate('query-preview');
+                } else {
+                  alert('即将进入“查询预览”界面查看试算结论！');
+                }
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded text-xs font-semibold transition-colors"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>确定并提交</span>
+              <Search className="w-3.5 h-3.5" />
+              <span>查询预览</span>
             </button>
           </div>
         )}
@@ -552,12 +664,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="px-6 pt-4 shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-[11px] text-slate-400 block font-semibold">机械零件 (PART_MECHANICAL) 评分权重和</span>
+                <span className="text-xs text-slate-400 block font-semibold">机械零件 (PART_MECHANICAL) 评分权重和</span>
                 <div className="flex items-baseline space-x-1.5 mt-1">
                   <span className={`text-xl font-bold font-mono ${weightSummary.mechTotal === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
                     {weightSummary.mechTotal}%
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     {weightSummary.mechTotal === 100 ? '已配平(100%满分)' : '未配平，各算分项权重之和须等于100%'}
                   </span>
                 </div>
@@ -569,10 +681,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-[11px] text-slate-400 block font-semibold">待发布草稿变更</span>
+                <span className="text-xs text-slate-400 block font-semibold">待发布草稿变更</span>
                 <div className="flex items-baseline space-x-1.5 mt-1">
                   <span className="text-xl font-bold text-amber-600 font-mono">2</span>
-                  <span className="text-[10px] text-slate-500">材质及长度物理差异模板已做修改</span>
+                  <span className="text-xs text-slate-500">材质及长度字段差异已做修改</span>
                 </div>
               </div>
               <div className="p-1.5 bg-amber-50 rounded text-amber-600">
@@ -582,10 +694,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-[11px] text-slate-400 block font-semibold">Manticore 端生效配置</span>
+                <span className="text-xs text-slate-400 block font-semibold">Manticore 端生效配置</span>
                 <div className="flex items-baseline space-x-1.5 mt-1">
                   <span className="text-xl font-bold text-slate-800 font-mono">v2.4.0</span>
-                  <span className="text-[10px] text-slate-500">2026-07-02 全量同步</span>
+                  <span className="text-xs text-slate-500">2026-07-02 全量同步</span>
                 </div>
               </div>
               <div className="p-1.5 bg-emerald-50 rounded text-emerald-600">
@@ -598,7 +710,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <div className="bg-slate-100/80 border border-slate-200/80 rounded px-3 py-1.5 text-xs text-slate-600 flex items-center justify-between">
               <span className="font-semibold text-slate-700 shrink-0">当前评分公式 (仅限启用的评分字段):</span>
               <span className="font-mono text-slate-500 truncate max-w-2xl px-2">{weightSummary.mechDetails}</span>
-              <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono">
+              <span className="text-slate-400 text-xs bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono">
                 Formula Engine
               </span>
             </div>
@@ -612,7 +724,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜索字段名称 / 物理编码 / 修改人"
+                placeholder="搜索字段名称 / 字段编码 / 修改人"
                 className="w-full pl-8 pr-3 py-1 bg-white border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden font-medium text-slate-700"
               />
             </div>
@@ -675,15 +787,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           {/* Rules Table */}
           <div className="flex-1 overflow-auto px-6 pb-6">
             <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs min-w-[1200px]">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                     <th className="px-4 py-2.5 border-r border-slate-200">适用物料类型</th>
                     <th className="px-4 py-2.5 border-r border-slate-200">字段显示名称</th>
-                    <th className="px-4 py-2.5 border-r border-slate-200">物理属性编码</th>
+                    <th className="px-4 py-2.5 border-r border-slate-200">字段编码</th>
                     <th className="px-4 py-2.5 border-r border-slate-200">字段数据类型</th>
                     <th className="px-3 py-2.5 border-r border-slate-200 text-center" style={{ width: '100px' }}>评分权重 (%)</th>
-                    <th className="px-4 py-2.5 border-r border-slate-200">物理匹配算法方式</th>
+                    <th className="px-4 py-2.5 border-r border-slate-200">匹配方式</th>
                     <th className="px-4 py-2.5 border-r border-slate-200">缺失空值处理策略</th>
                     <th className="px-3 py-2.5 border-r border-slate-200 text-center" style={{ width: '80px' }}>评分</th>
                     <th className="px-3 py-2.5 border-r border-slate-200 text-center" style={{ width: '80px' }}>强过滤</th>
@@ -694,15 +807,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-150">
-                  {filteredRules.map((r) => (
+                   {filteredRules.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-2.5 border-r border-slate-200 whitespace-nowrap">
                         {r.objectType === 'PART_MECHANICAL' ? (
-                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium border border-blue-100 text-[10px]">机械零件</span>
+                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium border border-blue-100 text-xs">机械零件</span>
                         ) : r.objectType === 'PART_ELECTRICAL' ? (
-                          <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-medium border border-purple-100 text-[10px]">电气元器件</span>
+                          <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-medium border border-purple-100 text-xs">电气元器件</span>
                         ) : (
-                          <span className="bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded font-medium border border-slate-150 text-[10px]">全局/通用</span>
+                          <span className="bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded font-medium border border-slate-150 text-xs">全局/通用</span>
                         )}
                       </td>
                       
@@ -780,6 +893,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
 
@@ -796,9 +910,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <h2 className="text-sm font-bold text-slate-900">
                   {isNew ? '创建字段相似度配置规则' : `正在修改规则: [${editingRule?.id}] ${formFieldName}`}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">配置字段级比对物理算法和展示模板，Manticore 根据其自动进行相似度打分计算。</p>
+                <p className="text-xs text-slate-500 mt-0.5">配置字段级比对匹配方式，Manticore 根据其自动进行相似度打分计算。</p>
               </div>
-              <span className="text-[10px] font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">
+              <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">
                 二阶段原子规则配置
               </span>
             </div>
@@ -852,7 +966,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-slate-500 mb-1 font-semibold">属性物理编码 (Manticore)</label>
+                    <label className="block text-slate-500 mb-1 font-semibold">字段编码 (Manticore)</label>
                     <input
                       type="text"
                       value={formPropertyCode}
@@ -863,7 +977,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-slate-500 mb-1 font-semibold">字段物理数据类型</label>
+                    <label className="block text-slate-500 mb-1 font-semibold">字段数据类型</label>
                     <input
                       type="text"
                       value={formFieldType || ''}
@@ -875,7 +989,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </div>
 
                 {/* Additional Readonly meta */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2 text-[10px] text-slate-500 border-t border-slate-150">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2 text-xs text-slate-500 border-t border-slate-150">
                   <div><strong>Manticore数据类型:</strong> <span className="font-mono text-slate-700">{manticoreType}</span></div>
                   <div><strong>数据字典/分类源:</strong> <span className="text-slate-700">{enumOrCategorySource}</span></div>
                   <div><strong>单位族:</strong> <span className="text-slate-700">{unitFamily}</span></div>
@@ -888,7 +1002,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <div className="border border-slate-200 rounded-lg p-4 space-y-4">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2 flex items-center space-x-1.5">
                   <span className="w-1 h-3.5 bg-blue-600 rounded"></span>
-                  <span>2. 相似度算分与物理比对算法规则</span>
+                  <span>2. 相似度算分与匹配方式规则</span>
                 </span>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -962,7 +1076,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <div className="bg-amber-50/50 border border-amber-200 rounded p-3.5 space-y-3">
                     <div className="flex items-center space-x-2">
                       <SlidersHorizontal className="w-4 h-4 text-amber-600" />
-                      <span className="font-bold text-amber-900">5.4 带单位数值物理换算</span>
+                      <span className="font-bold text-amber-900">带单位数值自动换算</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -996,14 +1110,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center space-x-1.5">
                       <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
-                      <span className="font-bold text-slate-800">匹配算法与参数配置 (6.1 - 6.6)</span>
+                      <span className="font-bold text-slate-800">匹配方式与参数</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">Dynamic Parameters Panel</span>
                   </div>
 
                   <div className="p-4 bg-white space-y-4">
                     <div className="w-full md:w-1/2">
-                      <label className="block font-semibold text-slate-700 mb-1">选择匹配算法方式</label>
+                      <label className="block font-semibold text-slate-700 mb-1">匹配方式</label>
                       <select
                         value={formMatchType}
                         onChange={(e) => setFormMatchType(e.target.value)}
@@ -1031,10 +1144,21 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         {formFieldType.includes('ENUM') && (
                           <option value="精确值匹配">精确值匹配 (Exact Match)</option>
                         )}
+                        {formFieldType.includes('DATE') && (
+                          <>
+                            <option value="精确值匹配">精确值匹配 (Exact Match)</option>
+                            <option value="日期容差匹配">日期容差匹配</option>
+                          </>
+                        )}
                         {!formFieldType && (
                           <option value="精确值匹配">精确值匹配 (Exact Match)</option>
                         )}
                       </select>
+                      {formFieldType && (
+                        <p className="text-[11px] text-slate-500 mt-1.5">
+                          💡 已根据“{cleanFieldTypeName}”字段类型过滤，可选 {availableMatchTypesCount} 种匹配方式。
+                        </p>
+                      )}
                     </div>
 
                     {/* DYNAMIC PARAMETER BLOCKS */}
@@ -1070,8 +1194,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </div>
 
                           <div className="flex items-center">
-                            <span className="text-[10px] text-slate-500 bg-white p-2 border border-slate-200 rounded leading-relaxed">
-                              💡 <strong>算法提示：</strong> 依靠 Manticore 内置的经典权重分析词条进行字符集重叠度交叉计算，保证在不依赖大算力模型的前提下实现亚毫秒级精密物理检索。
+                            <span className="text-xs text-slate-500 bg-white p-2 border border-slate-200 rounded leading-relaxed">
+                              <strong>匹配提示：</strong> 依靠 Manticore 内置的经典权重分析词条进行字符集重叠度交叉计算，保证实现高精度、极速文本对齐。
                             </span>
                           </div>
                         </div>
@@ -1081,7 +1205,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     {/* 6.3 数值容差匹配 */}
                     {formMatchType === '数值容差匹配' && (
                       <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-3">
-                        <span className="font-bold text-slate-800 block">数值容差物理参数</span>
+                        <span className="font-bold text-slate-800 block">数值容差匹配参数</span>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
@@ -1285,7 +1409,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                             />
                           </div>
                         </div>
-                        <p className="text-[10px] text-slate-400">💡 <strong>温馨提示：</strong> 此算法只处理 PLM 自带的物理分类。不涉及跨系统的分类归一策略。</p>
+                        <p className="text-xs text-slate-400"><strong>提示：</strong> 此方式只处理 PLM 自带的标准字段分类。不涉及跨系统的分类归一策略。</p>
                       </div>
                     )}
 
@@ -1295,17 +1419,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-blue-900 flex items-center">
                             <Info className="w-4 h-4 mr-1.5 text-blue-600" />
-                            <span>二阶段匹配即时示例计算 (Instant Simulator)</span>
+                            <span>二阶段匹配即时示例计算</span>
                           </span>
-                          <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold border border-blue-200">
-                            算法仿真测试
+                          <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold border border-blue-200">
+                            匹配度仿真测试
                           </span>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           <div>
                             <label className="block text-slate-600 mb-1 font-semibold">
-                              源物理参考值 {formFieldType.includes('NUMBER') && `(${formDisplayUnit})`}
+                              源属性参考值 {formFieldType.includes('NUMBER') && `(${formDisplayUnit})`}
                             </label>
                             <input
                               type="text"
@@ -1360,169 +1484,45 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </div>
 
               {/* BLOCK 4: Explanation text templates (The Focus area of the revision) */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-4 shadow-xs">
+              <div className="border border-slate-200 rounded-lg p-5 bg-white space-y-4 shadow-sm">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2 flex items-center space-x-1.5">
-                  <span className="w-1 h-3.5 bg-blue-600 rounded"></span>
-                  <span>3. 命中原理解释与物理差异模板 (二阶段展示配置)</span>
+                  <span className="w-1.5 h-4 bg-blue-600 rounded"></span>
+                  <span>3. 命中原因与字段差异展示预览 (二阶段自动生成)</span>
                 </span>
 
-                {/* Variable explaination helper panel */}
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 flex items-center">
-                      <HelpCircle className="w-4 h-4 text-slate-500 mr-1.5" />
-                      📋 可插入模板变量及规范指引
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowVariableGuide(!showVariableGuide)}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100 transition-colors"
-                    >
-                      {showVariableGuide ? '隐藏规则指南 ↑' : '展开规则指南 ↓'}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong className="text-slate-800">⚠️ 特别提示：</strong> 下方的大括号变量是固定提供给系统动态解析并自动注入属性比对数据的。配置人员<strong className="text-rose-600 font-semibold underline">禁止在输入区域随便填写 Manticore 物理编码字段</strong>，系统会根据大括号变量自动带入。
-                  </p>
-                  
-                  {showVariableGuide && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-[10px] text-slate-600">
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{score}`}</code>
-                        <span className="ml-1 text-slate-500">：当前字段测算总得分 (如 100)</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{source_val}`}</code>
-                        <span className="ml-1 text-slate-500">：源申请物理数值 (如 50 mm)</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{target_val}`}</code>
-                        <span className="ml-1 text-slate-500">：目标候选物理对齐值 (如 50.1 mm)</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{match}`}</code>
-                        <span className="ml-1 text-slate-500">：算法名称结论 (如 数值容差匹配)</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{diff_val}`}</code>
-                        <span className="ml-1 text-slate-500">：数值具体差值 (如 0.1 mm)</span>
-                      </div>
-                      <div className="bg-white p-2 rounded border border-slate-200">
-                        <code className="text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded font-mono font-bold text-[10.5px]">{`{category}`}</code>
-                        <span className="ml-1 text-slate-500">：路径比对结果段 (如 紧固件)</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Templates input textareas */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Hit Reason Template */}
-                  <div className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/20 space-y-3 flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 block text-xs">A. 命中原理解释文字模板</span>
-                      <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-200 font-semibold">
-                        二阶段核心展示
-                      </span>
-                    </div>
-
-                    <div className="relative flex-1">
-                      <textarea
-                        ref={hitReasonRef}
-                        rows={2.5}
-                        value={formHitReasonTemplate}
-                        onChange={(e) => setFormHitReasonTemplate(e.target.value)}
-                        placeholder="例如: 字段比对，源值「{source_val}」与候选值「{target_val}」通过 {match}，得分 {score}"
-                        className="w-full border border-slate-300 rounded p-2 text-xs font-mono bg-white text-slate-800 transition-colors focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Unknown variable check warning */}
-                    {getInvalidVariables(formHitReasonTemplate).length > 0 && (
-                      <div className="text-[10px] text-rose-700 bg-rose-50 p-2 rounded border border-rose-100 flex items-start space-x-1.5 font-sans leading-relaxed">
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span>
-                          <strong>⚠️ 变量错误:</strong> 输入了未知变量 <strong className="font-mono text-rose-800">{getInvalidVariables(formHitReasonTemplate).join(', ')}</strong>。系统无法解析。请双击下方变量重新插入！
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Insert dynamic badges */}
-                    <div className="flex items-center space-x-1.5 flex-wrap">
-                      <span className="text-[10px] text-slate-400 font-semibold">可插入变量:</span>
-                      {getAvailableVariablesForType(formFieldType).map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => handleInsertVariable(hitReasonRef, v, setFormHitReasonTemplate)}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono border bg-blue-50/50 hover:bg-blue-50 text-blue-600 border-blue-200 hover:scale-95 transition-all font-semibold"
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Instant render preview box */}
-                    <div className="p-2.5 rounded border border-slate-200 bg-slate-100/50">
-                      <span className="text-[10px] font-bold text-slate-400 block mb-1">实时渲染预览 (给研发端业务看)：</span>
+                  {/* Hit Reason Read-only Preview */}
+                  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2.5">
+                    <span className="font-bold text-slate-700 block text-xs">A. 智能生成命中原因预览</span>
+                    <div className="p-3.5 rounded border border-slate-200 bg-white">
                       <p className="text-xs break-all leading-normal text-slate-600 font-mono italic">
-                        {formHitReasonTemplate ? getPreviewText(formHitReasonTemplate, formFieldType) : <span className="text-slate-300">请输入模板文本...</span>}
+                        {computedInstantScore > 0 ? (
+                          `字段比对：源值「${exampleRefVal}」与候选值「${exampleCandVal}」通过 ${formMatchType}，得分 ${computedInstantScore} 分。`
+                        ) : (
+                          `字段不匹配：源值「${exampleRefVal}」与候选值「${exampleCandVal}」不满足匹配要求，得分 0 分。`
+                        )}
                       </p>
                     </div>
+                    <span className="text-xs text-slate-500 block leading-normal">
+                      系统自动依据比对结果与算分机制，向研发申请端展示对齐成功之结论与命中成因。
+                    </span>
                   </div>
 
-                  {/* Diff Fields Template */}
-                  <div className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/20 space-y-3 flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 block text-xs">B. 物理差异标注文字模板</span>
-                      <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">
-                        二阶段物理差异
-                      </span>
-                    </div>
-
-                    <div className="relative flex-1">
-                      <textarea
-                        ref={diffFieldsRef}
-                        rows={2.5}
-                        value={formDiffFieldsTemplate}
-                        onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
-                        placeholder="例如: 物理差异：源「{source_val}」与候选「{target_val}」不一致"
-                        className="w-full border border-slate-300 rounded p-2 text-xs font-mono bg-white text-slate-800 transition-colors focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-
-                    {/* Unknown variable check warning */}
-                    {getInvalidVariables(formDiffFieldsTemplate).length > 0 && (
-                      <div className="text-[10px] text-rose-700 bg-rose-50 p-2 rounded border border-rose-100 flex items-start space-x-1.5 font-sans leading-relaxed">
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span>
-                          <strong>⚠️ 变量错误:</strong> 输入了未知变量 <strong className="font-mono text-rose-800">{getInvalidVariables(formDiffFieldsTemplate).join(', ')}</strong>。系统无法解析。请双击下方变量重新插入！
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Insert dynamic badges */}
-                    <div className="flex items-center space-x-1.5 flex-wrap">
-                      <span className="text-[10px] text-slate-400 font-semibold">可插入变量:</span>
-                      {getAvailableVariablesForType(formFieldType).map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => handleInsertVariable(diffFieldsRef, v, setFormDiffFieldsTemplate)}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono border bg-amber-50/50 hover:bg-amber-50 text-amber-600 border-amber-200 hover:scale-95 transition-all font-semibold"
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Instant render preview box */}
-                    <div className="p-2.5 rounded border border-slate-200 bg-slate-100/50">
-                      <span className="text-[10px] font-bold text-slate-400 block mb-1">实时渲染预览 (给研发端业务看)：</span>
+                  {/* Diff Fields Read-only Preview */}
+                  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2.5">
+                    <span className="font-bold text-slate-700 block text-xs">B. 智能生成字段差异预览</span>
+                    <div className="p-3.5 rounded border border-slate-200 bg-white">
                       <p className="text-xs break-all leading-normal text-slate-600 font-mono italic">
-                        {formDiffFieldsTemplate ? getPreviewText(formDiffFieldsTemplate, formFieldType) : <span className="text-slate-300">请输入模板文本...</span>}
+                        {computedInstantScore < 100 ? (
+                          `字段差异：源值「${exampleRefVal}」与候选值「${exampleCandVal}」存在字段偏离。`
+                        ) : (
+                          `无字段差异`
+                        )}
                       </p>
                     </div>
+                    <span className="text-xs text-slate-500 block leading-normal">
+                      当相似度低于100%时，系统将自动汇总差异明细并在对齐面板高亮呈现，无需额外人工录入模板。
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1534,23 +1534,36 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <button
                 type="button"
                 onClick={() => { setEditingRule(null); setIsNew(false); }}
-                className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-semibold text-slate-700 transition-colors"
+                className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
               >
-                取消
+                返回规则列表
               </button>
               <button
                 type="button"
-                onClick={() => handleSaveForm(true)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded text-xs font-bold text-slate-800 transition-colors"
+                onClick={() => {
+                  handleSaveForm(true);
+                  setEditingRule(null);
+                  setIsNew(false);
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
-                保存为草稿 (不发布)
+                保存草稿
               </button>
               <button
                 type="button"
-                onClick={() => handleSaveForm(false)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs font-bold text-white shadow-xs transition-colors"
+                onClick={() => {
+                  handleSaveForm(true);
+                  setEditingRule(null);
+                  setIsNew(false);
+                  if (onNavigate) {
+                    onNavigate('query-preview');
+                  } else {
+                    alert('即将跳转至“查询预览”页面查看试算结论！');
+                  }
+                }}
+                className="px-4 py-2 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded text-xs font-semibold transition-colors cursor-pointer"
               >
-                确定并提交
+                查询预览
               </button>
             </div>
 
@@ -1593,8 +1606,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 font-semibold text-slate-700">
                       <th className="px-3 py-2">字段显示名</th>
-                      <th className="px-3 py-2">Manticore 物理编码</th>
-                      <th className="px-3 py-2">字段物理类型</th>
+                      <th className="px-3 py-2">Manticore 字段编码</th>
+                      <th className="px-3 py-2">数据类型</th>
                       <th className="px-3 py-2">单位族</th>
                       <th className="px-3 py-2">索引状态</th>
                       <th className="px-3 py-2 text-center">操作</th>
@@ -1605,17 +1618,40 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       .filter(f => f.objectType === formObjectType)
                       .map((f, i) => {
                         const isUsed = rules.some(r => r.propertyCode === f.fieldCode && r.objectType === formObjectType);
+                        const isAllowed = f.enabled && f.indexStatus === '已索引';
                         return (
-                          <tr key={i} className={`hover:bg-slate-50 transition-colors ${isUsed ? 'opacity-55' : ''}`}>
-                            <td className="px-3 py-2.5 font-bold text-slate-900">{f.displayName}</td>
+                          <tr key={i} className={`transition-colors ${
+                            !isAllowed ? 'opacity-40 bg-slate-50/50 select-none' : isUsed ? 'opacity-55' : 'hover:bg-slate-50'
+                          }`}>
+                            <td className="px-3 py-2.5 font-bold text-slate-900">
+                              {f.displayName}
+                              {!isAllowed && (
+                                <span className="ml-1.5 text-[8px] px-1 py-0.2 bg-red-50 text-red-600 border border-red-200 rounded font-normal">
+                                  暂不可选
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 font-mono text-slate-600">{f.fieldCode}</td>
                             <td className="px-3 py-2.5 text-slate-500">{f.businessFieldType}</td>
                             <td className="px-3 py-2.5 font-mono text-slate-600">{f.unitFamily}</td>
                             <td className="px-3 py-2.5 text-center">
-                              <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-1.5 py-0.5 rounded font-bold text-[9px]">{f.indexStatus}</span>
+                              {f.indexStatus === '已索引' ? (
+                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-1.5 py-0.5 rounded font-bold text-[9px]">已索引</span>
+                              ) : (
+                                <span className="bg-red-50 text-red-800 border border-red-100 px-1.5 py-0.5 rounded font-bold text-[9px]" title="必须完成一阶段Manticore索引编译后方可在此处选择">未索引</span>
+                              )}
                             </td>
                             <td className="px-3 py-2.5 text-center">
-                              {isUsed ? (
+                              {!isAllowed ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2 py-1 bg-slate-200 text-slate-400 rounded font-bold text-[9px] cursor-not-allowed"
+                                  title={!f.enabled ? '该属性在一阶段元数据中已被禁用' : '该属性在Manticore检索集群中未开启主键索引'}
+                                >
+                                  {!f.enabled ? '字段已禁用' : '未索引置灰'}
+                                </button>
+                              ) : isUsed ? (
                                 <span className="text-slate-400 font-semibold">当前类型已使用</span>
                               ) : (
                                 <button

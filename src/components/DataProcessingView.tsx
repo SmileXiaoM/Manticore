@@ -729,7 +729,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       type="text"
                       value={editingRule.item.remarks || ''}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, remarks: e.target.value }})}
-                      placeholder="解释此物理参数映射的业务背景"
+                      placeholder="解释此字段属性映射的业务背景"
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
                     />
                   </div>

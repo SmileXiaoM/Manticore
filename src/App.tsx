@@ -65,6 +65,9 @@ export default function App() {
 
   // Triggered when clicking "Publish Config" from field similarity rules
   const handlePublishConfig = () => {
+    if (!window.confirm('您确定要将当前草稿池中配置的所有规则“正式发布”并使其立即生效吗？这将生成新的生效版本记录。')) {
+      return;
+    }
     const nextVersion = `v2.4.${publishRecords.length + 1}`;
     const newRecord: PublishRecord = {
       id: `PUB-00${publishRecords.length + 1}`,
@@ -86,23 +89,21 @@ export default function App() {
     const updatedFieldRules = fieldRules.map(f => f.status === 'CHANGED' ? { ...f, status: 'PUBLISHED' as const, publishVersion: nextVersion } : f);
     setFieldRules(updatedFieldRules);
 
-    alert(`🎉 恭喜！已成功发布新配置快照 [ ${nextVersion} ] 并写入 Manticore 二阶段检索集群中！所有规则已完成同步。`);
+    alert(`已成功完成规则的正式发布，生成新配置版本 [ ${nextVersion} ]。`);
     setCurrentView('publish-records');
   };
 
-  // Triggered on rollback
+  // Triggered on copy to draft
   const handleRollbackVersion = (version: string) => {
-    const updatedRecords = publishRecords.map(r => {
-      if (r.versionCode === version) {
-        return { ...r, status: 'ACTIVE' as const };
-      }
-      if (r.status === 'ACTIVE') {
-        return { ...r, status: 'SUPERSEDED' as const };
-      }
-      return r;
-    });
-    setPublishRecords(updatedRecords);
-    alert(`成功！已将 Manticore 评分节点一键回滚重置到 [ ${version} ] 生效版本配置。已重新编译图模型索引。`);
+    // Clone all rules as drafts (CHANGED status) so the user can edit or republish
+    const updatedFieldRules = fieldRules.map(f => ({
+      ...f,
+      status: 'CHANGED' as const,
+      publishVersion: '草稿未发布'
+    }));
+    setFieldRules(updatedFieldRules);
+    alert(`已将版本 [ ${version} ] 的所有规则配置成功复制为当前草稿！您可以在“字段相似度规则”页面进行二次修改，确认无误后点击“正式发布”上线。`);
+    setCurrentView('field-rules');
   };
 
   // Helper to determine if a view should not have administrative shell/chrome
@@ -140,6 +141,7 @@ export default function App() {
                   rules={fieldRules} 
                   onUpdateRules={setFieldRules} 
                   onPublish={handlePublishConfig} 
+                  onNavigate={setCurrentView}
                 />
               )}
 

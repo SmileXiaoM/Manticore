@@ -288,7 +288,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
                     <th className="px-4 py-3">规则名称</th>
                     <th className="px-4 py-3">规则类型</th>
                     <th className="px-4 py-3 text-center">适用大类</th>
-                    <th className="px-4 py-3">触发物理字段</th>
+                    <th className="px-4 py-3">触发属性字段</th>
                     <th className="px-5 py-3">触发条件表达式</th>
                     <th className="px-5 py-3">测试场景示例</th>
                     <th className="px-4 py-3">触发后业务阻拦动作</th>
@@ -501,7 +501,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
               {/* Row 3: Trigger Field & Trigger Condition */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-slate-600 font-semibold">触发物理属性字段 (Property Code) <span className="text-rose-500">*</span></label>
+                  <label className="block text-slate-600 font-semibold">触发字段属性编码 (Property Code) <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     value={formTriggerField}

@@ -53,10 +53,10 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
           <div className="text-xs text-amber-800 space-y-1">
-            <span className="font-bold block text-sm">⚠️ 工艺数据安全警示：含有“待业务确认”草案数据</span>
+            <span className="font-bold block text-sm">工艺数据安全警示：含有“待业务确认”草案数据</span>
             <p className="leading-relaxed">
               部分复杂属性（如 <strong>表面处理方式 (surface_treatment)</strong> ）的枚举收敛值由于涉及多个老旧子工厂图纸历史习惯，当前列出的数据仅供技术对接与测试，并已明确标注
-              <strong className="text-amber-700 underline mx-1">“待业务确认”</strong>。在主数据标准化办公室审核会签前，<strong>切勿</strong>将本页涉及的临时映射伪造为线上最终真实数据进行数据库注入！
+              <strong className="text-amber-700 underline mx-1">“待业务确认”</strong>。在主数据办公室审核会签前，<strong>切勿</strong>将本页涉及的临时映射伪造为线上最终真实数据进行数据库注入！
             </p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
                 <th className="px-4 py-3 border-r border-slate-200">同义词 / 别名气泡集</th>
                 <th className="px-3 py-3 text-center border-r border-slate-200">参与相似计算</th>
                 <th className="px-4 py-3 border-r border-slate-200 text-center">状态说明</th>
-                <th className="px-4 py-3">字段物理含义说明</th>
+                <th className="px-4 py-3">字段属性含义说明</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 font-sans">
@@ -125,7 +125,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
                   <td className="px-4 py-3 border-r border-slate-200 max-w-[200px]">
                     <div className="flex flex-wrap gap-1">
                       {eItem.synonyms.map((tag, sIdx) => (
-                        <span key={sIdx} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] border border-slate-200 font-mono">
+                        <span key={sIdx} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-xs border border-slate-200 font-mono">
                           {tag}
                         </span>
                       ))}
@@ -149,7 +149,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
                       </span>
                     ) : (
                       <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-bold animate-pulse">
-                        ⚠️ 待业务确认
+                        待业务确认
                       </span>
                     )}
                   </td>
