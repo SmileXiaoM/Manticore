@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 
@@ -63,6 +63,23 @@ export default function App() {
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
 
+  // Derived Reactive Metadata (P0-05)
+  const activeVersion = useMemo(() => {
+    const activeRec = publishRecords.find(r => r.status === 'ACTIVE');
+    return activeRec ? activeRec.versionCode : 'v2.4.0';
+  }, [publishRecords]);
+
+  const hasUnpublishedDrafts = useMemo(() => {
+    return fieldRules.some(r => r.status === 'CHANGED' || r.status === 'DRAFT');
+  }, [fieldRules]);
+
+  const lastDraftEditTime = useMemo(() => {
+    const drafts = fieldRules.filter(r => r.status === 'CHANGED' || r.status === 'DRAFT');
+    if (drafts.length === 0) return '2026-07-06 18:24:00';
+    const sorted = [...drafts].sort((a, b) => b.lastEditTime.localeCompare(a.lastEditTime));
+    return sorted[0].lastEditTime;
+  }, [fieldRules]);
+
   // Triggered when clicking "Publish Config" from field similarity rules
   const handlePublishConfig = () => {
     if (!window.confirm('您确定要将当前草稿池中配置的所有规则“正式发布”并使其立即生效吗？这将生成新的生效版本记录。')) {
@@ -126,7 +143,12 @@ export default function App() {
         // Standard PLM Admin Environment with Header, Sidebar, and Content view
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top Admin Header Bar */}
-          <Header onNavigate={setCurrentView} />
+          <Header 
+            onNavigate={setCurrentView} 
+            activeVersion={activeVersion}
+            hasUnpublishedDrafts={hasUnpublishedDrafts}
+            lastDraftEditTime={lastDraftEditTime}
+          />
 
           {/* Sidebar & Body Split */}
           <div className="flex-1 flex overflow-hidden">

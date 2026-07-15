@@ -1,12 +1,19 @@
 import React from 'react';
 import { Database, CheckCircle, AlertTriangle, User, History, ArrowUpRight } from 'lucide-react';
-import { currentActiveVersion, draftStateInfo } from '../data';
 
 interface HeaderProps {
   onNavigate: (viewId: string) => void;
+  activeVersion: string;
+  hasUnpublishedDrafts: boolean;
+  lastDraftEditTime: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  onNavigate, 
+  activeVersion, 
+  hasUnpublishedDrafts, 
+  lastDraftEditTime 
+}) => {
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
       {/* Left: Brand logo & Context */}
@@ -29,16 +36,16 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
         <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs">
           <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
           <span className="text-slate-500">已发布规则版本:</span>
-          <span className="font-mono font-semibold text-slate-800">{currentActiveVersion}</span>
+          <span className="font-mono font-semibold text-slate-800">{activeVersion}</span>
         </div>
 
         {/* Draft Notice */}
-        {draftStateInfo.hasUnpublishedDrafts && (
+        {hasUnpublishedDrafts && (
           <div className="flex items-center space-x-2 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded text-xs animate-pulse">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
             <span className="text-amber-700">有草稿未发布</span>
             <span className="text-amber-500">|</span>
-            <span className="text-slate-500 font-mono text-[11px]">编辑于 {draftStateInfo.lastDraftEditTime.split(' ')[1]}</span>
+            <span className="text-slate-500 font-mono text-[11px]">编辑于 {lastDraftEditTime.split(' ')[1] || lastDraftEditTime}</span>
           </div>
         )}
 

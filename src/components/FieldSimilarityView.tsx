@@ -21,6 +21,31 @@ import {
 import { FieldSimilarityRule, ObjectType } from '../types';
 import { stage1MappedFields } from '../data';
 
+const UNIT_FAMILIES: Record<string, { base: string; displayUnits: { value: string; label: string }[] }> = {
+  '长度': {
+    base: 'm',
+    displayUnits: [
+      { value: 'mm', label: 'mm (毫米)' },
+      { value: 'cm', label: 'cm (厘米)' },
+      { value: 'm', label: 'm (米)' }
+    ]
+  },
+  '电压': {
+    base: 'V',
+    displayUnits: [
+      { value: 'V', label: 'V (伏特)' },
+      { value: 'mV', label: 'mV (毫伏)' },
+      { value: 'kV', label: 'kV (千伏)' }
+    ]
+  },
+  '无': {
+    base: '无',
+    displayUnits: [
+      { value: '无', label: '无' }
+    ]
+  }
+};
+
 interface FieldSimilarityViewProps {
   rules: FieldSimilarityRule[];
   onUpdateRules: (newRules: FieldSimilarityRule[]) => void;
@@ -383,7 +408,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     // Set matching method defaults based on field type
     if (f.businessFieldType.includes('NUMBER')) {
       setFormMatchType('数值容差匹配');
-      setFormDisplayUnit('mm');
+      const units = UNIT_FAMILIES[f.unitFamily]?.displayUnits || [];
+      const defaultUnit = units.length > 0 ? units[0].value : '无';
+      setFormDisplayUnit(defaultUnit);
       setExampleRefVal('50.0');
       setExampleCandVal('50.1');
     } else if (f.businessFieldType.includes('TEXT')) {
@@ -1091,9 +1118,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           onChange={(e) => setFormDisplayUnit(e.target.value)}
                           className="w-full bg-white border border-slate-300 rounded p-1 text-xs font-semibold font-mono"
                         >
-                          <option value="m">m (米)</option>
-                          <option value="cm">cm (厘米)</option>
-                          <option value="mm">mm (毫米)</option>
+                          {UNIT_FAMILIES[unitFamily]?.displayUnits.map(unit => (
+                            <option key={unit.value} value={unit.value}>{unit.label}</option>
+                          )) || <option value="无">无</option>}
                         </select>
                       </div>
                       <div className="flex flex-col justify-center">

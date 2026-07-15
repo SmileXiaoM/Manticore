@@ -29,25 +29,54 @@ export const ClientFindSimilarView: React.FC = () => {
   const [candidates, setCandidates] = useState<SimilarityCandidate[]>(queryResults);
   const [selectedForCompare, setSelectedForCompare] = useState<SimilarityCandidate | null>(null);
 
-  // Workflow decisions state
-  const [actions, setActions] = useState<Record<string, {
-    status: 'REUSED' | 'REVIEW_INITIATED' | 'NEW_SUBMITTED' | null;
-    reasonText?: string;
-    isInputting?: boolean;
-    isReviewInputting?: boolean;
-  }>>({});
-
   const handleSearch = () => {
-    // Simulated query action
-    if (keyword.trim()) {
-      const filtered = queryResults.filter(c => 
-        c.objectName.toLowerCase().includes(keyword.toLowerCase()) || 
-        c.objectId.toLowerCase().includes(keyword.toLowerCase())
-      );
-      setCandidates(filtered);
-    } else {
-      setCandidates(queryResults);
+    let filtered = [...queryResults];
+
+    // 1. Object Type Filter
+    if (objectType && objectType !== 'ALL') {
+      filtered = filtered.filter(c => c.sourceObjectType === objectType);
     }
+
+    // 2. Keyword Filter
+    if (keyword.trim()) {
+      const k = keyword.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.objectName.toLowerCase().includes(k) || 
+        c.objectId.toLowerCase().includes(k)
+      );
+    }
+
+    // 3. Category Filter
+    if (category && category !== 'ALL') {
+      if (category === 'BOLT') {
+        filtered = filtered.filter(c => c.classificationPath.includes('螺栓'));
+      } else {
+        filtered = filtered.filter(c => !c.classificationPath.includes('螺栓'));
+      }
+    }
+
+    // 4. Lifecycle Filter
+    if (lifecycle && lifecycle !== 'ALL') {
+      if (lifecycle === 'RELEASED') {
+        filtered = filtered.filter(c => c.lifecycleState.includes('已发布') || c.lifecycleState.includes('Released'));
+      } else if (lifecycle === 'DRAFT') {
+        filtered = filtered.filter(c => c.lifecycleState.includes('设计中') || c.lifecycleState.includes('Draft') || c.lifecycleState.includes('In Work'));
+      }
+    }
+
+    // 5. Spec Input Filter (M10, M8, 50, etc.)
+    if (specInput.trim()) {
+      const s = specInput.toLowerCase();
+      filtered = filtered.filter(c => c.objectName.toLowerCase().includes(s));
+    }
+
+    // 6. Material Input Filter (SUS304, etc.)
+    if (materialInput.trim()) {
+      const m = materialInput.toLowerCase();
+      filtered = filtered.filter(c => c.material.toLowerCase().includes(m));
+    }
+
+    setCandidates(filtered);
   };
 
   const handleResetFilters = () => {
@@ -62,66 +91,17 @@ export const ClientFindSimilarView: React.FC = () => {
   };
 
   const handleReset = () => {
-    setActions({});
     handleResetFilters();
     setSelectedForCompare(null);
-    alert('已重置研发工作台，可以重新体验字段比对和去重闭环。');
+    alert('已重置研发工作台。');
   };
 
-  const handleReuse = (objectId: string) => {
-    setActions(prev => ({
-      ...prev,
-      [objectId]: { status: 'REUSED' }
-    }));
-    alert(`借用确认！临时申请流已终止，PLM申请件已自动关联至库内已有编码 ${objectId}。`);
-  };
-
-  const handleInitiateReview = (objectId: string) => {
-    setActions(prev => ({
-      ...prev,
-      [objectId]: { status: 'REVIEW_INITIATED' }
-    }));
-    alert(`属性复核流程已发起！单据已分流至标准化办会签组进行属性审查。`);
-  };
-
-  const triggerNewReasonInput = (objectId: string) => {
-    setActions(prev => ({
-      ...prev,
-      [objectId]: {
-        status: null,
-        isInputting: true,
-        reasonText: ''
-      }
-    }));
-  };
-
-  const cancelInput = (objectId: string) => {
-    setActions(prev => {
-      const copy = { ...prev };
-      delete copy[objectId];
-      return copy;
-    });
-  };
-
-  const handleContinueCreate = (objectId: string, text: string) => {
-    if (!text.trim()) {
-      alert('请填写不借用已有件、坚持新建的属性与业务合理原因！');
-      return;
+  // Dynamic and generic properties to fulfill specific columns requested
+  const getSpecification = (cand: SimilarityCandidate) => {
+    const match = cand.objectName.match(/M\d+x\d+/i);
+    if (match) {
+      return match[0].toUpperCase().replace('X', ' x ');
     }
-    setActions(prev => ({
-      ...prev,
-      [objectId]: {
-        status: 'NEW_SUBMITTED',
-        reasonText: text,
-        isInputting: false
-      }
-    }));
-    alert(`不复用理由提交成功。该原因已记录审核。可以继续提报新建流程。`);
-  };
-
-  // Helper properties to fulfill the specific columns requested
-  const getSpecification = (id: string) => {
-    if (id === 'PART-2026-000105') return 'M8 x 50';
     return 'M10 x 50';
   };
 
@@ -131,62 +111,72 @@ export const ClientFindSimilarView: React.FC = () => {
     return '低相似';
   };
 
-  const getCoverage = (id: string) => {
-    if (id === 'PART-2026-000104') return '100%';
-    if (id === 'PART-2026-000105') return '60%';
-    return '80%';
+  const getCoverage = (cand: SimilarityCandidate) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '80%';
+    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
+    const percentage = Math.round((scoredFieldsCount / cand.scoreDetail.length) * 100);
+    return `${percentage}%`;
   };
 
-  const getHitCount = (id: string) => {
-    if (id === 'PART-2026-000104') return '5 / 5';
-    if (id === 'PART-2026-000105') return '3 / 5';
-    return '4 / 5';
+  const getHitCount = (cand: SimilarityCandidate) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '4 / 5';
+    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
+    return `${scoredFieldsCount} / ${cand.scoreDetail.length}`;
   };
 
-  const getDiffCount = (id: string) => {
-    if (id === 'PART-2026-000104') return '0';
-    if (id === 'PART-2026-000105') return '2';
-    return '1';
+  const getDiffCount = (cand: SimilarityCandidate) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '1';
+    const diffFieldsCount = cand.scoreDetail.filter(detail => detail.score === 0).length;
+    return `${diffFieldsCount}`;
   };
 
-  // Hardcoded comparison attributes for standard Manticore parts
+  // Helper resolvers to get source values dynamically
+  const getSourceValue = (fieldName: string) => {
+    const name = fieldName.toLowerCase();
+    if (name.includes('直径') || name.includes('diameter')) return '10 mm';
+    if (name.includes('螺距') || name.includes('pitch')) return '1.5 mm';
+    if (name.includes('材质') || name.includes('material')) return 'SUS304';
+    if (name.includes('分类') || name.includes('classification') || name.includes('category')) {
+      return '/国家标准分类/紧固件/螺栓/内六角螺栓';
+    }
+    if (name.includes('规格') || name.includes('spec')) return '内六角螺栓 M10x50 SUS304';
+    return '无';
+  };
+
+  // Helper resolvers to get candidate values dynamically
+  const getCandidateValue = (cand: SimilarityCandidate, fieldName: string) => {
+    const name = fieldName.toLowerCase();
+    if (name.includes('直径') || name.includes('diameter')) {
+      return cand.objectName.match(/M8/i) ? '8 mm' : '10 mm';
+    }
+    if (name.includes('螺距') || name.includes('pitch')) {
+      return cand.objectName.match(/M8/i) ? '1.25 mm' : '1.5 mm';
+    }
+    if (name.includes('材质') || name.includes('material')) {
+      return cand.material;
+    }
+    if (name.includes('分类') || name.includes('classification') || name.includes('category')) {
+      return cand.classificationPath;
+    }
+    if (name.includes('规格') || name.includes('spec')) {
+      return cand.objectName;
+    }
+    return '无';
+  };
+
+  // Dynamic comparison details generator
   const getCompareData = (cand: SimilarityCandidate) => {
-    const isM8 = cand.objectId === 'PART-2026-000105';
-    const is316 = cand.objectId === 'PART-2026-000106';
-    const isCarbon = cand.objectId === 'PART-2026-000107';
-
-    return [
-      {
-        name: '物料计划分类',
-        source: '/紧固件/螺纹副/内六角螺栓',
-        candidate: cand.classificationPath,
-        diff: '完全一致'
-      },
-      {
-        name: '主要材质牌号',
-        source: 'SUS304',
-        candidate: cand.material,
-        diff: is316 ? '材质差异 (304 vs 316)' : isCarbon ? '材质差异 (304 vs 碳钢)' : '完全一致'
-      },
-      {
-        name: '标称直径 (Diameter)',
-        source: '10 mm',
-        candidate: isM8 ? '8 mm' : '10 mm',
-        diff: isM8 ? '尺寸异常 (10mm vs 8mm)' : '完全一致'
-      },
-      {
-        name: '螺距 (Thread Pitch)',
-        source: '1.5 mm',
-        candidate: isM8 ? '1.25 mm' : '1.5 mm',
-        diff: isM8 ? '螺距差异 (1.5 vs 1.25)' : '完全一致'
-      },
-      {
-        name: '长度 (Length)',
-        source: '50 mm',
-        candidate: '50 mm',
-        diff: '完全一致'
-      }
-    ];
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return [];
+    return cand.scoreDetail.map(detail => {
+      const sourceVal = getSourceValue(detail.fieldName);
+      const candVal = getCandidateValue(cand, detail.fieldName);
+      return {
+        name: detail.fieldName.split(' ')[0],
+        source: sourceVal,
+        candidate: candVal,
+        diff: detail.score === detail.weight ? '完全一致' : `不一致 (${sourceVal} vs ${candVal})`
+      };
+    });
   };
 
   return (
@@ -398,7 +388,6 @@ export const ClientFindSimilarView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {candidates.map((candidate, idx) => {
-                  const state = actions[candidate.objectId];
                   const isSelected = selectedForCompare?.objectId === candidate.objectId;
                   const scoreColor = candidate.similarityScore >= 90 
                     ? 'text-emerald-700 font-extrabold' 
@@ -409,9 +398,7 @@ export const ClientFindSimilarView: React.FC = () => {
                   return (
                     <tr 
                       key={candidate.objectId} 
-                      className={`hover:bg-slate-50/50 transition-colors ${
-                        state?.status ? 'bg-slate-50/70 text-slate-400' : ''
-                      } ${isSelected ? 'bg-emerald-50/30' : ''}`}
+                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''}`}
                     >
                       {/* 序号 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-400 whitespace-nowrap">
@@ -430,7 +417,7 @@ export const ClientFindSimilarView: React.FC = () => {
 
                       {/* 规格/关键尺寸 */}
                       <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono">
-                        {getSpecification(candidate.objectId)}
+                        {getSpecification(candidate)}
                       </td>
 
                       {/* 材料 */}
@@ -472,17 +459,17 @@ export const ClientFindSimilarView: React.FC = () => {
 
                       {/* 覆盖率 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {getCoverage(candidate.objectId)}
+                        {getCoverage(candidate)}
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {getHitCount(candidate.objectId)}
+                        {getHitCount(candidate)}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
-                        {getDiffCount(candidate.objectId)}
+                        {getDiffCount(candidate)}
                       </td>
 
                       {/* 操作 */}
@@ -579,7 +566,7 @@ export const ClientFindSimilarView: React.FC = () => {
                   <span>一阶段/二阶段映射字段对齐细节</span>
                 </span>
                 
-                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs bg-white">
                   <div className="grid grid-cols-3 bg-slate-100 border-b border-slate-200 p-2.5 font-semibold text-slate-700 text-xs">
                     <div>物理属性字段</div>
                     <div>待申请件</div>
@@ -616,111 +603,6 @@ export const ClientFindSimilarView: React.FC = () => {
                     {selectedForCompare.diffFields || '核心材质、尺寸与螺纹螺距属性一致，匹配算分无特征冲突。'}
                   </p>
                 </div>
-              </div>
-
-              {/* Core Governance Decisions (处置决策) */}
-              <div className="border-t border-slate-200 pt-4 space-y-3">
-                <span className="text-xs font-bold text-slate-800 flex items-center space-x-1">
-                  <span>三化防重去重处置决策</span>
-                </span>
-
-                {actions[selectedForCompare.objectId]?.status ? (
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                    {actions[selectedForCompare.objectId].status === 'REUSED' && (
-                      <div className="text-emerald-800 space-y-1">
-                        <div className="font-bold flex items-center space-x-1 text-xs">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span>已确认借用并复用该已有件</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-600/90 leading-relaxed">
-                          当前待提报物料已被安全退档，PLM申请直接关联至已有编码 {selectedForCompare.objectId}。
-                        </p>
-                      </div>
-                    )}
-                    {actions[selectedForCompare.objectId].status === 'REVIEW_INITIATED' && (
-                      <div className="text-amber-800 space-y-1">
-                        <div className="font-bold flex items-center space-x-1 text-xs">
-                          <AlertTriangle className="w-4 h-4 text-amber-600" />
-                          <span>已提起属性复核申请</span>
-                        </div>
-                        <p className="text-[11px] text-amber-600/90 leading-relaxed">
-                          系统已成功自动分发会签任务至标准化办审核小组，进行一二阶段精细字段审核。
-                        </p>
-                      </div>
-                    )}
-                    {actions[selectedForCompare.objectId].status === 'NEW_SUBMITTED' && (
-                      <div className="text-blue-800 space-y-2">
-                        <div className="font-bold text-xs">已强制新建并提报，合理排除原因:</div>
-                        <p className="text-[11px] text-slate-700 bg-white p-2.5 rounded border border-slate-200 italic font-mono font-semibold">
-                          “{actions[selectedForCompare.objectId].reasonText}”
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {actions[selectedForCompare.objectId]?.isInputting ? (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5 text-xs">
-                        <label className="block font-bold text-slate-700">
-                          请录入不得借用已有件、坚持新建的合理业务差异原因 <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          placeholder="例如：对公差和拉伸极限承重强度的标准要求更高，或工厂装配空间受限差异..."
-                          value={actions[selectedForCompare.objectId]?.reasonText || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setActions(prev => ({
-                              ...prev,
-                              [selectedForCompare.objectId]: {
-                                ...prev[selectedForCompare.objectId],
-                                reasonText: val
-                              }
-                            }));
-                          }}
-                          rows={3}
-                          className="w-full bg-white border border-slate-300 p-2.5 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none text-slate-800"
-                        />
-                        <div className="flex justify-end space-x-2">
-                          <button 
-                            onClick={() => cancelInput(selectedForCompare.objectId)} 
-                            className="px-3 py-1.5 text-slate-500 hover:bg-slate-200 rounded font-semibold text-xs cursor-pointer transition-colors"
-                          >
-                            取消
-                          </button>
-                          <button 
-                            onClick={() => handleContinueCreate(selectedForCompare.objectId, actions[selectedForCompare.objectId]?.reasonText || '')} 
-                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-xs cursor-pointer transition-colors"
-                          >
-                            提交原因
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                        <button
-                          onClick={() => handleReuse(selectedForCompare.objectId)}
-                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-2xs cursor-pointer transition-colors"
-                        >
-                          复用已有件
-                        </button>
-                        
-                        <button
-                          onClick={() => handleInitiateReview(selectedForCompare.objectId)}
-                          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold shadow-2xs cursor-pointer transition-colors"
-                        >
-                          发起属性复核
-                        </button>
-
-                        <button
-                          onClick={() => triggerNewReasonInput(selectedForCompare.objectId)}
-                          className="col-span-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded border border-slate-300 font-semibold cursor-pointer transition-colors"
-                        >
-                          继续新建并填写原因
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
             </div>

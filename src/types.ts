@@ -195,7 +195,7 @@ export interface GovernanceDecisionResult {
   nonReusableReasons?: string[]; // 不可复用原因
 }
 
-export interface QueryResultItem extends SimilarityCandidate, GovernanceDecisionResult {}
+export interface QueryResultItem extends SimilarityCandidate {}
 
 
 // 1. 字段白名单配置

@@ -27,6 +27,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(true);
 
+  // Filtered sandbox candidates
+  const [candidates, setCandidates] = useState<QueryResultItem[]>(queryResults);
+
   // Selected candidate for detail drawer
   const [selectedCandidate, setSelectedCandidate] = useState<QueryResultItem | null>(null);
 
@@ -35,6 +38,24 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
     setTimeout(() => {
       setIsSearching(false);
       setHasSearched(true);
+
+      let filtered = [...queryResults];
+
+      // Filter by objectType
+      if (objectType && objectType !== 'ALL') {
+        filtered = filtered.filter(c => c.sourceObjectType === objectType);
+      }
+
+      // Filter by objectId / keyword matching candidate code or name
+      if (objectId.trim()) {
+        const idLower = objectId.toLowerCase();
+        filtered = filtered.filter(c => 
+          c.objectId.toLowerCase().includes(idLower) ||
+          c.objectName.toLowerCase().includes(idLower)
+        );
+      }
+
+      setCandidates(filtered);
     }, 400);
   };
 
@@ -42,12 +63,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
     setObjectType('PART_MECHANICAL');
     setObjectId('PART-2026-000100');
     setRuleVersion('DRAFT_POOL');
+    setCandidates(queryResults);
     setHasSearched(true);
   };
 
-  // Helper properties to match columns
-  const getSpecification = (id: string) => {
-    if (id === 'PART-2026-000105') return 'M8 x 50';
+  // Helper properties to match columns dynamically
+  const getSpecification = (cand: QueryResultItem) => {
+    const match = cand.objectName.match(/M\d+x\d+/i);
+    if (match) {
+      return match[0].toUpperCase().replace('X', ' x ');
+    }
     return 'M10 x 50';
   };
 
@@ -57,22 +82,23 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
     return '低相似';
   };
 
-  const getCoverage = (id: string) => {
-    if (id === 'PART-2026-000104') return '100%';
-    if (id === 'PART-2026-000105') return '60%';
-    return '80%';
+  const getCoverage = (cand: QueryResultItem) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '80%';
+    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
+    const percentage = Math.round((scoredFieldsCount / cand.scoreDetail.length) * 100);
+    return `${percentage}%`;
   };
 
-  const getHitCount = (id: string) => {
-    if (id === 'PART-2026-000104') return '5 / 5';
-    if (id === 'PART-2026-000105') return '3 / 5';
-    return '4 / 5';
+  const getHitCount = (cand: QueryResultItem) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '4 / 5';
+    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
+    return `${scoredFieldsCount} / ${cand.scoreDetail.length}`;
   };
 
-  const getDiffCount = (id: string) => {
-    if (id === 'PART-2026-000104') return '0';
-    if (id === 'PART-2026-000105') return '2';
-    return '1';
+  const getDiffCount = (cand: QueryResultItem) => {
+    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '1';
+    const diffFieldsCount = cand.scoreDetail.filter(detail => detail.score === 0).length;
+    return `${diffFieldsCount}`;
   };
 
   return (
@@ -253,7 +279,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {queryResults.map((candidate) => {
+                {candidates.map((candidate) => {
                   const isSelected = selectedCandidate?.objectId === candidate.objectId;
                   const scoreColor = candidate.similarityScore >= 90 
                     ? 'text-emerald-700 font-extrabold' 
@@ -278,7 +304,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
 
                       {/* 规格/关键尺寸 */}
                       <td className="px-4 py-3 font-mono text-slate-800">
-                        {getSpecification(candidate.objectId)}
+                        {getSpecification(candidate)}
                       </td>
 
                       {/* 材料 */}
@@ -316,17 +342,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
 
                       {/* 覆盖率 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {getCoverage(candidate.objectId)}
+                        {getCoverage(candidate)}
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {getHitCount(candidate.objectId)}
+                        {getHitCount(candidate)}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-4 py-3 text-center font-mono font-bold text-red-600">
-                        {getDiffCount(candidate.objectId)}
+                        {getDiffCount(candidate)}
                       </td>
 
                       {/* 操作 */}
