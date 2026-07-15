@@ -179,6 +179,12 @@ export interface SimilarityCandidate {
   diffFields: string; // 差异字段
   scoreDetail: { fieldName: string; score: number; weight: number; matchInfo: string }[];
   differenceDetail?: string; // 差异字段说明
+  sourceObjectType?: string;
+  sourceCategoryPath?: string;
+  sourceCoreFields?: string;
+  sourceLifecycle?: string;
+  sourceSystem?: string;
+  sourceSyncStatus?: string;
 }
 
 export interface GovernanceDecisionResult {
@@ -189,15 +195,8 @@ export interface GovernanceDecisionResult {
   nonReusableReasons?: string[]; // 不可复用原因
 }
 
-export interface QueryResultItem extends SimilarityCandidate, GovernanceDecisionResult {
-  // 源件详情 (用于展示)
-  sourceObjectType?: string;
-  sourceCategoryPath?: string;
-  sourceCoreFields?: string;
-  sourceLifecycle?: string;
-  sourceSystem?: string;
-  sourceSyncStatus?: string;
-}
+export interface QueryResultItem extends SimilarityCandidate, GovernanceDecisionResult {}
+
 
 // 1. 字段白名单配置
 export interface FieldWhitelistItem {

@@ -597,103 +597,86 @@ export const initialPublishRecords: PublishRecord[] = [
     publishTime: '2026-07-02 15:00:00',
     publisher: '张建国 (系统架构师)',
     changeSummary: '优化了机械类物料规格描述字段的权重至35%，并引入了新版「紧固件规格同义词集」；针对直径、材质两属性的合并检索添加了差异高亮模板配置。',
-    affectedObjectType: 'PART_MECHANICAL, PART_ELECTRICAL',
+    affectedObjectType: '机械零件 (PART_MECHANICAL)',
     affectedFieldCount: 5,
     validationResult: 'SUCCESS',
     status: 'ACTIVE'
   },
   {
     id: 'PUB-002',
-    versionCode: 'v2.3.8',
-    publishTime: '2026-05-15 17:00:00',
-    publisher: '王明 (机械工程师)',
-    changeSummary: '修复了螺距字段 (thread_pitch) 精确比对时的数值溢出异常；将空值处理策略从“强制扣分”调整为“退避不扣分”。',
-    affectedObjectType: 'PART_MECHANICAL',
+    versionCode: 'v2.3.5',
+    publishTime: '2026-06-18 10:22:00',
+    publisher: '李晓华 (工艺数据管理员)',
+    changeSummary: '新增了一阶段对齐中的「多层陶瓷电容器」分类映射关系，微调了同级退避的折射退让权重。',
+    affectedObjectType: '电气元器件 (PART_ELECTRICAL)',
     affectedFieldCount: 2,
     validationResult: 'SUCCESS',
     status: 'SUPERSEDED'
-  },
-  {
-    id: 'PUB-003',
-    versionCode: 'v2.3.5',
-    publishTime: '2026-03-10 11:30:00',
-    publisher: '李晓华 (工艺数据管理员)',
-    changeSummary: '发布首套基于 SAP ERP 分类路径向国标分类对齐的折射系数策略；修正内六角螺栓对应的分类继承关系。',
-    affectedObjectType: 'PART_MECHANICAL',
-    affectedFieldCount: 4,
-    validationResult: 'WARNING',
-    status: 'ROLLEDBACK'
   }
 ];
 
-// 6. 版本差异示例数据
+// 6. 版本差异对比数据
 export const versionDiffs: VersionDiffItem[] = [
   {
-    fieldName: '规格描述 (spec_description) -> 权重 (Weight)',
-    beforeValue: '30%',
-    afterValue: '35%',
-    impactDescription: '提升文本规格在二阶段精筛相似度计算中的基础占比，加强了规则匹配主导地位。'
+    fieldName: '规格描述 (spec_description)',
+    beforeValue: '权重: 30%',
+    afterValue: '权重: 35%',
+    impactDescription: '提高机械类物料规格匹配权重，强化 TF-IDF 长文本比对度量。'
   },
   {
-    fieldName: '主要材质 (core_material) -> 同义词规则集',
-    beforeValue: '无',
-    afterValue: '金属材料等级同义词集 (SY-002)',
-    impactDescription: '材质字段比对将自动拉取合金同义映射（如“SUS304”和“304不锈钢”将按100%匹配不扣分）。'
+    fieldName: '主要材质 (core_material)',
+    beforeValue: '无归一对齐',
+    afterValue: '引入「牌号同义词对齐规则」',
+    impactDescription: '使 SUS304 与 304 不锈钢等通过同义词判定为 100% 相同，减少工艺重复提报。'
   },
   {
-    fieldName: '主要材质 (core_material) -> 空值处理',
-    beforeValue: '不参与评分',
-    afterValue: '判定为不匹配 (缺失扣减 25分)',
-    impactDescription: '强化属性数据完整性约束，严厉限制图纸未填材质的相似件冒充高相似度。'
-  },
-  {
-    fieldName: '工作电压 (working_voltage) -> 作为过滤条件',
-    beforeValue: 'False',
-    afterValue: 'True',
-    impactDescription: '开启后，若两物料电压值不兼容，直接一票否决(不进行后续复杂计算)，优化计算性能。'
+    fieldName: '分类路径 (category_path)',
+    beforeValue: '精确等值匹配',
+    afterValue: '层级深度折扣匹配 (0.85)',
+    impactDescription: '允许在大类相同但子类微调时保留基本分，提升相近零件召回率。'
   }
 ];
 
-// 7. 属性对应类型清单数据 (非界面说明页)
+// 7. 物料通用属性对应数据类型及配置组件清单
 export const attributeTypes: AttributeTypeItem[] = [
   {
     id: 'T-001',
     objectType: '机械零件 (PART_MECHANICAL)',
-    propertyName: '规格描述',
-    propertyCode: 'spec_description',
-    dataType: 'LONG_TEXT',
-    configComponent: '文本域组件 (TextArea)',
-    queryComponent: '多行模糊搜索文本框',
-    isEnum: false,
-    optionalMatchTypes: ['Manticore 模糊匹配', 'Cosine 向量余弦值', 'TF-IDF 相似度'],
-    optionalStandardization: ['正则清理', '词尾变体收敛', '特殊符号滤除'],
-    description: '用于输入类似“HEX BOLT M10X50 GB5783”的混合长文本描述，是相似度计算的主力字段。'
+    propertyName: '主要材质',
+    propertyCode: 'core_material',
+    dataType: 'ENUM',
+    configComponent: '单选下拉 (Select)',
+    queryComponent: '标准枚举勾选器',
+    isEnum: true,
+    optionalMatchTypes: ['精确比对', '外形别名匹配'],
+    optionalStandardization: ['材料牌号归一映射'],
+    description: '指导材质如 SUS304 与 304 不锈钢的一阶段与二阶段映射。'
   },
   {
     id: 'T-002',
     objectType: '机械零件 (PART_MECHANICAL)',
-    propertyName: '主要材质',
-    propertyCode: 'core_material',
-    dataType: 'ENUM',
-    configComponent: '单选下拉框 (Select)',
-    queryComponent: '带搜索的单选下拉器',
-    isEnum: true,
-    optionalMatchTypes: ['精确值匹配', '归一化主词对齐', '材料牌号层级衰减'],
-    optionalStandardization: ['多标牌号归一映射', '材料大类聚合'],
-    description: '由受控的材料词典驱动，参与二阶段强匹配，且作为一阶段硬性过滤条件。'
+    propertyName: '标称直径',
+    propertyCode: 'nominal_diameter',
+    dataType: 'NUMBER',
+    configComponent: '数值输入框 (NumberInput)',
+    queryComponent: '双向容差范围检索',
+    isEnum: false,
+    optionalMatchTypes: ['绝对值比对', '区间容差计算'],
+    optionalStandardization: ['单位收敛标准化'],
+    description: '机械件的核心尺寸属性，决定物理拼装复用性。'
   },
   {
     id: 'T-003',
     objectType: '机械零件 (PART_MECHANICAL)',
-    propertyName: '标称直径',
-    propertyCode: 'nominal_diameter',
-    dataType: 'NUMBER',
-    configComponent: '数字输入框 (NumberInput)',
-    queryComponent: '数值区间检索器 (+/- Tol)',
+    propertyName: '规格描述',
+    propertyCode: 'spec_description',
+    dataType: 'LONG_TEXT',
+    configComponent: '多行文本框 (TextArea)',
+    queryComponent: '模糊匹配输入框',
     isEnum: false,
-    optionalMatchTypes: ['绝对等值比对', '双向容差配对', '指数递减退避'],
-    optionalStandardization: ['单位统一折算(mm)', '小数位保留规范'],
-    description: '表示螺纹紧固件的标准直径，支持微小容差折分比对，是硬性几何属性之一。'
+    optionalMatchTypes: ['Manticore 模糊匹配', 'Cosine 向量余弦值', 'TF-IDF 相似度'],
+    optionalStandardization: ['特殊字符过滤'],
+    description: '物料的详细文本规格描述，常在二阶段评分中占高权重。'
   },
   {
     id: 'T-004',
@@ -749,139 +732,96 @@ export const attributeTypes: AttributeTypeItem[] = [
   }
 ];
 
-// 8. 属性对应枚举清单数据 (非界面说明页 - 示例属性含: 材料、生命周期、对象类型、单位、来源系统)
+// 8. 属性对应枚举清单数据 (非界面说明页 - 示例属性含: 材料、生命周期、对象类型、单位、表面处理、来源系统)
 export const attributeEnums: AttributeEnumItem[] = [
   {
     id: 'E-001',
-    objectType: '机械零件',
-    propertyName: '主要材质',
-    propertyCode: 'core_material',
-    enumSource: '外部 MDM 材料主数据主表 (受控)',
-    enumValueCode: 'MAT_304_STAINLESS',
-    enumDisplayName: '304 不锈钢',
-    standardValue: '304 (06Cr19Ni10)',
-    synonyms: ['SUS304', '304SS', '06Cr19Ni10', '1.4301'],
+    objectType: '所有对象 (ALL)',
+    propertyName: '表面处理',
+    propertyCode: 'surface_treatment',
+    enumSource: '工艺表面处理规范',
+    enumValueCode: 'E_SURFACE_001',
+    enumDisplayName: '发黑',
+    standardValue: '发黑',
+    synonyms: ['化学氧化', '发蓝', 'BO'],
     isSimilarityActive: true,
     status: 'ACTIVE',
-    description: '典型奥氏体不锈钢，各工厂俗称和牌号极其多样，需要严格汇总归一。'
+    description: '钢件表面经过碱性氧化处理，防锈能力弱，主要用于不需高防锈的室内装配。'
   },
   {
     id: 'E-002',
-    objectType: '机械零件',
-    propertyName: '主要材质',
-    propertyCode: 'core_material',
-    enumSource: '外部 MDM 材料主数据主表 (受控)',
-    enumValueCode: 'MAT_Q235_STEEL',
-    enumDisplayName: 'Q235 碳素钢',
-    standardValue: 'Q235 碳素结构钢',
-    synonyms: ['Q235A', 'Q235B', 'A3钢', '普通碳钢', 'St37-2'],
+    objectType: '所有对象 (ALL)',
+    propertyName: '表面处理',
+    propertyCode: 'surface_treatment',
+    enumSource: '工艺表面处理规范',
+    enumValueCode: 'E_SURFACE_002',
+    enumDisplayName: '镀白锌',
+    standardValue: '镀锌',
+    synonyms: ['白锌', '电镀白锌', 'ZN_W'],
     isSimilarityActive: true,
     status: 'ACTIVE',
-    description: '低碳钢牌号。A3钢为上世纪习惯俗称，仍在大量历史图纸中残留，特建立本映射。'
+    description: '常规电镀锌工艺，表面呈银白色，广泛用于一般结构件及紧固件。'
   },
   {
     id: 'E-003',
-    objectType: '所有对象',
-    propertyName: '生命周期状态',
-    propertyCode: 'lifecycle_state',
-    enumSource: 'PLM 本地工作流引擎字典',
-    enumValueCode: 'LC_IN_WORK',
-    enumDisplayName: '设计中 (In Work)',
-    standardValue: '设计中 (IN_WORK)',
-    synonyms: ['草稿', 'DRAFT', '工作状态', '设计态'],
-    isSimilarityActive: false,
-    status: 'ACTIVE',
-    description: '控制零组件能否被借用或用于拼装。不参与相似度计算，但在检索预览时用于状态显示过滤。'
+    objectType: '所有对象 (ALL)',
+    propertyName: '表面处理',
+    propertyCode: 'surface_treatment',
+    enumSource: '老旧子工厂历史习惯 (草案)',
+    enumValueCode: 'E_SURFACE_003',
+    enumDisplayName: '阳极氧化',
+    standardValue: '阳极氧化',
+    synonyms: ['硬质氧化', '黑氧', 'ANODIZE'],
+    isSimilarityActive: true,
+    status: 'UNCONFIRMED',
+    description: '工艺待确认的各种工厂级非受控历史俗称，待会签。'
   },
   {
     id: 'E-004',
-    objectType: '所有对象',
+    objectType: '所有对象 (ALL)',
     propertyName: '生命周期状态',
     propertyCode: 'lifecycle_state',
-    enumSource: 'PLM 本地工作流引擎字典',
-    enumValueCode: 'LC_RELEASED',
-    enumDisplayName: '已发布 (Released)',
-    standardValue: '已发布 (RELEASED)',
-    synonyms: ['归档', '生效', 'APPROVED', '已发布态'],
+    enumSource: 'PLM 内置工作流',
+    enumValueCode: 'E_LIFE_RELEASED',
+    enumDisplayName: '已发布',
+    standardValue: 'Released',
+    synonyms: ['发布', '生效', 'ACTIVE'],
     isSimilarityActive: false,
     status: 'ACTIVE',
-    description: '表示该物料已经通过工艺与采购审核。'
+    description: '物料的正式生命周期状态，已完成工艺会签，属于可正常选用和生产的状态。'
   },
   {
     id: 'E-005',
-    objectType: '机械零件',
-    propertyName: '基本计量单位',
-    propertyCode: 'base_unit',
-    enumSource: 'ERP 字典表 T006',
-    enumValueCode: 'U_MM',
-    enumDisplayName: '毫米 (Millimeter)',
-    standardValue: 'mm',
-    synonyms: ['MM', '毫米', 'mm.', '公厘'],
+    objectType: '所有对象 (ALL)',
+    propertyName: '生命周期状态',
+    propertyCode: 'lifecycle_state',
+    enumSource: 'PLM 内置工作流',
+    enumValueCode: 'E_LIFE_OBSOLETE',
+    enumDisplayName: '已作废',
+    standardValue: 'Obsolete',
+    synonyms: ['作废', '淘汰', 'INACTIVE'],
     isSimilarityActive: false,
     status: 'ACTIVE',
-    description: '系统内标称长度的基本计量单位。'
+    description: '由于失效、设计缺陷或工艺变更导致的作废状态，限制任何新图纸进行借用。'
   },
   {
     id: 'E-006',
-    objectType: '所有对象',
-    propertyName: '来源系统',
-    propertyCode: 'source_system',
-    enumSource: '企业服务总线(ESB)集成配置',
-    enumValueCode: 'SYS_WINDCHILL_HQ',
-    enumDisplayName: '总部研制 PLM (Windchill)',
-    standardValue: 'Windchill PLM',
-    synonyms: ['PTC Windchill', '总部PLM', '研发一系统'],
-    isSimilarityActive: false,
-    status: 'ACTIVE',
-    description: '标记物料的源头系统，用于判定归一关系。'
-  },
-  {
-    id: 'E-007',
-    objectType: '机械零件',
-    propertyName: '表面处理方式',
-    propertyCode: 'surface_treatment',
-    enumSource: '待业务确认 (暂定本地枚举)',
-    enumValueCode: 'SF_ZINC_PLATED',
-    enumDisplayName: '镀锌 (Zinc Plated)',
-    standardValue: '待业务确认',
-    synonyms: ['冷镀锌', '电镀锌', '镀白锌', 'Zinc Plating'],
+    objectType: '机械零件 (PART_MECHANICAL)',
+    propertyName: '主要材质',
+    propertyCode: 'core_material',
+    enumSource: '集团标准材料库',
+    enumValueCode: 'E_MAT_304',
+    enumDisplayName: '304 不锈钢',
+    standardValue: '304',
+    synonyms: ['SUS304', '06Cr19Ni10', 'A2', 'A2-70'],
     isSimilarityActive: true,
-    status: 'UNCONFIRMED',
-    description: '紧固件常用表面工艺。待集团工艺部和标准化办公室给出规范值后对齐。'
+    status: 'ACTIVE',
+    description: '最通用的奥氏体不锈钢材料，具有良好的耐腐蚀性、耐热性和冷加工性能。'
   }
 ];
 
-// 9. 查询预览模拟结果 (包含：相似度、对象标识、名称、材料、分类路径、生命周期、命中原因、差异字段、字段得分明细及三化审核增强参数)
+// 9. 相似度搜索候选列表 / 治理决策结果数据
 export const queryResults: QueryResultItem[] = [
-  {
-    similarityScore: 98.4,
-    objectId: 'PART-2026-000104',
-    objectName: '内六角螺栓 M10x50 GB/T 70.1',
-    material: '304 不锈钢',
-    classificationPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
-    lifecycleState: '已发布 (Released)',
-    hitReason: '分类完全一致 (得15分)；规格高度吻合 (得33.4分/满分35分)；材质同义词归一完全匹配 (SUS304 -> 304, 得25分)；直径等值一致 (10mm, 得15分)；螺距对齐 (得10分)。',
-    diffFields: '表面处理存在轻微差异: 源[钝化] vs 目标[无表面处理]；规格尾部文字差异。',
-    scoreDetail: [
-      { fieldName: '规格描述 (spec_description)', score: 33.4, weight: 35, matchInfo: 'TF-IDF 相似度: 95.4%' },
-      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '归一化一致 (SUS304 === 304)' },
-      { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
-      { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径/标准路径一致' },
-      { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }
-    ],
-    auditSuggestion: 'RECOMMEND_REUSE',
-    auditReason: '总相似度得分 98.4% 超过建议复用阈值(>= 86%)。材质、规格、直径、螺距等核心工程属性完全对准，建议直接复用以节省模具及采购成本。',
-    triggeredRules: ['紧固件大类三化阈值规则 (TR-001)'],
-    forceReviewReasons: [],
-    nonReusableReasons: [],
-    differenceDetail: '拟申请件要求的表面处理为[钝化]，而当前候选件为[无表面处理]，需要确认是否可替换。规格尾部图纸标注文字有微小差异。',
-    sourceObjectType: 'PART_MECHANICAL',
-    sourceCategoryPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
-    sourceCoreFields: '规格描述: 内六角螺栓 M10x50 SUS304 | 材质: SUS304 | 直径: 10mm | 螺距: 1.5mm',
-    sourceLifecycle: '设计中 (In Work)',
-    sourceSystem: '总部 PLM (Windchill)',
-    sourceSyncStatus: '已同步完毕'
-  },
   {
     similarityScore: 89.1,
     objectId: 'PART-2025-009831',

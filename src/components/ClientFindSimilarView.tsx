@@ -1,24 +1,35 @@
 import React, { useState } from 'react';
 import { 
   Eye, 
-  HelpCircle, 
-  AlertCircle, 
   ChevronRight, 
   CheckCircle2, 
   AlertTriangle, 
-  XCircle, 
-  FileCheck2, 
   Info,
-  Layers,
   ArrowLeftRight,
-  ArrowRight
+  RotateCcw,
+  Search,
+  X,
+  FileCheck2,
+  SlidersHorizontal
 } from 'lucide-react';
 import { queryResults } from '../data';
 import { SimilarityCandidate } from '../types';
 
 export const ClientFindSimilarView: React.FC = () => {
+  // Query Filters State
+  const [objectType, setObjectType] = useState('PART_MECHANICAL');
+  const [reqCode, setReqCode] = useState('REQ-2026-000100');
+  const [keyword, setKeyword] = useState('');
+  const [category, setCategory] = useState('ALL');
+  const [lifecycle, setLifecycle] = useState('ALL');
+  const [specInput, setSpecInput] = useState('');
+  const [materialInput, setMaterialInput] = useState('');
+
+  // Sandbox search / results mock
   const [candidates, setCandidates] = useState<SimilarityCandidate[]>(queryResults);
-  const [selectedForCompare, setSelectedForCompare] = useState<SimilarityCandidate | null>(queryResults[0]);
+  const [selectedForCompare, setSelectedForCompare] = useState<SimilarityCandidate | null>(null);
+
+  // Workflow decisions state
   const [actions, setActions] = useState<Record<string, {
     status: 'REUSED' | 'REVIEW_INITIATED' | 'NEW_SUBMITTED' | null;
     reasonText?: string;
@@ -26,8 +37,34 @@ export const ClientFindSimilarView: React.FC = () => {
     isReviewInputting?: boolean;
   }>>({});
 
+  const handleSearch = () => {
+    // Simulated query action
+    if (keyword.trim()) {
+      const filtered = queryResults.filter(c => 
+        c.objectName.toLowerCase().includes(keyword.toLowerCase()) || 
+        c.objectId.toLowerCase().includes(keyword.toLowerCase())
+      );
+      setCandidates(filtered);
+    } else {
+      setCandidates(queryResults);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setObjectType('PART_MECHANICAL');
+    setReqCode('REQ-2026-000100');
+    setKeyword('');
+    setCategory('ALL');
+    setLifecycle('ALL');
+    setSpecInput('');
+    setMaterialInput('');
+    setCandidates(queryResults);
+  };
+
   const handleReset = () => {
     setActions({});
+    handleResetFilters();
+    setSelectedForCompare(null);
     alert('已重置研发工作台，可以重新体验字段比对和去重闭环。');
   };
 
@@ -89,9 +126,9 @@ export const ClientFindSimilarView: React.FC = () => {
   };
 
   const getTier = (score: number) => {
-    if (score >= 90) return '第一档 (极高相似)';
-    if (score >= 70) return '第二档 (一般相似)';
-    return '第三档 (轻微相似)';
+    if (score >= 90) return '高相似';
+    if (score >= 70) return '中相似';
+    return '低相似';
   };
 
   const getCoverage = (id: string) => {
@@ -153,410 +190,553 @@ export const ClientFindSimilarView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
+    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="client-similar-container">
       
-      {/* Sleek Header for Client Application (Clean Green Vibe) */}
-      <div className="bg-emerald-800 text-white px-6 py-4 shrink-0 shadow-sm flex items-center justify-between">
+      {/* 2.1 Corporate Page Header with Reset Tool (普通页面标题与工具栏) */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4" id="client-header">
         <div>
-          <div className="flex items-center space-x-2 text-xs text-emerald-200 mb-1">
+          <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
             <span>研发设计工作台</span>
-            <ChevronRight className="w-3 h-3 text-emerald-300" />
-            <span className="text-white font-medium">零部件去重与字段对齐比对</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-slate-800 font-medium font-semibold">物料去重与对齐比对</span>
           </div>
-          <h1 className="text-lg font-bold">物料申请相似件比对（业务端）</h1>
-          <p className="text-xs text-emerald-100/90 mt-0.5">
+          <h1 className="text-lg font-bold text-slate-900">物料申请相似件比对（业务端）</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             在物料申请提报前，系统依据 Manticore 计算提供字段属性相似件算分与对齐，辅助工程师复用旧件或合理建新。
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleReset}
-            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs border border-emerald-500 transition-colors cursor-pointer font-semibold"
-          >
-            重置工作台
-          </button>
-          <div className="bg-emerald-950/40 border border-emerald-600 px-3 py-1.5 rounded-md text-xs font-mono text-emerald-100 font-bold">
-            <span>一阶段/二阶段映射已拉通</span>
-          </div>
-        </div>
+        <button
+          id="btn-reset-workbench"
+          onClick={handleReset}
+          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs border border-slate-700 transition-colors cursor-pointer font-semibold flex items-center space-x-1 shrink-0"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>重置工作台</span>
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      {/* Main Container Scroll area (Vertical hierarchy) */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4" id="client-scroll-area">
         
-        {/* Notice explaining non-automatic decision logic */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
-          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-          <div className="text-xs text-blue-800 space-y-1">
-            <span className="font-bold text-sm block">二阶段去重闭环机制：</span>
-            <p className="leading-relaxed">
-              系统仅提供属性比对匹配算分与差异提示，<strong>不进行自动拦截</strong>。研发工程师可点击<strong>“在对齐看板中对比”</strong>或<strong>“属性比对”</strong>查看各属性对齐细节，自主完成<strong>“复用已有件”</strong>、<strong>“发起属性复核”</strong>或<strong>“继续新建并填写原因”</strong>。
-            </p>
-          </div>
-        </div>
-
-        {/* SECTION 1: 待申请新物料信息 */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-xs p-5">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 mb-4">
-            <span className="text-xs font-bold text-slate-800 flex items-center space-x-2">
-              <span className="w-1.5 h-3 bg-emerald-600 rounded-full"></span>
-              <span>待申请新物料信息</span>
-            </span>
-            <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-medium">
-              二阶段防重检测中
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs text-slate-600">
-            <div>
-              <span className="text-slate-400 block mb-0.5">申请流水号:</span>
-              <span className="font-mono font-bold text-slate-900 text-sm">REQ-2026-000100</span>
-            </div>
-            
-            <div>
-              <span className="text-slate-400 block mb-0.5">申请物料名称:</span>
-              <span className="font-semibold text-slate-900 text-sm">内六角螺栓 M10x50 SUS304</span>
-            </div>
-
-            <div>
-              <span className="text-slate-400 block mb-0.5">一阶段属性对齐值:</span>
-              <span className="font-semibold text-slate-900 font-mono text-sm block">主要材质: SUS304</span>
-              <span className="font-semibold text-slate-900 font-mono text-xs block">标称直径: 10mm / 长度: 50mm</span>
-            </div>
-
-            <div>
-              <span className="text-slate-400 block mb-0.5">分类树路径:</span>
-              <span className="font-mono text-slate-600 truncate block">
-                /标准件/紧固件/螺纹副/内六角螺栓
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: 候选相似件列表 + 对齐看板 */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* 2.2 顶部查询条件区 */}
+        <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-3" id="client-query-box">
           
-          {/* Left Table Panel */}
-          <div className="xl:col-span-2 bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden flex flex-col">
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-              <span className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
-                <Eye className="w-4 h-4 text-emerald-600" />
-                <span>属性相似件检索结果 (Manticore)</span>
-              </span>
-              <span className="text-xs text-slate-400">点击行或“对比”按钮拉起对齐看板</span>
+          {/* Row 1 Filter fields */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
+            <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-600 shrink-0">物料对象类型:</label>
+              <select
+                id="client-select-objtype"
+                value={objectType}
+                onChange={(e) => setObjectType(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs min-w-[150px]"
+              >
+                <option value="PART_MECHANICAL">机械零件</option>
+                <option value="PART_ELECTRICAL">电气元器件</option>
+              </select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs min-w-[1000px]">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
-                    <th className="px-3 py-3 text-center w-12">序号</th>
-                    <th className="px-3 py-3">候选件编码</th>
-                    <th className="px-3 py-3">名称</th>
-                    <th className="px-3 py-3">规格/关键尺寸</th>
-                    <th className="px-3 py-3">材料</th>
-                    <th className="px-3 py-3">分类</th>
-                    <th className="px-3 py-3 text-center">生命周期</th>
-                    <th className="px-3 py-3 text-center">相似度</th>
-                    <th className="px-3 py-3 text-center">分档</th>
-                    <th className="px-3 py-3 text-center">覆盖率</th>
-                    <th className="px-3 py-3 text-center">命中数</th>
-                    <th className="px-3 py-3 text-center">差异数</th>
-                    <th className="px-3 py-3 text-center w-24">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {candidates.map((candidate, idx) => {
-                    const state = actions[candidate.objectId];
-                    const isSelected = selectedForCompare?.objectId === candidate.objectId;
-                    const scoreColor = candidate.similarityScore >= 90 
-                      ? 'text-emerald-700 font-extrabold' 
-                      : candidate.similarityScore >= 70 
-                      ? 'text-blue-700 font-bold' 
-                      : 'text-slate-600 font-medium';
+            <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-600 shrink-0">申请流水号/参考编码:</label>
+              <input
+                id="client-input-reqcode"
+                type="text"
+                value={reqCode}
+                onChange={(e) => setReqCode(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs text-slate-800 w-40"
+              />
+            </div>
 
-                    return (
-                      <tr 
-                        key={candidate.objectId} 
-                        onClick={() => setSelectedForCompare(candidate)}
-                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${
-                          state?.status ? 'bg-slate-50/70 text-slate-400' : ''
-                        } ${isSelected ? 'bg-emerald-50/40 font-medium' : ''}`}
-                      >
-                        {/* 序号 */}
-                        <td className="px-3 py-3 text-center font-mono text-slate-400">
-                          {idx + 1}
-                        </td>
+            <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-600 shrink-0">名称/关键词:</label>
+              <input
+                id="client-input-keyword"
+                type="text"
+                value={keyword}
+                placeholder="搜索库内候选件名称..."
+                onChange={(e) => setKeyword(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 w-44"
+              />
+            </div>
 
-                        {/* 候选件编码 */}
-                        <td className="px-3 py-3 font-mono font-bold text-slate-800">
-                          {candidate.objectId}
-                        </td>
+            <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-600 shrink-0">计划分类:</label>
+              <select
+                id="client-select-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
+              >
+                <option value="ALL">全部二级分类</option>
+                <option value="BOLT">螺纹副/内六角螺栓</option>
+                <option value="OTHER">其他大类</option>
+              </select>
+            </div>
 
-                        {/* 名称 */}
-                        <td className="px-3 py-3 font-semibold text-slate-900 truncate max-w-[110px]" title={candidate.objectName}>
-                          {candidate.objectName}
-                        </td>
+            <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-600 shrink-0">生命周期:</label>
+              <select
+                id="client-select-lifecycle"
+                value={lifecycle}
+                onChange={(e) => setLifecycle(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
+              >
+                <option value="ALL">全部状态</option>
+                <option value="RELEASED">已发布 (Released)</option>
+                <option value="DRAFT">研究/草稿 (Draft)</option>
+              </select>
+            </div>
+          </div>
 
-                        {/* 规格/关键尺寸 */}
-                        <td className="px-3 py-3 font-semibold text-slate-800">
-                          {getSpecification(candidate.objectId)}
-                        </td>
+          {/* Row 2 More conditions (Horizontal aligning) */}
+          <div className="flex flex-wrap items-center justify-between gap-4 text-xs border-t border-slate-100 pt-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <label className="font-medium text-slate-500 shrink-0">规格描述/关键尺寸:</label>
+                <input
+                  id="client-input-spec"
+                  type="text"
+                  placeholder="如: M10 x 50"
+                  value={specInput}
+                  onChange={(e) => setSpecInput(e.target.value)}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
+                />
+              </div>
 
-                        {/* 材料 */}
-                        <td className="px-3 py-3 font-mono text-slate-700">
-                          {candidate.material}
-                        </td>
+              <div className="flex items-center space-x-2">
+                <label className="font-medium text-slate-500 shrink-0">材质要求:</label>
+                <input
+                  id="client-input-material"
+                  type="text"
+                  placeholder="如: SUS304"
+                  value={materialInput}
+                  onChange={(e) => setMaterialInput(e.target.value)}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
+                />
+              </div>
+            </div>
 
-                        {/* 分类 */}
-                        <td className="px-3 py-3 text-slate-500 font-mono truncate max-w-[120px]" title={candidate.classificationPath}>
-                          {candidate.classificationPath}
-                        </td>
+            <div className="flex items-center space-x-2">
+              <button
+                id="client-btn-search"
+                onClick={handleSearch}
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-2xs flex items-center space-x-1 cursor-pointer transition-colors"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>查询相似件</span>
+              </button>
+              <button
+                id="client-btn-clear"
+                onClick={handleResetFilters}
+                className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors"
+              >
+                <span>清空条件</span>
+              </button>
+            </div>
+          </div>
 
-                        {/* 生命周期 */}
-                        <td className="px-3 py-3 text-center whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded text-xs ${
-                            candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                              : 'bg-rose-50 text-rose-800 border border-rose-100'
-                          }`}>
-                            {candidate.lifecycleState.split(' ')[0]}
-                          </span>
-                        </td>
+        </div>
 
-                        {/* 相似度 */}
-                        <td className="px-3 py-3 text-center font-mono">
-                          <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
-                        </td>
+        {/* 2.3 待申请物料摘要区 (Compact read-only full-width summary strip) */}
+        <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
+          <div className="flex items-center space-x-2">
+            <span className="font-bold text-slate-800">待申请物料</span>
+            <span className="text-slate-300">|</span>
+          </div>
+          <div>
+            <span className="text-slate-400">申请流水号:</span>{' '}
+            <span className="font-mono font-bold text-slate-900">{reqCode}</span>
+          </div>
+          <div>
+            <span className="text-slate-400">申请物料名称:</span>{' '}
+            <span className="font-semibold text-slate-900">内六角螺栓 M10x50 SUS304</span>
+          </div>
+          <div>
+            <span className="text-slate-400">主要材质:</span>{' '}
+            <span className="font-mono font-bold text-slate-900">SUS304</span>
+          </div>
+          <div>
+            <span className="text-slate-400">标称直径/长度:</span>{' '}
+            <span className="font-bold text-slate-900">Diameter: 10mm / Length: 50mm</span>
+          </div>
+          <div>
+            <span className="text-slate-400">计划分类路径:</span>{' '}
+            <span className="font-mono text-slate-700">/标准件/紧固件/螺纹副/内六角螺栓</span>
+          </div>
+        </div>
 
-                        {/* 分档 */}
-                        <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
+        {/* 2.4 全宽候选件结果表 (occupies full width) */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
+          
+          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
+            <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+              <Eye className="w-4 h-4 text-emerald-600" />
+              <span>属性相似件检索结果 (Manticore 实时比对)</span>
+            </span>
+            <span className="text-xs text-slate-400 font-medium">共检索到 {candidates.length} 条相似件纪录，点击“字段对比”进行去重闭环。</span>
+          </div>
+
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse text-xs min-w-[1200px]" id="client-results-table">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
+                  <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
+                  <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
+                  <th className="px-4 py-3 whitespace-nowrap">名称</th>
+                  <th className="px-3 py-3 whitespace-nowrap">规格/关键尺寸</th>
+                  <th className="px-3 py-3 whitespace-nowrap">材料</th>
+                  <th className="px-4 py-3 whitespace-nowrap">分类</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">生命周期</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">相似度</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">分档</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">覆盖率</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">命中数</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">差异数</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky right-0 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {candidates.map((candidate, idx) => {
+                  const state = actions[candidate.objectId];
+                  const isSelected = selectedForCompare?.objectId === candidate.objectId;
+                  const scoreColor = candidate.similarityScore >= 90 
+                    ? 'text-emerald-700 font-extrabold' 
+                    : candidate.similarityScore >= 70 
+                    ? 'text-blue-700 font-bold' 
+                    : 'text-slate-600 font-medium';
+
+                  return (
+                    <tr 
+                      key={candidate.objectId} 
+                      className={`hover:bg-slate-50/50 transition-colors ${
+                        state?.status ? 'bg-slate-50/70 text-slate-400' : ''
+                      } ${isSelected ? 'bg-emerald-50/30' : ''}`}
+                    >
+                      {/* 序号 */}
+                      <td className="px-3 py-3 text-center font-mono text-slate-400 whitespace-nowrap">
+                        {idx + 1}
+                      </td>
+
+                      {/* 候选件编码 */}
+                      <td className="px-3 py-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                        {candidate.objectId}
+                      </td>
+
+                      {/* 名称 */}
+                      <td className="px-4 py-3 font-semibold text-slate-950 truncate max-w-[150px]" title={candidate.objectName}>
+                        {candidate.objectName}
+                      </td>
+
+                      {/* 规格/关键尺寸 */}
+                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono">
+                        {getSpecification(candidate.objectId)}
+                      </td>
+
+                      {/* 材料 */}
+                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap">
+                        {candidate.material}
+                      </td>
+
+                      {/* 分类 */}
+                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px]" title={candidate.classificationPath}>
+                        {candidate.classificationPath}
+                      </td>
+
+                      {/* 生命周期 */}
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded text-[11px] ${
+                          candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                            : 'bg-rose-50 text-rose-800 border border-rose-100'
+                        }`}>
+                          {candidate.lifecycleState.split(' ')[0]}
+                        </span>
+                      </td>
+
+                      {/* 相似度 */}
+                      <td className="px-3 py-3 text-center font-mono whitespace-nowrap">
+                        <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                      </td>
+
+                      {/* 分档 */}
+                      <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded text-[11px] ${
+                          candidate.similarityScore >= 90 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                          candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                          'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>
                           {getTier(candidate.similarityScore)}
-                        </td>
+                        </span>
+                      </td>
 
-                        {/* 覆盖率 */}
-                        <td className="px-3 py-3 text-center font-mono text-slate-600">
-                          {getCoverage(candidate.objectId)}
-                        </td>
+                      {/* 覆盖率 */}
+                      <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                        {getCoverage(candidate.objectId)}
+                      </td>
 
-                        {/* 命中数 */}
-                        <td className="px-3 py-3 text-center font-mono text-slate-600">
-                          {getHitCount(candidate.objectId)}
-                        </td>
+                      {/* 命中数 */}
+                      <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                        {getHitCount(candidate.objectId)}
+                      </td>
 
-                        {/* 差异数 */}
-                        <td className="px-3 py-3 text-center font-mono font-semibold text-red-600">
-                          {getDiffCount(candidate.objectId)}
-                        </td>
+                      {/* 差异数 */}
+                      <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
+                        {getDiffCount(candidate.objectId)}
+                      </td>
 
-                        {/* 操作 */}
-                        <td className="px-3 py-3 text-center">
+                      {/* 操作 */}
+                      <td className="px-4 py-3 text-center sticky right-0 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                        <div className="flex items-center justify-center space-x-1.5">
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedForCompare(candidate);
-                            }}
-                            className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer ${
-                              isSelected ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                            }`}
+                            onClick={() => setSelectedForCompare(candidate)}
+                            className="px-2.5 py-1 text-xs font-bold rounded cursor-pointer border border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors whitespace-nowrap"
                           >
-                            属性比对
+                            字段对比
                           </button>
-                        </td>
+                        </div>
+                      </td>
 
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {/* Right Comparison Dashboard (对齐看板) */}
-          <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden flex flex-col">
-            <div className="bg-slate-800 text-white px-4 py-3 border-b border-slate-900 flex items-center justify-between">
-              <span className="text-xs font-bold flex items-center space-x-1.5">
-                <ArrowLeftRight className="w-4 h-4 text-emerald-400" />
-                <span>一二阶段字段属性对齐看板</span>
-              </span>
-              {selectedForCompare && (
-                <span className="font-mono text-xs bg-emerald-950 text-emerald-200 px-2 py-0.5 rounded font-bold">
-                  {selectedForCompare.objectId}
-                </span>
-              )}
-            </div>
-
-            {selectedForCompare ? (
-              <div className="p-4 space-y-4 flex-1 flex flex-col justify-between">
-                
-                {/* Core Header Comparison */}
-                <div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1 mb-4 text-xs text-slate-600">
-                    <div className="flex justify-between items-center">
-                      <span>待申请物料:</span>
-                      <strong className="text-slate-800">REQ-2026-000100</strong>
-                    </div>
-                    <div className="text-slate-400 font-semibold truncate">内六角螺栓 M10x50 SUS304</div>
-                    <div className="border-t border-slate-200/60 my-1.5"></div>
-                    <div className="flex justify-between items-center">
-                      <span>库内已有件:</span>
-                      <strong className="text-slate-800">{selectedForCompare.objectId}</strong>
-                    </div>
-                    <div className="text-emerald-700 font-semibold truncate">{selectedForCompare.objectName}</div>
-                  </div>
-
-                  {/* Attributes Table */}
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    标准一阶段字段值映射对齐明细
-                  </span>
-                  
-                  <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
-                    <div className="grid grid-cols-3 bg-slate-100 border-b border-slate-200 p-2 font-semibold text-slate-700">
-                      <div>属性名称</div>
-                      <div>待申请件</div>
-                      <div>库内已有件</div>
-                    </div>
-                    
-                    <div className="divide-y divide-slate-100">
-                      {getCompareData(selectedForCompare).map((item, idx) => (
-                        <div key={idx} className="grid grid-cols-3 p-2 hover:bg-slate-50 transition-colors">
-                          <div className="font-medium text-slate-500">{item.name}</div>
-                          <div className="font-mono text-slate-900 truncate">{item.source}</div>
-                          <div className={`font-mono truncate ${
-                            item.diff !== '完全一致' ? 'text-red-600 font-semibold bg-red-50/50 px-1 rounded' : 'text-slate-900'
-                          }`}>
-                            {item.candidate}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Similarity breakdown text */}
-                  <div className="mt-3.5 bg-slate-50 rounded-lg p-3 border border-slate-100 text-xs text-slate-600 space-y-1">
-                    <div className="flex justify-between">
-                      <strong>字段相似度:</strong>
-                      <span className="text-blue-600 font-bold font-mono">{selectedForCompare.similarityScore}%</span>
-                    </div>
-                    <p className="leading-relaxed">
-                      <strong>属性差异标注:</strong> {selectedForCompare.diffFields || '核心材质/螺距属性完全一致，匹配无特征冲突。'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Workflow Resolution Actions */}
-                <div className="border-t border-slate-100 pt-4 mt-4">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    防重去重处置决策
-                  </span>
-
-                  {actions[selectedForCompare.objectId]?.status ? (
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                      {actions[selectedForCompare.objectId].status === 'REUSED' && (
-                        <div className="text-emerald-800 space-y-1">
-                          <div className="font-bold flex items-center space-x-1">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                            <span>该行候选件已被确认借用复用</span>
-                          </div>
-                          <p className="text-xs text-emerald-600/90 leading-relaxed">申请提交流已安全拦截并闭环，自动关联已有编码。</p>
-                        </div>
-                      )}
-                      {actions[selectedForCompare.objectId].status === 'REVIEW_INITIATED' && (
-                        <div className="text-amber-800 space-y-1">
-                          <div className="font-bold flex items-center space-x-1">
-                            <AlertTriangle className="w-4 h-4 text-amber-600" />
-                            <span>已对该候选件提起属性复核</span>
-                          </div>
-                          <p className="text-xs text-amber-600/90 leading-relaxed">系统已将属性差异分流至标准化会签小组开展会审。</p>
-                        </div>
-                      )}
-                      {actions[selectedForCompare.objectId].status === 'NEW_SUBMITTED' && (
-                        <div className="text-blue-800 space-y-1">
-                          <div className="font-bold">工程师已确认不借用，录入理由继续提报:</div>
-                          <p className="text-xs text-slate-600 bg-white p-2 rounded border border-slate-200 italic font-semibold font-mono">
-                            “{actions[selectedForCompare.objectId].reasonText}”
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {actions[selectedForCompare.objectId]?.isInputting ? (
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-xs">
-                          <label className="block font-bold text-slate-700">请录入不得不新建的属性差异原因 <span className="text-red-500">*</span></label>
-                          <textarea
-                            placeholder="如：标称公差或承载极限要求不同"
-                            value={actions[selectedForCompare.objectId]?.reasonText || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setActions(prev => ({
-                                ...prev,
-                                [selectedForCompare.objectId]: {
-                                  ...prev[selectedForCompare.objectId],
-                                  reasonText: val
-                                }
-                              }));
-                            }}
-                            rows={3}
-                            className="w-full bg-white border border-slate-300 p-2 rounded text-xs focus:outline-none"
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <button 
-                              onClick={() => cancelInput(selectedForCompare.objectId)} 
-                              className="px-2.5 py-1 text-slate-500 hover:bg-slate-200 rounded font-semibold text-xs cursor-pointer"
-                            >
-                              取消
-                            </button>
-                            <button 
-                              onClick={() => handleContinueCreate(selectedForCompare.objectId, actions[selectedForCompare.objectId]?.reasonText || '')} 
-                              className="px-3 py-1 bg-blue-600 text-white rounded font-bold text-xs cursor-pointer"
-                            >
-                              提交原因
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                          <button
-                            onClick={() => handleReuse(selectedForCompare.objectId)}
-                            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-xs cursor-pointer"
-                          >
-                            复用已有件
-                          </button>
-                          
-                          <button
-                            onClick={() => handleInitiateReview(selectedForCompare.objectId)}
-                            className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold shadow-xs cursor-pointer"
-                          >
-                            发起属性复核
-                          </button>
-
-                          <button
-                            onClick={() => triggerNewReasonInput(selectedForCompare.objectId)}
-                            className="col-span-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded border border-slate-300 font-semibold cursor-pointer"
-                          >
-                            继续新建并填写原因
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                </div>
-
-              </div>
-            ) : (
-              <div className="p-8 text-center text-slate-400 text-xs flex-1 flex flex-col justify-center items-center">
-                <Info className="w-8 h-8 text-slate-300 mb-2" />
-                <span>请从左侧列表中选择一行相似件，拉起属性对齐比对看板。</span>
-              </div>
-            )}
-          </div>
-
         </div>
 
       </div>
+
+      {/* 2.5 属性对比抽屉 (点击拉起，默认关闭，固定在右侧覆盖而不挤压主表) */}
+      {selectedForCompare && (
+        <>
+          {/* Drawer Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/40 z-40 transition-opacity"
+            onClick={() => setSelectedForCompare(null)}
+            id="client-drawer-backdrop"
+          />
+          
+          {/* Drawer Sidebar */}
+          <div 
+            id="client-comparison-drawer"
+            className="fixed right-0 top-0 h-full w-full max-w-[540px] bg-white shadow-2xl z-50 flex flex-col border-l border-slate-200 transition-transform duration-300"
+          >
+            {/* Header */}
+            <div className="bg-slate-800 text-white px-5 py-4 border-b border-slate-900 flex items-center justify-between shrink-0">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase flex items-center space-x-1">
+                  <ArrowLeftRight className="w-3 h-3" />
+                  <span>二阶段精密属性对齐看板</span>
+                </span>
+                <h2 className="text-sm font-bold flex items-center space-x-2">
+                  <span>对齐比对:</span>
+                  <span className="font-mono text-emerald-200">{selectedForCompare.objectId}</span>
+                </h2>
+              </div>
+              
+              <div className="flex items-center space-x-2.5">
+                <span className="text-[11px] bg-slate-700/70 text-emerald-300 border border-slate-600 px-2 py-0.5 rounded font-mono font-bold shrink-0">
+                  一/二阶段映射拉通
+                </span>
+                <button 
+                  onClick={() => setSelectedForCompare(null)}
+                  className="p-1 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs text-slate-600">
+              
+              {/* Reference Header Panel */}
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">待申请流(源) :</span>
+                  <strong className="text-slate-900 font-mono">REQ-2026-000100</strong>
+                </div>
+                <div className="text-slate-700 font-semibold truncate leading-normal">
+                  内六角螺栓 M10x50 SUS304
+                </div>
+                
+                <div className="border-t border-slate-200/60 my-2"></div>
+                
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">已有候选(目标) :</span>
+                  <strong className="text-emerald-700 font-mono">{selectedForCompare.objectId}</strong>
+                </div>
+                <div className="text-emerald-800 font-semibold truncate leading-normal">
+                  {selectedForCompare.objectName}
+                </div>
+              </div>
+
+              {/* Mapped Table Comparison Details */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                  <span>一阶段/二阶段映射字段对齐细节</span>
+                </span>
+                
+                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                  <div className="grid grid-cols-3 bg-slate-100 border-b border-slate-200 p-2.5 font-semibold text-slate-700 text-xs">
+                    <div>物理属性字段</div>
+                    <div>待申请件</div>
+                    <div>库内已有件</div>
+                  </div>
+                  
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {getCompareData(selectedForCompare).map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-3 p-2.5 hover:bg-slate-50 transition-colors">
+                        <div className="font-semibold text-slate-500">{item.name}</div>
+                        <div className="font-mono text-slate-800 truncate">{item.source}</div>
+                        <div className={`font-mono truncate font-medium ${
+                          item.diff !== '完全一致' ? 'text-red-600 font-bold bg-red-50 px-1.5 rounded border border-red-100' : 'text-slate-800'
+                        }`}>
+                          {item.candidate}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Rationale and score info */}
+              <div className="bg-slate-50 rounded-lg p-3.5 border border-slate-200 text-xs text-slate-600 space-y-2">
+                <div className="flex justify-between items-center">
+                  <strong className="text-slate-700">Manticore 计算得分:</strong>
+                  <span className="text-blue-600 font-bold font-mono bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                    {selectedForCompare.similarityScore.toFixed(1)}%相似度 ({getTier(selectedForCompare.similarityScore)})
+                  </span>
+                </div>
+                <div>
+                  <strong className="text-slate-700 block mb-0.5">属性差异诊断:</strong>
+                  <p className="leading-relaxed bg-white p-2 rounded border border-slate-100 text-slate-600">
+                    {selectedForCompare.diffFields || '核心材质、尺寸与螺纹螺距属性一致，匹配算分无特征冲突。'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Core Governance Decisions (处置决策) */}
+              <div className="border-t border-slate-200 pt-4 space-y-3">
+                <span className="text-xs font-bold text-slate-800 flex items-center space-x-1">
+                  <span>三化防重去重处置决策</span>
+                </span>
+
+                {actions[selectedForCompare.objectId]?.status ? (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                    {actions[selectedForCompare.objectId].status === 'REUSED' && (
+                      <div className="text-emerald-800 space-y-1">
+                        <div className="font-bold flex items-center space-x-1 text-xs">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>已确认借用并复用该已有件</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-600/90 leading-relaxed">
+                          当前待提报物料已被安全退档，PLM申请直接关联至已有编码 {selectedForCompare.objectId}。
+                        </p>
+                      </div>
+                    )}
+                    {actions[selectedForCompare.objectId].status === 'REVIEW_INITIATED' && (
+                      <div className="text-amber-800 space-y-1">
+                        <div className="font-bold flex items-center space-x-1 text-xs">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span>已提起属性复核申请</span>
+                        </div>
+                        <p className="text-[11px] text-amber-600/90 leading-relaxed">
+                          系统已成功自动分发会签任务至标准化办审核小组，进行一二阶段精细字段审核。
+                        </p>
+                      </div>
+                    )}
+                    {actions[selectedForCompare.objectId].status === 'NEW_SUBMITTED' && (
+                      <div className="text-blue-800 space-y-2">
+                        <div className="font-bold text-xs">已强制新建并提报，合理排除原因:</div>
+                        <p className="text-[11px] text-slate-700 bg-white p-2.5 rounded border border-slate-200 italic font-mono font-semibold">
+                          “{actions[selectedForCompare.objectId].reasonText}”
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {actions[selectedForCompare.objectId]?.isInputting ? (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5 text-xs">
+                        <label className="block font-bold text-slate-700">
+                          请录入不得借用已有件、坚持新建的合理业务差异原因 <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          placeholder="例如：对公差和拉伸极限承重强度的标准要求更高，或工厂装配空间受限差异..."
+                          value={actions[selectedForCompare.objectId]?.reasonText || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setActions(prev => ({
+                              ...prev,
+                              [selectedForCompare.objectId]: {
+                                ...prev[selectedForCompare.objectId],
+                                reasonText: val
+                              }
+                            }));
+                          }}
+                          rows={3}
+                          className="w-full bg-white border border-slate-300 p-2.5 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none text-slate-800"
+                        />
+                        <div className="flex justify-end space-x-2">
+                          <button 
+                            onClick={() => cancelInput(selectedForCompare.objectId)} 
+                            className="px-3 py-1.5 text-slate-500 hover:bg-slate-200 rounded font-semibold text-xs cursor-pointer transition-colors"
+                          >
+                            取消
+                          </button>
+                          <button 
+                            onClick={() => handleContinueCreate(selectedForCompare.objectId, actions[selectedForCompare.objectId]?.reasonText || '')} 
+                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-xs cursor-pointer transition-colors"
+                          >
+                            提交原因
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                        <button
+                          onClick={() => handleReuse(selectedForCompare.objectId)}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-2xs cursor-pointer transition-colors"
+                        >
+                          复用已有件
+                        </button>
+                        
+                        <button
+                          onClick={() => handleInitiateReview(selectedForCompare.objectId)}
+                          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold shadow-2xs cursor-pointer transition-colors"
+                        >
+                          发起属性复核
+                        </button>
+
+                        <button
+                          onClick={() => triggerNewReasonInput(selectedForCompare.objectId)}
+                          className="col-span-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded border border-slate-300 font-semibold cursor-pointer transition-colors"
+                        >
+                          继续新建并填写原因
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 text-right">
+              <button 
+                onClick={() => setSelectedForCompare(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   );
