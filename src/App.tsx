@@ -90,7 +90,7 @@ export default function App() {
       id: `PUB-00${publishRecords.length + 1}`,
       versionCode: nextVersion,
       publishTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      publisher: '李晓华 (工艺数据管理员)',
+      publisher: '李晓华 (数据标准管理员)',
       changeSummary: '将草稿池中的规则打包同步。更新了工作电压规则，完成了主要材质字段空值退让方案。',
       affectedObjectType: 'PART_MECHANICAL, PART_ELECTRICAL',
       affectedFieldCount: 3,
@@ -196,11 +196,11 @@ export default function App() {
               )}
 
               {currentView === 'query-preview' && (
-                <QueryPreviewView onPublishClick={handlePublishConfig} />
+                <QueryPreviewView onPublishClick={handlePublishConfig} rules={fieldRules} />
               )}
 
               {currentView === 'client-find-similar' && (
-                <ClientFindSimilarView />
+                <ClientFindSimilarView rules={fieldRules} />
               )}
 
               {/* Three-Standardization (三化审核) Configuration Views */}

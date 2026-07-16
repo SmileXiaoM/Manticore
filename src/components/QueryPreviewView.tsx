@@ -10,14 +10,15 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
-import { queryResults } from '../data';
-import { QueryResultItem } from '../types';
+import { runSimilaritySearch } from '../data';
+import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
 
 interface QueryPreviewViewProps {
   onPublishClick: () => void;
+  rules: FieldSimilarityRule[];
 }
 
-export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishClick }) => {
+export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishClick, rules }) => {
   // Query parameters
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [objectId, setObjectId] = useState('PART-2026-000100');
@@ -27,35 +28,37 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(true);
 
-  // Filtered sandbox candidates
-  const [candidates, setCandidates] = useState<QueryResultItem[]>(queryResults);
+  // Dynamic search result state
+  const getRulesForVersion = (version: string) => {
+    let rulesToUse = [...rules];
+    if (version === 'v2.4.0') {
+      // Use published weight version snapshots
+      rulesToUse = rulesToUse.map(r => {
+        if (r.propertyCode === 'spec_description') return { ...r, weight: 30 };
+        if (r.propertyCode === 'nominal_diameter') return { ...r, weight: 20 };
+        return r;
+      });
+    }
+    return rulesToUse;
+  };
+
+  const [searchResult, setSearchResult] = useState<SearchRunResult>(() => 
+    runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', rules)
+  );
+
+  const { reference, scoredCandidates } = searchResult;
 
   // Selected candidate for detail drawer
-  const [selectedCandidate, setSelectedCandidate] = useState<QueryResultItem | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<ScoredCandidate | null>(null);
 
   const handleRunSearch = () => {
     setIsSearching(true);
     setTimeout(() => {
       setIsSearching(false);
       setHasSearched(true);
-
-      let filtered = [...queryResults];
-
-      // Filter by objectType
-      if (objectType && objectType !== 'ALL') {
-        filtered = filtered.filter(c => c.sourceObjectType === objectType);
-      }
-
-      // Filter by objectId / keyword matching candidate code or name
-      if (objectId.trim()) {
-        const idLower = objectId.toLowerCase();
-        filtered = filtered.filter(c => 
-          c.objectId.toLowerCase().includes(idLower) ||
-          c.objectName.toLowerCase().includes(idLower)
-        );
-      }
-
-      setCandidates(filtered);
+      const rulesToUse = getRulesForVersion(ruleVersion);
+      const res = runSimilaritySearch(objectType, objectId, rulesToUse);
+      setSearchResult(res);
     }, 400);
   };
 
@@ -63,42 +66,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
     setObjectType('PART_MECHANICAL');
     setObjectId('PART-2026-000100');
     setRuleVersion('DRAFT_POOL');
-    setCandidates(queryResults);
+    const res = runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', rules);
+    setSearchResult(res);
     setHasSearched(true);
-  };
-
-  // Helper properties to match columns dynamically
-  const getSpecification = (cand: QueryResultItem) => {
-    const match = cand.objectName.match(/M\d+x\d+/i);
-    if (match) {
-      return match[0].toUpperCase().replace('X', ' x ');
-    }
-    return 'M10 x 50';
-  };
-
-  const getTier = (score: number) => {
-    if (score >= 90) return '高相似';
-    if (score >= 70) return '中相似';
-    return '低相似';
-  };
-
-  const getCoverage = (cand: QueryResultItem) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '80%';
-    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
-    const percentage = Math.round((scoredFieldsCount / cand.scoreDetail.length) * 100);
-    return `${percentage}%`;
-  };
-
-  const getHitCount = (cand: QueryResultItem) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '4 / 5';
-    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
-    return `${scoredFieldsCount} / ${cand.scoreDetail.length}`;
-  };
-
-  const getDiffCount = (cand: QueryResultItem) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '1';
-    const diffFieldsCount = cand.scoreDetail.filter(detail => detail.score === 0).length;
-    return `${diffFieldsCount}`;
+    setSelectedCandidate(null);
   };
 
   return (
@@ -163,7 +134,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
 
             {/* Object ID */}
             <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">源物料代码:</label>
+              <label className="font-medium text-slate-600 shrink-0">源物料代码/申请号:</label>
               <input
                 id="input-object-id"
                 type="text"
@@ -212,44 +183,61 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
         </div>
 
         {/* 1.2 源物料摘要区 */}
-        <div className="bg-slate-100/80 border border-slate-200/80 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="source-summary-stripe">
-          <div className="flex items-center space-x-1.5">
-            <span className="font-bold text-slate-800">源物料申请信息</span>
-            <span className="text-slate-300">|</span>
+        {reference ? (
+          <div className="bg-slate-100/80 border border-slate-200/80 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="source-summary-stripe">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-bold text-slate-800">源物料申请信息</span>
+              <span className="text-slate-300">|</span>
+            </div>
+            <div>
+              <span className="text-slate-400">申请名称:</span>{' '}
+              <span className="font-semibold text-slate-900">{reference.objectName}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">计划分类:</span>{' '}
+              <span className="font-mono text-slate-800">{reference.classificationPath}</span>
+            </div>
+            {reference.objectType === 'PART_MECHANICAL' ? (
+              <>
+                <div>
+                  <span className="text-slate-400">主要材质:</span>{' '}
+                  <span className="font-bold text-slate-900">{reference.attributes.core_material}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">标称直径:</span>{' '}
+                  <span className="font-bold text-slate-900">{reference.attributes.nominal_diameter} mm</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">标称长度:</span>{' '}
+                  <span className="font-bold text-slate-900">50 mm</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">螺距:</span>{' '}
+                  <span className="font-mono text-slate-800">{reference.attributes.thread_pitch} mm</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span className="text-slate-400">工作电压:</span>{' '}
+                  <span className="font-bold text-slate-900">{reference.attributes.working_voltage} V</span>
+                </div>
+              </>
+            )}
           </div>
-          <div>
-            <span className="text-slate-400">申请名称:</span>{' '}
-            <span className="font-semibold text-slate-900">内六角螺栓 M10x50 SUS304</span>
+        ) : (
+          <div className="bg-red-50 border border-red-200 px-4 py-2.5 rounded-lg text-xs text-red-800" id="source-error-stripe">
+            未找到源申请件或物料代码: <strong className="font-mono">{objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
           </div>
-          <div>
-            <span className="text-slate-400">计划分类:</span>{' '}
-            <span className="font-mono text-slate-800">/紧固件/螺纹副/内六角螺栓</span>
-          </div>
-          <div>
-            <span className="text-slate-400">主要材质:</span>{' '}
-            <span className="font-bold text-slate-900">SUS304</span>
-          </div>
-          <div>
-            <span className="text-slate-400">标称直径:</span>{' '}
-            <span className="font-bold text-slate-900">10 mm</span>
-          </div>
-          <div>
-            <span className="text-slate-400">标称长度:</span>{' '}
-            <span className="font-bold text-slate-900">50 mm</span>
-          </div>
-          <div>
-            <span className="text-slate-400">螺距:</span>{' '}
-            <span className="font-mono text-slate-800">1.5 mm</span>
-          </div>
-        </div>
+        )}
 
         {/* 1.3 试算结果摘要条 */}
-        {hasSearched && (
+        {hasSearched && reference && (
           <div className="bg-amber-50/80 border border-amber-200/80 px-4 py-2.5 rounded-lg flex items-center justify-between text-xs text-amber-800 shadow-2xs" id="sandbox-summary-stripe">
             <div className="flex items-center space-x-2">
               <Info className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
-                <strong>沙盒试算结论:</strong> 模拟申请件与底层库字段属性匹配完成。测试共命中 <strong className="text-slate-950 font-mono">4</strong> 个属性相似的候选件。其中高相似档 1 个，中相似档 2 个，低相似档 1 个。
+                <strong>沙盒试算结论:</strong> 模拟申请件与底层库字段属性匹配完成。测试共计算并输出 <strong className="text-slate-950 font-mono">{searchResult.scoredCandidates.length}</strong> 个属性相似的候选件。其中高相似档 {searchResult.scoredCandidates.filter(c => c.similarityTier === '高相似').length} 个，中相似档 {searchResult.scoredCandidates.filter(c => c.similarityTier === '中相似').length} 个，低相似档 {searchResult.scoredCandidates.filter(c => c.similarityTier === '低相似').length} 个。
               </span>
             </div>
             <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-semibold shrink-0">
@@ -279,11 +267,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {candidates.map((candidate) => {
+                {searchResult.scoredCandidates.map((candidate) => {
                   const isSelected = selectedCandidate?.objectId === candidate.objectId;
-                  const scoreColor = candidate.similarityScore >= 90 
+                  const scoreColor = candidate.similarityScore >= 86 
                     ? 'text-emerald-700 font-extrabold' 
-                    : candidate.similarityScore >= 70 
+                    : candidate.similarityScore >= 68 
                     ? 'text-blue-700 font-bold' 
                     : 'text-slate-600 font-medium';
 
@@ -304,7 +292,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
 
                       {/* 规格/关键尺寸 */}
                       <td className="px-4 py-3 font-mono text-slate-800">
-                        {getSpecification(candidate)}
+                        {candidate.specification}
                       </td>
 
                       {/* 材料 */}
@@ -320,7 +308,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                       {/* 生命周期 */}
                       <td className="px-3 py-3 whitespace-nowrap">
                         <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs border border-slate-200">
-                          {candidate.lifecycleState.split(' ')[0]}
+                          {candidate.lifecycleState}
                         </span>
                       </td>
 
@@ -332,27 +320,27 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                       {/* 分档 */}
                       <td className="px-4 py-3 text-center whitespace-nowrap font-medium">
                         <span className={`px-2 py-0.5 rounded text-[11px] ${
-                          candidate.similarityScore >= 90 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
-                          candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                          candidate.similarityTier === '高相似' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                          candidate.similarityTier === '中相似' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
                           'bg-slate-100 text-slate-600 border border-slate-200'
                         }`}>
-                          {getTier(candidate.similarityScore)}
+                          {candidate.similarityTier}
                         </span>
                       </td>
 
                       {/* 覆盖率 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {getCoverage(candidate)}
+                        {candidate.coverageRate}%
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {getHitCount(candidate)}
+                        {candidate.fullHitCount} / {candidate.compareFields.length}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-4 py-3 text-center font-mono font-bold text-red-600">
-                        {getDiffCount(candidate)}
+                        {candidate.differenceCount}
                       </td>
 
                       {/* 操作 */}
@@ -414,7 +402,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">模拟源：</span>
-                  <strong className="text-slate-800">内六角螺栓 M10x50 SUS304</strong>
+                  <strong className="text-slate-800">{reference?.objectName}</strong>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">对比相似候选件：</span>
@@ -434,20 +422,20 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                 </h3>
 
                 <div className="grid grid-cols-1 gap-2">
-                  {selectedCandidate.scoreDetail.map((item, idx) => {
-                    const scorePct = (item.score / item.weight) * 100;
+                  {selectedCandidate.compareFields.map((item, idx) => {
+                    const scorePct = (item.weightedScore / item.weight) * 100;
                     const pctColor = scorePct >= 100 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : scorePct >= 70 ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-amber-600 bg-amber-50 border-amber-200';
                     return (
                       <div key={idx} className="bg-white border border-slate-200 rounded p-2.5 flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <span className="font-bold text-slate-800 block text-xs">{item.fieldName}</span>
-                          <span className="text-slate-400 text-[11px] block leading-normal" title={item.matchInfo}>
-                            比对机制: {item.matchInfo}
+                          <span className="font-bold text-slate-800 block text-xs">{item.fieldLabel}</span>
+                          <span className="text-slate-400 text-[11px] block leading-normal" title={item.reason}>
+                            比对机制: {item.reason}
                           </span>
                         </div>
                         <div className="text-right shrink-0">
                           <span className="font-mono text-xs font-bold block text-slate-800">
-                            {item.score.toFixed(1)} <span className="text-slate-400 text-[11px] font-normal">/ {item.weight}分</span>
+                            {item.weightedScore.toFixed(1)} <span className="text-slate-400 text-[11px] font-normal">/ {item.weight}分</span>
                           </span>
                         </div>
                       </div>
@@ -465,19 +453,25 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                   <div>
                     <span className="text-slate-400 block mb-0.5">二阶段属性匹配分析：</span>
                     <p className="text-slate-700 leading-relaxed font-medium">
-                      {selectedCandidate.differenceDetail || '核心几何特征参数完全对齐，均属于同一特征螺栓系列规格副。'}
+                      {selectedCandidate.compareFields
+                        .filter(f => f.status !== 'FULL')
+                        .map(f => `${f.fieldLabel}: ${f.reason}`)
+                        .join('; ') || '核心几何特征参数完全对齐，均属于同一特征螺栓系列规格副。'}
                     </p>
                   </div>
                   <div className="border-t border-slate-200/60 my-2"></div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">命中及相似原因说明：</span>
                     <p className="text-slate-600 leading-relaxed">
-                      {selectedCandidate.hitReason}
+                      {selectedCandidate.compareFields
+                        .filter(f => f.status === 'FULL')
+                        .map(f => `「${f.fieldLabel}」完全一致（值: ${f.sourceValue}）`)
+                        .join('、') || '无完全匹配的物理属性'}
                     </p>
                   </div>
                   <div className="border-t border-slate-200/60 my-2"></div>
                   <div className="text-[11px] text-slate-400 flex justify-between">
-                    <span>Manticore 检索耗时: 3.4 ms</span>
+                    <span>Manticore 检索算分耗时: 3.4 ms</span>
                     <span>规则集状态: 活动</span>
                   </div>
                 </div>

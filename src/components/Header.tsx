@@ -30,39 +30,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center/Right: Engine Status Badges & Info */}
+      {/* Center/Right: Profile and shortcuts */}
       <div className="flex items-center space-x-4">
-        {/* Active Release Status */}
-        <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs">
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-slate-500">已发布规则版本:</span>
-          <span className="font-mono font-semibold text-slate-800">{activeVersion}</span>
-        </div>
-
-        {/* Draft Notice */}
-        {hasUnpublishedDrafts && (
-          <div className="flex items-center space-x-2 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded text-xs animate-pulse">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-amber-700">有草稿未发布</span>
-            <span className="text-amber-500">|</span>
-            <span className="text-slate-500 font-mono text-[11px]">编辑于 {lastDraftEditTime.split(' ')[1] || lastDraftEditTime}</span>
-          </div>
-        )}
-
         {/* Link shortcuts */}
-        <div className="flex items-center space-x-3 text-slate-500 text-xs border-l border-slate-200 pl-4">
-          <button 
-            onClick={() => onNavigate('publish-records')}
-            className="flex items-center space-x-1 hover:text-blue-600 transition-colors"
-            title="查看发布历史与版本差异"
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>发布记录</span>
-          </button>
-          
+        <div className="flex items-center space-x-3 text-slate-500 text-xs pl-4">
           <button 
             onClick={() => onNavigate('client-find-similar')}
-            className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+            className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded hover:bg-blue-100 font-semibold transition-colors font-sans"
           >
             <span>应用端界面</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -76,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="hidden md:flex flex-col">
             <span className="text-xs font-medium text-slate-800">李晓华</span>
-            <span className="text-[10px] text-slate-500 leading-none">数据标准管理员</span>
+            <span className="text-[10px] text-slate-500 leading-none font-sans">数据标准管理员</span>
           </div>
         </div>
       </div>

@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               }`}
             >
               <History className="w-3.5 h-3.5 text-indigo-400" />
-              <span>发布记录</span>
+              <span>变更记录</span>
               {currentView === 'publish-records' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
             </button>
           </div>

@@ -17,8 +17,75 @@ import {
   HardRule,
   CategoryCoverage,
   ObjectType,
-  MatchConfig
+  MatchConfig,
+  ReferenceObject,
+  CompareFieldResult,
+  ScoredCandidate,
+  FilteredCandidate,
+  SearchRunResult,
+  UnitCatalog
 } from './types';
+
+// Unit Catalog Model - Read-Only Versioned Simulation
+export const mockUnitCatalog: UnitCatalog = {
+  schemaVersion: '1.0.0',
+  catalogVersion: 'Windchill 2026-07-15',
+  sourceSystem: 'Windchill PLM Enterprise Service',
+  loadedAt: '2026-07-15 17:00:00',
+  status: 'LOADED',
+  quantities: [
+    {
+      code: 'LENGTH',
+      name: '长度',
+      baseUnit: 'm',
+      units: [
+        { code: 'm', name: 'm (米)', scale: 1.0, offset: 0.0 },
+        { code: 'cm', name: 'cm (厘米)', scale: 0.01, offset: 0.0 },
+        { code: 'mm', name: 'mm (毫米)', scale: 0.001, offset: 0.0 }
+      ]
+    },
+    {
+      code: 'VOLTAGE',
+      name: '电压',
+      baseUnit: 'V',
+      units: [
+        { code: 'V', name: 'V (伏特)', scale: 1.0, offset: 0.0 },
+        { code: 'mV', name: 'mV (毫伏)', scale: 0.001, offset: 0.0 },
+        { code: 'kV', name: 'kV (千伏)', scale: 1000.0, offset: 0.0 }
+      ]
+    },
+    {
+      code: 'TEMPERATURE',
+      name: '温度',
+      baseUnit: 'K',
+      units: [
+        { code: 'K', name: 'K (开尔文)', scale: 1.0, offset: 0.0 },
+        { code: 'degC', name: '℃ (摄氏度)', scale: 1.0, offset: 273.15 }
+      ]
+    }
+  ]
+};
+
+// Unit conversion helpers
+// Base value = Display value * scale + offset
+export function convertToBaseUnit(value: number, unitCode: string, quantityCode: string): number {
+  const normalizedQuantityCode = quantityCode.toUpperCase();
+  const qty = mockUnitCatalog.quantities.find(q => q.code === normalizedQuantityCode || q.name === quantityCode);
+  if (!qty) return value;
+  const unit = qty.units.find(u => u.code === unitCode);
+  if (!unit) return value;
+  return value * unit.scale + unit.offset;
+}
+
+// Display value = (Base value - offset) / scale
+export function convertFromBaseUnit(baseValue: number, unitCode: string, quantityCode: string): number {
+  const normalizedQuantityCode = quantityCode.toUpperCase();
+  const qty = mockUnitCatalog.quantities.find(q => q.code === normalizedQuantityCode || q.name === quantityCode);
+  if (!qty) return baseValue;
+  const unit = qty.units.find(u => u.code === unitCode);
+  if (!unit) return baseValue;
+  return (baseValue - unit.offset) / unit.scale;
+}
 
 // 0. 一阶段对齐已映射字段目录 (Stage 1 Mapped Fields Directory)
 export interface Stage1MappedField {
@@ -80,7 +147,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     fieldId: 'nominal_diameter_stage1',
     displayName: '标称直径',
     fieldCode: 'nominal_diameter',
-    businessFieldType: '带单位数值 (NUMBER)',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
     enumOrCategorySource: '无',
     unitFamily: '长度',
@@ -93,7 +160,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     fieldId: 'length_stage1',
     displayName: '长度',
     fieldCode: 'length',
-    businessFieldType: '带单位数值 (NUMBER)',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
     enumOrCategorySource: '无',
     unitFamily: '长度',
@@ -106,11 +173,24 @@ export const stage1MappedFields: Stage1MappedField[] = [
     fieldId: 'thread_pitch_stage1',
     displayName: '螺距',
     fieldCode: 'thread_pitch',
-    businessFieldType: '带单位数值 (NUMBER)',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
     enumOrCategorySource: '无',
     unitFamily: '长度',
     baseUnit: 'm',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'thread_count_stage1',
+    displayName: '螺纹牙数',
+    fieldCode: 'thread_count',
+    businessFieldType: '数值 (NUMBER)',
+    manticoreType: 'INT',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
     indexStatus: '已索引',
     enabled: true
   },
@@ -145,11 +225,24 @@ export const stage1MappedFields: Stage1MappedField[] = [
     fieldId: 'working_voltage_stage1',
     displayName: '工作电压',
     fieldCode: 'working_voltage',
-    businessFieldType: '带单位数值 (NUMBER)',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
     enumOrCategorySource: '无',
     unitFamily: '电压',
     baseUnit: 'V',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_ELECTRICAL',
+    fieldId: 'working_temp_stage1',
+    displayName: '工作温度',
+    fieldCode: 'working_temp',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
+    manticoreType: 'DOUBLE',
+    enumOrCategorySource: '无',
+    unitFamily: '温度',
+    baseUnit: 'K',
     indexStatus: '已索引',
     enabled: true
   },
@@ -171,7 +264,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     fieldId: 'material_thickness_stage1',
     displayName: '材料厚度 (演示置灰)',
     fieldCode: 'material_thickness',
-    businessFieldType: '带单位数值 (NUMBER)',
+    businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
     enumOrCategorySource: '无',
     unitFamily: '长度',
@@ -192,9 +285,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     weight: 35,
     matchType: '文本相似匹配 (非 AI)',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '机械物料规格标准化规则集',
-    synonymRuleSet: '紧固件规格同义词规则集',
-    categoryAlignmentStrategy: '分类继承归一策略',
     isScoreActive: true,
     isFilterCondition: false,
     isQueryPreviewAvailable: true,
@@ -203,8 +293,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: true,
     hitReasonTemplate: '规格文本相似度达 {score}%, 命中了以下相同模式: {match}',
     diffFieldsTemplate: '规格中存在差异: 源[{source_val}] vs 目标[{target_val}]',
-    status: 'PUBLISHED',
-    publishVersion: 'v2.4.0',
+    enabled: true,
+    configVersion: 'v2.5.0',
     lastEditor: '张建国 (系统架构师)',
     lastEditTime: '2026-07-02 14:32:15',
     fieldId: 'spec_description_stage1',
@@ -224,9 +314,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     weight: 25,
     matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '不锈钢/碳钢牌号归一规则',
-    synonymRuleSet: '金属材料等级同义词集',
-    categoryAlignmentStrategy: '材料层级关系退避策略',
     isScoreActive: true,
     isFilterCondition: true,
     isQueryPreviewAvailable: true,
@@ -235,9 +322,9 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: true,
     hitReasonTemplate: '材质完全匹配 (归一化值: {source_val})',
     diffFieldsTemplate: '材质不一致: 源[{source_val}] vs 目标[{target_val}]',
-    status: 'CHANGED',
-    publishVersion: 'v2.4.0 (草稿修改中)',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    enabled: true,
+    configVersion: 'v2.5.0',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-07-06 18:24:00',
     fieldId: 'core_material_stage1',
     manticoreType: 'VARCHAR',
@@ -252,13 +339,10 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     objectType: 'PART_MECHANICAL',
     fieldName: '标称直径',
     propertyCode: 'nominal_diameter',
-    fieldType: '带单位数值 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 15,
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '螺纹尺寸标准化映射',
-    synonymRuleSet: '无',
-    categoryAlignmentStrategy: '无',
     isScoreActive: true,
     isFilterCondition: true,
     isQueryPreviewAvailable: true,
@@ -267,8 +351,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: true,
     hitReasonTemplate: '直径误差在容差范围内: 源[{source_val}mm] 与 目标[{target_val}mm] 相差 {diff_val}mm',
     diffFieldsTemplate: '直径不匹配: 源[{source_val}mm] vs 目标[{target_val}mm]',
-    status: 'PUBLISHED',
-    publishVersion: 'v2.4.0',
+    enabled: true,
+    configVersion: 'v2.5.0',
     lastEditor: '王明 (机械工程师)',
     lastEditTime: '2026-06-28 10:11:45',
     fieldId: 'nominal_diameter_stage1',
@@ -289,13 +373,10 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     objectType: 'PART_MECHANICAL',
     fieldName: '螺距',
     propertyCode: 'thread_pitch',
-    fieldType: '带单位数值 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 10,
     matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '无',
-    synonymRuleSet: '无',
-    categoryAlignmentStrategy: '无',
     isScoreActive: true,
     isFilterCondition: false,
     isQueryPreviewAvailable: true,
@@ -304,8 +385,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: true,
     hitReasonTemplate: '',
     diffFieldsTemplate: '螺距不一致: 源[{source_val}mm] vs 目标[{target_val}mm]',
-    status: 'PUBLISHED',
-    publishVersion: 'v2.3.8',
+    enabled: true,
+    configVersion: 'v2.5.0',
     lastEditor: '王明 (机械工程师)',
     lastEditTime: '2026-05-15 16:45:00',
     fieldId: 'thread_pitch_stage1',
@@ -325,9 +406,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     weight: 15,
     matchType: '层级关系匹配',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '分类结构映射归一策略',
-    synonymRuleSet: '无',
-    categoryAlignmentStrategy: '标准分类树深度计算策略',
     isScoreActive: true,
     isFilterCondition: true,
     isQueryPreviewAvailable: true,
@@ -336,8 +414,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: false,
     hitReasonTemplate: '同属【{category}】子分类层级, 折扣后得分: {score}',
     diffFieldsTemplate: '',
-    status: 'PUBLISHED',
-    publishVersion: 'v2.4.0',
+    enabled: true,
+    configVersion: 'v2.5.0',
     lastEditor: '张建国 (系统架构师)',
     lastEditTime: '2026-07-01 09:15:30',
     fieldId: 'category_path_stage1',
@@ -358,13 +436,10 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     objectType: 'PART_ELECTRICAL',
     fieldName: '工作电压',
     propertyCode: 'working_voltage',
-    fieldType: '带单位数值 (NUMBER)',
+    fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 30,
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
-    standardizationRuleSet: '电压单位换算归一化 (V/mV/kV)',
-    synonymRuleSet: '无',
-    categoryAlignmentStrategy: '无',
     isScoreActive: true,
     isFilterCondition: true,
     isQueryPreviewAvailable: true,
@@ -373,8 +448,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     showDiffFields: true,
     hitReasonTemplate: '电压额定范围匹配: 源[{source_val}V] 覆盖 目标[{target_val}V]',
     diffFieldsTemplate: '电压范围冲突: 源[{source_val}V] vs 目标[{target_val}V]',
-    status: 'DRAFT',
-    publishVersion: '草稿未发布',
+    enabled: true,
+    configVersion: 'v1.0.0',
     lastEditor: '赵丽 (电气工程师)',
     lastEditTime: '2026-07-06 11:30:22',
     fieldId: 'working_voltage_stage1',
@@ -389,6 +464,35 @@ export const initialFieldRules: FieldSimilarityRule[] = [
       toleranceValue: 12,
       direction: 'BOTH'
     }
+  },
+  {
+    id: 'F-007',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '螺纹牙数',
+    propertyCode: 'thread_count',
+    fieldType: '数值 (NUMBER)',
+    weight: 0,
+    matchType: '精确值匹配',
+    nullHandling: '不参与计算',
+    isScoreActive: false,
+    isFilterCondition: false,
+    isQueryPreviewAvailable: true,
+    isAppEndActive: true,
+    showHitReason: false,
+    showDiffFields: false,
+    hitReasonTemplate: '',
+    diffFieldsTemplate: '',
+    enabled: false,
+    configVersion: 'v2.5.0',
+    lastEditor: '李晓华 (数据标准管理员)',
+    lastEditTime: '2026-07-15 12:00:00',
+    fieldId: 'thread_count_stage1',
+    manticoreType: 'INT',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: { kind: 'EXACT' }
   }
 ];
 
@@ -408,7 +512,7 @@ export const initialStandardizationRules: StandardizationRule[] = [
     isFullTextActive: true,
     status: 'ACTIVE',
     version: 'v1.2.3',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-07-04 15:40:00',
     remarks: '实现美标、国标、日标及行业通用俗称对标准 304 不锈钢材质的自动收敛归一。'
   },
@@ -444,7 +548,7 @@ export const initialStandardizationRules: StandardizationRule[] = [
     isFullTextActive: true,
     status: 'ACTIVE',
     version: 'v1.0.5',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-07-01 16:22:11',
     remarks: '将生产现场和源图纸中的各种铜合金俗称映射到标准高精黄铜物料编码对应的标准值。'
   },
@@ -531,7 +635,7 @@ export const initialAlignmentRules: ClassificationAlignmentRule[] = [
     applicableObjectType: 'PART_MECHANICAL',
     status: 'ACTIVE',
     version: 'v3.1.0',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-07-02 11:24:00',
     remarks: '直接映射：将旧版研发系统中的内六角螺栓分类全路径对齐到集团统一的国标分类，折合系数1.0 (无损失)。',
     isSimilarityActive: true
@@ -565,7 +669,7 @@ export const initialAlignmentRules: ClassificationAlignmentRule[] = [
     applicableObjectType: 'PART_MECHANICAL',
     status: 'ACTIVE',
     version: 'v2.8.0',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-05-18 10:11:00',
     remarks: '类型继承：Teamcenter 的子类型与国标通用物理部件互为父子级，支持 90% 的折射退让，用于计算跨系统相似检索。',
     isSimilarityActive: true
@@ -606,7 +710,7 @@ export const initialPublishRecords: PublishRecord[] = [
     id: 'PUB-002',
     versionCode: 'v2.3.5',
     publishTime: '2026-06-18 10:22:00',
-    publisher: '李晓华 (工艺数据管理员)',
+    publisher: '李晓华 (数据标准管理员)',
     changeSummary: '新增了一阶段对齐中的「多层陶瓷电容器」分类映射关系，微调了同级退避的折射退让权重。',
     affectedObjectType: '电气元器件 (PART_ELECTRICAL)',
     affectedFieldCount: 2,
@@ -927,7 +1031,7 @@ export const lastPublishTime = '2026-07-02 15:00:00';
 export const draftStateInfo = {
   hasUnpublishedDrafts: true,
   draftCount: 2,
-  lastDraftEditor: '李晓华 (工艺数据管理员)',
+  lastDraftEditor: '李晓华 (数据标准管理员)',
   lastDraftEditTime: '2026-07-06 18:24:00'
 };
 
@@ -970,7 +1074,7 @@ export const initialFieldWhitelists: FieldWhitelistItem[] = [
     defaultWeight: 25,
     sortOrder: 20,
     status: 'ACTIVE',
-    lastEditor: '李晓华 (工艺数据管理员)',
+    lastEditor: '李晓华 (数据标准管理员)',
     lastEditTime: '2026-07-06 14:32:15'
   },
   {
@@ -1224,3 +1328,363 @@ export const initialCategoryCoverages: CategoryCoverage[] = [
     version: 'v2.4.0'
   }
 ];
+
+export function runSimilaritySearch(
+  objectType: string,
+  requestCodeOrId: string,
+  rules: FieldSimilarityRule[],
+  filters?: {
+    keyword?: string;
+    category?: string;
+    lifecycle?: string;
+    specInput?: string;
+    materialInput?: string;
+  }
+): SearchRunResult {
+  // 1. Resolve Reference Object
+  let reference: ReferenceObject | null = null;
+  
+  if (objectType === 'PART_MECHANICAL') {
+    reference = {
+      requestCode: 'REQ-2026-000100',
+      objectType: 'PART_MECHANICAL',
+      objectId: 'PART-2026-000100',
+      objectName: '内六角螺栓 M10x50 SUS304',
+      specification: 'M10 x 50',
+      material: 'SUS304',
+      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
+      lifecycleState: '设计中',
+      attributes: {
+        spec_description: '内六角螺栓 M10x50 SUS304',
+        core_material: 'SUS304',
+        nominal_diameter: 10,
+        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
+        thread_pitch: 1.5
+      }
+    };
+  } else if (objectType === 'PART_ELECTRICAL') {
+    reference = {
+      requestCode: 'ELEC-2026-000100',
+      objectType: 'PART_ELECTRICAL',
+      objectId: 'ELEC-2026-000100',
+      objectName: '直流继电器 12V',
+      specification: '12V',
+      material: '塑料/铜',
+      classificationPath: '/电子元器件/继电器/直流继电器',
+      lifecycleState: '设计中',
+      attributes: {
+        working_voltage: 12
+      }
+    };
+  }
+
+  // Handle case where code doesn't match
+  const searchId = (requestCodeOrId || '').trim().toUpperCase();
+  if (searchId && searchId !== 'REQ-2026-000100' && searchId !== 'PART-2026-000100' && searchId !== 'ELEC-2026-000100') {
+    return {
+      reference: null,
+      scoredCandidates: [],
+      filteredCandidates: [],
+      errorCode: 'REFERENCE_NOT_FOUND',
+      errorMessage: `未找到源申请件或物料代码: ${requestCodeOrId}`
+    };
+  }
+
+  // 2. Define the candidates raw data
+  const rawMechanicalCandidates = [
+    {
+      objectId: 'PART-2025-009831',
+      objectName: '内六角螺栓 M10x45 SUS304',
+      specification: 'M10 x 45',
+      material: 'SUS304',
+      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
+      lifecycleState: '已发布',
+      attributes: {
+        spec_description: '内六角螺栓 M10x45 SUS304',
+        core_material: 'SUS304',
+        nominal_diameter: 10,
+        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
+        thread_pitch: 1.5
+      }
+    },
+    {
+      objectId: 'PART-2024-118204',
+      objectName: '六角头螺栓 M10x50 A2-70',
+      specification: 'M10 x 50',
+      material: 'A2-70',
+      classificationPath: '/标准件/紧固件/螺纹副/六角头螺栓',
+      lifecycleState: '已发布',
+      attributes: {
+        spec_description: '六角头螺栓 M10x50 A2-70',
+        core_material: 'A2-70',
+        nominal_diameter: 10,
+        category_path: '/标准件/紧固件/螺纹副/六角头螺栓',
+        thread_pitch: 1.5
+      }
+    },
+    {
+      objectId: 'PART-2026-000492',
+      objectName: '内六角螺栓 M8x50 碳钢',
+      specification: 'M8 x 50',
+      material: '碳钢（8.8 级镀锌）',
+      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
+      lifecycleState: '设计中',
+      attributes: {
+        spec_description: '内六角螺栓 M8x50 碳钢',
+        core_material: '碳钢（8.8 级镀锌）',
+        nominal_diameter: 8,
+        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
+        thread_pitch: 1.25
+      }
+    },
+    {
+      objectId: 'PART-2023-001099',
+      objectName: '内六角螺栓 M10x50（作废备件）',
+      specification: 'M10 x 50',
+      material: 'SUS304',
+      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
+      lifecycleState: '已作废',
+      attributes: {
+        spec_description: '内六角螺栓 M10x50（作废备件）',
+        core_material: 'SUS304',
+        nominal_diameter: 10,
+        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
+        thread_pitch: 1.5
+      }
+    }
+  ];
+
+  const rawElectricalCandidates = [
+    {
+      objectId: 'ELEC-2025-001122',
+      objectName: '直流继电器 12V 高可靠型',
+      specification: '12V',
+      material: '塑料/铜',
+      classificationPath: '/电子元器件/继电器/直流继电器',
+      lifecycleState: '已发布',
+      attributes: {
+        working_voltage: 12
+      }
+    },
+    {
+      objectId: 'ELEC-2024-009988',
+      objectName: '直流继电器 24V',
+      specification: '24V',
+      material: '塑料/金属',
+      classificationPath: '/电子元器件/继电器/直流继电器',
+      lifecycleState: '已发布',
+      attributes: {
+        working_voltage: 24
+      }
+    },
+    {
+      objectId: 'ELEC-2023-000444',
+      objectName: '交流继电器 220V (已停用)',
+      specification: '220V',
+      material: '塑料',
+      classificationPath: '/电子元器件/继电器/交流继电器',
+      lifecycleState: '已作废',
+      attributes: {
+        working_voltage: 220
+      }
+    }
+  ];
+
+  const rawCandidates = objectType === 'PART_MECHANICAL' ? rawMechanicalCandidates : rawElectricalCandidates;
+
+  const scoredCandidates: ScoredCandidate[] = [];
+  const filteredCandidates: FilteredCandidate[] = [];
+
+  for (const cand of rawCandidates) {
+    // Check if Lifecycle state triggers hard filtration rule HR-003 or is retired
+    if (cand.lifecycleState === '已作废') {
+      filteredCandidates.push({
+        objectId: cand.objectId,
+        objectName: cand.objectName,
+        lifecycleState: cand.lifecycleState,
+        filterReason: '生命周期状态不符合候选条件'
+      });
+      continue;
+    }
+
+    // Apply UI filters if specified
+    if (filters) {
+      if (filters.keyword && filters.keyword.trim()) {
+        const k = filters.keyword.toLowerCase();
+        if (!cand.objectName.toLowerCase().includes(k) && !cand.objectId.toLowerCase().includes(k)) {
+          continue;
+        }
+      }
+      if (filters.category && filters.category !== 'ALL') {
+        if (filters.category === 'BOLT') {
+          if (!cand.classificationPath.includes('螺栓')) continue;
+        } else {
+          if (cand.classificationPath.includes('螺栓')) continue;
+        }
+      }
+      if (filters.lifecycle && filters.lifecycle !== 'ALL') {
+        if (filters.lifecycle === 'RELEASED') {
+          if (cand.lifecycleState !== '已发布') continue;
+        } else if (filters.lifecycle === 'DRAFT') {
+          if (cand.lifecycleState !== '设计中') continue;
+        }
+      }
+      if (filters.specInput && filters.specInput.trim()) {
+        const s = filters.specInput.toLowerCase();
+        if (!cand.objectName.toLowerCase().includes(s)) continue;
+      }
+      if (filters.materialInput && filters.materialInput.trim()) {
+        const m = filters.materialInput.toLowerCase();
+        if (!cand.material.toLowerCase().includes(m)) continue;
+      }
+    }
+
+    // Calculate similarity dynamically based on rule weightings
+    const compareFields: CompareFieldResult[] = [];
+    let totalScore = 0;
+
+    // Filter rules relevant to this object type
+    // If the entire objectType's rules are disabled, we do not load any scoring rules (empty activeRules)
+    const typeRules = rules.filter(r => r.objectType === objectType);
+    const isObjectTypeEnabled = typeRules.length > 0 && typeRules.every(r => r.enabled);
+    const activeRules = isObjectTypeEnabled ? typeRules.filter(r => r.isScoreActive) : [];
+
+    for (const rule of activeRules) {
+      const key = rule.propertyCode;
+      const refVal = reference ? reference.attributes[key] : null;
+      const candVal = cand.attributes[key];
+
+      let matchRate = 0;
+      let status: 'FULL' | 'PARTIAL' | 'MISS' = 'MISS';
+      let reason = '';
+
+      if (key === 'spec_description') {
+        // Text Match Rule F-001
+        if (cand.objectId === 'PART-2025-009831') {
+          matchRate = 0.688571; // matchRate for 24.1 score with weight 35
+          status = 'PARTIAL';
+          reason = '规格文本相似度达 83.1%, 命中了以下相同模式: 内六角螺栓 M10x';
+        } else if (cand.objectId === 'PART-2024-118204') {
+          matchRate = 0.957143; // matchRate for 33.5 score with weight 35
+          status = 'PARTIAL';
+          reason = '规格文本相似度达 95.7%, 命中了以下相同模式: M10x50';
+        } else if (cand.objectId === 'PART-2026-000492') {
+          matchRate = 0.542857; // matchRate for 19.0 score with weight 35
+          status = 'PARTIAL';
+          reason = '规格文本相似度达 54.2%, 命中了以下相同模式: 内六角螺栓';
+        }
+      } else if (key === 'core_material') {
+        // Material Exact or Synonym Match Rule F-002
+        if (candVal === refVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '材质完全一致 (归一化值: SUS304)';
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `材质不一致: 源[${refVal}] vs 目标[${candVal}]`;
+        }
+      } else if (key === 'nominal_diameter') {
+        // Diameter Rule F-003
+        if (candVal === refVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = `直径一致 (10mm)`;
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `直径不匹配: 源[${refVal}mm] vs 目标[${candVal}mm]`;
+        }
+      } else if (key === 'category_path') {
+        // Classification Rule F-005
+        if (candVal === refVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '分类路径完全一致';
+        } else if (cand.objectId === 'PART-2024-118204') {
+          // Candidate B
+          matchRate = 0.8; // score = 12.0 with weight 15
+          status = 'PARTIAL';
+          reason = '同属螺纹副大类，层级偏移扣分';
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = '分类不匹配';
+        }
+      } else if (key === 'thread_pitch') {
+        // Pitch Rule F-004
+        if (candVal === refVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '螺距完全一致 (1.5mm)';
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `螺距不一致: 源[${refVal}mm] vs 目标[${candVal}mm]`;
+        }
+      } else if (key === 'working_voltage') {
+        // Working Voltage Rule F-006 (Electrical)
+        if (cand.objectId === 'ELEC-2025-001122') {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '工作电压完全匹配 (12V)';
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `电压范围不一致: 源[12V] vs 目标[24V]`;
+        }
+      }
+
+      const weightedScore = Number((rule.weight * matchRate).toFixed(1));
+      totalScore += weightedScore;
+
+      compareFields.push({
+        fieldKey: key,
+        fieldLabel: rule.fieldName,
+        sourceValue: refVal as any,
+        candidateValue: candVal as any,
+        weight: rule.weight,
+        matchRate,
+        weightedScore,
+        status,
+        reason
+      });
+    }
+
+    // Sort compareFields by weight descending
+    compareFields.sort((a, b) => b.weight - a.weight);
+
+    const similarityScore = Number(totalScore.toFixed(1));
+    const similarityTier = similarityScore >= 86 ? '高相似' : similarityScore >= 68 ? '中相似' : '低相似';
+
+    // Calculate dynamic metadata
+    const fullHitCount = compareFields.filter(f => f.status === 'FULL').length;
+    const differenceCount = compareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;
+    const coverageRate = Math.round((fullHitCount / compareFields.length) * 100);
+
+    scoredCandidates.push({
+      objectType: objectType,
+      objectId: cand.objectId,
+      objectName: cand.objectName,
+      specification: cand.specification,
+      material: cand.material,
+      classificationPath: cand.classificationPath,
+      lifecycleState: cand.lifecycleState,
+      compareFields,
+      similarityScore,
+      similarityTier,
+      coverageRate,
+      fullHitCount,
+      differenceCount
+    });
+  }
+
+  // Sort by similarity score descending
+  scoredCandidates.sort((a, b) => b.similarityScore - a.similarityScore);
+
+  return {
+    reference,
+    scoredCandidates,
+    filteredCandidates
+  };
+}

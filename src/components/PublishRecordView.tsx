@@ -2,30 +2,91 @@ import React, { useState } from 'react';
 import { 
   History, 
   ChevronRight, 
-  CheckCircle, 
-  AlertTriangle, 
-  Eye, 
-  GitCompare, 
-  RotateCcw,
-  ArrowRight,
-  Info
+  CheckCircle2, 
+  XCircle, 
+  Info,
+  SlidersHorizontal,
+  Search
 } from 'lucide-react';
-import { PublishRecord } from '../types';
-import { versionDiffs } from '../data';
 
-interface PublishRecordViewProps {
-  records: PublishRecord[];
-  onRollback: (version: string) => void;
+interface ChangeRecord {
+  id: string;
+  objectType: string;
+  configVersion: string;
+  operationType: '保存' | '启用' | '停用';
+  summary: string;
+  operator: string;
+  time: string;
+  result: 'SUCCESS' | 'FAILED';
+  failureReason?: string;
 }
 
-export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ 
-  records,
-  onRollback
-}) => {
-  const [selectedRecord, setSelectedRecord] = useState<PublishRecord>(records[0]);
+export const PublishRecordView: React.FC = () => {
+  const [changeRecords, setChangeRecords] = useState<ChangeRecord[]>([
+    {
+      id: 'CR-001',
+      objectType: '机械零件 (PART_MECHANICAL)',
+      configVersion: 'v2.5.0',
+      operationType: '启用',
+      summary: '微调主要材质权重为25%，标称直径权重为15%，启用全套相似度计算规则，单位目录验证正常。',
+      operator: '李晓华 (数据标准管理员)',
+      time: '2026-07-15 16:30:12',
+      result: 'SUCCESS'
+    },
+    {
+      id: 'CR-002',
+      objectType: '电气元器件 (PART_ELECTRICAL)',
+      configVersion: 'v1.0.1',
+      operationType: '保存',
+      summary: '配置工作电压规则，保存草稿但暂不启用。权重累计为30%，继续完善其他字段。',
+      operator: '赵丽 (电气工程师)',
+      time: '2026-07-15 15:45:22',
+      result: 'SUCCESS'
+    },
+    {
+      id: 'CR-003',
+      objectType: '机械零件 (PART_MECHANICAL)',
+      configVersion: 'v2.4.9',
+      operationType: '启用',
+      summary: '尝试启用新增标称直径字段强过滤规则，因配置权重总和85%不满足100%要求导致校验失败。',
+      operator: '王明 (机械工程师)',
+      time: '2026-07-15 14:10:05',
+      result: 'FAILED',
+      failureReason: '参与评分字段权重合计为 85%，不满足 100% 满分校验规则。'
+    },
+    {
+      id: 'CR-004',
+      objectType: '电气元器件 (PART_ELECTRICAL)',
+      configVersion: 'v1.0.0',
+      operationType: '停用',
+      summary: '由于电气元器件分类元数据重构，手动下线停用该对象类型的二阶段相似度对比计算。',
+      operator: '张建国 (系统架构师)',
+      time: '2026-07-12 11:20:00',
+      result: 'SUCCESS'
+    },
+    {
+      id: 'CR-005',
+      objectType: '机械零件 (PART_MECHANICAL)',
+      configVersion: 'v2.4.0',
+      operationType: '启用',
+      summary: '完成机械零件初版配置规则映射启用，主要覆盖规格描述、标称直径、主要材质、螺距和分类。',
+      operator: '张建国 (系统架构师)',
+      time: '2026-07-02 15:00:00',
+      result: 'SUCCESS'
+    }
+  ]);
+
+  const [filterObjectType, setFilterObjectType] = useState<string>('ALL');
+  const [filterOpType, setFilterOpType] = useState<string>('ALL');
+
+  const filteredRecords = changeRecords.filter(r => {
+    const matchType = filterObjectType === 'ALL' || r.objectType.includes(filterObjectType);
+    const matchOp = filterOpType === 'ALL' || r.operationType === filterOpType;
+    return matchType && matchOp;
+  });
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
+    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
       
       {/* Title Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
@@ -33,227 +94,159 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({
           <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
             <span>相似度配置</span>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-slate-800 font-medium">发布记录</span>
+            <span className="text-slate-800 font-medium">变更记录</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">版本发布与配置审计历史</h1>
+          <h1 className="text-xl font-bold text-slate-900">配置变更审计历史</h1>
           <p className="text-xs text-slate-500 mt-1">
-            追溯 Manticore 二阶段相似度规则每次发布生成的版本快照，支持线上配置的差异对比及复制为新草稿。
+            追溯各对象类型下 Manticore 二阶段相似度配置的保存、启用、停用及完整性校验审计日志。
           </p>
         </div>
       </div>
 
-      {/* Main split-view */}
-      <div className="flex-1 flex flex-col overflow-y-auto p-6 space-y-6">
+      {/* Filter and Content panel */}
+      <div className="flex-1 flex flex-col p-6 overflow-hidden">
         
-        {/* Upper Segment: Publish Records Table */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden shrink-0">
-          <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
-              <History className="w-3.5 h-3.5 text-blue-500" />
-              <span>版本快照发布日志 (点击行切换查看详细版本差异)</span>
-            </span>
-            <span className="text-xs text-slate-400">仅审计已同步生效配置</span>
+        {/* Filters bar */}
+        <div className="bg-white border border-slate-200 rounded-lg p-4 mb-4 shadow-xs shrink-0 flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold text-slate-600">对象类型:</span>
+            <select 
+              value={filterObjectType} 
+              onChange={(e) => setFilterObjectType(e.target.value)}
+              className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
+            >
+              <option value="ALL">全部类型</option>
+              <option value="PART_MECHANICAL">机械零件</option>
+              <option value="PART_ELECTRICAL">电气元器件</option>
+            </select>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold text-slate-600">操作类型:</span>
+            <select 
+              value={filterOpType} 
+              onChange={(e) => setFilterOpType(e.target.value)}
+              className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
+            >
+              <option value="ALL">全部操作</option>
+              <option value="保存">保存</option>
+              <option value="启用">启用</option>
+              <option value="停用">停用</option>
+            </select>
+          </div>
+
+          <div className="text-xs text-slate-400 font-mono ml-auto">
+            共 {filteredRecords.length} 条审计记录
+          </div>
+        </div>
+
+        {/* Change Records Table */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
+              <History className="w-3.5 h-3.5 text-blue-500" />
+              <span>操作变更审计日志 (只读安全审计记录)</span>
+            </span>
+            <span className="text-[11px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded font-medium flex items-center space-x-1">
+              <Info className="w-3 h-3 text-slate-500" />
+              <span>审计日志不可篡改</span>
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-auto">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
+              <thead className="sticky top-0 bg-white z-10">
                 <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-semibold font-sans">
-                  <th className="px-4 py-2">版本号</th>
-                  <th className="px-4 py-2">发布生效时间</th>
-                  <th className="px-4 py-2">发布操作人</th>
-                  <th className="px-5 py-2">变更摘要说明</th>
-                  <th className="px-4 py-2">影响物料对象大类</th>
-                  <th className="px-3 py-2 text-center">影响字段数</th>
-                  <th className="px-3 py-2 text-center">系统校验</th>
-                  <th className="px-3 py-2 text-center">发布状态</th>
-                  <th className="px-4 py-2 text-center">版本审计入口</th>
+                  <th className="px-4 py-3 w-1/6">对象类型</th>
+                  <th className="px-4 py-3 w-24">配置版本</th>
+                  <th className="px-3 py-3 text-center w-20">操作类型</th>
+                  <th className="px-5 py-3">变更摘要</th>
+                  <th className="px-4 py-3 w-40">操作人</th>
+                  <th className="px-4 py-3 w-36">操作时间</th>
+                  <th className="px-3 py-3 text-center w-24">执行结果</th>
+                  <th className="px-4 py-3 w-1/5">失败原因</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {records.map((rec) => {
-                  const isSelected = selectedRecord.id === rec.id;
-                  return (
-                    <tr 
-                      key={rec.id} 
-                      onClick={() => setSelectedRecord(rec)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected ? 'bg-blue-50/70 border-l-4 border-l-blue-600 font-medium' : 'hover:bg-slate-50/60'
-                      }`}
-                    >
-                      {/* Version Code */}
-                      <td className="px-4 py-2.5 font-bold text-slate-900 font-mono">
-                        {rec.versionCode}
-                        {rec.status === 'ACTIVE' && (
-                          <span className="ml-1.5 text-xs bg-emerald-100 text-emerald-800 border border-emerald-200 px-1 rounded-full font-sans">
-                            当前生效
-                          </span>
-                        )}
+                {filteredRecords.length > 0 ? (
+                  filteredRecords.map((rec) => (
+                    <tr key={rec.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* Object Type */}
+                      <td className="px-4 py-3.5 font-medium text-slate-900 font-sans">
+                        {rec.objectType}
                       </td>
 
-                      {/* Time */}
-                      <td className="px-4 py-2.5 font-mono text-slate-600">
-                        {rec.publishTime}
+                      {/* Config Version */}
+                      <td className="px-4 py-3.5 font-mono font-bold text-slate-800">
+                        {rec.configVersion}
                       </td>
 
-                      {/* Publisher */}
-                      <td className="px-4 py-2.5 text-slate-800">
-                        {rec.publisher}
+                      {/* Operation Type */}
+                      <td className="px-3 py-3.5 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          rec.operationType === '启用' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                          rec.operationType === '停用' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
+                          'bg-blue-100 text-blue-800 border border-blue-200'
+                        }`}>
+                          {rec.operationType}
+                        </span>
                       </td>
 
-                      {/* Summary */}
-                      <td className="px-5 py-2.5 text-slate-500 max-w-[320px] truncate" title={rec.changeSummary}>
-                        {rec.changeSummary}
+                      {/* Change Summary */}
+                      <td className="px-5 py-3.5 text-slate-600 leading-relaxed font-sans font-medium text-xs">
+                        {rec.summary}
                       </td>
 
-                      {/* Affected Object */}
-                      <td className="px-4 py-2.5 text-slate-600 font-mono whitespace-nowrap">
-                        {rec.affectedObjectType}
+                      {/* Operator */}
+                      <td className="px-4 py-3.5 text-slate-700 whitespace-nowrap font-medium">
+                        {rec.operator}
                       </td>
 
-                      {/* Count */}
-                      <td className="px-3 py-2.5 text-center font-bold text-slate-700 font-mono">
-                        {rec.affectedFieldCount}
+                      {/* Operation Time */}
+                      <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">
+                        {rec.time}
                       </td>
 
-                      {/* Validation Result */}
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        {rec.validationResult === 'SUCCESS' ? (
-                          <span className="text-emerald-600 flex items-center justify-center space-x-1">
-                            <CheckCircle className="w-3.5 h-3.5" />
+                      {/* Execution Result */}
+                      <td className="px-3 py-3.5 text-center">
+                        {rec.result === 'SUCCESS' ? (
+                          <span className="text-emerald-600 font-semibold flex items-center justify-center space-x-1 text-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                             <span>成功</span>
                           </span>
                         ) : (
-                          <span className="text-amber-600 flex items-center justify-center space-x-1">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            <span>警告</span>
+                          <span className="text-red-600 font-semibold flex items-center justify-center space-x-1 text-xs">
+                            <XCircle className="w-3.5 h-3.5 text-red-500" />
+                            <span>失败</span>
                           </span>
                         )}
                       </td>
 
-                      {/* Status */}
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        {rec.status === 'ACTIVE' ? (
-                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-medium">线上运行中</span>
-                        ) : rec.status === 'SUPERSEDED' ? (
-                          <span className="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-medium">已被历史替代</span>
+                      {/* Failure Reason */}
+                      <td className="px-4 py-3.5 text-slate-500 leading-normal font-sans">
+                        {rec.failureReason ? (
+                          <span className="text-red-500 font-medium text-xs bg-red-50/50 px-2 py-1 rounded border border-red-100 block">
+                            {rec.failureReason}
+                          </span>
                         ) : (
-                          <span className="bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded font-medium">已回滚历史</span>
+                          <span className="text-slate-400 font-mono">-</span>
                         )}
                       </td>
-
-                      {/* Action Entries */}
-                      <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              alert(`查看版本 ${rec.versionCode} 完整的静态配置文件 JSON！`);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-0.5"
-                          >
-                            <Eye className="w-3 h-3" />
-                            <span>查看</span>
-                          </button>
-                          
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              alert(`生成当前草稿与已发布版本 ${rec.versionCode} 差异报告！`);
-                            }}
-                            className="text-slate-600 hover:text-slate-800 text-xs font-medium flex items-center space-x-0.5"
-                          >
-                            <GitCompare className="w-3 h-3" />
-                            <span>对比</span>
-                          </button>
-
-                          {rec.status !== 'ACTIVE' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`确定要将版本 ${rec.versionCode} 的所有规则配置复制为新草稿吗？这不会直接更改当前线上生效的版本。`)) {
-                                  onRollback(rec.versionCode);
-                                }
-                              }}
-                              className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-0.5"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              <span>复制为新草稿</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Lower Segment: Version Diff detail based on selection */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col min-h-[300px]">
-          
-          <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-800 flex items-center space-x-2">
-              <GitCompare className="w-4 h-4 text-purple-600" />
-              <span>所选版本差异对照细节: </span>
-              <strong className="text-blue-700 font-bold font-mono text-sm">{selectedRecord.versionCode}</strong>
-            </span>
-            <span className="text-xs text-slate-500 flex items-center space-x-1 bg-white border border-slate-200 px-2 py-0.5 rounded">
-              <Info className="w-3.5 h-3.5 text-blue-500" />
-              <span>影响说明旨在减少上线冲突风险</span>
-            </span>
-          </div>
-
-          <div className="p-4 flex-1 overflow-auto">
-            {/* Version diff table list */}
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="px-4 py-2 border-r border-slate-100">规则字段及配置路径</th>
-                  <th className="px-4 py-2 border-r border-slate-100 bg-red-50 text-red-700 font-bold">变更前 (Before)</th>
-                  <th className="px-4 py-2 border-r border-slate-100 bg-emerald-50 text-emerald-700 font-bold">变更后 (After)</th>
-                  <th className="px-4 py-2">影响性及验证结论 (Impact & Verification)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-sans">
-                {versionDiffs.map((diff, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-900 font-mono">
-                      {diff.fieldName}
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-100 bg-red-50/20 font-mono text-red-800">
-                      {diff.beforeValue}
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-100 bg-emerald-50/20 font-mono text-emerald-800 font-bold flex items-center space-x-1">
-                      <ArrowRight className="w-3 h-3 text-slate-400" />
-                      <span>{diff.afterValue}</span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {diff.impactDescription}
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="text-center py-8 text-slate-400 font-sans">
+                      暂无符合条件的变更记录。
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
-
-            {/* Quick validation box at bottom of diff */}
-            <div className="mt-5 bg-amber-50 border border-amber-200 p-3.5 rounded-md text-xs">
-              <span className="font-semibold text-amber-900 block mb-1 flex items-center space-x-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span>发布校验报告: {selectedRecord.versionCode}</span>
-              </span>
-              <p className="text-amber-800 leading-normal">
-                经 Manticore 集群预编译校验，本版本中“材质牌号归一”对应规则共覆盖 SAP ERP 和 TC 系统总计 14,240 余种零部件，计算图模型无环路冲突。直径公差未引起大范围全字搜索抖动，可安全承载二阶段去重过滤。
-              </p>
-            </div>
           </div>
-
         </div>
 
       </div>
-
     </div>
   );
 };

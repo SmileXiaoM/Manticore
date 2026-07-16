@@ -123,7 +123,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
       isFullTextActive: formIsFullTextActive,
       status: formIsActive ? 'ACTIVE' : 'INACTIVE',
       version: isNew ? 'v1.0.0' : (editingRule?.version || 'v1.0.0'),
-      lastEditor: '李晓华 (工艺数据管理员)',
+      lastEditor: '李晓华 (数据标准管理员)',
       lastEditTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
       remarks: formRemarks
     };

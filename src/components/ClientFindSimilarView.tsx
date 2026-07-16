@@ -12,10 +12,14 @@ import {
   FileCheck2,
   SlidersHorizontal
 } from 'lucide-react';
-import { queryResults } from '../data';
-import { SimilarityCandidate } from '../types';
+import { runSimilaritySearch } from '../data';
+import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
 
-export const ClientFindSimilarView: React.FC = () => {
+interface ClientFindSimilarViewProps {
+  rules: FieldSimilarityRule[];
+}
+
+export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ rules }) => {
   // Query Filters State
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [reqCode, setReqCode] = useState('REQ-2026-000100');
@@ -25,58 +29,25 @@ export const ClientFindSimilarView: React.FC = () => {
   const [specInput, setSpecInput] = useState('');
   const [materialInput, setMaterialInput] = useState('');
 
-  // Sandbox search / results mock
-  const [candidates, setCandidates] = useState<SimilarityCandidate[]>(queryResults);
-  const [selectedForCompare, setSelectedForCompare] = useState<SimilarityCandidate | null>(null);
+  // Dynamic Search Run Result State
+  const [searchResult, setSearchResult] = useState<SearchRunResult>(() => 
+    runSimilaritySearch('PART_MECHANICAL', 'REQ-2026-000100', rules)
+  );
+
+  const { reference, scoredCandidates } = searchResult;
+
+  // Selected candidate for side comparative drawer
+  const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
 
   const handleSearch = () => {
-    let filtered = [...queryResults];
-
-    // 1. Object Type Filter
-    if (objectType && objectType !== 'ALL') {
-      filtered = filtered.filter(c => c.sourceObjectType === objectType);
-    }
-
-    // 2. Keyword Filter
-    if (keyword.trim()) {
-      const k = keyword.toLowerCase();
-      filtered = filtered.filter(c => 
-        c.objectName.toLowerCase().includes(k) || 
-        c.objectId.toLowerCase().includes(k)
-      );
-    }
-
-    // 3. Category Filter
-    if (category && category !== 'ALL') {
-      if (category === 'BOLT') {
-        filtered = filtered.filter(c => c.classificationPath.includes('螺栓'));
-      } else {
-        filtered = filtered.filter(c => !c.classificationPath.includes('螺栓'));
-      }
-    }
-
-    // 4. Lifecycle Filter
-    if (lifecycle && lifecycle !== 'ALL') {
-      if (lifecycle === 'RELEASED') {
-        filtered = filtered.filter(c => c.lifecycleState.includes('已发布') || c.lifecycleState.includes('Released'));
-      } else if (lifecycle === 'DRAFT') {
-        filtered = filtered.filter(c => c.lifecycleState.includes('设计中') || c.lifecycleState.includes('Draft') || c.lifecycleState.includes('In Work'));
-      }
-    }
-
-    // 5. Spec Input Filter (M10, M8, 50, etc.)
-    if (specInput.trim()) {
-      const s = specInput.toLowerCase();
-      filtered = filtered.filter(c => c.objectName.toLowerCase().includes(s));
-    }
-
-    // 6. Material Input Filter (SUS304, etc.)
-    if (materialInput.trim()) {
-      const m = materialInput.toLowerCase();
-      filtered = filtered.filter(c => c.material.toLowerCase().includes(m));
-    }
-
-    setCandidates(filtered);
+    const res = runSimilaritySearch(objectType, reqCode, rules, {
+      keyword,
+      category,
+      lifecycle,
+      specInput,
+      materialInput
+    });
+    setSearchResult(res);
   };
 
   const handleResetFilters = () => {
@@ -87,102 +58,19 @@ export const ClientFindSimilarView: React.FC = () => {
     setLifecycle('ALL');
     setSpecInput('');
     setMaterialInput('');
-    setCandidates(queryResults);
+    const res = runSimilaritySearch('PART_MECHANICAL', 'REQ-2026-000100', rules);
+    setSearchResult(res);
   };
 
   const handleReset = () => {
     handleResetFilters();
     setSelectedForCompare(null);
-    alert('已重置研发工作台。');
-  };
-
-  // Dynamic and generic properties to fulfill specific columns requested
-  const getSpecification = (cand: SimilarityCandidate) => {
-    const match = cand.objectName.match(/M\d+x\d+/i);
-    if (match) {
-      return match[0].toUpperCase().replace('X', ' x ');
-    }
-    return 'M10 x 50';
-  };
-
-  const getTier = (score: number) => {
-    if (score >= 90) return '高相似';
-    if (score >= 70) return '中相似';
-    return '低相似';
-  };
-
-  const getCoverage = (cand: SimilarityCandidate) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '80%';
-    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
-    const percentage = Math.round((scoredFieldsCount / cand.scoreDetail.length) * 100);
-    return `${percentage}%`;
-  };
-
-  const getHitCount = (cand: SimilarityCandidate) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '4 / 5';
-    const scoredFieldsCount = cand.scoreDetail.filter(detail => detail.score > 0).length;
-    return `${scoredFieldsCount} / ${cand.scoreDetail.length}`;
-  };
-
-  const getDiffCount = (cand: SimilarityCandidate) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return '1';
-    const diffFieldsCount = cand.scoreDetail.filter(detail => detail.score === 0).length;
-    return `${diffFieldsCount}`;
-  };
-
-  // Helper resolvers to get source values dynamically
-  const getSourceValue = (fieldName: string) => {
-    const name = fieldName.toLowerCase();
-    if (name.includes('直径') || name.includes('diameter')) return '10 mm';
-    if (name.includes('螺距') || name.includes('pitch')) return '1.5 mm';
-    if (name.includes('材质') || name.includes('material')) return 'SUS304';
-    if (name.includes('分类') || name.includes('classification') || name.includes('category')) {
-      return '/国家标准分类/紧固件/螺栓/内六角螺栓';
-    }
-    if (name.includes('规格') || name.includes('spec')) return '内六角螺栓 M10x50 SUS304';
-    return '无';
-  };
-
-  // Helper resolvers to get candidate values dynamically
-  const getCandidateValue = (cand: SimilarityCandidate, fieldName: string) => {
-    const name = fieldName.toLowerCase();
-    if (name.includes('直径') || name.includes('diameter')) {
-      return cand.objectName.match(/M8/i) ? '8 mm' : '10 mm';
-    }
-    if (name.includes('螺距') || name.includes('pitch')) {
-      return cand.objectName.match(/M8/i) ? '1.25 mm' : '1.5 mm';
-    }
-    if (name.includes('材质') || name.includes('material')) {
-      return cand.material;
-    }
-    if (name.includes('分类') || name.includes('classification') || name.includes('category')) {
-      return cand.classificationPath;
-    }
-    if (name.includes('规格') || name.includes('spec')) {
-      return cand.objectName;
-    }
-    return '无';
-  };
-
-  // Dynamic comparison details generator
-  const getCompareData = (cand: SimilarityCandidate) => {
-    if (!cand.scoreDetail || cand.scoreDetail.length === 0) return [];
-    return cand.scoreDetail.map(detail => {
-      const sourceVal = getSourceValue(detail.fieldName);
-      const candVal = getCandidateValue(cand, detail.fieldName);
-      return {
-        name: detail.fieldName.split(' ')[0],
-        source: sourceVal,
-        candidate: candVal,
-        diff: detail.score === detail.weight ? '完全一致' : `不一致 (${sourceVal} vs ${candVal})`
-      };
-    });
   };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="client-similar-container">
       
-      {/* 2.1 Corporate Page Header with Reset Tool (普通页面标题与工具栏) */}
+      {/* 2.1 Corporate Page Header with Reset Tool */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4" id="client-header">
         <div>
           <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
@@ -219,7 +107,10 @@ export const ClientFindSimilarView: React.FC = () => {
               <select
                 id="client-select-objtype"
                 value={objectType}
-                onChange={(e) => setObjectType(e.target.value)}
+                onChange={(e) => {
+                  setObjectType(e.target.value);
+                  setReqCode(e.target.value === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'REQ-2026-000100');
+                }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs min-w-[150px]"
               >
                 <option value="PART_MECHANICAL">机械零件</option>
@@ -279,7 +170,7 @@ export const ClientFindSimilarView: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 2 More conditions (Horizontal aligning) */}
+          {/* Row 2 More conditions */}
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs border-t border-slate-100 pt-3">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center space-x-2">
@@ -328,35 +219,52 @@ export const ClientFindSimilarView: React.FC = () => {
 
         </div>
 
-        {/* 2.3 待申请物料摘要区 (Compact read-only full-width summary strip) */}
-        <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
-          <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-800">待申请物料</span>
-            <span className="text-slate-300">|</span>
+        {/* 2.3 待申请物料摘要区 */}
+        {reference ? (
+          <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-slate-800">待申请物料</span>
+              <span className="text-slate-300">|</span>
+            </div>
+            <div>
+              <span className="text-slate-400">申请流水号:</span>{' '}
+              <span className="font-mono font-bold text-slate-900">{reqCode}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">申请物料名称:</span>{' '}
+              <span className="font-semibold text-slate-900">{reference.objectName}</span>
+            </div>
+            {reference.objectType === 'PART_MECHANICAL' ? (
+              <>
+                <div>
+                  <span className="text-slate-400">主要材质:</span>{' '}
+                  <span className="font-mono font-bold text-slate-900">{reference.attributes.core_material}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">标称直径/长度:</span>{' '}
+                  <span className="font-bold text-slate-900">直径: {reference.attributes.nominal_diameter}mm / 长度: 50mm</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span className="text-slate-400">工作电压:</span>{' '}
+                  <span className="font-bold text-slate-900">{reference.attributes.working_voltage} V</span>
+                </div>
+              </>
+            )}
+            <div>
+              <span className="text-slate-400">计划分类路径:</span>{' '}
+              <span className="font-mono text-slate-700">{reference.classificationPath}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-slate-400">申请流水号:</span>{' '}
-            <span className="font-mono font-bold text-slate-900">{reqCode}</span>
+        ) : (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-800 shadow-2xs" id="client-target-error">
+            未找到源申请件或物料代码: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
           </div>
-          <div>
-            <span className="text-slate-400">申请物料名称:</span>{' '}
-            <span className="font-semibold text-slate-900">内六角螺栓 M10x50 SUS304</span>
-          </div>
-          <div>
-            <span className="text-slate-400">主要材质:</span>{' '}
-            <span className="font-mono font-bold text-slate-900">SUS304</span>
-          </div>
-          <div>
-            <span className="text-slate-400">标称直径/长度:</span>{' '}
-            <span className="font-bold text-slate-900">Diameter: 10mm / Length: 50mm</span>
-          </div>
-          <div>
-            <span className="text-slate-400">计划分类路径:</span>{' '}
-            <span className="font-mono text-slate-700">/标准件/紧固件/螺纹副/内六角螺栓</span>
-          </div>
-        </div>
+        )}
 
-        {/* 2.4 全宽候选件结果表 (occupies full width) */}
+        {/* 2.4 全宽候选件结果表 */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
           
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
@@ -364,7 +272,7 @@ export const ClientFindSimilarView: React.FC = () => {
               <Eye className="w-4 h-4 text-emerald-600" />
               <span>属性相似件检索结果 (Manticore 实时比对)</span>
             </span>
-            <span className="text-xs text-slate-400 font-medium">共检索到 {candidates.length} 条相似件纪录，点击“字段对比”进行去重闭环。</span>
+            <span className="text-xs text-slate-400 font-medium">共检索到 {scoredCandidates.length} 条相似件纪录，点击“字段对比”进行去重闭环。</span>
           </div>
 
           <div className="overflow-x-auto w-full">
@@ -387,7 +295,7 @@ export const ClientFindSimilarView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {candidates.map((candidate, idx) => {
+                {scoredCandidates.map((candidate, idx) => {
                   const isSelected = selectedForCompare?.objectId === candidate.objectId;
                   const scoreColor = candidate.similarityScore >= 90 
                     ? 'text-emerald-700 font-extrabold' 
@@ -417,7 +325,7 @@ export const ClientFindSimilarView: React.FC = () => {
 
                       {/* 规格/关键尺寸 */}
                       <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono">
-                        {getSpecification(candidate)}
+                        {candidate.specification}
                       </td>
 
                       {/* 材料 */}
@@ -453,23 +361,23 @@ export const ClientFindSimilarView: React.FC = () => {
                           candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
                           'bg-slate-100 text-slate-600 border border-slate-200'
                         }`}>
-                          {getTier(candidate.similarityScore)}
+                          {candidate.similarityTier}
                         </span>
                       </td>
 
                       {/* 覆盖率 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {getCoverage(candidate)}
+                        {candidate.coverageRate}%
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {getHitCount(candidate)}
+                        {candidate.fullHitCount} / {candidate.compareFields.length}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
-                        {getDiffCount(candidate)}
+                        {candidate.differenceCount}
                       </td>
 
                       {/* 操作 */}
@@ -496,7 +404,7 @@ export const ClientFindSimilarView: React.FC = () => {
       </div>
 
       {/* 2.5 属性对比抽屉 (点击拉起，默认关闭，固定在右侧覆盖而不挤压主表) */}
-      {selectedForCompare && (
+      {selectedForCompare && reference && (
         <>
           {/* Drawer Backdrop */}
           <div 
@@ -543,10 +451,10 @@ export const ClientFindSimilarView: React.FC = () => {
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">待申请流(源) :</span>
-                  <strong className="text-slate-900 font-mono">REQ-2026-000100</strong>
+                  <strong className="text-slate-900 font-mono">{reqCode}</strong>
                 </div>
                 <div className="text-slate-700 font-semibold truncate leading-normal">
-                  内六角螺栓 M10x50 SUS304
+                  {reference.objectName}
                 </div>
                 
                 <div className="border-t border-slate-200/60 my-2"></div>
@@ -574,14 +482,14 @@ export const ClientFindSimilarView: React.FC = () => {
                   </div>
                   
                   <div className="divide-y divide-slate-100 text-xs">
-                    {getCompareData(selectedForCompare).map((item, idx) => (
+                    {selectedForCompare.compareFields.map((item, idx) => (
                       <div key={idx} className="grid grid-cols-3 p-2.5 hover:bg-slate-50 transition-colors">
-                        <div className="font-semibold text-slate-500">{item.name}</div>
-                        <div className="font-mono text-slate-800 truncate">{item.source}</div>
+                        <div className="font-semibold text-slate-500">{item.fieldLabel}</div>
+                        <div className="font-mono text-slate-800 truncate">{String(item.sourceValue ?? '无')}</div>
                         <div className={`font-mono truncate font-medium ${
-                          item.diff !== '完全一致' ? 'text-red-600 font-bold bg-red-50 px-1.5 rounded border border-red-100' : 'text-slate-800'
+                          item.status !== 'FULL' ? 'text-red-600 font-bold bg-red-50 px-1.5 rounded border border-red-100' : 'text-slate-800'
                         }`}>
-                          {item.candidate}
+                          {String(item.candidateValue ?? '无')}
                         </div>
                       </div>
                     ))}
@@ -594,14 +502,28 @@ export const ClientFindSimilarView: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <strong className="text-slate-700">Manticore 计算得分:</strong>
                   <span className="text-blue-600 font-bold font-mono bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-xs">
-                    {selectedForCompare.similarityScore.toFixed(1)}%相似度 ({getTier(selectedForCompare.similarityScore)})
+                    {selectedForCompare.similarityScore.toFixed(1)}%相似度 ({selectedForCompare.similarityTier})
                   </span>
                 </div>
                 <div>
                   <strong className="text-slate-700 block mb-0.5">属性差异诊断:</strong>
-                  <p className="leading-relaxed bg-white p-2 rounded border border-slate-100 text-slate-600">
-                    {selectedForCompare.diffFields || '核心材质、尺寸与螺纹螺距属性一致，匹配算分无特征冲突。'}
-                  </p>
+                  <div className="leading-relaxed bg-white p-2.5 rounded border border-slate-100 text-slate-600 space-y-1">
+                    {selectedForCompare.differenceCount > 0 ? (
+                      selectedForCompare.compareFields
+                        .filter(f => f.status !== 'FULL')
+                        .map((f, fIdx) => (
+                          <div key={fIdx} className="flex items-start space-x-1">
+                            <span className="text-red-500 shrink-0">•</span>
+                            <span><strong>{f.fieldLabel}</strong>: {f.reason}</span>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-emerald-700 font-semibold flex items-center space-x-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>核心材质、尺寸与螺纹螺距属性完全一致，匹配算分无特征冲突。</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

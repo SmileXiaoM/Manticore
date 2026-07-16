@@ -4,6 +4,29 @@
 
 export type ObjectType = 'PART_MECHANICAL' | 'PART_ELECTRICAL' | 'DOCUMENT' | 'CAD_MODEL' | 'ALL';
 
+export type UnitCatalog = {
+  schemaVersion: string;
+  catalogVersion: string;
+  sourceSystem: string;
+  loadedAt: string;
+  status: 'LOADED' | 'FAILED_USING_LAST_GOOD';
+  quantities: QuantityDefinition[];
+};
+
+type UnitDefinition = {
+  code: string;
+  name: string;
+  scale: number;
+  offset: number;
+};
+
+export type QuantityDefinition = {
+  code: string;
+  name: string;
+  baseUnit: string;
+  units: UnitDefinition[];
+};
+
 export type MatchConfig =
   | { kind: 'EXACT' }
   | { kind: 'TEXT_SIMILARITY'; threshold: number }
@@ -41,9 +64,6 @@ export interface FieldSimilarityRule {
   weight: number; // 权重
   matchType: string; // 匹配方式 (精确, 模糊, 范围, 权重词, 向量等)
   nullHandling: string; // 空值处理 (不参与, 扣分, 设为默认值等)
-  standardizationRuleSet: string; // 标准化规则集
-  synonymRuleSet: string; // 同义词规则集
-  categoryAlignmentStrategy: string; // 分类/类型归一策略
   isScoreActive: boolean; // 参与相似度评分
   isFilterCondition: boolean; // 作为过滤条件
   isQueryPreviewAvailable: boolean; // 查询预览可用
@@ -52,8 +72,8 @@ export interface FieldSimilarityRule {
   showDiffFields: boolean; // 展示差异字段
   hitReasonTemplate: string; // 命中原因模板
   diffFieldsTemplate: string; // 差异字段模板
-  status: 'DRAFT' | 'PUBLISHED' | 'CHANGED';
-  publishVersion: string;
+  enabled: boolean;
+  configVersion: string;
   lastEditor: string;
   lastEditTime: string;
   
@@ -264,3 +284,59 @@ export interface CategoryCoverage {
   isEnabled: boolean; // 是否启用
   version: string; // 生效版本
 }
+
+export type ReferenceObject = {
+  requestCode: string;
+  objectType: string;
+  objectId: string;
+  objectName: string;
+  specification: string;
+  material: string;
+  classificationPath: string;
+  lifecycleState: string;
+  attributes: Record<string, string | number | null>;
+};
+
+export type CompareFieldResult = {
+  fieldKey: string;
+  fieldLabel: string;
+  sourceValue: string | number | null;
+  candidateValue: string | number | null;
+  weight: number;
+  matchRate: number;       // 0-1
+  weightedScore: number;   // weight * matchRate
+  status: 'FULL' | 'PARTIAL' | 'MISS';
+  reason: string;
+};
+
+export type ScoredCandidate = {
+  objectType: string;
+  objectId: string;
+  objectName: string;
+  specification: string;
+  material: string;
+  classificationPath: string;
+  lifecycleState: string;
+  compareFields: CompareFieldResult[];
+  similarityScore: number;
+  similarityTier: '高相似' | '中相似' | '低相似';
+  coverageRate: number;
+  fullHitCount: number;
+  differenceCount: number;
+};
+
+export type FilteredCandidate = {
+  objectId: string;
+  objectName: string;
+  lifecycleState: string;
+  filterReason: string;
+};
+
+export type SearchRunResult = {
+  reference: ReferenceObject | null;
+  scoredCandidates: ScoredCandidate[];
+  filteredCandidates: FilteredCandidate[];
+  errorCode?: 'REFERENCE_NOT_FOUND' | 'OBJECT_TYPE_MISMATCH';
+  errorMessage?: string;
+};
+

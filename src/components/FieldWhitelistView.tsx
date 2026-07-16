@@ -128,7 +128,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
       defaultWeight: Number(formDefaultWeight),
       sortOrder: Number(formSortOrder),
       status: 'ACTIVE',
-      lastEditor: '李晓华 (工艺数据管理员)',
+      lastEditor: '李晓华 (数据标准管理员)',
       lastEditTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
     };
 
