@@ -20,14 +20,24 @@ import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBase
 interface FieldSimilarityViewProps {
   rules: FieldSimilarityRule[];
   onUpdateRules: (newRules: FieldSimilarityRule[]) => void;
-  onPublish: () => void;
+  objectConfigStatus: Record<string, {
+    enabled: boolean;
+    configVersion: string;
+    lastModifiedAt: string;
+  }>;
+  onUpdateConfigStatus: (status: Record<string, {
+    enabled: boolean;
+    configVersion: string;
+    lastModifiedAt: string;
+  }>) => void;
   onNavigate?: (view: string) => void;
 }
 
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
   rules, 
   onUpdateRules,
-  onPublish,
+  objectConfigStatus,
+  onUpdateConfigStatus,
   onNavigate
 }) => {
   // Active ObjectType Selector Context (Default: PART_MECHANICAL)
@@ -97,26 +107,26 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // Handle active Object Type toggle enabled state
   const isCurrentTypeEnabled = useMemo(() => {
-    const subset = rules.filter(r => r.objectType === activeObjectType);
-    if (subset.length === 0) return false;
-    return subset.every(r => r.enabled);
-  }, [rules, activeObjectType]);
+    return objectConfigStatus[activeObjectType]?.enabled ?? false;
+  }, [objectConfigStatus, activeObjectType]);
 
   const handleToggleObjectTypeEnabled = () => {
-    const nextState = !isCurrentTypeEnabled;
-    const updated = rules.map(r => {
-      if (r.objectType === activeObjectType) {
-        return { ...r, enabled: nextState };
+    const nextEnabled = !isCurrentTypeEnabled;
+    const nextStatus = {
+      ...objectConfigStatus,
+      [activeObjectType]: {
+        ...objectConfigStatus[activeObjectType],
+        enabled: nextEnabled,
+        lastModifiedAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
       }
-      return r;
-    });
-    onUpdateRules(updated);
+    };
+    onUpdateConfigStatus(nextStatus);
     setIsModified(true);
   };
 
   // Weight summary check
   const weightSummary = useMemo(() => {
-    const subset = rules.filter(r => r.objectType === activeObjectType && r.enabled);
+    const subset = rules.filter(r => r.objectType === activeObjectType);
     const scoreRules = subset.filter(r => r.isScoreActive);
     const total = scoreRules.reduce((sum, r) => sum + r.weight, 0);
     const detailList = scoreRules.map(r => `${r.fieldName}(${r.weight}%)`);
@@ -133,13 +143,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // Object types available with counters
   const objectTypeOptions = [
     { value: 'PART_MECHANICAL', label: '机械零件 (PART_MECHANICAL)' },
-    { value: 'PART_ELECTRICAL', label: '电气元器件 (PART_ELECTRICAL)' }
+    { value: 'PART_ELECTRICAL', label: '电气元器件 (PART_ELECTRICAL)' },
+    { value: 'PART_HYDRAULIC', label: '液压元件 (PART_HYDRAULIC)' },
+    { value: 'PART_PNEUMATIC', label: '气动元件 (PART_PNEUMATIC)' },
+    { value: 'PART_OPTICAL', label: '光学元件 (PART_OPTICAL)' }
   ];
 
   // Map of Object types display
   const objectTypeNameMap: Record<string, string> = {
-    'PART_MECHANICAL': '机械零件',
-    'PART_ELECTRICAL': '电气元器件'
+    'PART_MECHANICAL': '机械零件 (PART_MECHANICAL)',
+    'PART_ELECTRICAL': '电气元器件 (PART_ELECTRICAL)',
+    'PART_HYDRAULIC': '液压元件 (PART_HYDRAULIC)',
+    'PART_PNEUMATIC': '气动元件 (PART_PNEUMATIC)',
+    'PART_OPTICAL': '光学元件 (PART_OPTICAL)'
   };
 
   // Search input and selector filtering
@@ -184,9 +200,36 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFilterMatchType('ALL');
   };
 
+  const incrementVersion = (version: string) => {
+    const match = version.match(/^v(\d+)\.(\d+)\.(\d+)$/);
+    if (match) {
+      const major = parseInt(match[1]);
+      const minor = parseInt(match[2]);
+      const patch = parseInt(match[3]);
+      return `v${major}.${minor}.${patch + 1}`;
+    }
+    return version + '.1';
+  };
+
   // Save changes to local memory state & localstorage (Simulating instant config save)
   const handleSaveCurrentConfig = () => {
-    alert(`[ ${objectTypeNameMap[activeObjectType]} ] 二阶段相似度规则集已成功保存！配置已同步在当前PLM内存，无需任何审批发布流，直接对应用端生效。`);
+    if (!weightSummary.isValid) {
+      alert(`保存失败！当前对象类型的评分项权重总和为 ${weightSummary.total}%，不等于 100%。请确保参与加权评分的字段权重合计精确等于 100% 才能保存生效！`);
+      return;
+    }
+
+    const currentConf = objectConfigStatus[activeObjectType] || { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '' };
+    const nextVersion = incrementVersion(currentConf.configVersion);
+    const nextStatus = {
+      ...objectConfigStatus,
+      [activeObjectType]: {
+        ...currentConf,
+        configVersion: nextVersion,
+        lastModifiedAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
+      }
+    };
+    onUpdateConfigStatus(nextStatus);
+    alert(`[ ${objectTypeNameMap[activeObjectType]} ] 二阶段相似度规则集已成功保存！\n版本已自动升级至 ${nextVersion}，直接对应用端生效。`);
     setIsModified(false);
   };
 
@@ -515,7 +558,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <span className="text-xs font-bold text-slate-700 shrink-0">当前对象类型:</span>
               <select
                 value={activeObjectType}
-                onChange={(e) => setActiveObjectType(e.target.value as ObjectType)}
+                onChange={(e) => {
+                  const targetType = e.target.value as ObjectType;
+                  if (isModified) {
+                    if (window.confirm('当前配置存在未保存修改，切换对象类型将丢失这些修改，是否确认切换？')) {
+                      setActiveObjectType(targetType);
+                      setIsModified(false);
+                    }
+                  } else {
+                    setActiveObjectType(targetType);
+                  }
+                }}
                 className="text-xs border border-slate-200 rounded-md px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
               >
                 {objectTypeOptions.map(opt => (
@@ -583,7 +636,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </strong>
                 </span>
                 <span className="text-slate-400">|</span>
-                <span className="font-mono text-[10px] text-slate-300">配置版本: v2.5.0</span>
+                <span className="font-mono text-[10px] text-slate-300">
+                  配置版本: {objectConfigStatus[activeObjectType]?.configVersion ?? 'v1.0.0'}
+                </span>
               </div>
 
               {/* Weight Warnings */}
@@ -607,237 +662,260 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             )}
           </div>
 
-          {/* Table Filters area */}
-          <div className="px-6 py-3.5 shrink-0 flex flex-wrap items-center gap-3.5">
-            {/* Field query */}
-            <div className="relative w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={filterFieldName}
-                onChange={(e) => setFilterFieldName(e.target.value)}
-                placeholder="搜索字段名称 / 属性编码..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden font-medium text-slate-700"
-              />
-            </div>
-
-            {/* Score toggle filter */}
-            <div className="flex items-center space-x-1.5 text-xs">
-              <span className="text-slate-500 font-medium">参与评分:</span>
-              <select
-                value={filterIsScoreActive}
-                onChange={(e) => setFilterIsScoreActive(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-              >
-                <option value="ALL">全部</option>
-                <option value="TRUE">是</option>
-                <option value="FALSE">否</option>
-              </select>
-            </div>
-
-            {/* Filter condition toggle */}
-            <div className="flex items-center space-x-1.5 text-xs">
-              <span className="text-slate-500 font-medium">作为过滤条件:</span>
-              <select
-                value={filterIsFilterCondition}
-                onChange={(e) => setFilterIsFilterCondition(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-              >
-                <option value="ALL">全部</option>
-                <option value="TRUE">是</option>
-                <option value="FALSE">否</option>
-              </select>
-            </div>
-
-            {/* Match type filter */}
-            <div className="flex items-center space-x-1.5 text-xs">
-              <span className="text-slate-500 font-medium">匹配方式:</span>
-              <select
-                value={filterMatchType}
-                onChange={(e) => setFilterMatchType(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-              >
-                <option value="ALL">全部方式</option>
-                <option value="精确值匹配">精确值匹配</option>
-                <option value="数值容差匹配">数值容差匹配</option>
-                <option value="数值距离衰减">数值距离衰减</option>
-                <option value="文本相似匹配 (非 AI)">文本相似匹配</option>
-                <option value="层级关系匹配">层级关系匹配</option>
-              </select>
-            </div>
-
-            {/* Reset Filters */}
-            <button
-              onClick={handleResetFilters}
-              className="px-3 py-1.5 text-xs bg-slate-200 text-slate-600 hover:bg-slate-300 rounded font-bold transition-colors cursor-pointer"
-            >
-              重置
-            </button>
-          </div>
-
-          {/* Main compact table */}
-          <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
-            <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 flex flex-col overflow-hidden">
-              <div className="overflow-auto flex-1">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="sticky top-0 bg-slate-50 z-10">
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-sans">
-                      <th className="px-4 py-3">字段显示名称 & 属性编码</th>
-                      <th className="px-4 py-3">字段类型 (严格区分)</th>
-                      <th className="px-3 py-3 text-center">算分权重</th>
-                      <th className="px-4 py-3">比对匹配方式</th>
-                      <th className="px-4 py-3">比对参数规格摘要</th>
-                      <th className="px-4 py-3">空值回退策略</th>
-                      <th className="px-3 py-3 text-center">评分</th>
-                      <th className="px-3 py-3 text-center">过滤</th>
-                      <th className="px-4 py-3 text-center">管理操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-sans">
-                    {filteredRules.length > 0 ? (
-                      filteredRules.map((rule) => {
-                        const isScore = rule.isScoreActive;
-                        const isFilter = rule.isFilterCondition;
-                        
-                        // Parameter Summary builder
-                        let paramSummary = '无特殊匹配参数';
-                        if (rule.matchConfig) {
-                          const config = rule.matchConfig;
-                          if (config.kind === 'TEXT_SIMILARITY') {
-                            paramSummary = `文本匹配阈值 ≥ ${config.threshold}%`;
-                          } else if (config.kind === 'NUMERIC_TOLERANCE') {
-                            const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
-                            const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                            const typeLabel = config.toleranceType === 'PERCENTAGE' ? '%' : unitLabel;
-                            paramSummary = `容差 ±${config.toleranceValue}${typeLabel} (${dirLabel})`;
-                          } else if (config.kind === 'NUMERIC_DECAY') {
-                            const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
-                            const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                            paramSummary = `无损距离:${config.fullScoreRange}${unitLabel}, 极限零分:${config.zeroScoreBoundary}${unitLabel} (${dirLabel})`;
-                          } else if (config.kind === 'NATIVE_HIERARCHY') {
-                            paramSummary = `最大层级偏移:${config.maxLevelGap}层, 每层扣减:${config.deductionPerLevel}分`;
-                          } else if (config.kind === 'DATE_TOLERANCE') {
-                            const unitLabel = config.toleranceUnit === 'DAY' ? '天' : '小时';
-                            const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                            paramSummary = `容差 ±${config.toleranceValue}${unitLabel} (${dirLabel})`;
-                          }
-                        }
-
-                        // Determine field type styling badge
-                        const isUnitType = rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)';
-                        
-                        return (
-                          <tr 
-                            key={rule.id} 
-                            className={`hover:bg-slate-50/50 transition-colors ${
-                              !isCurrentTypeEnabled ? 'text-slate-400 bg-slate-50/50' : 'text-slate-800'
-                            }`}
-                          >
-                            {/* Display Name & Property Code */}
-                            <td className="px-4 py-2.5">
-                              <div className="font-semibold text-slate-900">{rule.fieldName}</div>
-                              <div className="font-mono text-[10.5px] text-slate-500 mt-0.5">{rule.propertyCode}</div>
-                            </td>
-
-                            {/* Field Type (strictly separated) */}
-                            <td className="px-4 py-2.5">
-                              {isUnitType ? (
-                                <div className="flex flex-col items-start">
-                                  <span className="text-[10.5px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
-                                    带单位数值_WITH_UNIT
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 mt-0.5 font-sans">
-                                    量纲: {rule.unitFamily} ({rule.displayUnit} → 基准 {rule.baseUnit})
-                                  </span>
-                                </div>
-                              ) : rule.fieldType === '数值 (NUMBER)' ? (
-                                <span className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded font-semibold">
-                                  纯数值_NUMBER
-                                </span>
-                              ) : (
-                                <span className="text-[10.5px] text-slate-600 font-medium">
-                                  {rule.fieldType}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Weight */}
-                            <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-800">
-                              {isScore ? `${rule.weight}%` : <span className="text-slate-400">-</span>}
-                            </td>
-
-                            {/* Match Type */}
-                            <td className="px-4 py-2.5 font-medium text-slate-700">
-                              {rule.matchType}
-                            </td>
-
-                            {/* Parameters Summary */}
-                            <td className="px-4 py-2.5 text-slate-600 font-medium leading-relaxed">
-                              {paramSummary}
-                            </td>
-
-                            {/* Null Handling */}
-                            <td className="px-4 py-2.5 text-slate-500">
-                              {rule.nullHandling}
-                            </td>
-
-                            {/* Score Toggle Switch */}
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                isScore 
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}>
-                                {isScore ? '评分中' : '不参与'}
-                              </span>
-                            </td>
-
-                            {/* Filter Toggle Switch */}
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                isFilter 
-                                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}>
-                                {isFilter ? '过滤中' : '不参与'}
-                              </span>
-                            </td>
-
-                            {/* Actions */}
-                            <td className="px-4 py-2.5 text-center">
-                              <div className="flex items-center justify-center space-x-2">
-                                <button
-                                  onClick={() => handleEditRule(rule)}
-                                  className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors cursor-pointer"
-                                  title="配置规则算法和量纲换算"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                  <span>配置</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteRule(rule.id)}
-                                  className="text-slate-400 hover:text-red-600 text-xs font-medium flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                                  title="删除此规则"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={9} className="text-center py-10 text-slate-400">
-                          未搜索到匹配的字段对比规则。
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+          {!rules.some(r => r.objectType === activeObjectType) ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50">
+              <div className="max-w-md text-center p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+                <SlidersHorizontal className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-800">该类型尚未配置相似度比分规则</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  当前对象分类 [{objectTypeNameMap[activeObjectType]}] 暂未定义任何二阶段属性比分与过滤映射规则。您可以点击右上角的“添加字段规则”开始创建。
+                </p>
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={handleCreateNewRule}
+                    className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>添加第一条字段规则</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Table Filters area */}
+              <div className="px-6 py-3.5 shrink-0 flex flex-wrap items-center gap-3.5">
+                {/* Field query */}
+                <div className="relative w-64">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={filterFieldName}
+                    onChange={(e) => setFilterFieldName(e.target.value)}
+                    placeholder="搜索字段名称 / 属性编码..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden font-medium text-slate-700"
+                  />
+                </div>
+
+                {/* Score toggle filter */}
+                <div className="flex items-center space-x-1.5 text-xs">
+                  <span className="text-slate-500 font-medium">参与评分:</span>
+                  <select
+                    value={filterIsScoreActive}
+                    onChange={(e) => setFilterIsScoreActive(e.target.value)}
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
+                  >
+                    <option value="ALL">全部</option>
+                    <option value="TRUE">是</option>
+                    <option value="FALSE">否</option>
+                  </select>
+                </div>
+
+                {/* Filter condition toggle */}
+                <div className="flex items-center space-x-1.5 text-xs">
+                  <span className="text-slate-500 font-medium">作为过滤条件:</span>
+                  <select
+                    value={filterIsFilterCondition}
+                    onChange={(e) => setFilterIsFilterCondition(e.target.value)}
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
+                  >
+                    <option value="ALL">全部</option>
+                    <option value="TRUE">是</option>
+                    <option value="FALSE">否</option>
+                  </select>
+                </div>
+
+                {/* Match type filter */}
+                <div className="flex items-center space-x-1.5 text-xs">
+                  <span className="text-slate-500 font-medium">匹配方式:</span>
+                  <select
+                    value={filterMatchType}
+                    onChange={(e) => setFilterMatchType(e.target.value)}
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
+                  >
+                    <option value="ALL">全部方式</option>
+                    <option value="精确值匹配">精确值匹配</option>
+                    <option value="数值容差匹配">数值容差匹配</option>
+                    <option value="数值距离衰减">数值距离衰减</option>
+                    <option value="文本相似匹配 (非 AI)">文本相似匹配</option>
+                    <option value="层级关系匹配">层级关系匹配</option>
+                  </select>
+                </div>
+
+                {/* Reset Filters */}
+                <button
+                  onClick={handleResetFilters}
+                  className="px-3 py-1.5 text-xs bg-slate-200 text-slate-600 hover:bg-slate-300 rounded font-bold transition-colors cursor-pointer"
+                >
+                  重置
+                </button>
+              </div>
+
+              {/* Main compact table */}
+              <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
+                <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 flex flex-col overflow-hidden">
+                  <div className="overflow-auto flex-1">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead className="sticky top-0 bg-slate-50 z-10">
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-sans">
+                          <th className="px-4 py-3">字段显示名称 & 属性编码</th>
+                          <th className="px-4 py-3">字段类型 (严格区分)</th>
+                          <th className="px-3 py-3 text-center">算分权重</th>
+                          <th className="px-4 py-3">比对匹配方式</th>
+                          <th className="px-4 py-3">比对参数规格摘要</th>
+                          <th className="px-4 py-3">空值回退策略</th>
+                          <th className="px-3 py-3 text-center">评分</th>
+                          <th className="px-3 py-3 text-center">过滤</th>
+                          <th className="px-4 py-3 text-center">管理操作</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-sans">
+                        {filteredRules.length > 0 ? (
+                          filteredRules.map((rule) => {
+                            const isScore = rule.isScoreActive;
+                            const isFilter = rule.isFilterCondition;
+                            
+                            // Parameter Summary builder
+                            let paramSummary = '无特殊匹配参数';
+                            if (rule.matchConfig) {
+                              const config = rule.matchConfig;
+                              if (config.kind === 'TEXT_SIMILARITY') {
+                                paramSummary = `文本匹配阈值 ≥ ${config.threshold}%`;
+                              } else if (config.kind === 'NUMERIC_TOLERANCE') {
+                                const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
+                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
+                                const typeLabel = config.toleranceType === 'PERCENTAGE' ? '%' : unitLabel;
+                                paramSummary = `容差 ±${config.toleranceValue}${typeLabel} (${dirLabel})`;
+                              } else if (config.kind === 'NUMERIC_DECAY') {
+                                const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
+                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
+                                paramSummary = `无损距离:${config.fullScoreRange}${unitLabel}, 极限零分:${config.zeroScoreBoundary}${unitLabel} (${dirLabel})`;
+                              } else if (config.kind === 'NATIVE_HIERARCHY') {
+                                paramSummary = `最大层级偏移:${config.maxLevelGap}层, 每层扣减:${config.deductionPerLevel}分`;
+                              } else if (config.kind === 'DATE_TOLERANCE') {
+                                const unitLabel = config.toleranceUnit === 'DAY' ? '天' : '小时';
+                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
+                                paramSummary = `容差 ±${config.toleranceValue}${unitLabel} (${dirLabel})`;
+                              }
+                            }
+
+                            // Determine field type styling badge
+                            const isUnitType = rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)';
+                            
+                            return (
+                              <tr 
+                                key={rule.id} 
+                                className={`hover:bg-slate-50/50 transition-colors ${
+                                  !isCurrentTypeEnabled ? 'text-slate-400 bg-slate-50/50' : 'text-slate-800'
+                                }`}
+                              >
+                                {/* Display Name & Property Code */}
+                                <td className="px-4 py-2.5">
+                                  <div className="font-semibold text-slate-900">{rule.fieldName}</div>
+                                  <div className="font-mono text-[10.5px] text-slate-500 mt-0.5">{rule.propertyCode}</div>
+                                </td>
+
+                                {/* Field Type (strictly separated) */}
+                                <td className="px-4 py-2.5">
+                                  {isUnitType ? (
+                                    <div className="flex flex-col items-start">
+                                      <span className="text-[10.5px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
+                                        带单位数值_WITH_UNIT
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 mt-0.5 font-sans">
+                                        量纲: {rule.unitFamily} ({rule.displayUnit} → 基准 {rule.baseUnit})
+                                      </span>
+                                    </div>
+                                  ) : rule.fieldType === '数值 (NUMBER)' ? (
+                                    <span className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded font-semibold">
+                                      纯数值_NUMBER
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10.5px] text-slate-600 font-medium">
+                                      {rule.fieldType}
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Weight */}
+                                <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-800">
+                                  {isScore ? `${rule.weight}%` : <span className="text-slate-400">-</span>}
+                                </td>
+
+                                {/* Match Type */}
+                                <td className="px-4 py-2.5 font-medium text-slate-700">
+                                  {rule.matchType}
+                                </td>
+
+                                {/* Parameters Summary */}
+                                <td className="px-4 py-2.5 text-slate-600 font-medium leading-relaxed">
+                                  {paramSummary}
+                                </td>
+
+                                {/* Null Handling */}
+                                <td className="px-4 py-2.5 text-slate-500">
+                                  {rule.nullHandling}
+                                </td>
+
+                                {/* Score Toggle Switch */}
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                    isScore 
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                      : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                  }`}>
+                                    {isScore ? '评分中' : '不参与'}
+                                  </span>
+                                </td>
+
+                                {/* Filter Toggle Switch */}
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                    isFilter 
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                      : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                  }`}>
+                                    {isFilter ? '过滤中' : '不参与'}
+                                  </span>
+                                </td>
+
+                                {/* Actions */}
+                                <td className="px-4 py-2.5 text-center">
+                                  <div className="flex items-center justify-center space-x-2">
+                                    <button
+                                      onClick={() => handleEditRule(rule)}
+                                      className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors cursor-pointer"
+                                      title="配置规则算法和量纲换算"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                      <span>配置</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteRule(rule.id)}
+                                      className="text-slate-400 hover:text-red-600 text-xs font-medium flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                                      title="删除此规则"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={9} className="text-center py-10 text-slate-400">
+                              未搜索到匹配的字段对比规则。
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         // ------------------------- EDITOR / FORM LAYOUT -------------------------

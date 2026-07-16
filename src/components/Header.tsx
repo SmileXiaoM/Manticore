@@ -3,16 +3,10 @@ import { Database, CheckCircle, AlertTriangle, User, History, ArrowUpRight } fro
 
 interface HeaderProps {
   onNavigate: (viewId: string) => void;
-  activeVersion: string;
-  hasUnpublishedDrafts: boolean;
-  lastDraftEditTime: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
-  onNavigate, 
-  activeVersion, 
-  hasUnpublishedDrafts, 
-  lastDraftEditTime 
+  onNavigate
 }) => {
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">

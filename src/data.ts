@@ -1544,10 +1544,8 @@ export function runSimilaritySearch(
     let totalScore = 0;
 
     // Filter rules relevant to this object type
-    // If the entire objectType's rules are disabled, we do not load any scoring rules (empty activeRules)
     const typeRules = rules.filter(r => r.objectType === objectType);
-    const isObjectTypeEnabled = typeRules.length > 0 && typeRules.every(r => r.enabled);
-    const activeRules = isObjectTypeEnabled ? typeRules.filter(r => r.isScoreActive) : [];
+    const activeRules = typeRules.filter(r => r.isScoreActive);
 
     for (const rule of activeRules) {
       const key = rule.propertyCode;
@@ -1660,7 +1658,15 @@ export function runSimilaritySearch(
     // Calculate dynamic metadata
     const fullHitCount = compareFields.filter(f => f.status === 'FULL').length;
     const differenceCount = compareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;
-    const coverageRate = Math.round((fullHitCount / compareFields.length) * 100);
+    
+    let coverageRate = 0;
+    if (compareFields.length > 0) {
+      const bothExistCount = compareFields.filter(f => 
+        f.sourceValue !== null && f.sourceValue !== undefined && f.sourceValue !== '' &&
+        f.candidateValue !== null && f.candidateValue !== undefined && f.candidateValue !== ''
+      ).length;
+      coverageRate = Math.round((bothExistCount / compareFields.length) * 100);
+    }
 
     scoredCandidates.push({
       objectType: objectType,

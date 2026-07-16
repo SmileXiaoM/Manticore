@@ -14,11 +14,16 @@ import { runSimilaritySearch } from '../data';
 import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
 
 interface QueryPreviewViewProps {
-  onPublishClick: () => void;
   rules: FieldSimilarityRule[];
+  objectConfigStatus: Record<string, {
+    enabled: boolean;
+    configVersion: string;
+    lastModifiedAt: string;
+  }>;
+  onNavigate?: (view: string) => void;
 }
 
-export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishClick, rules }) => {
+export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ rules, objectConfigStatus, onNavigate }) => {
   // Query parameters
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [objectId, setObjectId] = useState('PART-2026-000100');
@@ -27,6 +32,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
   // Result loading state simulation
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(true);
+
+  const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
   // Dynamic search result state
   const getRulesForVersion = (version: string) => {
@@ -89,25 +96,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
           </p>
         </div>
 
-        {/* Selected Config Info Box & Publish Button */}
+        {/* Selected Config Info Box */}
         <div className="flex items-center space-x-3 shrink-0">
           <div className="hidden md:flex flex-col space-y-0.5 text-right text-xs text-slate-500 mr-2">
             <div>
               <span className="text-slate-400">相似度规则版本:</span>{' '}
-              <span className="font-mono text-blue-600 font-bold">{ruleVersion === 'DRAFT_POOL' ? '草稿池(最新)' : 'v2.4.0'}</span>
+              <span className="font-mono text-blue-600 font-bold">{objectConfigStatus[objectType]?.configVersion || 'v1.0.0'}</span>
             </div>
             <div className="text-[11px] text-slate-400">
-              5 个活动指标已加入检索权重
+              活动指标已实时载入算分引擎
             </div>
           </div>
-          <button 
-            id="btn-publish-config"
-            onClick={onPublishClick}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors shadow-xs cursor-pointer flex items-center space-x-1"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>正式发布</span>
-          </button>
         </div>
       </div>
 
@@ -232,6 +231,23 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
         )}
 
         {/* 1.3 试算结果摘要条 */}
+        {!isSecondPhaseEnabled && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-red-800 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4.5 h-4.5 text-red-600 shrink-0" />
+              <span>
+                <strong>⚠️ 相似度计算受限：</strong>当前选择的物料分类 [{objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 处于<strong>「已全局停用比分 (计算关闭)」</strong>状态。一阶段检索始终激活，但二阶段相似度算分、量纲对齐及匹配差异分析已关闭，计算结果归零。
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigate?.('field-rules')}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors cursor-pointer shrink-0 text-xs"
+            >
+              前往配置端启用
+            </button>
+          </div>
+        )}
+
         {hasSearched && reference && (
           <div className="bg-amber-50/80 border border-amber-200/80 px-4 py-2.5 rounded-lg flex items-center justify-between text-xs text-amber-800 shadow-2xs" id="sandbox-summary-stripe">
             <div className="flex items-center space-x-2">
@@ -269,7 +285,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
               <tbody className="divide-y divide-slate-100">
                 {searchResult.scoredCandidates.map((candidate) => {
                   const isSelected = selectedCandidate?.objectId === candidate.objectId;
-                  const scoreColor = candidate.similarityScore >= 86 
+                  const scoreColor = !isSecondPhaseEnabled 
+                    ? 'text-slate-400 font-medium'
+                    : candidate.similarityScore >= 86 
                     ? 'text-emerald-700 font-extrabold' 
                     : candidate.similarityScore >= 68 
                     ? 'text-blue-700 font-bold' 
@@ -278,7 +296,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                   return (
                     <tr 
                       key={candidate.objectId} 
-                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}
+                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
                     >
                       {/* 候选件编码 */}
                       <td className="px-4 py-3 font-mono font-semibold text-slate-700">
@@ -314,33 +332,43 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
 
                       {/* 相似度 */}
                       <td className="px-4 py-3 text-center font-bold font-mono">
-                        <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                        {isSecondPhaseEnabled ? (
+                          <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                        ) : (
+                          <span className="text-slate-400 text-xs font-semibold">0.0% <span className="text-[10px] text-slate-400 font-normal">(计算关闭)</span></span>
+                        )}
                       </td>
 
                       {/* 分档 */}
                       <td className="px-4 py-3 text-center whitespace-nowrap font-medium">
-                        <span className={`px-2 py-0.5 rounded text-[11px] ${
-                          candidate.similarityTier === '高相似' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
-                          candidate.similarityTier === '中相似' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
-                          'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}>
-                          {candidate.similarityTier}
-                        </span>
+                        {isSecondPhaseEnabled ? (
+                          <span className={`px-2 py-0.5 rounded text-[11px] ${
+                            candidate.similarityTier === '高相似' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                            candidate.similarityTier === '中相似' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {candidate.similarityTier}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-400 border border-slate-200 font-normal">
+                            计算已停用
+                          </span>
+                        )}
                       </td>
 
                       {/* 覆盖率 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {candidate.coverageRate}%
+                        {isSecondPhaseEnabled ? `${candidate.coverageRate}%` : '-'}
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-4 py-3 text-center font-mono text-slate-600">
-                        {candidate.fullHitCount} / {candidate.compareFields.length}
+                        {isSecondPhaseEnabled ? `${candidate.fullHitCount} / ${candidate.compareFields.length}` : '-'}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-4 py-3 text-center font-mono font-bold text-red-600">
-                        {candidate.differenceCount}
+                        {isSecondPhaseEnabled ? candidate.differenceCount : '-'}
                       </td>
 
                       {/* 操作 */}
@@ -411,72 +439,96 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ onPublishCli
                 <div className="border-t border-slate-200/60 my-2"></div>
                 <div className="flex justify-between items-center text-xs font-mono">
                   <span>二阶段相似度总评分:</span>
-                  <span className="text-blue-600 font-extrabold text-sm">{selectedCandidate.similarityScore.toFixed(1)}%</span>
+                  {isSecondPhaseEnabled ? (
+                    <span className="text-blue-600 font-extrabold text-sm">{selectedCandidate.similarityScore.toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-slate-400 font-bold text-xs">0.0% (计算关闭)</span>
+                  )}
                 </div>
               </div>
 
-              {/* Score Breakdown Cards */}
-              <div className="space-y-2.5">
-                <h3 className="font-bold text-slate-800 text-xs flex items-center space-x-1 border-b border-slate-100 pb-1">
-                  <span>属性算分拆解 (Stage 2 Attributes)</span>
-                </h3>
+              {!isSecondPhaseEnabled ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 text-center space-y-3">
+                  <AlertTriangle className="w-8 h-8 text-slate-400 mx-auto" />
+                  <p className="font-bold text-slate-700 text-xs">二阶段比分不可用</p>
+                  <p className="text-slate-500 text-[11px] leading-relaxed">
+                    当前分类的二阶段属性相似度比分规则在配置端已被管理员关闭（停用）。物理缺口分析和加权分数明细已关闭，仅执行一阶段基础检索召回。
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedCandidate(null);
+                      onNavigate?.('field-rules');
+                    }}
+                    className="mt-2 inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-[11px] cursor-pointer"
+                  >
+                    <span>去配置端启用该分类</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Score Breakdown Cards */}
+                  <div className="space-y-2.5">
+                    <h3 className="font-bold text-slate-800 text-xs flex items-center space-x-1 border-b border-slate-100 pb-1">
+                      <span>属性算分拆解 (Stage 2 Attributes)</span>
+                    </h3>
 
-                <div className="grid grid-cols-1 gap-2">
-                  {selectedCandidate.compareFields.map((item, idx) => {
-                    const scorePct = (item.weightedScore / item.weight) * 100;
-                    const pctColor = scorePct >= 100 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : scorePct >= 70 ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-amber-600 bg-amber-50 border-amber-200';
-                    return (
-                      <div key={idx} className="bg-white border border-slate-200 rounded p-2.5 flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <span className="font-bold text-slate-800 block text-xs">{item.fieldLabel}</span>
-                          <span className="text-slate-400 text-[11px] block leading-normal" title={item.reason}>
-                            比对机制: {item.reason}
-                          </span>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-mono text-xs font-bold block text-slate-800">
-                            {item.weightedScore.toFixed(1)} <span className="text-slate-400 text-[11px] font-normal">/ {item.weight}分</span>
-                          </span>
-                        </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedCandidate.compareFields.map((item, idx) => {
+                        const scorePct = (item.weightedScore / item.weight) * 100;
+                        const pctColor = scorePct >= 100 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : scorePct >= 70 ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-amber-600 bg-amber-50 border-amber-200';
+                        return (
+                          <div key={idx} className="bg-white border border-slate-200 rounded p-2.5 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-slate-800 block text-xs">{item.fieldLabel}</span>
+                              <span className="text-slate-400 text-[11px] block leading-normal" title={item.reason}>
+                                比对机制: {item.reason}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-mono text-xs font-bold block text-slate-800">
+                                {item.weightedScore.toFixed(1)} <span className="text-slate-400 text-[11px] font-normal">/ {item.weight}分</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Matching reasons & Physical differences */}
+                  <div className="space-y-2.5">
+                    <h3 className="font-bold text-slate-800 text-xs border-b border-slate-100 pb-1">
+                      物理属性差异说明
+                    </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
+                      <div>
+                        <span className="text-slate-400 block mb-0.5">二阶段属性匹配分析：</span>
+                        <p className="text-slate-700 leading-relaxed font-medium">
+                          {selectedCandidate.compareFields
+                            .filter(f => f.status !== 'FULL')
+                            .map(f => `${f.fieldLabel}: ${f.reason}`)
+                            .join('; ') || '核心几何特征参数完全对齐，均属于同一特征螺栓系列规格副。'}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Matching reasons & Physical differences */}
-              <div className="space-y-2.5">
-                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-100 pb-1">
-                  物理属性差异说明
-                </h3>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">二阶段属性匹配分析：</span>
-                    <p className="text-slate-700 leading-relaxed font-medium">
-                      {selectedCandidate.compareFields
-                        .filter(f => f.status !== 'FULL')
-                        .map(f => `${f.fieldLabel}: ${f.reason}`)
-                        .join('; ') || '核心几何特征参数完全对齐，均属于同一特征螺栓系列规格副。'}
-                    </p>
+                      <div className="border-t border-slate-200/60 my-2"></div>
+                      <div>
+                        <span className="text-slate-400 block mb-0.5">命中及相似原因说明：</span>
+                        <p className="text-slate-600 leading-relaxed">
+                          {selectedCandidate.compareFields
+                            .filter(f => f.status === 'FULL')
+                            .map(f => `「${f.fieldLabel}」完全一致（值: ${f.sourceValue}）`)
+                            .join('、') || '无完全匹配的物理属性'}
+                        </p>
+                      </div>
+                      <div className="border-t border-slate-200/60 my-2"></div>
+                      <div className="text-[11px] text-slate-400 flex justify-between">
+                        <span>Manticore 检索算分耗时: 3.4 ms</span>
+                        <span>规则集状态: 活动</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="border-t border-slate-200/60 my-2"></div>
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">命中及相似原因说明：</span>
-                    <p className="text-slate-600 leading-relaxed">
-                      {selectedCandidate.compareFields
-                        .filter(f => f.status === 'FULL')
-                        .map(f => `「${f.fieldLabel}」完全一致（值: ${f.sourceValue}）`)
-                        .join('、') || '无完全匹配的物理属性'}
-                    </p>
-                  </div>
-                  <div className="border-t border-slate-200/60 my-2"></div>
-                  <div className="text-[11px] text-slate-400 flex justify-between">
-                    <span>Manticore 检索算分耗时: 3.4 ms</span>
-                    <span>规则集状态: 活动</span>
-                  </div>
-                </div>
-              </div>
-
+                </>
+              )}
             </div>
 
             {/* Drawer Footer */}

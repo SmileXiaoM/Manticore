@@ -52,7 +52,6 @@ export default function App() {
   const [standardizationRules, setStandardizationRules] = useState<StandardizationRule[]>(initialStandardizationRules);
   const [synonymRules, setSynonymRules] = useState<SynonymRule[]>(initialSynonymRules);
   const [alignmentRules, setAlignmentRules] = useState<ClassificationAlignmentRule[]>(initialAlignmentRules);
-  const [publishRecords, setPublishRecords] = useState<PublishRecord[]>(initialPublishRecords);
 
   // New "三化审核最小闭环" State Arrays
   const [whitelists, setWhitelists] = useState<FieldWhitelistItem[]>(initialFieldWhitelists);
@@ -63,65 +62,18 @@ export default function App() {
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
 
-  // Derived Reactive Metadata (P0-05)
-  const activeVersion = useMemo(() => {
-    const activeRec = publishRecords.find(r => r.status === 'ACTIVE');
-    return activeRec ? activeRec.versionCode : 'v2.4.0';
-  }, [publishRecords]);
-
-  const hasUnpublishedDrafts = useMemo(() => {
-    return fieldRules.some(r => r.status === 'CHANGED' || r.status === 'DRAFT');
-  }, [fieldRules]);
-
-  const lastDraftEditTime = useMemo(() => {
-    const drafts = fieldRules.filter(r => r.status === 'CHANGED' || r.status === 'DRAFT');
-    if (drafts.length === 0) return '2026-07-06 18:24:00';
-    const sorted = [...drafts].sort((a, b) => b.lastEditTime.localeCompare(a.lastEditTime));
-    return sorted[0].lastEditTime;
-  }, [fieldRules]);
-
-  // Triggered when clicking "Publish Config" from field similarity rules
-  const handlePublishConfig = () => {
-    if (!window.confirm('您确定要将当前草稿池中配置的所有规则“正式发布”并使其立即生效吗？这将生成新的生效版本记录。')) {
-      return;
-    }
-    const nextVersion = `v2.4.${publishRecords.length + 1}`;
-    const newRecord: PublishRecord = {
-      id: `PUB-00${publishRecords.length + 1}`,
-      versionCode: nextVersion,
-      publishTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      publisher: '李晓华 (数据标准管理员)',
-      changeSummary: '将草稿池中的规则打包同步。更新了工作电压规则，完成了主要材质字段空值退让方案。',
-      affectedObjectType: 'PART_MECHANICAL, PART_ELECTRICAL',
-      affectedFieldCount: 3,
-      validationResult: 'SUCCESS',
-      status: 'ACTIVE'
-    };
-
-    // Make old active record superseded
-    const updatedRecords = publishRecords.map(r => r.status === 'ACTIVE' ? { ...r, status: 'SUPERSEDED' as const } : r);
-    setPublishRecords([newRecord, ...updatedRecords]);
-
-    // Set all modified rules to published
-    const updatedFieldRules = fieldRules.map(f => f.status === 'CHANGED' ? { ...f, status: 'PUBLISHED' as const, publishVersion: nextVersion } : f);
-    setFieldRules(updatedFieldRules);
-
-    alert(`已成功完成规则的正式发布，生成新配置版本 [ ${nextVersion} ]。`);
-    setCurrentView('publish-records');
-  };
-
-  // Triggered on copy to draft
-  const handleRollbackVersion = (version: string) => {
-    // Clone all rules as drafts (CHANGED status) so the user can edit or republish
-    const updatedFieldRules = fieldRules.map(f => ({
-      ...f,
-      status: 'CHANGED' as const,
-      publishVersion: '草稿未发布'
-    }));
-    setFieldRules(updatedFieldRules);
-    alert(`已将版本 [ ${version} ] 的所有规则配置成功复制为当前草稿！您可以在“字段相似度规则”页面进行二次修改，确认无误后点击“正式发布”上线。`);
-    setCurrentView('field-rules');
-  };
+  // Explicit independent configuration status per object type
+  const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, {
+    enabled: boolean;
+    configVersion: string;
+    lastModifiedAt: string;
+  }>>({
+    PART_MECHANICAL: { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
+    PART_ELECTRICAL: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
+    PART_HYDRAULIC: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
+    PART_PNEUMATIC: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
+    PART_OPTICAL: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
+  });
 
   // Helper to determine if a view should not have administrative shell/chrome
   const isNonShellView = ['attribute-types', 'attribute-enums'].includes(currentView);
@@ -145,9 +97,6 @@ export default function App() {
           {/* Top Admin Header Bar */}
           <Header 
             onNavigate={setCurrentView} 
-            activeVersion={activeVersion}
-            hasUnpublishedDrafts={hasUnpublishedDrafts}
-            lastDraftEditTime={lastDraftEditTime}
           />
 
           {/* Sidebar & Body Split */}
@@ -162,7 +111,8 @@ export default function App() {
                 <FieldSimilarityView 
                   rules={fieldRules} 
                   onUpdateRules={setFieldRules} 
-                  onPublish={handlePublishConfig} 
+                  objectConfigStatus={objectConfigStatus}
+                  onUpdateConfigStatus={setObjectConfigStatus}
                   onNavigate={setCurrentView}
                 />
               )}
@@ -189,18 +139,23 @@ export default function App() {
               )}
 
               {currentView === 'publish-records' && (
-                <PublishRecordView 
-                  records={publishRecords} 
-                  onRollback={handleRollbackVersion} 
-                />
+                <PublishRecordView />
               )}
 
               {currentView === 'query-preview' && (
-                <QueryPreviewView onPublishClick={handlePublishConfig} rules={fieldRules} />
+                <QueryPreviewView 
+                  rules={fieldRules} 
+                  objectConfigStatus={objectConfigStatus}
+                  onNavigate={setCurrentView}
+                />
               )}
 
               {currentView === 'client-find-similar' && (
-                <ClientFindSimilarView rules={fieldRules} />
+                <ClientFindSimilarView 
+                  rules={fieldRules} 
+                  objectConfigStatus={objectConfigStatus}
+                  onNavigate={setCurrentView}
+                />
               )}
 
               {/* Three-Standardization (三化审核) Configuration Views */}

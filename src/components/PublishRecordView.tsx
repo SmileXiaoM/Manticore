@@ -38,7 +38,7 @@ export const PublishRecordView: React.FC = () => {
       objectType: '电气元器件 (PART_ELECTRICAL)',
       configVersion: 'v1.0.1',
       operationType: '保存',
-      summary: '配置工作电压规则，保存草稿但暂不启用。权重累计为30%，继续完善其他字段。',
+      summary: '配置工作电压规则，保存未完成配置但暂不启用。权重累计为30%，继续完善其他字段。',
       operator: '赵丽 (电气工程师)',
       time: '2026-07-15 15:45:22',
       result: 'SUCCESS'
@@ -146,10 +146,6 @@ export const PublishRecordView: React.FC = () => {
             <span className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
               <History className="w-3.5 h-3.5 text-blue-500" />
               <span>操作变更审计日志 (只读安全审计记录)</span>
-            </span>
-            <span className="text-[11px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded font-medium flex items-center space-x-1">
-              <Info className="w-3 h-3 text-slate-500" />
-              <span>审计日志不可篡改</span>
             </span>
           </div>
 

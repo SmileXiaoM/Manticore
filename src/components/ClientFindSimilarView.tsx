@@ -17,9 +17,15 @@ import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types'
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
+  objectConfigStatus: Record<string, {
+    enabled: boolean;
+    configVersion: string;
+    lastModifiedAt: string;
+  }>;
+  onNavigate?: (view: string) => void;
 }
 
-export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ rules }) => {
+export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ rules, objectConfigStatus, onNavigate }) => {
   // Query Filters State
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [reqCode, setReqCode] = useState('REQ-2026-000100');
@@ -28,6 +34,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   const [lifecycle, setLifecycle] = useState('ALL');
   const [specInput, setSpecInput] = useState('');
   const [materialInput, setMaterialInput] = useState('');
+
+  const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
   // Dynamic Search Run Result State
   const [searchResult, setSearchResult] = useState<SearchRunResult>(() => 
@@ -265,6 +273,23 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
         )}
 
         {/* 2.4 全宽候选件结果表 */}
+        {!isSecondPhaseEnabled && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-red-800 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4.5 h-4.5 text-red-600 shrink-0" />
+              <span>
+                <strong>⚠️ 二阶段计算关闭：</strong>业务端提示：当前物料类别 [{objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 二阶段规则比分已被管理员停用。一阶段基础检索召回功能正常，但相似度分数归 0。
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigate?.('field-rules')}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors cursor-pointer shrink-0 text-xs"
+            >
+              前往配置端启用
+            </button>
+          </div>
+        )}
+
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
           
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
@@ -297,7 +322,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <tbody className="divide-y divide-slate-100">
                 {scoredCandidates.map((candidate, idx) => {
                   const isSelected = selectedForCompare?.objectId === candidate.objectId;
-                  const scoreColor = candidate.similarityScore >= 90 
+                  const scoreColor = !isSecondPhaseEnabled
+                    ? 'text-slate-400 font-medium'
+                    : candidate.similarityScore >= 90 
                     ? 'text-emerald-700 font-extrabold' 
                     : candidate.similarityScore >= 70 
                     ? 'text-blue-700 font-bold' 
@@ -306,7 +333,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   return (
                     <tr 
                       key={candidate.objectId} 
-                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''}`}
+                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
                     >
                       {/* 序号 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-400 whitespace-nowrap">
@@ -351,33 +378,43 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
                       {/* 相似度 */}
                       <td className="px-3 py-3 text-center font-mono whitespace-nowrap">
-                        <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                        {isSecondPhaseEnabled ? (
+                          <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                        ) : (
+                          <span className="text-slate-400 text-xs font-semibold">0.0% <span className="text-[10px] text-slate-400 font-normal">(计算关闭)</span></span>
+                        )}
                       </td>
 
                       {/* 分档 */}
                       <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded text-[11px] ${
-                          candidate.similarityScore >= 90 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
-                          candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
-                          'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}>
-                          {candidate.similarityTier}
-                        </span>
+                        {isSecondPhaseEnabled ? (
+                          <span className={`px-2 py-0.5 rounded text-[11px] ${
+                            candidate.similarityScore >= 90 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                            candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {candidate.similarityTier}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-400 border border-slate-200 font-normal">
+                            计算停用
+                          </span>
+                        )}
                       </td>
 
                       {/* 覆盖率 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {candidate.coverageRate}%
+                        {isSecondPhaseEnabled ? `${candidate.coverageRate}%` : '-'}
                       </td>
 
                       {/* 命中数 */}
                       <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {candidate.fullHitCount} / {candidate.compareFields.length}
+                        {isSecondPhaseEnabled ? `${candidate.fullHitCount} / ${candidate.compareFields.length}` : '-'}
                       </td>
 
                       {/* 差异数 */}
                       <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
-                        {candidate.differenceCount}
+                        {isSecondPhaseEnabled ? candidate.differenceCount : '-'}
                       </td>
 
                       {/* 操作 */}
@@ -468,6 +505,18 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 </div>
               </div>
 
+              {!isSecondPhaseEnabled && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3.5 text-red-800 text-xs flex flex-col gap-1.5 leading-relaxed">
+                  <div className="font-bold flex items-center space-x-1">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>⚠️ 二阶段计算处于全局停用状态</span>
+                  </div>
+                  <p className="text-[11px] text-red-700">
+                    当前选择的分类已全局关闭二阶段相似度比分。下方各特征值比对正常展示，但未激活量纲换算、扣分机制及归一化百分比算分（相似度强制归 0）。
+                  </p>
+                </div>
+              )}
+
               {/* Mapped Table Comparison Details */}
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
@@ -487,7 +536,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                         <div className="font-semibold text-slate-500">{item.fieldLabel}</div>
                         <div className="font-mono text-slate-800 truncate">{String(item.sourceValue ?? '无')}</div>
                         <div className={`font-mono truncate font-medium ${
-                          item.status !== 'FULL' ? 'text-red-600 font-bold bg-red-50 px-1.5 rounded border border-red-100' : 'text-slate-800'
+                          isSecondPhaseEnabled && item.status !== 'FULL' ? 'text-red-600 font-bold bg-red-50 px-1.5 rounded border border-red-100' : 'text-slate-800'
                         }`}>
                           {String(item.candidateValue ?? '无')}
                         </div>
@@ -501,14 +550,24 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <div className="bg-slate-50 rounded-lg p-3.5 border border-slate-200 text-xs text-slate-600 space-y-2">
                 <div className="flex justify-between items-center">
                   <strong className="text-slate-700">Manticore 计算得分:</strong>
-                  <span className="text-blue-600 font-bold font-mono bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-xs">
-                    {selectedForCompare.similarityScore.toFixed(1)}%相似度 ({selectedForCompare.similarityTier})
-                  </span>
+                  {isSecondPhaseEnabled ? (
+                    <span className="text-blue-600 font-bold font-mono bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                      {selectedForCompare.similarityScore.toFixed(1)}%相似度 ({selectedForCompare.similarityTier})
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-bold font-mono bg-slate-100 border border-slate-300 px-2 py-0.5 rounded text-xs">
+                      0.0%相似度 (计算已停用)
+                    </span>
+                  )}
                 </div>
                 <div>
                   <strong className="text-slate-700 block mb-0.5">属性差异诊断:</strong>
                   <div className="leading-relaxed bg-white p-2.5 rounded border border-slate-100 text-slate-600 space-y-1">
-                    {selectedForCompare.differenceCount > 0 ? (
+                    {!isSecondPhaseEnabled ? (
+                      <div className="text-slate-400 font-medium">
+                        因该对象类型的二阶段比分处于全局关闭状态，无属性差异扣分诊断。
+                      </div>
+                    ) : selectedForCompare.differenceCount > 0 ? (
                       selectedForCompare.compareFields
                         .filter(f => f.status !== 'FULL')
                         .map((f, fIdx) => (
