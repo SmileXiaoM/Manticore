@@ -324,7 +324,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   const isSelected = selectedForCompare?.objectId === candidate.objectId;
                   const scoreColor = !isSecondPhaseEnabled
                     ? 'text-slate-400 font-medium'
-                    : candidate.similarityScore >= 90 
+                    : candidate.similarityScore >= 85 
                     ? 'text-emerald-700 font-extrabold' 
                     : candidate.similarityScore >= 70 
                     ? 'text-blue-700 font-bold' 
@@ -367,12 +367,16 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
                       {/* 生命周期 */}
                       <td className="px-3 py-3 text-center whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded text-[11px] ${
-                          candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                            : 'bg-rose-50 text-rose-800 border border-rose-100'
+                        <span className={`px-2 py-0.5 rounded text-[11px] border ${
+                          candidate.lifecycleState === '有效' || candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
+                            : candidate.lifecycleState === '已作废' || candidate.lifecycleState.includes('作废') || candidate.lifecycleState.includes('失效')
+                            ? 'bg-rose-50 text-rose-800 border-rose-200/60'
+                            : candidate.lifecycleState === '设计中' || candidate.lifecycleState.includes('草稿')
+                            ? 'bg-blue-50 text-blue-800 border-blue-200/60'
+                            : 'bg-slate-50 text-slate-600 border border-slate-200'
                         }`}>
-                          {candidate.lifecycleState.split(' ')[0]}
+                          {candidate.lifecycleState}
                         </span>
                       </td>
 
@@ -389,7 +393,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
                         {isSecondPhaseEnabled ? (
                           <span className={`px-2 py-0.5 rounded text-[11px] ${
-                            candidate.similarityScore >= 90 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                            candidate.similarityScore >= 85 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
                             candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
                             'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>

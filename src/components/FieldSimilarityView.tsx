@@ -109,9 +109,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [previewSrcVal, setPreviewSrcVal] = useState<string>('10.0');
   const [previewTgtVal, setPreviewTgtVal] = useState<string>('10.1');
 
-  // Local unsaved tag
-  const [isModified, setIsModified] = useState(false);
-
   // Load selected Unit Quantity units
   const currentQuantityData = useMemo(() => {
     return mockUnitCatalog.quantities.find(q => q.code === formUnitFamily || q.name === formUnitFamily);
@@ -288,13 +285,27 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
 
-    // Validation success! Save editingRules into savedRules
-    onUpdateSavedRules(editingRules);
+    // R9-BLK-02 Isolation: Only replace activeObjectType rules in savedRules
+    const otherSavedRules = savedRules.filter(r => r.objectType !== activeObjectType);
+    const currentEditingRules = editingRules.filter(r => r.objectType === activeObjectType);
+    onUpdateSavedRules([...otherSavedRules, ...currentEditingRules]);
+
+    // R9-BLK-04: Version increments on SAVE
+    const nextVersion = incrementVersion(currentConf.configVersion);
+    const nextStatus = {
+      ...objectConfigStatus,
+      [activeObjectType]: {
+        ...currentConf,
+        configVersion: nextVersion,
+        lastModifiedAt: timeStr
+      }
+    };
+    onUpdateConfigStatus(nextStatus);
 
     const successRecord: ChangeRecord = {
       id: `CR-S-${Date.now()}`,
       objectType: objectLabel,
-      configVersion: currentConf.configVersion,
+      configVersion: nextVersion,
       operationType: '保存',
       summary: `成功保存并校验属性相似度规则草稿池。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
       operator: operatorName,
@@ -302,7 +313,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n您可以点击“启用”按钮将此最新配置推广生效。`);
+    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮将此最新配置推广生效。`);
   };
 
   // 启用配置
@@ -335,12 +346,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const promotedRules = savedRules.filter(r => r.objectType === activeObjectType);
     onUpdateActiveRules([...otherActiveRules, ...promotedRules]);
 
-    const nextVersion = incrementVersion(currentConf.configVersion);
+    // R9-BLK-04: Version does NOT increment on enable
     const nextStatus = {
       ...objectConfigStatus,
       [activeObjectType]: {
         enabled: true,
-        configVersion: nextVersion,
+        configVersion: currentConf.configVersion,
         lastModifiedAt: timeStr
       }
     };
@@ -349,15 +360,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const successRecord: ChangeRecord = {
       id: `CR-A-${Date.now()}`,
       objectType: objectLabel,
-      configVersion: nextVersion,
+      configVersion: currentConf.configVersion,
       operationType: '启用',
-      summary: `成功推广并启用最新相似度计算规则集。线上版本升级为 ${nextVersion}，属性比分即时对业务应用端生效。`,
+      summary: `成功推广并启用最新相似度计算规则集。属性比分即时对业务应用端生效。`,
       operator: operatorName,
       time: timeStr,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 二阶段相似度规则集已成功启用上线！\n当前生效版本已升级至 ${nextVersion}。属性去重比分即时生效。`);
+    alert(`[ ${objectLabel} ] 二阶段相似度规则集已成功启用上线！\n当前生效版本为 ${currentConf.configVersion}。属性去重比分即时生效。`);
   };
 
   // 停用配置
@@ -396,7 +407,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (window.confirm('您确定要彻底删除该属性相似度比分规则吗？此操作将立即调整算分权重配平。')) {
       const updated = editingRules.filter(r => r.id !== id);
       onUpdateEditingRules(updated);
-      setIsModified(true);
     }
   };
 
@@ -656,7 +666,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
     setEditingRule(null);
     setIsNew(false);
-    setIsModified(true);
   };
 
   return (
@@ -681,7 +690,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         {/* Save & Reset Panel on top right */}
         {!(editingRule || isNew) && (
           <div className="flex items-center space-x-2">
-            {isModified && (
+            {isEditingModified && (
               <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded font-medium border border-amber-200 animate-pulse">
                 ● 存在未保存变更
               </span>
@@ -718,10 +727,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 value={activeObjectType}
                 onChange={(e) => {
                   const targetType = e.target.value as ObjectType;
-                  if (isModified) {
-                    if (window.confirm('当前配置存在未保存修改，切换对象类型将丢失这些修改，是否确认切换？')) {
+                  if (isEditingModified) {
+                    if (window.confirm('当前配置存在未保存修改，切换对象类型将丢失并重置该类型的编辑草稿，是否确认切换？')) {
+                      // Discard: restore current activeObjectType editingRules from savedRules
+                      const otherEditingRules = editingRules.filter(r => r.objectType !== activeObjectType);
+                      const restoredRules = savedRules.filter(r => r.objectType === activeObjectType);
+                      onUpdateEditingRules([...otherEditingRules, ...restoredRules]);
+                      
                       setActiveObjectType(targetType);
-                      setIsModified(false);
                     }
                   } else {
                     setActiveObjectType(targetType);
@@ -790,7 +803,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <div className="flex items-center space-x-2 shrink-0 ml-auto">
                 <button
                   onClick={handleEnableConfig}
-                  disabled={!savedWeightSummary.isValid}
+                  disabled={isCurrentTypeEnabled || !savedWeightSummary.isValid}
                   className={`px-3 py-1 rounded text-xs font-bold border transition-all cursor-pointer ${
                     isCurrentTypeEnabled
                       ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'

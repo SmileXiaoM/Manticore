@@ -1521,7 +1521,7 @@ export function calculateFieldMatchRate(
     } else if (relation === 'ANCESTOR_DESCENDANT') {
       const isAncestorDescendant = (refDist === 0 || candDist === 0);
       if (!isAncestorDescendant) {
-        // Cousin relationship is acceptable
+        return 0.0; // Cousin relationship gets 0 score, no deduction, no error
       }
     }
 
@@ -1595,7 +1595,7 @@ export function runSimilaritySearch(
     reference = {
       requestCode: 'REQ-2026-000200',
       objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-2026-000200',
+      objectId: 'ELEC-2026-000100',
       objectName: '直流继电器 12V',
       specification: '12V',
       material: '塑料/铜',
@@ -1617,7 +1617,8 @@ export function runSimilaritySearch(
     searchId !== 'REQ-2026-000100' && 
     searchId !== 'PART-2026-000100' && 
     searchId !== 'REQ-2026-000200' && 
-    searchId !== 'ELEC-2026-000200'
+    searchId !== 'ELEC-2026-000200' &&
+    searchId !== 'ELEC-2026-000100'
   ) {
     return {
       reference: null,
@@ -1858,7 +1859,8 @@ export function runSimilaritySearch(
       const refVal = reference ? reference.attributes[key] : null;
       const candVal = cand.attributes[key];
 
-      const isMissing = (candVal === null || candVal === undefined || candVal === '');
+      const isMissing = (candVal === null || candVal === undefined || candVal === '') ||
+                        (refVal === null || refVal === undefined || refVal === '');
 
       if (isMissing) {
         if (rule.nullHandling === '不参与计算' || rule.nullHandling === '不参与计算 (权重均摊到其他有值项)') {
