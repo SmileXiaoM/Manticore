@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Settings, 
-  Search, 
-  Info, 
-  Plus, 
-  Edit2, 
+import {
+  Settings,
+  Search,
+  Info,
+  Plus,
+  Edit2,
   Trash2,
   X,
   HelpCircle,
@@ -44,8 +44,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
   // 1. Filter logic for each tab
   const filteredStandard = useMemo(() => {
-    return standardizationRules.filter(r => 
-      keyword === '' || 
+    return standardizationRules.filter(r =>
+      keyword === '' ||
       r.ruleName.toLowerCase().includes(keyword.toLowerCase()) ||
       r.applicableProperty.toLowerCase().includes(keyword.toLowerCase()) ||
       r.standardValue.toLowerCase().includes(keyword.toLowerCase())
@@ -53,8 +53,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
   }, [standardizationRules, keyword]);
 
   const filteredSynonym = useMemo(() => {
-    return synonymRules.filter(r => 
-      keyword === '' || 
+    return synonymRules.filter(r =>
+      keyword === '' ||
       r.primaryWord.toLowerCase().includes(keyword.toLowerCase()) ||
       r.synonyms.some(s => s.toLowerCase().includes(keyword.toLowerCase())) ||
       r.applicableProperty.toLowerCase().includes(keyword.toLowerCase())
@@ -62,8 +62,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
   }, [synonymRules, keyword]);
 
   const filteredAlign = useMemo(() => {
-    return alignmentRules.filter(r => 
-      keyword === '' || 
+    return alignmentRules.filter(r =>
+      keyword === '' ||
       r.sourcePath.toLowerCase().includes(keyword.toLowerCase()) ||
       r.standardPath.toLowerCase().includes(keyword.toLowerCase())
     );
@@ -238,7 +238,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
-      
+
       {/* Header Area */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
@@ -309,8 +309,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder={
-              activeTab === 'standard' 
-                ? "搜索规则名称、适用属性..." 
+              activeTab === 'standard'
+                ? "搜索规则名称、适用属性..."
                 : activeTab === 'synonym'
                   ? "搜索主词、同义词或属性..."
                   : "搜索源路径、标准路径..."
@@ -334,7 +334,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
       {/* Grid Content */}
       <div className="flex-1 overflow-auto p-6">
-        
+
         {activeTab === 'standard' && (
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse">
@@ -571,7 +571,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       {editingRule && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full border border-slate-200 flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-lg shrink-0">
               <div className="flex items-center space-x-2">
@@ -588,7 +588,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
             {/* Modal Body / Form */}
             <form onSubmit={handleSave} className="flex-1 overflow-auto p-6 space-y-4">
-              
+
               {/* Common Information Alert */}
               <div className="p-2.5 bg-amber-50 rounded text-[11px] text-amber-800 flex items-start space-x-1.5">
                 <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
@@ -602,8 +602,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">规则名称 <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.ruleName}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleName: e.target.value }})}
@@ -615,7 +615,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用对象类型</label>
-                      <select 
+                      <select
                         value={editingRule.item.applicableObjectType}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableObjectType: e.target.value as ObjectType }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
@@ -628,8 +628,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用属性英文编码 <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={editingRule.item.applicableProperty}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableProperty: e.target.value }})}
@@ -642,7 +642,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">处理模式</label>
-                      <select 
+                      <select
                         value={editingRule.item.ruleMethod}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleMethod: e.target.value as any }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
@@ -655,8 +655,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">匹配优先级 (数字越小越优先)</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         min="1"
                         max="100"
                         value={editingRule.item.matchPriority}
@@ -668,7 +668,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">映射前原始值 (多行文本，一行代表一个匹配源)</label>
-                    <textarea 
+                    <textarea
                       rows={3}
                       value={editingRule.item.rawValue}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, rawValue: e.target.value }})}
@@ -679,8 +679,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">清洗映射后(标准值) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.standardValue}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, standardValue: e.target.value }})}
@@ -691,7 +691,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div className="flex items-center space-x-6 bg-slate-50 p-2.5 rounded border border-slate-200">
                     <label className="flex items-center space-x-1.5 font-semibold text-slate-700">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={editingRule.item.isSimilarityActive}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isSimilarityActive: e.target.checked }})}
@@ -701,7 +701,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                     </label>
 
                     <label className="flex items-center space-x-1.5 font-semibold text-slate-700">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={editingRule.item.isFullTextActive}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isFullTextActive: e.target.checked }})}
@@ -713,7 +713,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">状态</label>
-                    <select 
+                    <select
                       value={editingRule.item.status}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, status: e.target.value as any }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-semibold"
@@ -725,7 +725,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">备注/说明 (对齐逻辑使用)</label>
-                    <input 
+                    <input
                       type="text"
                       value={editingRule.item.remarks || ''}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, remarks: e.target.value }})}
@@ -741,8 +741,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">主词 (唯一推荐标准名) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.primaryWord}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, primaryWord: e.target.value }})}
@@ -753,8 +753,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">同义词别名集 (多个别名，用中文、英文逗号或空格分隔) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.synonyms ? editingRule.item.synonyms.join(', ') : ''}
                       onChange={(e) => {
@@ -770,7 +770,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">作用范围</label>
-                      <select 
+                      <select
                         value={editingRule.item.scope}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, scope: e.target.value as any }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-medium"
@@ -783,7 +783,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用对象类型</label>
-                      <select 
+                      <select
                         value={editingRule.item.applicableObjectType}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableObjectType: e.target.value as ObjectType }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
@@ -797,8 +797,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">适用特定属性 (仅在“作用范围”为特定属性时生效)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editingRule.item.applicableProperty || ''}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableProperty: e.target.value }})}
                       placeholder="如: material_name, 如果全局不限请留空"
@@ -808,7 +808,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div className="flex items-center space-x-6 bg-slate-50 p-2.5 rounded border border-slate-200">
                     <label className="flex items-center space-x-1.5 font-semibold text-slate-700">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={editingRule.item.isSimilarityActive}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isSimilarityActive: e.target.checked }})}
@@ -818,7 +818,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                     </label>
 
                     <label className="flex items-center space-x-1.5 font-semibold text-slate-700">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={editingRule.item.isFullTextActive}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isFullTextActive: e.target.checked }})}
@@ -830,7 +830,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">启用状态</label>
-                    <select 
+                    <select
                       value={editingRule.item.status}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, status: e.target.value as any }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-semibold"
@@ -847,7 +847,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">对照规则类型</label>
-                    <select 
+                    <select
                       value={editingRule.item.ruleType}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleType: e.target.value as any }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-semibold"
@@ -859,8 +859,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">外部/源分类路径 (未规范源数据路径) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.sourcePath}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, sourcePath: e.target.value }})}
@@ -871,8 +871,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">对照归一到标准分类路径 (Manticore 内部) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.standardPath}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, standardPath: e.target.value }})}
@@ -884,8 +884,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">分类层级匹配退避相似度折扣 (0.00 ~ 1.00)</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         step="0.05"
                         min="0"
                         max="1"
@@ -898,7 +898,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用对象类型</label>
-                      <select 
+                      <select
                         value={editingRule.item.applicableObjectType}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableObjectType: e.target.value as ObjectType }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500"
@@ -912,7 +912,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">映射启用状态</label>
-                    <select 
+                    <select
                       value={editingRule.item.status}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, status: e.target.value as any }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 font-semibold"

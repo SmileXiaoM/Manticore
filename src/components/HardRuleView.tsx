@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
+import {
+  Plus,
+  Save,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Check,
+  X,
   ChevronRight,
   List,
   FileEdit,
@@ -23,9 +23,9 @@ interface HardRuleViewProps {
   onUpdateHardRules: (newRules: HardRule[]) => void;
 }
 
-export const HardRuleView: React.FC<HardRuleViewProps> = ({ 
-  hardRules, 
-  onUpdateHardRules 
+export const HardRuleView: React.FC<HardRuleViewProps> = ({
+  hardRules,
+  onUpdateHardRules
 }) => {
   // Navigation tabs for Figma review: 'LIST' | 'EDITOR'
   const [activeTab, setActiveTab] = useState<'LIST' | 'EDITOR'>('LIST');
@@ -55,7 +55,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
   const startEdit = (item: HardRule) => {
     setEditingItem(item);
     setIsNew(false);
-    
+
     // Fill form states
     setFormRuleName(item.ruleName);
     setFormRuleType(item.ruleType);
@@ -102,7 +102,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
     }
 
     const nextId = isNew ? `HR-00${hardRules.length + 1}` : (editingItem?.id || 'HR-999');
-    
+
     const savedItem: HardRule = {
       id: nextId,
       ruleName: formRuleName,
@@ -158,7 +158,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
         r.ruleName.toLowerCase().includes(keyword.toLowerCase()) ||
         r.triggerField.toLowerCase().includes(keyword.toLowerCase()) ||
         r.triggerCondition.toLowerCase().includes(keyword.toLowerCase());
-      
+
       const matchRuleType = filterRuleType === 'ALL' || r.ruleType === filterRuleType;
 
       return matchKeyword && matchRuleType;
@@ -167,7 +167,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* View Header with Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -195,7 +195,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
             <List className="w-3.5 h-3.5" />
             <span>硬规则列表</span>
           </button>
-          
+
           <button
             onClick={() => {
               if (!editingItem && activeTab === 'LIST') {
@@ -220,7 +220,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
       {activeTab === 'LIST' ? (
         // List View Block
         <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-4">
-          
+
           {/* Filters Bar */}
           <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-wrap items-center gap-4 shrink-0 shadow-xs">
             <div className="flex items-center space-x-1.5 text-xs text-slate-600">
@@ -300,7 +300,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {filteredItems.map((item) => (
                     <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${!item.isEnabled ? 'bg-slate-50/40 text-slate-400' : ''}`}>
-                      
+
                       {/* Priority Code */}
                       <td className="px-4 py-3 text-center">
                         <span className="bg-slate-100 border border-slate-200 text-slate-800 rounded-full font-mono font-bold w-5 h-5 flex items-center justify-center mx-auto text-[10px]">
@@ -395,7 +395,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          
+
                           <button
                             onClick={() => handleDelete(item.id, item.ruleName)}
                             className="p-1 hover:bg-rose-50 text-rose-600 rounded hover:text-rose-800 transition-colors"
@@ -431,7 +431,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-5 text-xs text-slate-700">
-              
+
               {/* Row 1: Rule Name & Rule Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -592,7 +592,7 @@ export const HardRuleView: React.FC<HardRuleViewProps> = ({
                 >
                   取消并返回列表
                 </button>
-                
+
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold font-sans shadow-xs flex items-center space-x-1.5 transition-all"

@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  Sliders, 
-  FileText, 
-  BookOpen, 
-  Search, 
-  Eye, 
+import {
+  Sliders,
+  FileText,
+  BookOpen,
+  Search,
+  Eye,
   ShieldAlert,
   Grid,
   Settings
@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        
+
         {/* Section 1: 二阶段：属性相似度 */}
         <div>
           <span className="px-3 text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-2">二阶段：属性相似度</span>

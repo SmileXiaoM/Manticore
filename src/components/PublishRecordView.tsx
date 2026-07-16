@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  History, 
-  ChevronRight, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  History,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
   Info,
   SlidersHorizontal,
   Search
@@ -31,7 +31,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
-      
+
       {/* Title Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -49,13 +49,13 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
       {/* Filter and Content panel */}
       <div className="flex-1 flex flex-col p-6 overflow-hidden">
-        
+
         {/* Filters bar */}
         <div className="bg-white border border-slate-200 rounded-lg p-4 mb-4 shadow-xs shrink-0 flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-600">对象类型:</span>
-            <select 
-              value={filterObjectType} 
+            <select
+              value={filterObjectType}
               onChange={(e) => setFilterObjectType(e.target.value)}
               className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
             >
@@ -67,8 +67,8 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-600">操作类型:</span>
-            <select 
-              value={filterOpType} 
+            <select
+              value={filterOpType}
               onChange={(e) => setFilterOpType(e.target.value)}
               className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
             >

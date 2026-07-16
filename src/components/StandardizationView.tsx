@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  CheckCircle2, 
+import {
+  Plus,
+  Save,
+  Search,
+  Edit2,
+  Trash2,
+  CheckCircle2,
   AlertCircle,
   Undo2,
   ChevronRight,
@@ -19,9 +19,9 @@ interface StandardizationViewProps {
   onUpdateRules: (newRules: StandardizationRule[]) => void;
 }
 
-export const StandardizationView: React.FC<StandardizationViewProps> = ({ 
-  rules, 
-  onUpdateRules 
+export const StandardizationView: React.FC<StandardizationViewProps> = ({
+  rules,
+  onUpdateRules
 }) => {
   const [editingRule, setEditingRule] = useState<StandardizationRule | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -54,10 +54,10 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
       const matchName = filterName === '' || r.ruleName.toLowerCase().includes(filterName.toLowerCase());
       const matchProp = filterProp === '' || r.applicableProperty.toLowerCase().includes(filterProp.toLowerCase());
       const matchStd = filterStdVal === '' || r.standardValue.toLowerCase().includes(filterStdVal.toLowerCase());
-      const matchStatus = filterStatus === 'ALL' || 
-        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') || 
+      const matchStatus = filterStatus === 'ALL' ||
+        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') ||
         (filterStatus === 'INACTIVE' && r.status === 'INACTIVE');
-      
+
       return matchName && matchProp && matchStd && matchStatus;
     });
   }, [rules, filterName, filterProp, filterStdVal, filterStatus]);
@@ -76,7 +76,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
     setFormRuleMethod(rule.ruleMethod);
     setFormMatchPriority(rule.matchPriority);
     setFormRemarks(rule.remarks || '');
-    
+
     setFormIsActive(rule.status === 'ACTIVE');
     setFormIsSimilarityActive(rule.isSimilarityActive);
     setFormIsFullTextActive(rule.isFullTextActive);
@@ -96,7 +96,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
     setFormRuleMethod('MAP');
     setFormMatchPriority(1);
     setFormRemarks('');
-    
+
     setFormIsActive(true);
     setFormIsSimilarityActive(true);
     setFormIsFullTextActive(true);
@@ -147,7 +147,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* Title block */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -196,7 +196,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
       {!(editingRule || isNew) ? (
         // FRAME 3: LIST VIEW
         <div className="flex-1 flex flex-col overflow-hidden">
-          
+
           {/* Filters Area */}
           <div className="px-6 py-3 shrink-0 flex flex-wrap items-center gap-3 bg-slate-50 border-b border-slate-200">
             <div className="flex items-center space-x-1.5 text-xs">
@@ -375,7 +375,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
         // FRAME 4: CREATE / EDIT FORM VIEW
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            
+
             <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800">
                 {isNew ? '创建新属性值标准化映射规则' : `正在编辑规则: [${editingRule?.id}]`}
@@ -386,7 +386,7 @@ export const StandardizationView: React.FC<StandardizationViewProps> = ({
             </div>
 
             <div className="p-6 space-y-5 text-xs">
-              
+
               {/* Row 1: Rule Name & Priority */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">

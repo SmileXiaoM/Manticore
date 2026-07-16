@@ -1430,13 +1430,13 @@ export function calculateFieldMatchRate(
     const s1 = String(refVal).trim();
     const s2 = String(candVal).trim();
     if (s1 === s2) return 1.0;
-    
+
     // Character overlap similarity
     const set1 = new Set(s1.split(''));
     const arr2 = s2.split('');
     const common = arr2.filter(c => set1.has(c)).length;
     const rawRate = common / Math.max(s1.length, s2.length);
-    
+
     const threshold = (config as any).threshold || 60;
     if (rawRate * 100 < threshold) {
       return 0.0;
@@ -1502,7 +1502,7 @@ export function calculateFieldMatchRate(
   if (matchKind === 'NATIVE_HIERARCHY') {
     const p1 = String(refVal).replace(/^\/|\/$/g, '').split('/');
     const p2 = String(candVal).replace(/^\/|\/$/g, '').split('/');
-    
+
     let c = 0;
     const limit = Math.min(p1.length, p2.length);
     for (let i = 0; i < limit; i++) {
@@ -1567,6 +1567,113 @@ export function calculateFieldMatchRate(
   return String(refVal) === String(candVal) ? 1.0 : 0.0;
 }
 
+// Evaluation helpers for R11-BLK-03
+function evaluateClassTree(candPath: string, targetPath: string, operator: string): boolean {
+  const p1 = candPath.trim().replace(/\/$/, '');
+  const p2 = targetPath.trim().replace(/\/$/, '');
+  if (operator === '路径一致') {
+    return p1 === p2;
+  }
+  if (operator === '属于该路径') {
+    return p1.startsWith(p2);
+  }
+  if (operator === '父子关系') {
+    const s1 = p1.split('/').filter(Boolean);
+    const s2 = p2.split('/').filter(Boolean);
+    if (s1.length === s2.length + 1) {
+      return p1.startsWith(p2);
+    }
+    if (s2.length === s1.length + 1) {
+      return p2.startsWith(p1);
+    }
+    return false;
+  }
+  if (operator === '祖先/后代关系') {
+    return p1.startsWith(p2) || p2.startsWith(p1);
+  }
+  return false;
+}
+
+function evaluateDate(candVal: string, targetVal: string, operator: string): boolean {
+  const tCand = Date.parse(candVal);
+  if (isNaN(tCand)) return false;
+
+  if (operator === '区间内') {
+    const parts = targetVal.split('~');
+    const tMin = Date.parse(parts[0] || '');
+    const tMax = Date.parse(parts[1] || '');
+    if (isNaN(tMin) || isNaN(tMax)) return false;
+    return tCand >= tMin && tCand <= tMax;
+  }
+
+  const tTarget = Date.parse(targetVal);
+  if (isNaN(tTarget)) return false;
+
+  if (operator === '等于') {
+    return tCand === tTarget;
+  }
+  if (operator === '早于') {
+    return tCand < tTarget;
+  }
+  if (operator === '晚于') {
+    return tCand > tTarget;
+  }
+  return false;
+}
+
+function evaluateNumeric(numCand: number, targetVal: string, operator: string, rule: FieldSimilarityRule): boolean {
+  if (operator === '区间内' || operator === '区间外') {
+    const parts = targetVal.split('~');
+    const minRaw = Number(parts[0]);
+    const maxRaw = Number(parts[1]);
+    if (isNaN(minRaw) || isNaN(maxRaw)) return false;
+
+    const isUnitType = rule.fieldType?.includes('NUMBER_WITH_UNIT');
+    const qtyFamily = rule.unitFamily || '长度';
+    const minVal = isUnitType ? convertToBaseUnit(minRaw, rule.displayUnit || '', qtyFamily) : minRaw;
+    const maxVal = isUnitType ? convertToBaseUnit(maxRaw, rule.displayUnit || '', qtyFamily) : maxRaw;
+
+    if (operator === '区间内') {
+      return numCand >= minVal && numCand <= maxVal;
+    } else {
+      return numCand < minVal || numCand > maxVal;
+    }
+  }
+
+  const targetNumRaw = Number(targetVal);
+  if (isNaN(targetNumRaw)) return false;
+  const isUnitType = rule.fieldType?.includes('NUMBER_WITH_UNIT');
+  const qtyFamily = rule.unitFamily || '长度';
+  const targetNum = isUnitType ? convertToBaseUnit(targetNumRaw, rule.displayUnit || '', qtyFamily) : targetNumRaw;
+
+  if (operator === '等于') {
+    return Math.abs(numCand - targetNum) < 1e-9;
+  }
+  if (operator === '大于等于') {
+    return numCand >= targetNum - 1e-9;
+  }
+  if (operator === '小于等于') {
+    return numCand <= targetNum + 1e-9;
+  }
+  return false;
+}
+
+function formatFilterReason(
+  template: string | undefined,
+  fieldName: string,
+  candValStr: string,
+  refValStr: string,
+  conditionValStr: string,
+  operator: string
+): string {
+  const defaultReason = `强过滤不满足: [${fieldName}] 值为 "${candValStr}"，不满足 [${operator}] "${conditionValStr}"`;
+  const tmpl = template || defaultReason;
+  return tmpl
+    .replace(/{candidateValue}/g, candValStr)
+    .replace(/{referenceValue}/g, refValStr)
+    .replace(/{conditionValue}/g, conditionValStr);
+}
+
 export function runSimilaritySearch(
   objectType: string,
   requestCodeOrId: string,
@@ -1581,7 +1688,7 @@ export function runSimilaritySearch(
 ): SearchRunResult {
   // 1. Resolve Reference Object
   let reference: ReferenceObject | null = null;
-  
+
   if (objectType === 'PART_MECHANICAL') {
     reference = {
       requestCode: 'REQ-2026-000100',
@@ -1597,8 +1704,14 @@ export function runSimilaritySearch(
         core_material: 'SUS304',
         nominal_diameter: 10,
         thread_pitch: 1.5,
+        nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效'
+      },
+      units: {
+        nominal_diameter: 'mm',
+        thread_pitch: 'mm',
+        nominal_length: 'mm'
       }
     };
   } else if (objectType === 'PART_ELECTRICAL') {
@@ -1623,10 +1736,10 @@ export function runSimilaritySearch(
   // Handle case where code doesn't match
   const searchId = (requestCodeOrId || '').trim().toUpperCase();
   if (
-    searchId && 
-    searchId !== 'REQ-2026-000100' && 
-    searchId !== 'PART-2026-000100' && 
-    searchId !== 'REQ-2026-000200' && 
+    searchId &&
+    searchId !== 'REQ-2026-000100' &&
+    searchId !== 'PART-2026-000100' &&
+    searchId !== 'REQ-2026-000200' &&
     searchId !== 'ELEC-2026-000200' &&
     searchId !== 'ELEC-2026-000100'
   ) {
@@ -1653,12 +1766,14 @@ export function runSimilaritySearch(
         core_material: 'SUS304',
         nominal_diameter: 10,
         thread_pitch: 1.5,
+        nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效'
       },
       units: {
         nominal_diameter: 'mm',
-        thread_pitch: 'mm'
+        thread_pitch: 'mm',
+        nominal_length: 'mm'
       }
     },
     {
@@ -1673,12 +1788,14 @@ export function runSimilaritySearch(
         core_material: 'SUS304',
         nominal_diameter: 1, // in 'cm'! converts to 10mm! Matches!
         thread_pitch: 1.2, // does not match 1.5mm!
+        nominal_length: 5, // 5cm converts to 50mm!
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效'
       },
       units: {
         nominal_diameter: 'cm',
-        thread_pitch: 'mm'
+        thread_pitch: 'mm',
+        nominal_length: 'cm'
       }
     },
     {
@@ -1693,11 +1810,13 @@ export function runSimilaritySearch(
         core_material: 'A2-70',
         nominal_diameter: 10, // mm
         thread_pitch: null, // missing!
+        nominal_length: null, // missing!
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效'
       },
       units: {
-        nominal_diameter: 'mm'
+        nominal_diameter: 'mm',
+        nominal_length: 'mm'
       }
     },
     {
@@ -1712,8 +1831,14 @@ export function runSimilaritySearch(
         core_material: 'SUS304',
         nominal_diameter: 10, // mm
         thread_pitch: 1.5, // mm
+        nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '已作废'
+      },
+      units: {
+        nominal_diameter: 'mm',
+        thread_pitch: 'mm',
+        nominal_length: 'mm'
       }
     }
   ];
@@ -1779,13 +1904,13 @@ export function runSimilaritySearch(
 
     for (const rule of typeRules) {
       if (!rule.isFilterCondition || !rule.enabled) continue;
-      
+
       const key = rule.propertyCode;
       const refVal = reference ? reference.attributes[key] : null;
       const rawCandVal = cand.attributes[key];
       // Fallback for lifecycle state if not direct in attributes
-      const candVal = (rawCandVal !== undefined && rawCandVal !== null) 
-        ? rawCandVal 
+      const candVal = (rawCandVal !== undefined && rawCandVal !== null)
+        ? rawCandVal
         : (key === 'lifecycle_state' ? (cand.lifecycleState || cand.attributes.lifecycle_state) : null);
 
       const source = rule.filterSource || 'FIXED_VALUE';
@@ -1795,11 +1920,18 @@ export function runSimilaritySearch(
       const isCandMissing = (candVal === null || candVal === undefined || candVal === '');
       const isRefMissing = (source === 'REF_VALUE' && (refVal === null || refVal === undefined || refVal === ''));
 
+      const targetVal = source === 'REF_VALUE' ? refVal : fixedVal;
+
       if (isCandMissing) {
         isFilteredByRules = true;
-        filterReason = rule.filterReasonTemplate 
-          ? rule.filterReasonTemplate.replace('{candidateValue}', '无') 
-          : `强过滤字段 [${rule.fieldName}] 候选属性缺失，未通过`;
+        filterReason = formatFilterReason(
+          rule.filterReasonTemplate,
+          rule.fieldName,
+          '无',
+          String(refVal ?? '无'),
+          String(targetVal ?? '无'),
+          operator
+        );
         break;
       }
 
@@ -1809,69 +1941,49 @@ export function runSimilaritySearch(
         break;
       }
 
-      // Determine constraint target value
-      const targetVal = source === 'REF_VALUE' ? refVal : fixedVal;
+      let isPassed = true;
+      const fieldTypeUpper = (rule.fieldType || '').toUpperCase();
 
-      if (operator === '不属于') {
-        const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
-        const contains = list.includes(String(candVal).trim());
-        if (contains) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值为 "${candVal}" 属于限制列表`;
-          break;
-        }
-      } else if (operator === '属于') {
-        const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
-        const contains = list.includes(String(candVal).trim());
-        if (!contains) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值为 "${candVal}" 不属于允许列表`;
-          break;
-        }
-      } else if (operator === '等于') {
-        if (String(candVal).trim() !== String(targetVal).trim()) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值 "${candVal}" 不等于期望值 "${targetVal}"`;
-          break;
-        }
-      } else if (operator === '不等于') {
-        if (String(candVal).trim() === String(targetVal).trim()) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值 "${candVal}" 等于限制值 "${targetVal}"`;
-          break;
-        }
-      } else if (operator === '大于等于') {
-        if (Number(candVal) < Number(targetVal)) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值 ${candVal} 小于限制值 ${targetVal}`;
-          break;
-        }
-      } else if (operator === '小于等于') {
-        if (Number(candVal) > Number(targetVal)) {
-          isFilteredByRules = true;
-          filterReason = rule.filterReasonTemplate 
-            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
-            : `强过滤不满足: [${rule.fieldName}] 值 ${candVal} 大于限制值 ${targetVal}`;
-          break;
-        }
+      if (fieldTypeUpper.includes('CLASS_TREE')) {
+        isPassed = evaluateClassTree(String(candVal), String(targetVal), operator);
+      } else if (fieldTypeUpper.includes('DATE')) {
+        isPassed = evaluateDate(String(candVal), String(targetVal), operator);
+      } else if (fieldTypeUpper.includes('NUMBER')) {
+        const qtyFamily = rule.unitFamily || '长度';
+        const candUnit = (cand as any).units?.[key] || rule.displayUnit || '';
+        const candValBase = fieldTypeUpper.includes('NUMBER_WITH_UNIT')
+          ? convertToBaseUnit(Number(candVal), candUnit, qtyFamily)
+          : Number(candVal);
+
+        isPassed = evaluateNumeric(candValBase, String(targetVal), operator, rule);
       } else {
-        // Default check using matchRate if no simple operator is specified
-        const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
-        if (matchRate < 1.0) {
-          isFilteredByRules = true;
-          filterReason = `强过滤不满足: 属性 [${rule.fieldName}] 不吻合 (源[${refVal}] vs 候选[${candVal}])`;
-          break;
+        // String and Enum types
+        if (operator === '等于') {
+          isPassed = String(candVal).trim() === String(targetVal).trim();
+        } else if (operator === '不等于') {
+          isPassed = String(candVal).trim() !== String(targetVal).trim();
+        } else if (operator === '属于') {
+          const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
+          isPassed = list.includes(String(candVal).trim());
+        } else if (operator === '不属于') {
+          const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
+          isPassed = !list.includes(String(candVal).trim());
+        } else {
+          isPassed = false;
         }
+      }
+
+      if (!isPassed) {
+        isFilteredByRules = true;
+        filterReason = formatFilterReason(
+          rule.filterReasonTemplate,
+          rule.fieldName,
+          String(candVal),
+          String(refVal ?? '无'),
+          String(targetVal),
+          operator
+        );
+        break;
       }
     }
 
@@ -1983,7 +2095,7 @@ export function runSimilaritySearch(
       // Candidate has value
       sumActiveWeights += rule.weight;
       const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
-      
+
       let status: 'FULL' | 'PARTIAL' | 'MISS' = 'MISS';
       if (matchRate === 1.0) status = 'FULL';
       else if (matchRate > 0) status = 'PARTIAL';

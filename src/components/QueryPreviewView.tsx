@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  Search, 
-  Play, 
-  ChevronRight, 
+import {
+  Search,
+  Play,
+  ChevronRight,
   Info,
   Send,
   RotateCcw,
@@ -40,12 +40,12 @@ interface LastRunContext {
   searchResult: SearchRunResult;
 }
 
-export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ 
-  editingRules, 
-  savedRules, 
-  activeRules, 
-  objectConfigStatus, 
-  onNavigate 
+export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
+  editingRules,
+  savedRules,
+  activeRules,
+  objectConfigStatus,
+  onNavigate
 }) => {
   // Query parameters
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
@@ -70,14 +70,113 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     return activeRules;
   };
 
+  const renderSnapshotDashboard = (ref: any, snapshotRules: any[]) => {
+    // 1. 标称长度
+    const nominalLength = ref?.attributes?.nominal_length !== undefined && ref?.attributes?.nominal_length !== null
+      ? `${ref.attributes.nominal_length} ${ref.units?.nominal_length || 'mm'}`
+      : '--';
+
+    // 2. 生命周期状态
+    const lifecycleState = ref?.lifecycleState || ref?.attributes?.lifecycle_state || '--';
+
+    // 3. 参考件分类
+    const classificationPath = ref?.classificationPath || ref?.classification_path || '--';
+
+    // 4. 二阶段参与计算维度数
+    const scoreDimensionsCount = snapshotRules.filter(r => r.enabled && r.isScoreActive).length;
+
+    // 5. 文本相似阈值配置
+    const textRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'TEXT_SIMILARITY');
+    const textThresh = textRule ? `${(textRule.matchConfig as any).threshold}%` : '--';
+
+    // 6. 数值匹配容差设置
+    const numTolRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'NUMERIC_TOLERANCE');
+    const numTol = numTolRule ? `±${(numTolRule.matchConfig as any).toleranceValue}${numTolRule.displayUnit || ''}` : '--';
+
+    // 7. 数值衰减满分范围
+    const decayRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'NUMERIC_DECAY');
+    const decayFull = decayRule ? `±${(decayRule.matchConfig as any).fullScoreRange}${decayRule.displayUnit || ''}` : '--';
+
+    // 8. 数值衰减零分边界
+    const decayZero = decayRule ? `±${(decayRule.matchConfig as any).zeroScoreBoundary}${decayRule.displayUnit || ''}` : '--';
+
+    // 9. 作为严格过滤一票否决(Filter)策略激活数
+    const filterCount = snapshotRules.filter(r => r.enabled && r.isFilterCondition).length;
+
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2.5 p-4 bg-slate-50 border-b border-slate-100" id="snapshot-9-metrics-grid">
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">1. 标称长度</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={nominalLength}>{nominalLength}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">2. 生命周期</span>
+          <span className="text-xs font-bold text-slate-850 truncate" title={lifecycleState}>{lifecycleState}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">3. 参考件分类</span>
+          <span className="text-xs font-bold text-slate-850 truncate" title={classificationPath}>{classificationPath}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">4. 参算维度数</span>
+          <span className="text-xs font-bold text-blue-600 font-mono">{scoreDimensionsCount} 项</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">5. 文本相似阈值</span>
+          <span className="text-xs font-bold text-slate-800 font-mono">{textThresh}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">6. 数值匹配容差</span>
+          <span className="text-xs font-bold text-slate-800 font-mono">{numTol}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 数值满分范围</span>
+          <span className="text-xs font-bold text-slate-800 font-mono">{decayFull}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">8. 数值零分边界</span>
+          <span className="text-xs font-bold text-slate-800 font-mono">{decayZero}</span>
+        </div>
+        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">9. 强过滤激活数</span>
+          <span className="text-xs font-bold text-rose-600 font-mono">{filterCount} 项</span>
+        </div>
+      </div>
+    );
+  };
+
   const handleRunSearch = () => {
+    if (objectId.trim() === '') {
+      alert('请输入源物料代码/申请号');
+      setLastRunContext({
+        objectType,
+        objectId: '',
+        ruleVersion,
+        configVersion: (objectConfigStatus[objectType]?.configVersion || 'v2.5.0'),
+        lastModifiedAt: objectConfigStatus[objectType]?.lastModifiedAt || '无',
+        scoreFieldsCount: 0,
+        totalWeight: 0,
+        filterConditionsCount: 0,
+        thresholds: { high: 85, medium: 70 },
+        unitCatalogVersion: 'Windchill 2026-07-15',
+        rulesSnapshot: [],
+        searchResult: {
+          reference: null,
+          scoredCandidates: [],
+          filteredCandidates: []
+        }
+      });
+      setSelectedCandidate(null);
+      return;
+    }
+
     setIsSearching(true);
     setTimeout(() => {
       setIsSearching(false);
       const rulesToUse = getRulesForVersion(ruleVersion);
       const rulesSnapshot = JSON.parse(JSON.stringify(rulesToUse.filter(r => r.objectType === objectType)));
       const res = runSimilaritySearch(objectType, objectId, rulesToUse);
-      
+
       const isEditingModified = JSON.stringify(editingRules.filter(r => r.objectType === objectType)) !== JSON.stringify(savedRules.filter(r => r.objectType === objectType));
       const configVer = ruleVersion === 'DRAFT_POOL' && isEditingModified
         ? '未保存修改'
@@ -110,7 +209,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="query-preview-container">
-      
+
       {/* 1. Page Header (页面标题与工具栏) */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4" id="preview-header">
         <div>
@@ -143,11 +242,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
       {/* Main Sandbox Content (Vertical layout) */}
       <div className="flex-1 overflow-y-auto p-5 space-y-4" id="preview-scroll-content">
-        
+
         {/* 1.1 顶部查询条件区 */}
         <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs" id="preview-filter-section">
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
-            
+
             {/* Object Type */}
             <div className="flex items-center space-x-2">
               <label className="font-medium text-slate-600 shrink-0">物料对象类型:</label>
@@ -260,14 +359,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <ChevronRight className={`w-3.5 h-3.5 transform transition-transform duration-200 ${isSnapshotExpanded ? 'rotate-90' : ''}`} />
                 </div>
               </button>
-              
+
+              {renderSnapshotDashboard(lastRunContext.searchResult.reference, lastRunContext.rulesSnapshot)}
+
               {isSnapshotExpanded && (
-                <div className="p-4 border-t border-slate-100 bg-slate-50/30" id="snapshot-content-grid">
+                <div className="p-4 bg-slate-50/30" id="snapshot-content-grid">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {lastRunContext.rulesSnapshot.map((rule) => {
+                    {[...lastRunContext.rulesSnapshot].sort((a, b) => a.propertyCode.localeCompare(b.propertyCode)).map((rule) => {
                       const isScoreActive = rule.isScoreActive;
                       const isFilter = rule.isFilterCondition;
-                      
+
                       return (
                         <div key={rule.id} className={`p-3 rounded-md border ${rule.enabled ? 'bg-white border-slate-200' : 'bg-slate-50/50 border-slate-200/50 opacity-60'} flex flex-col justify-between text-xs`}>
                           <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -287,7 +388,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="space-y-1 text-slate-500 text-[11px]">
                             <div className="flex justify-between">
                               <span>匹配策略:</span>
@@ -301,7 +402,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               <span>空值处理:</span>
                               <span className="text-slate-600 truncate max-w-[150px]" title={rule.nullHandling}>{rule.nullHandling}</span>
                             </div>
-                            
+
                             {rule.matchConfig && (
                               <div className="mt-1.5 pt-1.5 border-t border-dashed border-slate-100 text-[10px] text-slate-400 flex flex-wrap gap-x-2">
                                 {rule.matchConfig.kind === 'NUMERIC_TOLERANCE' && (
@@ -368,7 +469,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-400">标称长度:</span>{' '}
-                      <span className="font-bold text-slate-900">50 mm</span>
+                      <span className="font-bold text-slate-900">
+                        {lastRunContext.searchResult.reference.attributes.nominal_length !== undefined && lastRunContext.searchResult.reference.attributes.nominal_length !== null
+                          ? `${lastRunContext.searchResult.reference.attributes.nominal_length} ${lastRunContext.searchResult.reference.units?.nominal_length || 'mm'}`
+                          : '--'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400">螺距:</span>{' '}
@@ -386,7 +491,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 px-4 py-2.5 rounded-lg text-xs text-red-800" id="source-error-stripe">
-                未找到源申请件或物料代码: <strong className="font-mono">{lastRunContext.objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
+                {lastRunContext.objectId.trim() === '' ? (
+                  <span>请输入源物料代码/申请号</span>
+                ) : (
+                  <>未找到源申请件或物料代码: <strong className="font-mono">{lastRunContext.objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)</>
+                )}
               </div>
             )}
 
@@ -480,23 +589,23 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       <th className="px-4 py-3 text-center whitespace-nowrap">覆盖率</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">命中数</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">差异数</th>
-                      <th className="px-4 py-3 text-center whitespace-nowrap w-32 sticky right-0 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
+                      <th className="px-4 py-3 text-center whitespace-nowrap w-32 sticky right-0 z-20 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {lastRunContext.searchResult.scoredCandidates.map((candidate) => {
                       const isSelected = selectedCandidate?.objectId === candidate.objectId;
-                      const scoreColor = !isSecondPhaseEnabled 
+                      const scoreColor = !isSecondPhaseEnabled
                         ? 'text-slate-400 font-medium'
-                        : candidate.similarityScore >= 85 
-                        ? 'text-emerald-700 font-extrabold' 
-                        : candidate.similarityScore >= 70 
-                        ? 'text-blue-700 font-bold' 
+                        : candidate.similarityScore >= 85
+                        ? 'text-emerald-700 font-extrabold'
+                        : candidate.similarityScore >= 70
+                        ? 'text-blue-700 font-bold'
                         : 'text-slate-600 font-medium';
 
                       return (
-                        <tr 
-                          key={candidate.objectId} 
+                        <tr
+                          key={candidate.objectId}
                           className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
                         >
                           {/* 候选件编码 */}
@@ -581,7 +690,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 操作 */}
-                          <td className="px-4 py-3 text-center sticky right-0 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] group-hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                             <button
                               type="button"
                               onClick={() => setSelectedCandidate(candidate)}
@@ -606,14 +715,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       {selectedCandidate && lastRunContext && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/40 z-40 transition-opacity"
             onClick={() => setSelectedCandidate(null)}
             id="preview-drawer-backdrop"
           />
-          
+
           {/* Drawer Element */}
-          <div 
+          <div
             id="preview-score-drawer"
             className="fixed right-0 top-0 h-full w-full max-w-[500px] bg-white shadow-2xl z-50 flex flex-col border-l border-slate-200 transition-transform duration-300"
           >
@@ -626,7 +735,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <span className="font-mono text-blue-600 ml-1">{selectedCandidate.objectId}</span>
                 </h2>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setSelectedCandidate(null)}
                 className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-colors cursor-pointer"
@@ -637,7 +746,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             {/* Drawer Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs text-slate-600">
-              
+
               {/* Target & Candidate Summary Block */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
                 <div className="flex justify-between items-center text-xs">
@@ -746,7 +855,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             {/* Drawer Footer */}
             <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 text-right">
-              <button 
+              <button
                 type="button"
                 onClick={() => setSelectedCandidate(null)}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer transition-colors"

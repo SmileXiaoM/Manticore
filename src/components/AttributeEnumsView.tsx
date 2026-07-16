@@ -10,7 +10,7 @@ interface AttributeEnumsViewProps {
 export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackToApp }) => {
   return (
     <div className="w-full min-h-screen bg-slate-100 p-8 flex flex-col font-sans">
-      
+
       {/* Figma design header frame */}
       <div className="max-w-7xl mx-auto w-full bg-slate-900 text-white rounded-t-xl p-6 shadow-md border border-slate-800">
         <div className="flex items-center justify-between">
@@ -28,7 +28,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
               <h1 className="text-2xl font-bold tracking-tight mt-1">受控枚举属性值字典对齐及归一清单</h1>
             </div>
           </div>
-          
+
           {/* Back Action */}
           {onBackToApp && (
             <button
@@ -39,7 +39,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
             </button>
           )}
         </div>
-        
+
         <p className="text-slate-300 text-xs mt-3 leading-relaxed max-w-4xl">
           针对所有枚举类型属性（如主要材质、生命周期状态、基本计量单位、表面处理、来源系统等），梳理在 Manticore 二阶段匹配中
           可接纳的全部异构原始值、对应的官方归一标准值、同义词别名。通过此页清晰区分工艺已发布词典和待业务部门最终确认的草案（如表面处理方式）。
@@ -48,7 +48,7 @@ export const AttributeEnumsView: React.FC<AttributeEnumsViewProps> = ({ onBackTo
 
       {/* Main Container */}
       <div className="max-w-7xl mx-auto w-full bg-white border border-slate-200 p-6 shadow-sm rounded-b-xl space-y-6 flex-1">
-        
+
         {/* Warning Callout Box for Business Confirmation */}
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />

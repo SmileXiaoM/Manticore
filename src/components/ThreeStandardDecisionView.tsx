@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  ShieldAlert, 
-  Search, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Info, 
-  Check, 
+import {
+  ShieldAlert,
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  Info,
+  Check,
   X,
   AlertTriangle,
   XCircle,
@@ -46,16 +46,16 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
   // Filtering calculations
   const filteredThresholds = useMemo(() => {
-    return thresholdRules.filter(r => 
-      keyword === '' || 
+    return thresholdRules.filter(r =>
+      keyword === '' ||
       r.ruleName.toLowerCase().includes(keyword.toLowerCase()) ||
       r.applicableCategory.toLowerCase().includes(keyword.toLowerCase())
     );
   }, [thresholdRules, keyword]);
 
   const filteredHardRules = useMemo(() => {
-    return hardRules.filter(r => 
-      keyword === '' || 
+    return hardRules.filter(r =>
+      keyword === '' ||
       r.ruleName.toLowerCase().includes(keyword.toLowerCase()) ||
       r.applicableCategory.toLowerCase().includes(keyword.toLowerCase()) ||
       r.triggerField.toLowerCase().includes(keyword.toLowerCase())
@@ -63,8 +63,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
   }, [hardRules, keyword]);
 
   const filteredCoverages = useMemo(() => {
-    return coverages.filter(r => 
-      keyword === '' || 
+    return coverages.filter(r =>
+      keyword === '' ||
       r.categoryPath.toLowerCase().includes(keyword.toLowerCase()) ||
       r.weightOverrideInfo.toLowerCase().includes(keyword.toLowerCase())
     );
@@ -214,7 +214,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
-      
+
       {/* Top Main Banner with explicit Stage Definition */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
@@ -282,8 +282,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder={
-              activeTab === 'threshold' 
-                ? "搜索阈值规则名称、适用分类..." 
+              activeTab === 'threshold'
+                ? "搜索阈值规则名称、适用分类..."
                 : activeTab === 'hard'
                   ? "搜索强控/强制复核规则、触发字段..."
                   : "搜索分类绑定路径、覆盖描述..."
@@ -307,7 +307,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
       {/* Main lists */}
       <div className="flex-1 overflow-auto p-6">
-        
+
         {activeTab === 'threshold' && (
           <div className="space-y-4">
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
@@ -618,7 +618,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       {editingRule && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full border border-slate-200 flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-lg shrink-0">
               <div className="flex items-center space-x-2">
@@ -635,7 +635,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
             {/* Modal Form Content */}
             <form onSubmit={handleSave} className="flex-1 overflow-auto p-6 space-y-4">
-              
+
               <div className="p-2.5 bg-blue-50 rounded text-[11px] text-blue-800 flex items-start space-x-1.5">
                 <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
                 <span>
@@ -648,8 +648,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">阈值规则名称 <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.ruleName}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleName: e.target.value }})}
@@ -661,7 +661,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用对象类型</label>
-                      <select 
+                      <select
                         value={editingRule.item.applicableObjectType}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableObjectType: e.target.value as ObjectType }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500"
@@ -673,8 +673,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用物料分类 <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={editingRule.item.applicableCategory}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableCategory: e.target.value }})}
@@ -686,12 +686,12 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-3">
                     <span className="font-bold text-slate-700 block text-[11px]">决策输出推荐区间数值 (%)</span>
-                    
+
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block font-semibold text-emerald-700 mb-1">建议复用线 &gt;=</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="1" max="100"
                           value={editingRule.item.reuseThreshold}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reuseThreshold: parseInt(e.target.value) || 85 }})}
@@ -701,8 +701,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                       <div>
                         <label className="block font-semibold text-amber-700 mb-1">复核区间下限 &gt;=</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="1" max="100"
                           value={editingRule.item.reviewThresholdMin}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reviewThresholdMin: parseInt(e.target.value) || 65 }})}
@@ -712,8 +712,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                       <div>
                         <label className="block font-semibold text-slate-600 mb-1">复核区间上限 &lt;</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="1" max="100"
                           value={editingRule.item.reviewThresholdMax}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reviewThresholdMax: parseInt(e.target.value) || 85 }})}
@@ -726,7 +726,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">是否启用此阈值规则</label>
-                    <select 
+                    <select
                       value={editingRule.item.isEnabled ? 'true' : 'false'}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isEnabled: e.target.value === 'true' }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-semibold"
@@ -738,8 +738,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">规则备注</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editingRule.item.remarks || ''}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, remarks: e.target.value }})}
                       placeholder="例如：对标准通用阀门适当调高复用阈值，规避小差异引起的重复新建。"
@@ -754,8 +754,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">控制规则名称 <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.ruleName}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleName: e.target.value }})}
@@ -767,7 +767,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">决策建议类型</label>
-                      <select 
+                      <select
                         value={editingRule.item.ruleType}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, ruleType: e.target.value as any }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-bold"
@@ -780,8 +780,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">适用物料分类 <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={editingRule.item.applicableCategory}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, applicableCategory: e.target.value }})}
@@ -794,8 +794,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">触发条件判定字段 <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={editingRule.item.triggerField}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, triggerField: e.target.value }})}
@@ -806,8 +806,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">触发测试示例值</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={editingRule.item.triggerExample}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, triggerExample: e.target.value }})}
                         placeholder="如: Q235B vs SUS304"
@@ -818,7 +818,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">判断触发逻辑(可输入表达式说明) <span className="text-red-500">*</span></label>
-                    <textarea 
+                    <textarea
                       rows={3}
                       required
                       value={editingRule.item.triggerCondition}
@@ -831,7 +831,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">匹配后触发动作</label>
-                      <select 
+                      <select
                         value={editingRule.item.actionAfterTrigger}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, actionAfterTrigger: e.target.value as any }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-bold"
@@ -845,8 +845,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">优先级排序 (数字越大越优先)</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={editingRule.item.priority}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, priority: parseInt(e.target.value) || 1 }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500"
@@ -856,7 +856,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">启用状态</label>
-                    <select 
+                    <select
                       value={editingRule.item.isEnabled ? 'true' : 'false'}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isEnabled: e.target.value === 'true' }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-semibold"
@@ -873,8 +873,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">物料分类层级路径 (用于承接决策策略) <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editingRule.item.categoryPath}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, categoryPath: e.target.value }})}
@@ -886,7 +886,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">策略来源层级模式</label>
-                      <select 
+                      <select
                         value={editingRule.item.inheritParent ? 'true' : 'false'}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, inheritParent: e.target.value === 'true' }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500"
@@ -898,7 +898,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">绑定对应阈值规则</label>
-                      <select 
+                      <select
                         value={editingRule.item.thresholdRuleId}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, thresholdRuleId: e.target.value }})}
                         className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-medium"
@@ -913,7 +913,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">绑定字段白名单集</label>
-                      <input 
+                      <input
                         type="text"
                         value={editingRule.item.whitelistId}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, whitelistId: e.target.value }})}
@@ -923,7 +923,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">绑定算分规则引擎集</label>
-                      <input 
+                      <input
                         type="text"
                         value={editingRule.item.similarityRuleSetId}
                         onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, similarityRuleSetId: e.target.value }})}
@@ -934,7 +934,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">核心权重覆盖详情描述</label>
-                    <textarea 
+                    <textarea
                       rows={3}
                       value={editingRule.item.weightOverrideInfo}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, weightOverrideInfo: e.target.value }})}
@@ -945,7 +945,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">绑定生效状态</label>
-                    <select 
+                    <select
                       value={editingRule.item.isEnabled ? 'true' : 'false'}
                       onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, isEnabled: e.target.value === 'true' }})}
                       className="w-full bg-white border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 font-semibold"

@@ -22,11 +22,11 @@ import { HardRuleView } from './components/HardRuleView';
 import { CategoryCoverageView } from './components/CategoryCoverageView';
 
 // Data
-import { 
-  initialFieldRules, 
-  initialStandardizationRules, 
-  initialSynonymRules, 
-  initialAlignmentRules, 
+import {
+  initialFieldRules,
+  initialStandardizationRules,
+  initialSynonymRules,
+  initialAlignmentRules,
   initialPublishRecords,
   initialFieldWhitelists,
   initialThresholdRules,
@@ -34,11 +34,11 @@ import {
   initialCategoryCoverages
 } from './data';
 
-import { 
-  FieldSimilarityRule, 
-  StandardizationRule, 
-  SynonymRule, 
-  ClassificationAlignmentRule, 
+import {
+  FieldSimilarityRule,
+  StandardizationRule,
+  SynonymRule,
+  ClassificationAlignmentRule,
   PublishRecord,
   FieldWhitelistItem,
   ThresholdRule,
@@ -121,10 +121,10 @@ export default function App() {
   const [thresholdRules, setThresholdRules] = useState<ThresholdRule[]>(initialThresholdRules);
   const [hardRules, setHardRules] = useState<HardRule[]>(initialHardRules);
   const [coverages, setCoverages] = useState<CategoryCoverage[]>(initialCategoryCoverages);
-  
+
   // Track activeObjectType at App level to support precise unsaved guard
   const [activeObjectType, setActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
-  
+
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
   const [pendingView, setPendingView] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export default function App() {
     const activeEditing = editingFieldRules.filter(r => r.objectType === activeObjectType);
     const activeSaved = savedFieldRules.filter(r => r.objectType === activeObjectType);
     const isModified = JSON.stringify(activeEditing) !== JSON.stringify(activeSaved);
-    
+
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
       setShowUnsavedConfirm(true);
@@ -176,7 +176,7 @@ export default function App() {
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800">
-      
+
       {isNonShellView ? (
         // Non-shell Figma specification sheets taking up the full screen
         <div className="flex-1 overflow-auto">
@@ -191,21 +191,21 @@ export default function App() {
         // Standard PLM Admin Environment with Header, Sidebar, and Content view
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top Admin Header Bar */}
-          <Header 
-            onNavigate={handleNavigate} 
+          <Header
+            onNavigate={handleNavigate}
           />
 
           {/* Sidebar & Body Split */}
           <div className="flex-1 flex overflow-hidden">
-            
+
             {/* Sidebar Navigation */}
             <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
             {/* Dynamic View Dispatcher */}
             <main className="flex-1 flex flex-col overflow-hidden">
               {currentView === 'field-rules' && (
-                <FieldSimilarityView 
-                  editingRules={editingFieldRules} 
+                <FieldSimilarityView
+                  editingRules={editingFieldRules}
                   onUpdateEditingRules={setEditingFieldRules}
                   savedRules={savedFieldRules}
                   onUpdateSavedRules={setSavedFieldRules}
@@ -222,23 +222,23 @@ export default function App() {
               )}
 
               {currentView === 'standardization-rules' && (
-                <StandardizationView 
-                  rules={standardizationRules} 
-                  onUpdateRules={setStandardizationRules} 
+                <StandardizationView
+                  rules={standardizationRules}
+                  onUpdateRules={setStandardizationRules}
                 />
               )}
 
               {currentView === 'synonym-rules' && (
-                <SynonymView 
-                  rules={synonymRules} 
-                  onUpdateRules={setSynonymRules} 
+                <SynonymView
+                  rules={synonymRules}
+                  onUpdateRules={setSynonymRules}
                 />
               )}
 
               {currentView === 'alignment-rules' && (
-                <AlignmentView 
-                  rules={alignmentRules} 
-                  onUpdateRules={setAlignmentRules} 
+                <AlignmentView
+                  rules={alignmentRules}
+                  onUpdateRules={setAlignmentRules}
                 />
               )}
 
@@ -247,7 +247,7 @@ export default function App() {
               )}
 
               {currentView === 'query-preview' && (
-                <QueryPreviewView 
+                <QueryPreviewView
                   editingRules={editingFieldRules}
                   savedRules={savedFieldRules}
                   activeRules={activeFieldRules}
@@ -257,8 +257,8 @@ export default function App() {
               )}
 
               {currentView === 'client-find-similar' && (
-                <ClientFindSimilarView 
-                  rules={activeFieldRules} 
+                <ClientFindSimilarView
+                  rules={activeFieldRules}
                   objectConfigStatus={objectConfigStatus}
                   onNavigate={handleNavigate}
                 />
@@ -266,30 +266,30 @@ export default function App() {
 
               {/* Three-Standardization (三化审核) Configuration Views */}
               {currentView === 'field-whitelists' && (
-                <FieldWhitelistView 
-                  whitelists={whitelists} 
-                  onUpdateWhitelists={setWhitelists} 
+                <FieldWhitelistView
+                  whitelists={whitelists}
+                  onUpdateWhitelists={setWhitelists}
                 />
               )}
 
               {currentView === 'threshold-rules' && (
-                <ThresholdRuleView 
-                  thresholdRules={thresholdRules} 
-                  onUpdateThresholdRules={setThresholdRules} 
+                <ThresholdRuleView
+                  thresholdRules={thresholdRules}
+                  onUpdateThresholdRules={setThresholdRules}
                 />
               )}
 
               {currentView === 'hard-rules' && (
-                <HardRuleView 
-                  hardRules={hardRules} 
-                  onUpdateHardRules={setHardRules} 
+                <HardRuleView
+                  hardRules={hardRules}
+                  onUpdateHardRules={setHardRules}
                 />
               )}
 
               {currentView === 'category-coverages' && (
-                <CategoryCoverageView 
-                  coverages={coverages} 
-                  onUpdateCoverages={setCoverages} 
+                <CategoryCoverageView
+                  coverages={coverages}
+                  onUpdateCoverages={setCoverages}
                 />
               )}
 

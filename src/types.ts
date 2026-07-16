@@ -76,7 +76,7 @@ export interface FieldSimilarityRule {
   configVersion: string;
   lastEditor: string;
   lastEditTime: string;
-  
+
   // 扩展属性
   fieldId?: string; // 一阶段字段标识
   manticoreType?: string; // Manticore 字段类型
@@ -85,7 +85,7 @@ export interface FieldSimilarityRule {
   baseUnit?: string; // 基准单位
   displayUnit?: string; // 显示单位
   matchConfig?: MatchConfig; // 匹配方式对应的动态参数
-  
+
   // 强过滤条件配置 (R10-BLK-03)
   filterSource?: 'REF_VALUE' | 'FIXED_VALUE'; // 条件来源: REF_VALUE 按参考件当前值, FIXED_VALUE 固定条件
   filterOperator?: string; // 运算符: 等于, 不等于, 属于, 不属于, 大于等于, 小于等于, 路径一致, 属于该路径, 父子/祖先关系
@@ -314,6 +314,7 @@ export type ReferenceObject = {
   classificationPath: string;
   lifecycleState: string;
   attributes: Record<string, string | number | null>;
+  units?: Record<string, string>;
 };
 
 export type CompareFieldResult = {

@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
+import {
+  Plus,
+  Save,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Check,
+  X,
   HelpCircle,
   SlidersHorizontal,
   ChevronRight,
@@ -21,9 +21,9 @@ interface FieldWhitelistViewProps {
   onUpdateWhitelists: (newItems: FieldWhitelistItem[]) => void;
 }
 
-export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({ 
-  whitelists, 
-  onUpdateWhitelists 
+export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
+  whitelists,
+  onUpdateWhitelists
 }) => {
   // Navigation tabs for Figma review: 'LIST' | 'EDITOR'
   const [activeTab, setActiveTab] = useState<'LIST' | 'EDITOR'>('LIST');
@@ -57,7 +57,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
   const startEdit = (item: FieldWhitelistItem) => {
     setEditingItem(item);
     setIsNew(false);
-    
+
     // Fill form states
     setFormObjectType(item.objectType);
     setFormFieldName(item.fieldName);
@@ -110,7 +110,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
     }
 
     const nextId = isNew ? `WL-00${whitelists.length + 1}` : (editingItem?.id || 'WL-999');
-    
+
     const savedItem: FieldWhitelistItem = {
       id: nextId,
       objectType: formObjectType,
@@ -175,10 +175,10 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
       const matchKeyword = keyword === '' ||
         r.fieldName.toLowerCase().includes(keyword.toLowerCase()) ||
         r.propertyCode.toLowerCase().includes(keyword.toLowerCase());
-      
+
       const matchObjectType = filterObjectType === 'ALL' || r.objectType === filterObjectType;
-      const matchStatus = filterStatus === 'ALL' || 
-        (filterStatus === 'ACTIVE' && r.isEnabled) || 
+      const matchStatus = filterStatus === 'ALL' ||
+        (filterStatus === 'ACTIVE' && r.isEnabled) ||
         (filterStatus === 'INACTIVE' && !r.isEnabled);
 
       return matchKeyword && matchObjectType && matchStatus;
@@ -187,7 +187,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* View Header with Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -215,7 +215,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
             <List className="w-3.5 h-3.5" />
             <span>白名单字段列表</span>
           </button>
-          
+
           <button
             onClick={() => {
               if (!editingItem && activeTab === 'LIST') {
@@ -240,7 +240,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
       {activeTab === 'LIST' ? (
         // List View Block
         <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-4">
-          
+
           {/* Filters Bar */}
           <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-wrap items-center gap-4 shrink-0 shadow-xs">
             <div className="flex items-center space-x-1.5 text-xs text-slate-600">
@@ -340,7 +340,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {filteredItems.map((item) => (
                     <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${!item.isEnabled ? 'bg-slate-50/40 text-slate-400' : ''}`}>
-                      
+
                       {/* Object Type */}
                       <td className="px-4 py-2.5 font-mono font-bold text-slate-700">
                         {item.objectType === 'PART_MECHANICAL' ? '机械零件 (PART)' : '电气元器件 (ELEC)'}
@@ -383,7 +383,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                       <td className="px-3 py-2.5 text-center">
                         {item.isFilterActive ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <X className="w-4 h-4 text-slate-300 mx-auto" />}
                       </td>
-                      
+
                       <td className="px-3 py-2.5 text-center">
                         {item.isScoreActive ? <Check className="w-4 h-4 text-emerald-500 mx-auto" /> : <X className="w-4 h-4 text-slate-300 mx-auto" />}
                       </td>
@@ -439,7 +439,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          
+
                           <button
                             onClick={() => handleDelete(item.id, item.fieldName)}
                             className="p-1 hover:bg-rose-50 text-rose-600 rounded hover:text-rose-800 transition-colors"
@@ -562,7 +562,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                       className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs font-mono focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="block text-slate-600 font-semibold">系统排序次序</label>
                     <input
@@ -716,7 +716,7 @@ export const FieldWhitelistView: React.FC<FieldWhitelistViewProps> = ({
                 >
                   取消并返回列表
                 </button>
-                
+
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold font-sans shadow-xs flex items-center space-x-1.5 transition-all"

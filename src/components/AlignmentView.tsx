@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Undo2, 
+import {
+  Plus,
+  Save,
+  Search,
+  Edit2,
+  Trash2,
+  Undo2,
   ChevronRight,
   GitPullRequest,
   CheckCircle2
@@ -17,9 +17,9 @@ interface AlignmentViewProps {
   onUpdateRules: (newRules: ClassificationAlignmentRule[]) => void;
 }
 
-export const AlignmentView: React.FC<AlignmentViewProps> = ({ 
-  rules, 
-  onUpdateRules 
+export const AlignmentView: React.FC<AlignmentViewProps> = ({
+  rules,
+  onUpdateRules
 }) => {
   const [editingRule, setEditingRule] = useState<ClassificationAlignmentRule | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -49,16 +49,16 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
   const filteredRules = useMemo(() => {
     return rules.filter(r => {
       const matchType = filterType === 'ALL' || r.ruleType === filterType;
-      
-      const matchSource = filterSource === '' || 
+
+      const matchSource = filterSource === '' ||
         r.sourceSystem.toLowerCase().includes(filterSource.toLowerCase()) ||
         r.sourcePath.toLowerCase().includes(filterSource.toLowerCase());
 
-      const matchStd = filterStd === '' || 
+      const matchStd = filterStd === '' ||
         r.standardPath.toLowerCase().includes(filterStd.toLowerCase());
 
-      const matchStatus = filterStatus === 'ALL' || 
-        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') || 
+      const matchStatus = filterStatus === 'ALL' ||
+        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') ||
         (filterStatus === 'INACTIVE' && r.status === 'INACTIVE');
 
       return matchType && matchSource && matchStd && matchStatus;
@@ -79,7 +79,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
     setFormSimilarityDiscount(rule.similarityDiscount);
     setFormApplicableObjectType(rule.applicableObjectType);
     setFormRemarks(rule.remarks || '');
-    
+
     setFormIsActive(rule.status === 'ACTIVE');
     setFormIsSimilarityActive(rule.isSimilarityActive);
   };
@@ -98,7 +98,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
     setFormSimilarityDiscount(1.0);
     setFormApplicableObjectType('PART_ELECTRICAL');
     setFormRemarks('');
-    
+
     setFormIsActive(true);
     setFormIsSimilarityActive(true);
   };
@@ -147,7 +147,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* Title Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -196,7 +196,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
       {!(editingRule || isNew) ? (
         // FRAME 7: LIST VIEW
         <div className="flex-1 flex flex-col overflow-hidden">
-          
+
           {/* Filters area */}
           <div className="px-6 py-3 shrink-0 flex flex-wrap items-center gap-3 bg-slate-50 border-b border-slate-200">
             <div className="flex items-center space-x-1.5 text-xs">
@@ -397,7 +397,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
         // FRAME 8: NEW / EDIT FORM VIEW
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            
+
             <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800">
                 {isNew ? '创建新分类与类型映射归一规则' : `正在编辑规则: [${editingRule?.id}]`}
@@ -408,7 +408,7 @@ export const AlignmentView: React.FC<AlignmentViewProps> = ({
             </div>
 
             <div className="p-6 space-y-5 text-xs">
-              
+
               {/* Row 1: Rule Type & Source System & Source Object type */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>

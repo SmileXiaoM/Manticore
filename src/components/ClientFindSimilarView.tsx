@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Eye, 
-  ChevronRight, 
-  CheckCircle2, 
-  AlertTriangle, 
+import {
+  Eye,
+  ChevronRight,
+  CheckCircle2,
+  AlertTriangle,
   Info,
   ArrowLeftRight,
   RotateCcw,
@@ -50,7 +50,28 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   // Selected candidate for side comparative drawer
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
 
+  const invalidateOldResults = () => {
+    setSearchResult({
+      reference: null,
+      scoredCandidates: [],
+      filteredCandidates: []
+    });
+    setSelectedForCompare(null);
+    setIsWaiting(true);
+  };
+
   const handleSearch = () => {
+    if (reqCode.trim() === '') {
+      alert('请输入源物料代码/申请号');
+      setSearchResult({
+        reference: null,
+        scoredCandidates: [],
+        filteredCandidates: []
+      });
+      setSelectedForCompare(null);
+      setIsWaiting(false);
+      return;
+    }
     const res = runSimilaritySearch(objectType, reqCode, rules, {
       keyword,
       category,
@@ -85,7 +106,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="client-similar-container">
-      
+
       {/* 2.1 Corporate Page Header with Reset Tool */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4" id="client-header">
         <div>
@@ -112,10 +133,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
       {/* Main Container Scroll area (Vertical hierarchy) */}
       <div className="flex-1 overflow-y-auto p-5 space-y-4" id="client-scroll-area">
-        
+
         {/* 2.2 顶部查询条件区 */}
         <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-3" id="client-query-box">
-          
+
           {/* Row 1 Filter fields */}
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
             <div className="flex items-center space-x-2">
@@ -126,8 +147,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 onChange={(e) => {
                   setObjectType(e.target.value);
                   setReqCode(e.target.value === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'REQ-2026-000100');
-                  setIsWaiting(true);
-                  setSelectedForCompare(null);
+                  invalidateOldResults();
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs min-w-[150px]"
               >
@@ -144,8 +164,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 value={reqCode}
                 onChange={(e) => {
                   setReqCode(e.target.value);
-                  setIsWaiting(true);
-                  setSelectedForCompare(null);
+                  invalidateOldResults();
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs text-slate-800 w-40"
               />
@@ -158,7 +177,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 type="text"
                 value={keyword}
                 placeholder="搜索库内候选件名称..."
-                onChange={(e) => setKeyword(e.target.value)}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  invalidateOldResults();
+                }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 w-44"
               />
             </div>
@@ -168,7 +190,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <select
                 id="client-select-category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  invalidateOldResults();
+                }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
               >
                 <option value="ALL">全部二级分类</option>
@@ -182,7 +207,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <select
                 id="client-select-lifecycle"
                 value={lifecycle}
-                onChange={(e) => setLifecycle(e.target.value)}
+                onChange={(e) => {
+                  setLifecycle(e.target.value);
+                  invalidateOldResults();
+                }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
               >
                 <option value="ALL">全部状态</option>
@@ -202,7 +230,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   type="text"
                   placeholder="如: M10 x 50"
                   value={specInput}
-                  onChange={(e) => setSpecInput(e.target.value)}
+                  onChange={(e) => {
+                    setSpecInput(e.target.value);
+                    invalidateOldResults();
+                  }}
                   className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
                 />
               </div>
@@ -214,7 +245,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   type="text"
                   placeholder="如: SUS304"
                   value={materialInput}
-                  onChange={(e) => setMaterialInput(e.target.value)}
+                  onChange={(e) => {
+                    setMaterialInput(e.target.value);
+                    invalidateOldResults();
+                  }}
                   className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
                 />
               </div>
@@ -280,7 +314,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                     </div>
                     <div>
                       <span className="text-slate-400">标称直径/长度:</span>{' '}
-                      <span className="font-bold text-slate-900">直径: {reference.attributes.nominal_diameter}mm / 长度: 50mm</span>
+                      <span className="font-bold text-slate-900">
+                        直径: {reference.attributes.nominal_diameter}mm / 长度:{' '}
+                        {reference.attributes.nominal_length !== undefined && reference.attributes.nominal_length !== null
+                          ? `${reference.attributes.nominal_length}${reference.units?.nominal_length || 'mm'}`
+                          : '--'}
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -361,7 +400,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
         )}
 
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
-          
+
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
             <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
               <Eye className="w-4 h-4 text-emerald-600" />
@@ -386,7 +425,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   <th className="px-3 py-3 text-center whitespace-nowrap">覆盖率</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">命中数</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">差异数</th>
-                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky right-0 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky right-0 z-20 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -394,15 +433,15 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   const isSelected = selectedForCompare?.objectId === candidate.objectId;
                   const scoreColor = !isSecondPhaseEnabled
                     ? 'text-slate-400 font-medium'
-                    : candidate.similarityScore >= 85 
-                    ? 'text-emerald-700 font-extrabold' 
-                    : candidate.similarityScore >= 70 
-                    ? 'text-blue-700 font-bold' 
+                    : candidate.similarityScore >= 85
+                    ? 'text-emerald-700 font-extrabold'
+                    : candidate.similarityScore >= 70
+                    ? 'text-blue-700 font-bold'
                     : 'text-slate-600 font-medium';
 
                   return (
-                    <tr 
-                      key={candidate.objectId} 
+                    <tr
+                      key={candidate.objectId}
                       className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
                     >
                       {/* 序号 */}
@@ -492,7 +531,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 操作 */}
-                      <td className="px-4 py-3 text-center sticky right-0 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                      <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-center space-x-1.5">
                           <button
                             type="button"
@@ -520,14 +559,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
       {selectedForCompare && reference && (
         <>
           {/* Drawer Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/40 z-40 transition-opacity"
             onClick={() => setSelectedForCompare(null)}
             id="client-drawer-backdrop"
           />
-          
+
           {/* Drawer Sidebar */}
-          <div 
+          <div
             id="client-comparison-drawer"
             className="fixed right-0 top-0 h-full w-full max-w-[540px] bg-white shadow-2xl z-50 flex flex-col border-l border-slate-200 transition-transform duration-300"
           >
@@ -543,12 +582,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   <span className="font-mono text-emerald-200">{selectedForCompare.objectId}</span>
                 </h2>
               </div>
-              
+
               <div className="flex items-center space-x-2.5">
                 <span className="text-[11px] bg-slate-700/70 text-emerald-300 border border-slate-600 px-2 py-0.5 rounded font-mono font-bold shrink-0">
                   一/二阶段映射拉通
                 </span>
-                <button 
+                <button
                   onClick={() => setSelectedForCompare(null)}
                   className="p-1 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors cursor-pointer"
                 >
@@ -559,7 +598,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs text-slate-600">
-              
+
               {/* Reference Header Panel */}
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
@@ -569,9 +608,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 <div className="text-slate-700 font-semibold truncate leading-normal">
                   {reference.objectName}
                 </div>
-                
+
                 <div className="border-t border-slate-200/60 my-2"></div>
-                
+
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">已有候选(目标) :</span>
                   <strong className="text-emerald-700 font-mono">{selectedForCompare.objectId}</strong>
@@ -598,14 +637,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
                   <span>一阶段/二阶段映射字段对齐细节</span>
                 </span>
-                
+
                 <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs bg-white">
                   <div className="grid grid-cols-3 bg-slate-100 border-b border-slate-200 p-2.5 font-semibold text-slate-700 text-xs">
                     <div>物理属性字段</div>
                     <div>待申请件</div>
                     <div>库内已有件</div>
                   </div>
-                  
+
                   <div className="divide-y divide-slate-100 text-xs">
                     {selectedForCompare.compareFields.map((item, idx) => (
                       <div key={idx} className="grid grid-cols-3 p-2.5 hover:bg-slate-50 transition-colors">
@@ -666,7 +705,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 text-right">
-              <button 
+              <button
                 onClick={() => setSelectedForCompare(null)}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer transition-colors"
               >

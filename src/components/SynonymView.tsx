@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  X, 
-  Undo2, 
+import {
+  Plus,
+  Save,
+  Search,
+  Edit2,
+  Trash2,
+  X,
+  Undo2,
   ChevronRight,
   Sparkles,
   HelpCircle
@@ -18,9 +18,9 @@ interface SynonymViewProps {
   onUpdateRules: (newRules: SynonymRule[]) => void;
 }
 
-export const SynonymView: React.FC<SynonymViewProps> = ({ 
-  rules, 
-  onUpdateRules 
+export const SynonymView: React.FC<SynonymViewProps> = ({
+  rules,
+  onUpdateRules
 }) => {
   const [editingRule, setEditingRule] = useState<SynonymRule | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -49,14 +49,14 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
   const filteredRules = useMemo(() => {
     return rules.filter(r => {
       const lowerWord = filterWord.toLowerCase();
-      const matchWord = filterWord === '' || 
+      const matchWord = filterWord === '' ||
         r.primaryWord.toLowerCase().includes(lowerWord) ||
         r.synonyms.some(s => s.toLowerCase().includes(lowerWord));
-      
+
       const matchProp = filterProp === '' || r.applicableProperty.toLowerCase().includes(filterProp.toLowerCase());
       const matchScope = filterScope === 'ALL' || r.scope === filterScope;
-      const matchStatus = filterStatus === 'ALL' || 
-        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') || 
+      const matchStatus = filterStatus === 'ALL' ||
+        (filterStatus === 'ACTIVE' && r.status === 'ACTIVE') ||
         (filterStatus === 'INACTIVE' && r.status === 'INACTIVE');
 
       return matchWord && matchProp && matchScope && matchStatus;
@@ -75,7 +75,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
     setFormApplicableProp(rule.applicableProperty);
     setFormScope(rule.scope);
     setFormRemarks(rule.remarks || '');
-    
+
     setFormIsActive(rule.status === 'ACTIVE');
     setFormIsSimilarityActive(rule.isSimilarityActive);
     setFormIsFullTextActive(rule.isFullTextActive);
@@ -93,7 +93,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
     setFormApplicableProp('spec_description');
     setFormScope('PROPERTY_SPECIFIC');
     setFormRemarks('');
-    
+
     setFormIsActive(true);
     setFormIsSimilarityActive(true);
     setFormIsFullTextActive(true);
@@ -161,7 +161,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* View Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -210,7 +210,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
       {!(editingRule || isNew) ? (
         // FRAME 5: LIST VIEW
         <div className="flex-1 flex flex-col overflow-hidden">
-          
+
           {/* Filters */}
           <div className="px-6 py-3 shrink-0 flex flex-wrap items-center gap-3 bg-slate-50 border-b border-slate-200">
             <div className="flex items-center space-x-1.5 text-xs">
@@ -417,7 +417,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
         // FRAME 6: NEW / EDIT FORM VIEW
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            
+
             <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800">
                 {isNew ? '创建新同义词 / 别名组' : `正在编辑同义词: 主词 [${formPrimaryWord}]`}
@@ -428,7 +428,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
             </div>
 
             <div className="p-6 space-y-5 text-xs">
-              
+
               {/* Row 1: Primary Word */}
               <div>
                 <label className="block font-medium text-slate-700 mb-1.5">标准主词 <span className="text-red-500">*</span></label>
@@ -450,13 +450,13 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
                 <div className="border border-slate-300 rounded p-2 bg-white min-h-[70px] flex flex-wrap gap-1.5 items-start content-start focus-within:ring-1 focus-within:ring-blue-500">
                   {/* Render chips */}
                   {formSynonyms.map((syn, idx) => (
-                    <span 
-                      key={idx} 
+                    <span
+                      key={idx}
                       className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full text-xs font-mono flex items-center space-x-1"
                     >
                       <span>{syn}</span>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => handleRemoveSynonymTag(idx)}
                         className="text-purple-400 hover:text-purple-700 font-bold"
                       >
@@ -464,7 +464,7 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
                       </button>
                     </span>
                   ))}
-                  
+
                   {/* Dynamic Input field for typing */}
                   <input
                     type="text"
@@ -478,8 +478,8 @@ export const SynonymView: React.FC<SynonymViewProps> = ({
                 </div>
                 <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
                   <span>例如录入：螺丝、紧固件、Bolt 等。输入后按【Enter】或失去焦点生成气泡。</span>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={handleAddSynonymTag}
                     className="text-blue-600 font-medium hover:underline"
                   >

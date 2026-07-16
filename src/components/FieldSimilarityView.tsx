@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { 
+import {
   SlidersHorizontal,
   Plus,
   Search,
@@ -41,8 +41,8 @@ interface FieldSimilarityViewProps {
   setActiveObjectType?: (type: ObjectType) => void;
 }
 
-export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
-  editingRules, 
+export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
+  editingRules,
   onUpdateEditingRules,
   savedRules,
   onUpdateSavedRules,
@@ -60,7 +60,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [localActiveObjectType, localSetActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
   const activeObjectType = propActiveObjectType || localActiveObjectType;
   const setActiveObjectType = propSetActiveObjectType || localSetActiveObjectType;
-  
+
   // Editor state
   const [editingRule, setEditingRule] = useState<FieldSimilarityRule | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -89,6 +89,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formFilterFixedValue, setFormFilterFixedValue] = useState<string>('');
   const [formFilterFailAction, setFormFilterFailAction] = useState<string>('过滤候选，不进入评分');
   const [formFilterReasonTemplate, setFormFilterReasonTemplate] = useState<string>('');
+  const [formFilterRangeMin, setFormFilterRangeMin] = useState<string>('');
+  const [formFilterRangeMax, setFormFilterRangeMax] = useState<string>('');
 
   // Unit catalog fields
   const [formUnitFamily, setFormUnitFamily] = useState<string>('长度');
@@ -147,11 +149,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setFormFieldName(selectedField.displayName);
       setFormPropertyCode(selectedField.fieldCode);
       setFormFieldType(selectedField.businessFieldType);
-      
+
       if (selectedField.businessFieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
         setFormUnitFamily(selectedField.unitFamily);
         setFormBaseUnit(selectedField.baseUnit);
-        
+
         // Find default display unit
         const quant = mockUnitCatalog.quantities.find(q => q.name === selectedField.unitFamily || q.code === selectedField.unitFamily);
         if (quant && quant.units.length > 0) {
@@ -177,8 +179,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   }, [objectConfigStatus, activeObjectType]);
 
   const isEditingModified = useMemo(() => {
-    const editSub = editingRules.filter(r => r.objectType === activeObjectType);
-    const savedSub = savedRules.filter(r => r.objectType === activeObjectType);
+    const editSub = [...editingRules].filter(r => r.objectType === activeObjectType).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
+    const savedSub = [...savedRules].filter(r => r.objectType === activeObjectType).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
     return JSON.stringify(editSub) !== JSON.stringify(savedSub);
   }, [editingRules, savedRules, activeObjectType]);
 
@@ -251,7 +253,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       }
 
       return true;
-    });
+    }).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
   }, [editingRules, activeObjectType, filterFieldName, filterIsScoreActive, filterIsFilterCondition, filterMatchType]);
 
   // Reset Filters
@@ -303,6 +305,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const currentEditingRules = editingRules.filter(r => r.objectType === activeObjectType);
     onUpdateSavedRules([...otherSavedRules, ...currentEditingRules]);
 
+    const isEnabled = currentConf.enabled;
+    if (isEnabled) {
+      // R11-BLK-01: Also update activeRules (currently active snapshot)
+      const otherActiveRules = activeRules.filter(r => r.objectType !== activeObjectType);
+      onUpdateActiveRules([...otherActiveRules, ...currentEditingRules]);
+    }
+
     // R9-BLK-04: Version increments on SAVE
     const nextVersion = incrementVersion(currentConf.configVersion);
     const nextStatus = {
@@ -320,13 +329,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       objectType: objectLabel,
       configVersion: nextVersion,
       operationType: '保存',
-      summary: `成功保存并校验属性相似度规则配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
+      summary: isEnabled
+        ? `成功保存并同步当前启用配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`
+        : `成功保存并校验属性相似度规则配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
       operator: operatorName,
       time: timeStr,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮使此最新配置生效。`);
+
+    if (isEnabled) {
+      alert(`[ ${objectLabel} ] 已保存并同步当前启用配置！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前生效版本和已保存版本已同步升级至 ${nextVersion}。`);
+    } else {
+      alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮使此最新配置生效。`);
+    }
   };
 
   // 启用配置
@@ -335,6 +351,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
     const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
+
+    // R11-BLK-01: Idempotency check. If already enabled, return immediately without doing anything.
+    if (currentConf.enabled) {
+      return;
+    }
 
     // Validate Saved Rules before enabling
     if (!savedWeightSummary.isValid) {
@@ -446,6 +467,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormFilterFailAction(rule.filterFailAction || '过滤候选，不进入评分');
     setFormFilterReasonTemplate(rule.filterReasonTemplate || '');
 
+    if (rule.filterOperator === '区间内' || rule.filterOperator === '区间外') {
+      const parts = (rule.filterFixedValue || '').split('~');
+      setFormFilterRangeMin(parts[0] || '');
+      setFormFilterRangeMax(parts[1] || '');
+    } else {
+      setFormFilterRangeMin('');
+      setFormFilterRangeMax('');
+    }
+
     setFormUnitFamily(rule.unitFamily || '长度');
     setFormBaseUnit(rule.baseUnit || 'm');
     setFormDisplayUnit(rule.displayUnit || 'mm');
@@ -473,7 +503,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         setParamDateToleranceDirection(config.direction);
       }
     }
-    
+
     // Default interactive test values
     setPreviewSrcVal('10.0');
     setPreviewTgtVal('10.2');
@@ -609,6 +639,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     paramHierarchyDeduction
   ]);
 
+  const getOperatorsForFieldType = (fieldType: string) => {
+    const typeUpper = (fieldType || '').toUpperCase();
+    if (typeUpper.includes('CLASS_TREE')) {
+      return ['路径一致', '属于该路径', '父子关系', '祖先/后代关系'];
+    }
+    if (typeUpper.includes('DATE')) {
+      return ['等于', '早于', '晚于', '区间内'];
+    }
+    if (typeUpper.includes('NUMBER')) {
+      return ['等于', '大于等于', '小于等于', '区间内', '区间外'];
+    }
+    return ['等于', '不等于', '属于', '不属于'];
+  };
+
   // Handle Form Submit
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -616,6 +660,48 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (!formFieldName.trim() || !formPropertyCode.trim()) {
       alert('请完整填写字段名称与属性编码！');
       return;
+    }
+
+    let finalFilterFixedValue = formFilterFixedValue;
+
+    if (formIsFilterCondition) {
+      const allowedOps = getOperatorsForFieldType(formFieldType);
+      if (!allowedOps.includes(formFilterOperator)) {
+        alert(`保存失败！未识别的运算符 [${formFilterOperator}] 用于 [${formFieldType}] 字段。`);
+        return;
+      }
+
+      if (formFilterSource === 'FIXED_VALUE') {
+        if (formFilterOperator === '区间内' || formFilterOperator === '区间外') {
+          if (!formFilterRangeMin.trim() || !formFilterRangeMax.trim()) {
+            alert('保存失败！固定区间条件必须填写开始值和结束值。');
+            return;
+          }
+          const minVal = Number(formFilterRangeMin);
+          const maxVal = Number(formFilterRangeMax);
+          if (isNaN(minVal) || isNaN(maxVal)) {
+            alert('保存失败！区间开始值和结束值必须为合法数字。');
+            return;
+          }
+          if (minVal > maxVal) {
+            alert('保存失败！区间反向错误：开始值不能大于结束值。');
+            return;
+          }
+          finalFilterFixedValue = `${formFilterRangeMin}~${formFilterRangeMax}`;
+        } else {
+          if (!formFilterFixedValue.trim()) {
+            alert('保存失败！固定条件值不能为空。');
+            return;
+          }
+          if (formFieldType.toUpperCase().includes('NUMBER')) {
+            const numVal = Number(formFilterFixedValue);
+            if (isNaN(numVal)) {
+              alert('保存失败！数值型字段固定条件值必须为合法数字。');
+              return;
+            }
+          }
+        }
+      }
     }
 
     // Build MatchConfig
@@ -681,11 +767,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       baseUnit: isUnitType ? formBaseUnit : '无',
       displayUnit: isUnitType ? formDisplayUnit : '无',
       matchConfig: matchConfig,
-      
+
       // Strong filter config (R10-BLK-03)
       filterSource: formFilterSource,
       filterOperator: formFilterOperator,
-      filterFixedValue: formFilterFixedValue,
+      filterFixedValue: finalFilterFixedValue,
       filterFailAction: formFilterFailAction,
       filterReasonTemplate: formFilterReasonTemplate
     };
@@ -702,7 +788,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
-      
+
       {/* View Title */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -748,10 +834,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       {!(editingRule || isNew) ? (
         // ------------------------- RULE LIST LAYOUT -------------------------
         <div className="flex-1 flex flex-col overflow-hidden">
-          
+
           {/* Top Selection Context & Summary Row */}
           <div className="bg-white border-b border-slate-200 px-6 py-3 shrink-0 flex flex-wrap items-center justify-between gap-4">
-            
+
             {/* Active Object Type Selection */}
             <div className="flex items-center space-x-3">
               <span className="text-xs font-bold text-slate-700 shrink-0">当前对象类型:</span>
@@ -765,7 +851,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       const otherEditingRules = editingRules.filter(r => r.objectType !== activeObjectType);
                       const restoredRules = savedRules.filter(r => r.objectType === activeObjectType);
                       onUpdateEditingRules([...otherEditingRules, ...restoredRules]);
-                      
+
                       setActiveObjectType(targetType);
                     }
                   } else {
@@ -983,7 +1069,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           filteredRules.map((rule) => {
                             const isScore = rule.isScoreActive;
                             const isFilter = rule.isFilterCondition;
-                            
+
                             // Parameter Summary builder
                             let paramSummary = '无特殊匹配参数';
                             if (rule.matchConfig) {
@@ -1010,10 +1096,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                             // Determine field type styling badge
                             const isUnitType = rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)';
-                            
+
                             return (
-                              <tr 
-                                key={rule.id} 
+                              <tr
+                                key={rule.id}
                                 className={`hover:bg-slate-50/50 transition-colors ${
                                   !isCurrentTypeEnabled ? 'text-slate-400 bg-slate-50/50' : 'text-slate-800'
                                 }`}
@@ -1069,8 +1155,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                                 {/* Score Toggle Switch */}
                                 <td className="px-3 py-2.5 text-center">
                                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isScore 
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    isScore
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                       : 'bg-slate-100 text-slate-500 border border-slate-200'
                                   }`}>
                                     {isScore ? '评分中' : '不参与'}
@@ -1080,8 +1166,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                                 {/* Filter Toggle Switch */}
                                 <td className="px-3 py-2.5 text-center">
                                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isFilter 
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                    isFilter
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                       : 'bg-slate-100 text-slate-500 border border-slate-200'
                                   }`}>
                                     {isFilter ? '过滤中' : '不参与'}
@@ -1129,12 +1215,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       ) : (
         // ------------------------- EDITOR / FORM LAYOUT -------------------------
         <div className="flex-1 flex overflow-hidden">
-          
+
           {/* Main Scrollable editor */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
+
             <form onSubmit={handleSaveForm} className="space-y-6">
-              
+
               {/* Card 1: Base properties */}
               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
@@ -1142,7 +1228,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
+
                   {/* Select Mapped Field Dropdown */}
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">选择一阶段已映射字段 *</label>
@@ -1167,7 +1253,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {/* Field name (Read Only) */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1.5">字段显示名称 (只读)</label>
-                    <input 
+                    <input
                       type="text"
                       value={formFieldName}
                       disabled
@@ -1179,7 +1265,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {/* Property Code (Read Only) */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1.5">属性编码 / Manticore 字段名 (只读)</label>
-                    <input 
+                    <input
                       type="text"
                       value={formPropertyCode}
                       disabled
@@ -1222,7 +1308,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div className="flex items-center space-x-4 py-2">
                     <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={formIsScoreActive}
                         onChange={(e) => setFormIsScoreActive(e.target.checked)}
@@ -1232,7 +1318,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     </label>
 
                     <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={formIsFilterCondition}
                         onChange={(e) => setFormIsFilterCondition(e.target.checked)}
@@ -1248,7 +1334,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
                         <span>强过滤一票否决规则参数设置 (R10-BLK-03)</span>
                       </h4>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Filter Source */}
                         <div>
@@ -1263,44 +1349,75 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </select>
                         </div>
 
-                        {/* Filter Operator */}
+                         {/* Filter Operator */}
                         <div>
                           <label className="block font-semibold text-slate-700 mb-1">运算符</label>
                           <select
                             value={formFilterOperator}
-                            onChange={(e) => setFormFilterOperator(e.target.value)}
+                            onChange={(e) => {
+                              const newOp = e.target.value;
+                              setFormFilterOperator(newOp);
+                              if (newOp !== '区间内' && newOp !== '区间外') {
+                                setFormFilterRangeMin('');
+                                setFormFilterRangeMax('');
+                              }
+                            }}
                             className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
                           >
-                            <option value="等于">等于 (==)</option>
-                            <option value="不等于">不等于 (!=)</option>
-                            <option value="属于">属于 (In List)</option>
-                            <option value="不属于">不属于 (Not In List)</option>
-                            {formFieldType.includes('NUMBER') && (
-                              <>
-                                <option value="大于等于">大于等于 (&gt;=)</option>
-                                <option value="小于等于">小于等于 (&lt;=)</option>
-                              </>
-                            )}
-                            {formPropertyCode.includes('category_path') && (
-                              <>
-                                <option value="路径一致">路径一致</option>
-                                <option value="属于该路径">属于该子路径</option>
-                              </>
-                            )}
+                            {getOperatorsForFieldType(formFieldType).map(op => (
+                              <option key={op} value={op}>{op}</option>
+                            ))}
                           </select>
                         </div>
 
                         {/* Fixed Value */}
                         {formFilterSource === 'FIXED_VALUE' && (
                           <div className="col-span-1 md:col-span-2">
-                            <label className="block font-semibold text-slate-700 mb-1">固定条件值</label>
-                            <input
-                              type="text"
-                              value={formFilterFixedValue}
-                              onChange={(e) => setFormFilterFixedValue(e.target.value)}
-                              placeholder="如：已作废 (支持多个值以半角逗号分隔)"
-                              className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
-                            />
+                            {formFilterOperator === '区间内' || formFilterOperator === '区间外' ? (
+                              <div>
+                                <label className="block font-semibold text-slate-700 mb-1">
+                                  固定区间值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    value={formFilterRangeMin}
+                                    onChange={(e) => setFormFilterRangeMin(e.target.value)}
+                                    placeholder="区间开始值 (例如: 10)"
+                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
+                                  />
+                                  <span className="text-slate-400">至</span>
+                                  <input
+                                    type="text"
+                                    value={formFilterRangeMax}
+                                    onChange={(e) => setFormFilterRangeMax(e.target.value)}
+                                    placeholder="区间结束值 (例如: 50)"
+                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
+                                  />
+                                  {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                    <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block font-semibold text-slate-700 mb-1">
+                                  固定条件值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    value={formFilterFixedValue}
+                                    onChange={(e) => setFormFilterFixedValue(e.target.value)}
+                                    placeholder="如：已作废 或 12 (支持多值逗号分隔)"
+                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
+                                  />
+                                  {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                    <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1336,7 +1453,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         评分加权权重 (%) *
                       </label>
                       <div className="flex items-center space-x-2">
-                        <input 
+                        <input
                           type="number"
                           value={formWeight}
                           onChange={(e) => setFormWeight(Number(e.target.value))}
@@ -1365,7 +1482,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    
+
                     {/* Measurement Category (Locked) */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5">物理测量量 (Quantity - 只读锁定)</label>
@@ -1380,7 +1497,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     {/* SI Base Unit */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5">SI 国际标定基准单位 (Base Unit - 只读)</label>
-                      <input 
+                      <input
                         type="text"
                         value={formBaseUnit}
                         disabled
@@ -1440,7 +1557,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <div className="mt-4 bg-blue-50/50 border border-blue-100 rounded-lg p-3 flex flex-wrap items-center gap-4">
                       <div className="flex items-center space-x-2">
                         <span className="text-xs font-bold text-blue-800">实时换算公式模拟器:</span>
-                        <input 
+                        <input
                           type="number"
                           value={calcInput}
                           onChange={(e) => setCalcInput(e.target.value)}
@@ -1448,7 +1565,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         />
                         <span className="text-xs font-bold text-slate-700">{formDisplayUnit}</span>
                       </div>
-                      
+
                       <div className="text-xs text-slate-500">
                         →
                       </div>
@@ -1473,7 +1590,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
+
                   {/* Match Type Select */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">比对匹配算法种类</label>
@@ -1507,7 +1624,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                 {/* Sub-panels for dynamic matchType parameters */}
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  
+
                   {/* PANEL 1: Exact Match */}
                   {formMatchTypeState === '精确值匹配' && (
                     <div className="text-xs text-slate-500 space-y-1">
@@ -1542,7 +1659,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">容差偏差最大限制</label>
                           <div className="relative">
-                            <input 
+                            <input
                               type="number"
                               value={paramNumToleranceVal}
                               onChange={(e) => setParamNumToleranceVal(Number(e.target.value))}
@@ -1584,7 +1701,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">无损得分偏差极限</label>
                           <div className="relative">
-                            <input 
+                            <input
                               type="number"
                               value={paramDecayFullScore}
                               onChange={(e) => setParamDecayFullScore(Number(e.target.value))}
@@ -1600,7 +1717,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">极限零分偏差边界</label>
                           <div className="relative">
-                            <input 
+                            <input
                               type="number"
                               value={paramDecayZeroBoundary}
                               onChange={(e) => setParamDecayZeroBoundary(Number(e.target.value))}
@@ -1638,7 +1755,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-600 mb-1">最低匹配字比率限制 (%)</label>
                         <div className="flex items-center space-x-2">
-                          <input 
+                          <input
                             type="number"
                             value={paramMinTextThreshold}
                             onChange={(e) => setParamMinTextThreshold(Number(e.target.value))}
@@ -1656,11 +1773,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {formMatchTypeState === '层级关系匹配' && (
                     <div className="space-y-4">
                       <span className="text-xs font-bold text-slate-800 block">PLM原生树层级距离扣分规则</span>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">最大允许层级差</label>
-                          <input 
+                          <input
                             type="number"
                             value={paramHierarchyMaxDiff}
                             onChange={(e) => setParamHierarchyMaxDiff(Number(e.target.value))}
@@ -1682,7 +1799,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">层级递增每层扣除分数</label>
-                          <input 
+                          <input
                             type="number"
                             value={paramHierarchyDeduction}
                             onChange={(e) => setParamHierarchyDeduction(Number(e.target.value))}
@@ -1704,7 +1821,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">命中原因反馈提示模板</label>
-                    <textarea 
+                    <textarea
                       value={formHitReasonTemplate}
                       onChange={(e) => setFormHitReasonTemplate(e.target.value)}
                       placeholder="例如：直径完全匹配，源[{source_val}mm] 与 候选[{target_val}mm] 一致。"
@@ -1716,7 +1833,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">差异标注原因反馈提示模板</label>
-                    <textarea 
+                    <textarea
                       value={formDiffFieldsTemplate}
                       onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
                       placeholder="例如：规格描述不一致，原：{source_val} 候选：{target_val}"
@@ -1763,7 +1880,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 mb-1">源物理属性数值 (Source Value)</label>
                 <div className="relative">
-                  <input 
+                  <input
                     type="text"
                     value={previewSrcVal}
                     onChange={(e) => setPreviewSrcVal(e.target.value)}
@@ -1779,7 +1896,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 mb-1">候选件对比属性数值 (Target Value)</label>
                 <div className="relative">
-                  <input 
+                  <input
                     type="text"
                     value={previewTgtVal}
                     onChange={(e) => setPreviewTgtVal(e.target.value)}

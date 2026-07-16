@@ -10,7 +10,7 @@ interface AttributeTypesViewProps {
 export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackToApp }) => {
   return (
     <div className="w-full min-h-screen bg-slate-100 p-8 flex flex-col font-sans">
-      
+
       {/* Non-shell Figma spec heading */}
       <div className="max-w-7xl mx-auto w-full bg-slate-900 text-white rounded-t-xl p-6 shadow-md border border-slate-800">
         <div className="flex items-center justify-between">
@@ -28,7 +28,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
               <h1 className="text-2xl font-bold tracking-tight mt-1">物料通用属性对应数据类型及配置组件清单</h1>
             </div>
           </div>
-          
+
           {/* Back to app action if provided */}
           {onBackToApp && (
             <button
@@ -39,7 +39,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
             </button>
           )}
         </div>
-        
+
         <p className="text-slate-300 text-xs mt-3 leading-relaxed max-w-4xl">
           用于指导 Figma 团队建立底层字段组件、查询接口映射及标准化能力的数据规范定义页。
           在此详细梳理不同属性类型对应在 Manticore 全文检索、二阶段评分时的候选能力，是系统底层的逻辑元数据基石。
@@ -48,7 +48,7 @@ export const AttributeTypesView: React.FC<AttributeTypesViewProps> = ({ onBackTo
 
       {/* Main specification content */}
       <div className="max-w-7xl mx-auto w-full bg-white border border-slate-200 p-6 shadow-sm rounded-b-xl space-y-6 flex-1">
-        
+
         {/* Typology explanation legends */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
           <div className="text-xs">

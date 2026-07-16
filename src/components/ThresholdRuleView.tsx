@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
+import {
+  Plus,
+  Save,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Check,
+  X,
   HelpCircle,
   SlidersHorizontal,
   ChevronRight,
@@ -23,9 +23,9 @@ interface ThresholdRuleViewProps {
   onUpdateThresholdRules: (newRules: ThresholdRule[]) => void;
 }
 
-export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({ 
-  thresholdRules, 
-  onUpdateThresholdRules 
+export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
+  thresholdRules,
+  onUpdateThresholdRules
 }) => {
   // Navigation tabs for Figma review: 'LIST' | 'EDITOR'
   const [activeTab, setActiveTab] = useState<'LIST' | 'EDITOR'>('LIST');
@@ -51,7 +51,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
   const startEdit = (item: ThresholdRule) => {
     setEditingItem(item);
     setIsNew(false);
-    
+
     // Fill form states
     setFormRuleName(item.ruleName);
     setFormObjectType(item.applicableObjectType);
@@ -95,7 +95,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
     }
 
     const nextId = isNew ? `TR-00${thresholdRules.length + 1}` : (editingItem?.id || 'TR-999');
-    
+
     const savedItem: ThresholdRule = {
       id: nextId,
       ruleName: formRuleName,
@@ -148,7 +148,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
       const matchKeyword = keyword === '' ||
         r.ruleName.toLowerCase().includes(keyword.toLowerCase()) ||
         r.applicableCategory.toLowerCase().includes(keyword.toLowerCase());
-      
+
       const matchObjectType = filterObjectType === 'ALL' || r.applicableObjectType === filterObjectType;
 
       return matchKeyword && matchObjectType;
@@ -157,7 +157,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* View Header with Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -185,7 +185,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
             <List className="w-3.5 h-3.5" />
             <span>阈值规则列表</span>
           </button>
-          
+
           <button
             onClick={() => {
               if (!editingItem && activeTab === 'LIST') {
@@ -210,7 +210,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
       {activeTab === 'LIST' ? (
         // List View Block
         <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-4">
-          
+
           {/* Layman Explanation Guidebox */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start space-x-3 shadow-xs">
             <AlertCircle className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
@@ -311,7 +311,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
 
                     return (
                       <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${!item.isEnabled ? 'bg-slate-50/40 text-slate-400' : ''}`}>
-                        
+
                         {/* Name */}
                         <td className="px-4 py-3 font-semibold text-slate-900">
                           {item.ruleName}
@@ -338,7 +338,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
                               {/* Reuse block */}
                               <div className="bg-emerald-500" style={{ width: `${100 - max}%` }} title={`大于等于 ${max}%: 强烈建议直接借用/复用`} />
                             </div>
-                            
+
                             {/* Label markers */}
                             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                               <span>0%</span>
@@ -406,7 +406,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            
+
                             <button
                               onClick={() => handleDelete(item.id, item.ruleName)}
                               className="p-1 hover:bg-rose-50 text-rose-600 rounded hover:text-rose-800 transition-colors"
@@ -443,7 +443,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-5 text-xs text-slate-700">
-              
+
               {/* Form Input: Rule Name */}
               <div className="space-y-1">
                 <label className="block text-slate-600 font-semibold">规则名称 <span className="text-rose-500">*</span></label>
@@ -529,11 +529,11 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
                     <div className="bg-slate-400 h-full flex items-center justify-center" style={{ width: `${formReviewThresholdMin}%` }}>
                       &lt; {formReviewThresholdMin}% 自由新建
                     </div>
-                    
+
                     <div className="bg-amber-400 h-full flex items-center justify-center text-slate-800" style={{ width: `${formReuseThreshold - formReviewThresholdMin}%` }}>
                       {formReviewThresholdMin}% - {formReuseThreshold}% 人工复核
                     </div>
-                    
+
                     <div className="bg-emerald-500 h-full flex items-center justify-center" style={{ width: `${100 - formReuseThreshold}%` }}>
                       &gt;= {formReuseThreshold}% 直接借用
                     </div>
@@ -583,7 +583,7 @@ export const ThresholdRuleView: React.FC<ThresholdRuleViewProps> = ({
                 >
                   取消并返回列表
                 </button>
-                
+
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold font-sans shadow-xs flex items-center space-x-1.5 transition-all"

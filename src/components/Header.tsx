@@ -5,7 +5,7 @@ interface HeaderProps {
   onNavigate: (viewId: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = ({
   onNavigate
 }) => {
   return (
@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center space-x-4">
         {/* Link shortcuts */}
         <div className="flex items-center space-x-3 text-slate-500 text-xs pl-4">
-          <button 
+          <button
             onClick={() => onNavigate('client-find-similar')}
             className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded hover:bg-blue-100 font-semibold transition-colors font-sans"
           >

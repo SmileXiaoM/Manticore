@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Save, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
+import {
+  Plus,
+  Save,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Check,
+  X,
   ChevronRight,
   List,
   FileEdit,
@@ -22,9 +22,9 @@ interface CategoryCoverageViewProps {
   onUpdateCoverages: (newCoverages: CategoryCoverage[]) => void;
 }
 
-export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({ 
-  coverages, 
-  onUpdateCoverages 
+export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
+  coverages,
+  onUpdateCoverages
 }) => {
   // Navigation tabs for Figma review: 'LIST' | 'EDITOR'
   const [activeTab, setActiveTab] = useState<'LIST' | 'EDITOR'>('LIST');
@@ -52,7 +52,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
   const startEdit = (item: CategoryCoverage) => {
     setEditingItem(item);
     setIsNew(false);
-    
+
     // Fill form states
     setFormCategoryPath(item.categoryPath);
     setFormObjectType(item.objectType);
@@ -95,7 +95,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
     }
 
     const nextId = isNew ? `CC-00${coverages.length + 1}` : (editingItem?.id || 'CC-999');
-    
+
     const savedItem: CategoryCoverage = {
       id: nextId,
       categoryPath: formCategoryPath,
@@ -149,9 +149,9 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
       const matchKeyword = keyword === '' ||
         r.categoryPath.toLowerCase().includes(keyword.toLowerCase()) ||
         r.whitelistId.toLowerCase().includes(keyword.toLowerCase());
-      
-      const matchInherit = filterInherit === 'ALL' || 
-        (filterInherit === 'YES' && r.inheritParent) || 
+
+      const matchInherit = filterInherit === 'ALL' ||
+        (filterInherit === 'YES' && r.inheritParent) ||
         (filterInherit === 'NO' && !r.inheritParent);
 
       return matchKeyword && matchInherit;
@@ -160,7 +160,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-      
+
       {/* View Header with Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
         <div>
@@ -188,7 +188,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
             <List className="w-3.5 h-3.5" />
             <span>分类覆盖列表</span>
           </button>
-          
+
           <button
             onClick={() => {
               if (!editingItem && activeTab === 'LIST') {
@@ -213,7 +213,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
       {activeTab === 'LIST' ? (
         // List View Block
         <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-4">
-          
+
           {/* Filters Bar */}
           <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-wrap items-center gap-4 shrink-0 shadow-xs">
             <div className="flex items-center space-x-1.5 text-xs text-slate-600">
@@ -292,7 +292,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                 <tbody className="divide-y divide-slate-100">
                   {filteredItems.map((item) => (
                     <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${!item.isEnabled ? 'bg-slate-50/40 text-slate-400' : ''}`}>
-                      
+
                       {/* Category Path */}
                       <td className="px-4 py-3 font-mono text-slate-900 font-semibold flex items-center space-x-1.5">
                         <FolderTree className="w-3.5 h-3.5 text-slate-400" />
@@ -377,7 +377,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          
+
                           <button
                             onClick={() => handleDelete(item.id, item.categoryPath)}
                             className="p-1 hover:bg-rose-50 text-rose-600 rounded hover:text-rose-800 transition-colors"
@@ -413,7 +413,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-5 text-xs text-slate-700">
-              
+
               {/* Row 1: Category path and Object Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -561,7 +561,7 @@ export const CategoryCoverageView: React.FC<CategoryCoverageViewProps> = ({
                 >
                   取消并返回列表
                 </button>
-                
+
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold font-sans shadow-xs flex items-center space-x-1.5 transition-all"
