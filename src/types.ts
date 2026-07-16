@@ -85,6 +85,13 @@ export interface FieldSimilarityRule {
   baseUnit?: string; // 基准单位
   displayUnit?: string; // 显示单位
   matchConfig?: MatchConfig; // 匹配方式对应的动态参数
+  
+  // 强过滤条件配置 (R10-BLK-03)
+  filterSource?: 'REF_VALUE' | 'FIXED_VALUE'; // 条件来源: REF_VALUE 按参考件当前值, FIXED_VALUE 固定条件
+  filterOperator?: string; // 运算符: 等于, 不等于, 属于, 不属于, 大于等于, 小于等于, 路径一致, 属于该路径, 父子/祖先关系
+  filterFixedValue?: string; // 固定条件值
+  filterFailAction?: string; // 不满足处理: 过滤候选，不进入评分
+  filterReasonTemplate?: string; // 过滤原因模板
 }
 
 export interface StandardizationRule {

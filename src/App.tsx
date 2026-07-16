@@ -44,16 +44,17 @@ import {
   ThresholdRule,
   HardRule,
   CategoryCoverage,
-  ChangeRecord
+  ChangeRecord,
+  ObjectType
 } from './types';
 
 export default function App() {
   // Master Interactive State
-  // 1. 编辑中规则 (草稿池)
+  // 1. 编辑中规则 (当前编辑内容)
   const [editingFieldRules, setEditingFieldRules] = useState<FieldSimilarityRule[]>(initialFieldRules);
   // 2. 已保存规则
   const [savedFieldRules, setSavedFieldRules] = useState<FieldSimilarityRule[]>(initialFieldRules);
-  // 3. 线上当前生效规则 (业务端/应用端和试算引擎读取此变量)
+  // 3. 当前启用生效规则 (业务端/应用端和试算引擎读取此变量)
   const [activeFieldRules, setActiveFieldRules] = useState<FieldSimilarityRule[]>(initialFieldRules);
 
   // 4. 配置变更审计记录
@@ -121,13 +122,20 @@ export default function App() {
   const [hardRules, setHardRules] = useState<HardRule[]>(initialHardRules);
   const [coverages, setCoverages] = useState<CategoryCoverage[]>(initialCategoryCoverages);
   
+  // Track activeObjectType at App level to support precise unsaved guard
+  const [activeObjectType, setActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
+  
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
   const handleNavigate = (newView: string) => {
-    const isModified = JSON.stringify(editingFieldRules) !== JSON.stringify(savedFieldRules);
+    // R10-BLK-04: strict unsaved changes guard for the active objectType only!
+    const activeEditing = editingFieldRules.filter(r => r.objectType === activeObjectType);
+    const activeSaved = savedFieldRules.filter(r => r.objectType === activeObjectType);
+    const isModified = JSON.stringify(activeEditing) !== JSON.stringify(activeSaved);
+    
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
       setShowUnsavedConfirm(true);
@@ -208,6 +216,8 @@ export default function App() {
                   objectConfigStatus={objectConfigStatus}
                   onUpdateConfigStatus={setObjectConfigStatus}
                   onNavigate={handleNavigate}
+                  activeObjectType={activeObjectType}
+                  setActiveObjectType={setActiveObjectType}
                 />
               )}
 

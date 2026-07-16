@@ -521,7 +521,12 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     unitFamily: '无',
     baseUnit: '无',
     displayUnit: '无',
-    matchConfig: { kind: 'EXACT' }
+    matchConfig: { kind: 'EXACT' },
+    filterSource: 'FIXED_VALUE',
+    filterOperator: '不属于',
+    filterFixedValue: '已作废、已停用',
+    filterFailAction: '过滤候选，不进入评分',
+    filterReasonTemplate: '生命周期状态为“{candidateValue}”，未进入评分和排序'
   },
   {
     id: 'F-009',
@@ -550,7 +555,12 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     unitFamily: '无',
     baseUnit: '无',
     displayUnit: '无',
-    matchConfig: { kind: 'EXACT' }
+    matchConfig: { kind: 'EXACT' },
+    filterSource: 'FIXED_VALUE',
+    filterOperator: '不属于',
+    filterFixedValue: '已作废、已停用',
+    filterFailAction: '过滤候选，不进入评分',
+    filterReasonTemplate: '生命周期状态为“{candidateValue}”，未进入评分和排序'
   }
 ];
 
@@ -1659,7 +1669,7 @@ export function runSimilaritySearch(
       classificationPath: '/紧固件/螺栓/六角头螺栓',
       lifecycleState: '有效',
       attributes: {
-        spec_description: '六角螺栓 M10 x 50', // Character overlap similarity rate will be 70%
+        spec_description: '六角头螺栓M10 x 50 碳钢防锈器件', // Character overlap similarity rate will be exactly 70%
         core_material: 'SUS304',
         nominal_diameter: 1, // in 'cm'! converts to 10mm! Matches!
         thread_pitch: 1.2, // does not match 1.5mm!
@@ -1763,7 +1773,7 @@ export function runSimilaritySearch(
   const activeRules = typeRules.filter(r => r.isScoreActive && r.enabled);
 
   for (const cand of rawCandidates) {
-    // 3. Step 1: Execute candidates hard filtration first
+    // 3. Step 1: Execute candidates hard filtration first (R10-BLK-03)
     let isFilteredByRules = false;
     let filterReason = '';
 
@@ -1772,35 +1782,94 @@ export function runSimilaritySearch(
       
       const key = rule.propertyCode;
       const refVal = reference ? reference.attributes[key] : null;
-      const candVal = cand.attributes[key];
+      const rawCandVal = cand.attributes[key];
+      // Fallback for lifecycle state if not direct in attributes
+      const candVal = (rawCandVal !== undefined && rawCandVal !== null) 
+        ? rawCandVal 
+        : (key === 'lifecycle_state' ? (cand.lifecycleState || cand.attributes.lifecycle_state) : null);
 
-      // Default lifecycle state filter check
-      if (key === 'lifecycle_state') {
-        const valStr = String(candVal || cand.lifecycleState || '');
-        if (valStr === '已作废' || valStr === '已停用' || valStr === '已作废、已停用' || valStr.includes('作废') || valStr.includes('停用')) {
+      const source = rule.filterSource || 'FIXED_VALUE';
+      const operator = rule.filterOperator || '等于';
+      const fixedVal = rule.filterFixedValue || '';
+
+      const isCandMissing = (candVal === null || candVal === undefined || candVal === '');
+      const isRefMissing = (source === 'REF_VALUE' && (refVal === null || refVal === undefined || refVal === ''));
+
+      if (isCandMissing) {
+        isFilteredByRules = true;
+        filterReason = rule.filterReasonTemplate 
+          ? rule.filterReasonTemplate.replace('{candidateValue}', '无') 
+          : `强过滤字段 [${rule.fieldName}] 候选属性缺失，未通过`;
+        break;
+      }
+
+      if (isRefMissing) {
+        isFilteredByRules = true;
+        filterReason = `强过滤字段 [${rule.fieldName}] 在参考件中缺失值，比对终止`;
+        break;
+      }
+
+      // Determine constraint target value
+      const targetVal = source === 'REF_VALUE' ? refVal : fixedVal;
+
+      if (operator === '不属于') {
+        const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
+        const contains = list.includes(String(candVal).trim());
+        if (contains) {
           isFilteredByRules = true;
-          filterReason = `生命周期状态为已作废/已停用`;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值为 "${candVal}" 属于限制列表`;
+          break;
+        }
+      } else if (operator === '属于') {
+        const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
+        const contains = list.includes(String(candVal).trim());
+        if (!contains) {
+          isFilteredByRules = true;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值为 "${candVal}" 不属于允许列表`;
+          break;
+        }
+      } else if (operator === '等于') {
+        if (String(candVal).trim() !== String(targetVal).trim()) {
+          isFilteredByRules = true;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值 "${candVal}" 不等于期望值 "${targetVal}"`;
+          break;
+        }
+      } else if (operator === '不等于') {
+        if (String(candVal).trim() === String(targetVal).trim()) {
+          isFilteredByRules = true;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值 "${candVal}" 等于限制值 "${targetVal}"`;
+          break;
+        }
+      } else if (operator === '大于等于') {
+        if (Number(candVal) < Number(targetVal)) {
+          isFilteredByRules = true;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值 ${candVal} 小于限制值 ${targetVal}`;
+          break;
+        }
+      } else if (operator === '小于等于') {
+        if (Number(candVal) > Number(targetVal)) {
+          isFilteredByRules = true;
+          filterReason = rule.filterReasonTemplate 
+            ? rule.filterReasonTemplate.replace('{candidateValue}', String(candVal)) 
+            : `强过滤不满足: [${rule.fieldName}] 值 ${candVal} 大于限制值 ${targetVal}`;
           break;
         }
       } else {
-        // General strong filter: candidate must match reference using the field's match rule (must be 100% match)
-        const isMissing = (candVal === null || candVal === undefined || candVal === '');
-        if (isMissing) {
-          isFilteredByRules = true;
-          filterReason = `强过滤字段 [${rule.fieldName}] 属性缺失`;
-          break;
-        }
-
+        // Default check using matchRate if no simple operator is specified
         const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
         if (matchRate < 1.0) {
-          let formattedRef = refVal;
-          let formattedCand = candVal;
-          if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-            formattedRef = `${refVal}${rule.displayUnit}`;
-            formattedCand = `${candVal}${(cand as any).units?.[key] || rule.displayUnit}`;
-          }
           isFilteredByRules = true;
-          filterReason = `强过滤不满足: 属性 [${rule.fieldName}] 不吻合 (源[${formattedRef}] vs 候选[${formattedCand}])`;
+          filterReason = `强过滤不满足: 属性 [${rule.fieldName}] 不吻合 (源[${refVal}] vs 候选[${candVal}])`;
           break;
         }
       }
@@ -1859,36 +1928,53 @@ export function runSimilaritySearch(
       const refVal = reference ? reference.attributes[key] : null;
       const candVal = cand.attributes[key];
 
-      const isMissing = (candVal === null || candVal === undefined || candVal === '') ||
-                        (refVal === null || refVal === undefined || refVal === '');
+      const isRefMissing = (refVal === null || refVal === undefined || refVal === '');
+      const isCandMissing = (candVal === null || candVal === undefined || candVal === '');
 
-      if (isMissing) {
+      if (isRefMissing) {
+        // 1. & 2. 如果参考值缺失，或者参考值和候选值都缺失：无条件跳过该字段，不进入分母
+        compareFields.push({
+          fieldKey: key,
+          fieldLabel: rule.fieldName,
+          sourceValue: null,
+          candidateValue: candVal as any,
+          weight: rule.weight,
+          matchRate: 0,
+          weightedScore: 0,
+          status: 'MISS',
+          reason: '参考值缺失，字段跳过且未进入分母'
+        });
+        continue;
+      }
+
+      if (isCandMissing) {
+        // 3. 参考值有值、候选值缺失：根据空值退让回退策略进行处理
         if (rule.nullHandling === '不参与计算' || rule.nullHandling === '不参与计算 (权重均摊到其他有值项)') {
-          // Skip rule weight from denominator
+          // 候选值缺失且不参与计算，不计入权重分母
           compareFields.push({
             fieldKey: key,
             fieldLabel: rule.fieldName,
             sourceValue: refVal as any,
-            candidateValue: candVal as any,
+            candidateValue: null,
             weight: rule.weight,
             matchRate: 0,
             weightedScore: 0,
             status: 'MISS',
-            reason: '属性缺失 (已跳过重算)'
+            reason: '候选值缺失，字段跳过并重新归一'
           });
         } else {
-          // Counts in denominator, gets 0 score
+          // 候选值缺失按 0 分，计入权重分母，得分 0
           sumActiveWeights += rule.weight;
           compareFields.push({
             fieldKey: key,
             fieldLabel: rule.fieldName,
             sourceValue: refVal as any,
-            candidateValue: candVal as any,
+            candidateValue: null,
             weight: rule.weight,
             matchRate: 0,
             weightedScore: 0,
             status: 'MISS',
-            reason: '属性缺失 (按 0 分计算)'
+            reason: '候选值缺失，按 0 分计入'
           });
         }
         continue;
@@ -1960,7 +2046,7 @@ export function runSimilaritySearch(
 
     // Coverage calculation: (sum of weights of non-missing fields) / (sum of all active weights)
     const nonMissingWeights = compareFields
-      .filter(f => !f.reason.includes('属性缺失'))
+      .filter(f => !f.reason.includes('缺失'))
       .reduce((sum, f) => sum + f.weight, 0);
     const totalActiveWeights = compareFields.reduce((sum, f) => sum + f.weight, 0);
     const coverageRate = totalActiveWeights > 0 ? Math.round((nonMissingWeights / totalActiveWeights) * 100) : 0;

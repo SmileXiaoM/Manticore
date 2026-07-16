@@ -38,11 +38,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
   // Dynamic Search Run Result State
-  const [searchResult, setSearchResult] = useState<SearchRunResult>(() => 
-    runSimilaritySearch('PART_MECHANICAL', 'REQ-2026-000100', rules)
-  );
+  const [isWaiting, setIsWaiting] = useState<boolean>(true);
+  const [searchResult, setSearchResult] = useState<SearchRunResult>(() => ({
+    reference: null,
+    scoredCandidates: [],
+    filteredCandidates: []
+  }));
 
-  const { reference, scoredCandidates } = searchResult;
+  const { reference, scoredCandidates, filteredCandidates } = searchResult;
 
   // Selected candidate for side comparative drawer
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
@@ -56,6 +59,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
       materialInput
     });
     setSearchResult(res);
+    setIsWaiting(false);
   };
 
   const handleResetFilters = () => {
@@ -66,8 +70,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     setLifecycle('ALL');
     setSpecInput('');
     setMaterialInput('');
-    const res = runSimilaritySearch('PART_MECHANICAL', 'REQ-2026-000100', rules);
-    setSearchResult(res);
+    setSearchResult({
+      reference: null,
+      scoredCandidates: [],
+      filteredCandidates: []
+    });
+    setIsWaiting(true);
   };
 
   const handleReset = () => {
@@ -118,6 +126,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 onChange={(e) => {
                   setObjectType(e.target.value);
                   setReqCode(e.target.value === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'REQ-2026-000100');
+                  setIsWaiting(true);
+                  setSelectedForCompare(null);
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs min-w-[150px]"
               >
@@ -132,7 +142,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 id="client-input-reqcode"
                 type="text"
                 value={reqCode}
-                onChange={(e) => setReqCode(e.target.value)}
+                onChange={(e) => {
+                  setReqCode(e.target.value);
+                  setIsWaiting(true);
+                  setSelectedForCompare(null);
+                }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs text-slate-800 w-40"
               />
             </div>
@@ -227,50 +241,106 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
         </div>
 
-        {/* 2.3 待申请物料摘要区 */}
-        {reference ? (
-          <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-slate-800">待申请物料</span>
-              <span className="text-slate-300">|</span>
-            </div>
-            <div>
-              <span className="text-slate-400">申请流水号:</span>{' '}
-              <span className="font-mono font-bold text-slate-900">{reqCode}</span>
-            </div>
-            <div>
-              <span className="text-slate-400">申请物料名称:</span>{' '}
-              <span className="font-semibold text-slate-900">{reference.objectName}</span>
-            </div>
-            {reference.objectType === 'PART_MECHANICAL' ? (
-              <>
-                <div>
-                  <span className="text-slate-400">主要材质:</span>{' '}
-                  <span className="font-mono font-bold text-slate-900">{reference.attributes.core_material}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">标称直径/长度:</span>{' '}
-                  <span className="font-bold text-slate-900">直径: {reference.attributes.nominal_diameter}mm / 长度: 50mm</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <span className="text-slate-400">工作电压:</span>{' '}
-                  <span className="font-bold text-slate-900">{reference.attributes.working_voltage} V</span>
-                </div>
-              </>
-            )}
-            <div>
-              <span className="text-slate-400">计划分类路径:</span>{' '}
-              <span className="font-mono text-slate-700">{reference.classificationPath}</span>
+        {isWaiting ? (
+          <div className="bg-white border border-slate-200 rounded-lg p-12 text-center shadow-2xs" id="client-waiting-placeholder">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
+                <Search className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-bold text-slate-800">等待查询，请先执行试算</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  系统已载入最新配置，应用端首期自动试算保护已启动。请在上方输入条件，并点击<strong>“查询相似件”</strong>按钮，系统将执行 Manticore 去重引擎及二阶段加权属性评分。
+                </p>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-800 shadow-2xs" id="client-target-error">
-            未找到源申请件或物料代码: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
-          </div>
-        )}
+          <>
+            {/* 2.3 待申请物料摘要区 */}
+            {reference ? (
+              <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-800">待申请物料</span>
+                  <span className="text-slate-300">|</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">申请流水号:</span>{' '}
+                  <span className="font-mono font-bold text-slate-900">{reqCode}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">申请物料名称:</span>{' '}
+                  <span className="font-semibold text-slate-900">{reference.objectName}</span>
+                </div>
+                {reference.objectType === 'PART_MECHANICAL' ? (
+                  <>
+                    <div>
+                      <span className="text-slate-400">主要材质:</span>{' '}
+                      <span className="font-mono font-bold text-slate-900">{reference.attributes.core_material}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">标称直径/长度:</span>{' '}
+                      <span className="font-bold text-slate-900">直径: {reference.attributes.nominal_diameter}mm / 长度: 50mm</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <span className="text-slate-400">工作电压:</span>{' '}
+                      <span className="font-bold text-slate-900">{reference.attributes.working_voltage} V</span>
+                    </div>
+                  </>
+                )}
+                <div>
+                  <span className="text-slate-400">计划分类路径:</span>{' '}
+                  <span className="font-mono text-slate-700">{reference.classificationPath}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-800 shadow-2xs" id="client-target-error">
+                未找到源申请件或物料代码: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
+              </div>
+            )}
+
+            {/* 强过滤剔除候选件 (R10-BLK-03) */}
+            {filteredCandidates && filteredCandidates.length > 0 && (
+              <div className="bg-rose-50/50 border border-rose-200/60 rounded-lg p-4 space-y-2 w-full">
+                <details className="group" open>
+                  <summary className="list-none flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-900">
+                      <AlertTriangle className="w-4 h-4 text-rose-700 font-semibold" />
+                      <span>强过滤一票否决剔除候选件 ({filteredCandidates.length} 件)</span>
+                    </div>
+                    <span className="text-xs text-rose-600 font-medium group-open:hidden">点击展开查看原因</span>
+                    <span className="text-xs text-rose-600 font-medium hidden group-open:inline">点击收起</span>
+                  </summary>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-rose-100/60 text-rose-900 border-b border-rose-200">
+                          <th className="p-2.5 font-bold">候选编码</th>
+                          <th className="p-2.5 font-bold">物料名称</th>
+                          <th className="p-2.5 font-bold">状态</th>
+                          <th className="p-2.5 font-bold">过滤原因</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-rose-100 text-rose-800">
+                        {filteredCandidates.map(fc => (
+                          <tr key={fc.objectId} className="hover:bg-rose-100/20">
+                            <td className="p-2.5 font-mono font-bold">{fc.objectId}</td>
+                            <td className="p-2.5">{fc.objectName}</td>
+                            <td className="p-2.5">
+                              <span className="px-2 py-0.5 bg-rose-200/50 rounded text-xs">{fc.lifecycleState}</span>
+                            </td>
+                            <td className="p-2.5 font-medium text-rose-900">{fc.filterReason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            )}
 
         {/* 2.4 全宽候选件结果表 */}
         {!isSecondPhaseEnabled && (
@@ -442,6 +512,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
         </div>
 
+          </>
+        )}
       </div>
 
       {/* 2.5 属性对比抽屉 (点击拉起，默认关闭，固定在右侧覆盖而不挤压主表) */}

@@ -197,9 +197,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500 min-w-[200px]"
               >
-                <option value="DRAFT_POOL">当前编辑内容 (未发布草稿)</option>
-                <option value="SAVED_DRAFT">已保存配置 (通过校验)</option>
-                <option value="ACTIVE_RELEASE">当前启用配置 (线上运行)</option>
+                <option value="DRAFT_POOL">当前编辑内容</option>
+                <option value="SAVED_DRAFT">已保存配置</option>
+                <option value="ACTIVE_RELEASE">当前启用配置</option>
               </select>
             </div>
 
@@ -318,7 +318,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                                 )}
                                 {rule.matchConfig.kind === 'TEXT_SIMILARITY' && (
                                   <>
-                                    <span>最小阀值: {(rule.matchConfig as any).threshold}%</span>
+                                    <span>最小阈值: {(rule.matchConfig as any).threshold}%</span>
                                   </>
                                 )}
                                 {rule.matchConfig.kind === 'NATIVE_HIERARCHY' && (
@@ -420,6 +420,46 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-semibold shrink-0">
                   沙盒独立验证中
                 </span>
+              </div>
+            )}
+
+            {/* 强过滤剔除候选件 (R10-BLK-03) */}
+            {lastRunContext.searchResult.filteredCandidates && lastRunContext.searchResult.filteredCandidates.length > 0 && (
+              <div className="bg-rose-50/50 border border-rose-200/60 rounded-lg p-4 space-y-2">
+                <details className="group" open>
+                  <summary className="list-none flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-900">
+                      <AlertTriangle className="w-4 h-4 text-rose-700" />
+                      <span>强过滤一票否决剔除候选件 ({lastRunContext.searchResult.filteredCandidates.length} 件)</span>
+                    </div>
+                    <span className="text-xs text-rose-600 font-medium group-open:hidden">点击展开查看原因</span>
+                    <span className="text-xs text-rose-600 font-medium hidden group-open:inline">点击收起</span>
+                  </summary>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-rose-100/60 text-rose-900 border-b border-rose-200">
+                          <th className="p-2.5 font-bold">候选编码</th>
+                          <th className="p-2.5 font-bold">物料名称</th>
+                          <th className="p-2.5 font-bold">状态</th>
+                          <th className="p-2.5 font-bold">过滤原因</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-rose-100 text-rose-800">
+                        {lastRunContext.searchResult.filteredCandidates.map(fc => (
+                          <tr key={fc.objectId} className="hover:bg-rose-100/20">
+                            <td className="p-2.5 font-mono font-bold">{fc.objectId}</td>
+                            <td className="p-2.5">{fc.objectName}</td>
+                            <td className="p-2.5">
+                              <span className="px-2 py-0.5 bg-rose-200/50 rounded text-xs">{fc.lifecycleState}</span>
+                            </td>
+                            <td className="p-2.5 font-medium text-rose-900">{fc.filterReason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
               </div>
             )}
 

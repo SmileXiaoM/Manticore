@@ -37,6 +37,8 @@ interface FieldSimilarityViewProps {
     lastModifiedAt: string;
   }>) => void;
   onNavigate?: (view: string) => void;
+  activeObjectType?: ObjectType;
+  setActiveObjectType?: (type: ObjectType) => void;
 }
 
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
@@ -50,10 +52,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   onUpdateChangeRecords,
   objectConfigStatus,
   onUpdateConfigStatus,
-  onNavigate
+  onNavigate,
+  activeObjectType: propActiveObjectType,
+  setActiveObjectType: propSetActiveObjectType
 }) => {
   // Active ObjectType Selector Context (Default: PART_MECHANICAL)
-  const [activeObjectType, setActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
+  const [localActiveObjectType, localSetActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
+  const activeObjectType = propActiveObjectType || localActiveObjectType;
+  const setActiveObjectType = propSetActiveObjectType || localSetActiveObjectType;
   
   // Editor state
   const [editingRule, setEditingRule] = useState<FieldSimilarityRule | null>(null);
@@ -76,6 +82,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formIsFilterCondition, setFormIsFilterCondition] = useState<boolean>(false);
   const [formHitReasonTemplate, setFormHitReasonTemplate] = useState<string>('');
   const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState<string>('');
+
+  // Strong filter config (R10-BLK-03)
+  const [formFilterSource, setFormFilterSource] = useState<'REF_VALUE' | 'FIXED_VALUE'>('FIXED_VALUE');
+  const [formFilterOperator, setFormFilterOperator] = useState<string>('不属于');
+  const [formFilterFixedValue, setFormFilterFixedValue] = useState<string>('');
+  const [formFilterFailAction, setFormFilterFailAction] = useState<string>('过滤候选，不进入评分');
+  const [formFilterReasonTemplate, setFormFilterReasonTemplate] = useState<string>('');
 
   // Unit catalog fields
   const [formUnitFamily, setFormUnitFamily] = useState<string>('长度');
@@ -307,13 +320,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       objectType: objectLabel,
       configVersion: nextVersion,
       operationType: '保存',
-      summary: `成功保存并校验属性相似度规则草稿池。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
+      summary: `成功保存并校验属性相似度规则配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
       operator: operatorName,
       time: timeStr,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮将此最新配置推广生效。`);
+    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮使此最新配置生效。`);
   };
 
   // 启用配置
@@ -424,8 +437,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormNullHandling(rule.nullHandling);
     setFormIsScoreActive(rule.isScoreActive);
     setFormIsFilterCondition(rule.isFilterCondition);
-    setFormHitReasonTemplate(rule.hitReasonTemplate);
-    setFormDiffFieldsTemplate(rule.diffFieldsTemplate);
+    setFormHitReasonTemplate(rule.hitReasonTemplate || '');
+    setFormDiffFieldsTemplate(rule.diffFieldsTemplate || '');
+
+    setFormFilterSource(rule.filterSource || 'FIXED_VALUE');
+    setFormFilterOperator(rule.filterOperator || '等于');
+    setFormFilterFixedValue(rule.filterFixedValue || '');
+    setFormFilterFailAction(rule.filterFailAction || '过滤候选，不进入评分');
+    setFormFilterReasonTemplate(rule.filterReasonTemplate || '');
 
     setFormUnitFamily(rule.unitFamily || '长度');
     setFormBaseUnit(rule.baseUnit || 'm');
@@ -475,6 +494,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormIsFilterCondition(false);
     setFormHitReasonTemplate('');
     setFormDiffFieldsTemplate('');
+
+    setFormFilterSource('FIXED_VALUE');
+    setFormFilterOperator('等于');
+    setFormFilterFixedValue('');
+    setFormFilterFailAction('过滤候选，不进入评分');
+    setFormFilterReasonTemplate('');
 
     setFormUnitFamily('长度');
     setFormBaseUnit('m');
@@ -655,7 +680,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       unitFamily: isUnitType ? formUnitFamily : '无',
       baseUnit: isUnitType ? formBaseUnit : '无',
       displayUnit: isUnitType ? formDisplayUnit : '无',
-      matchConfig: matchConfig
+      matchConfig: matchConfig,
+      
+      // Strong filter config (R10-BLK-03)
+      filterSource: formFilterSource,
+      filterOperator: formFilterOperator,
+      filterFixedValue: formFilterFixedValue,
+      filterFailAction: formFilterFailAction,
+      filterReasonTemplate: formFilterReasonTemplate
     };
 
     if (isNew) {
@@ -786,14 +818,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="当前生效 (Active) 状态。计算引擎执行此生效配置。">
                   <span className={`w-2 h-2 rounded-full ${isCurrentTypeEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
                   <span className="text-[11px] font-semibold text-slate-600">
-                    生效中: {isCurrentTypeEnabled ? '已全局上线启用' : '已暂停停用'}
+                    生效中: {isCurrentTypeEnabled ? '已全局启用' : '已停用'}
                   </span>
                 </div>
 
                 {/* Version & Mod Time */}
                 <div className="text-slate-400 text-[11px] flex items-center space-x-2 shrink-0">
                   <span>|</span>
-                  <span>线上版本: <strong className="font-mono text-slate-800 font-bold">{objectConfigStatus[activeObjectType]?.configVersion || 'v1.0.0'}</strong></span>
+                  <span>配置版本: <strong className="font-mono text-slate-800 font-bold">{objectConfigStatus[activeObjectType]?.configVersion || 'v1.0.0'}</strong></span>
                   <span>|</span>
                   <span>变更时间: <strong className="font-mono text-slate-700">{objectConfigStatus[activeObjectType]?.lastModifiedAt || '无'}</strong></span>
                 </div>
@@ -811,7 +843,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
                       : 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 shadow-xs'
                   }`}
-                  title={savedWeightSummary.isValid ? '将已保存的校验配置发布上线启用' : '已保存的规则集权重不足100%，无法启用'}
+                  title={savedWeightSummary.isValid ? '将已保存的校验配置启用' : '已保存的规则集权重不足100%，无法启用'}
                 >
                   启用
                 </button>
@@ -834,7 +866,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <span className="font-semibold text-slate-700 shrink-0">二阶段评分引擎公式:</span>
               <span className="font-mono text-slate-500 truncate max-w-4xl px-3 flex-1 text-left">{weightSummary.details}</span>
               <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-semibold">
-                Formula Engine
+                Manticore Engine
               </span>
             </div>
           </div>
@@ -1182,8 +1214,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     >
                       <option value="候选缺失按 0 分">候选缺失按 0 分 (一票否决)</option>
                       <option value="不参与计算">不参与计算 (权重均摊到其他有值项)</option>
-                      <option value="设为默认中位值">设为默认中位值 (不扣分)</option>
-                      <option value="按50%算分">缺失按默认 50% 基础分退让</option>
                     </select>
                   </div>
                 </div>
@@ -1211,6 +1241,94 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <span>作为严格过滤一票否决条件 (Filter)</span>
                     </label>
                   </div>
+
+                  {formIsFilterCondition && (
+                    <div className="col-span-1 md:col-span-2 p-4 bg-amber-50/60 border border-amber-200/60 rounded-lg space-y-4 text-xs mt-1">
+                      <h4 className="font-bold text-amber-950 flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                        <span>强过滤一票否决规则参数设置 (R10-BLK-03)</span>
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Filter Source */}
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">条件来源</label>
+                          <select
+                            value={formFilterSource}
+                            onChange={(e) => setFormFilterSource(e.target.value as any)}
+                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
+                          >
+                            <option value="REF_VALUE">按参考件当前值 (REF_VALUE)</option>
+                            <option value="FIXED_VALUE">固定条件 (FIXED_VALUE)</option>
+                          </select>
+                        </div>
+
+                        {/* Filter Operator */}
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">运算符</label>
+                          <select
+                            value={formFilterOperator}
+                            onChange={(e) => setFormFilterOperator(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
+                          >
+                            <option value="等于">等于 (==)</option>
+                            <option value="不等于">不等于 (!=)</option>
+                            <option value="属于">属于 (In List)</option>
+                            <option value="不属于">不属于 (Not In List)</option>
+                            {formFieldType.includes('NUMBER') && (
+                              <>
+                                <option value="大于等于">大于等于 (&gt;=)</option>
+                                <option value="小于等于">小于等于 (&lt;=)</option>
+                              </>
+                            )}
+                            {formPropertyCode.includes('category_path') && (
+                              <>
+                                <option value="路径一致">路径一致</option>
+                                <option value="属于该路径">属于该子路径</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+
+                        {/* Fixed Value */}
+                        {formFilterSource === 'FIXED_VALUE' && (
+                          <div className="col-span-1 md:col-span-2">
+                            <label className="block font-semibold text-slate-700 mb-1">固定条件值</label>
+                            <input
+                              type="text"
+                              value={formFilterFixedValue}
+                              onChange={(e) => setFormFilterFixedValue(e.target.value)}
+                              placeholder="如：已作废 (支持多个值以半角逗号分隔)"
+                              className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
+                            />
+                          </div>
+                        )}
+
+                        {/* Fail Action */}
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">不满足处理</label>
+                          <input
+                            type="text"
+                            value={formFilterFailAction}
+                            disabled
+                            className="w-full bg-slate-100 border border-slate-200 rounded px-3 py-1.5 text-slate-500 cursor-not-allowed font-medium"
+                          />
+                        </div>
+
+                        {/* Reason Template */}
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">过滤原因解释模板</label>
+                          <input
+                            type="text"
+                            value={formFilterReasonTemplate}
+                            onChange={(e) => setFormFilterReasonTemplate(e.target.value)}
+                            placeholder="如：生命周期状态为已作废，未进入评分和排序"
+                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {formIsScoreActive && (
                     <div>
