@@ -1,25 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 
 // Views
 import { FieldSimilarityView } from './components/FieldSimilarityView';
-import { StandardizationView } from './components/StandardizationView';
-import { SynonymView } from './components/SynonymView';
-import { AlignmentView } from './components/AlignmentView';
 import { PublishRecordView } from './components/PublishRecordView';
-import { AttributeTypesView } from './components/AttributeTypesView';
-import { AttributeEnumsView } from './components/AttributeEnumsView';
 import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
 import { DataProcessingView } from './components/DataProcessingView';
 import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
-
-// Three-Standardization Audit Views
-import { FieldWhitelistView } from './components/FieldWhitelistView';
-import { ThresholdRuleView } from './components/ThresholdRuleView';
-import { HardRuleView } from './components/HardRuleView';
-import { CategoryCoverageView } from './components/CategoryCoverageView';
 
 // Data
 import {
@@ -27,8 +16,6 @@ import {
   initialStandardizationRules,
   initialSynonymRules,
   initialAlignmentRules,
-  initialPublishRecords,
-  initialFieldWhitelists,
   initialThresholdRules,
   initialHardRules,
   initialCategoryCoverages
@@ -39,13 +26,13 @@ import {
   StandardizationRule,
   SynonymRule,
   ClassificationAlignmentRule,
-  PublishRecord,
-  FieldWhitelistItem,
   ThresholdRule,
   HardRule,
   CategoryCoverage,
   ChangeRecord,
-  ObjectType
+  ObjectType,
+  isObjectRulesModified,
+  restoreObjectRules
 } from './types';
 
 export default function App() {
@@ -116,8 +103,6 @@ export default function App() {
   const [synonymRules, setSynonymRules] = useState<SynonymRule[]>(initialSynonymRules);
   const [alignmentRules, setAlignmentRules] = useState<ClassificationAlignmentRule[]>(initialAlignmentRules);
 
-  // New "三化审核最小闭环" State Arrays
-  const [whitelists, setWhitelists] = useState<FieldWhitelistItem[]>(initialFieldWhitelists);
   const [thresholdRules, setThresholdRules] = useState<ThresholdRule[]>(initialThresholdRules);
   const [hardRules, setHardRules] = useState<HardRule[]>(initialHardRules);
   const [coverages, setCoverages] = useState<CategoryCoverage[]>(initialCategoryCoverages);
@@ -131,10 +116,8 @@ export default function App() {
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
   const handleNavigate = (newView: string) => {
-    // R10-BLK-04: strict unsaved changes guard for the active objectType only!
-    const activeEditing = editingFieldRules.filter(r => r.objectType === activeObjectType);
-    const activeSaved = savedFieldRules.filter(r => r.objectType === activeObjectType);
-    const isModified = JSON.stringify(activeEditing) !== JSON.stringify(activeSaved);
+    // R10-BLK-04: strict unsaved changes guard using the shared comparison function
+    const isModified = isObjectRulesModified(editingFieldRules, savedFieldRules, activeObjectType);
 
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
@@ -145,7 +128,9 @@ export default function App() {
   };
 
   const handleConfirmDiscard = () => {
-    setEditingFieldRules(JSON.parse(JSON.stringify(savedFieldRules)));
+    // R12-BLK-04: "Abandon modifications" only restores the current activeObjectType, keeping others intact
+    const restored = restoreObjectRules(editingFieldRules, savedFieldRules, activeObjectType);
+    setEditingFieldRules(restored);
     if (pendingView) {
       setCurrentView(pendingView);
     }
@@ -171,153 +156,83 @@ export default function App() {
     PART_OPTICAL: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
   });
 
-  // Helper to determine if a view should not have administrative shell/chrome
-  const isNonShellView = ['attribute-types', 'attribute-enums'].includes(currentView);
-
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Admin Header Bar */}
+        <Header onNavigate={handleNavigate} />
 
-      {isNonShellView ? (
-        // Non-shell Figma specification sheets taking up the full screen
-        <div className="flex-1 overflow-auto">
-          {currentView === 'attribute-types' && (
-            <AttributeTypesView onBackToApp={() => handleNavigate('field-rules')} />
-          )}
-          {currentView === 'attribute-enums' && (
-            <AttributeEnumsView onBackToApp={() => handleNavigate('field-rules')} />
-          )}
+        {/* Sidebar & Body Split */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Sidebar Navigation */}
+          <Sidebar currentView={currentView} onNavigate={handleNavigate} />
+
+          {/* Dynamic View Dispatcher */}
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {currentView === 'field-rules' && (
+              <FieldSimilarityView
+                editingRules={editingFieldRules}
+                onUpdateEditingRules={setEditingFieldRules}
+                savedRules={savedFieldRules}
+                onUpdateSavedRules={setSavedFieldRules}
+                activeRules={activeFieldRules}
+                onUpdateActiveRules={setActiveFieldRules}
+                changeRecords={changeRecords}
+                onUpdateChangeRecords={setChangeRecords}
+                objectConfigStatus={objectConfigStatus}
+                onUpdateConfigStatus={setObjectConfigStatus}
+                onNavigate={handleNavigate}
+                activeObjectType={activeObjectType}
+                setActiveObjectType={setActiveObjectType}
+              />
+            )}
+
+            {currentView === 'publish-records' && (
+              <PublishRecordView changeRecords={changeRecords} />
+            )}
+
+            {currentView === 'query-preview' && (
+              <QueryPreviewView
+                editingRules={editingFieldRules}
+                savedRules={savedFieldRules}
+                activeRules={activeFieldRules}
+                objectConfigStatus={objectConfigStatus}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'client-find-similar' && (
+              <ClientFindSimilarView
+                rules={activeFieldRules}
+                objectConfigStatus={objectConfigStatus}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'data-processing' && (
+              <DataProcessingView
+                standardizationRules={standardizationRules}
+                onUpdateStandardizationRules={setStandardizationRules}
+                synonymRules={synonymRules}
+                onUpdateSynonymRules={setSynonymRules}
+                alignmentRules={alignmentRules}
+                onUpdateAlignmentRules={setAlignmentRules}
+              />
+            )}
+
+            {currentView === 'decision-rules' && (
+              <ThreeStandardDecisionView
+                thresholdRules={thresholdRules}
+                onUpdateThresholdRules={setThresholdRules}
+                hardRules={hardRules}
+                onUpdateHardRules={setHardRules}
+                coverages={coverages}
+                onUpdateCoverages={setCoverages}
+              />
+            )}
+          </main>
         </div>
-      ) : (
-        // Standard PLM Admin Environment with Header, Sidebar, and Content view
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Admin Header Bar */}
-          <Header
-            onNavigate={handleNavigate}
-          />
-
-          {/* Sidebar & Body Split */}
-          <div className="flex-1 flex overflow-hidden">
-
-            {/* Sidebar Navigation */}
-            <Sidebar currentView={currentView} onNavigate={handleNavigate} />
-
-            {/* Dynamic View Dispatcher */}
-            <main className="flex-1 flex flex-col overflow-hidden">
-              {currentView === 'field-rules' && (
-                <FieldSimilarityView
-                  editingRules={editingFieldRules}
-                  onUpdateEditingRules={setEditingFieldRules}
-                  savedRules={savedFieldRules}
-                  onUpdateSavedRules={setSavedFieldRules}
-                  activeRules={activeFieldRules}
-                  onUpdateActiveRules={setActiveFieldRules}
-                  changeRecords={changeRecords}
-                  onUpdateChangeRecords={setChangeRecords}
-                  objectConfigStatus={objectConfigStatus}
-                  onUpdateConfigStatus={setObjectConfigStatus}
-                  onNavigate={handleNavigate}
-                  activeObjectType={activeObjectType}
-                  setActiveObjectType={setActiveObjectType}
-                />
-              )}
-
-              {currentView === 'standardization-rules' && (
-                <StandardizationView
-                  rules={standardizationRules}
-                  onUpdateRules={setStandardizationRules}
-                />
-              )}
-
-              {currentView === 'synonym-rules' && (
-                <SynonymView
-                  rules={synonymRules}
-                  onUpdateRules={setSynonymRules}
-                />
-              )}
-
-              {currentView === 'alignment-rules' && (
-                <AlignmentView
-                  rules={alignmentRules}
-                  onUpdateRules={setAlignmentRules}
-                />
-              )}
-
-              {currentView === 'publish-records' && (
-                <PublishRecordView changeRecords={changeRecords} />
-              )}
-
-              {currentView === 'query-preview' && (
-                <QueryPreviewView
-                  editingRules={editingFieldRules}
-                  savedRules={savedFieldRules}
-                  activeRules={activeFieldRules}
-                  objectConfigStatus={objectConfigStatus}
-                  onNavigate={handleNavigate}
-                />
-              )}
-
-              {currentView === 'client-find-similar' && (
-                <ClientFindSimilarView
-                  rules={activeFieldRules}
-                  objectConfigStatus={objectConfigStatus}
-                  onNavigate={handleNavigate}
-                />
-              )}
-
-              {/* Three-Standardization (三化审核) Configuration Views */}
-              {currentView === 'field-whitelists' && (
-                <FieldWhitelistView
-                  whitelists={whitelists}
-                  onUpdateWhitelists={setWhitelists}
-                />
-              )}
-
-              {currentView === 'threshold-rules' && (
-                <ThresholdRuleView
-                  thresholdRules={thresholdRules}
-                  onUpdateThresholdRules={setThresholdRules}
-                />
-              )}
-
-              {currentView === 'hard-rules' && (
-                <HardRuleView
-                  hardRules={hardRules}
-                  onUpdateHardRules={setHardRules}
-                />
-              )}
-
-              {currentView === 'category-coverages' && (
-                <CategoryCoverageView
-                  coverages={coverages}
-                  onUpdateCoverages={setCoverages}
-                />
-              )}
-
-              {currentView === 'data-processing' && (
-                <DataProcessingView
-                  standardizationRules={standardizationRules}
-                  onUpdateStandardizationRules={setStandardizationRules}
-                  synonymRules={synonymRules}
-                  onUpdateSynonymRules={setSynonymRules}
-                  alignmentRules={alignmentRules}
-                  onUpdateAlignmentRules={setAlignmentRules}
-                />
-              )}
-
-              {currentView === 'decision-rules' && (
-                <ThreeStandardDecisionView
-                  thresholdRules={thresholdRules}
-                  onUpdateThresholdRules={setThresholdRules}
-                  hardRules={hardRules}
-                  onUpdateHardRules={setHardRules}
-                  coverages={coverages}
-                  onUpdateCoverages={setCoverages}
-                />
-              )}
-            </main>
-          </div>
-        </div>
-      )}
+      </div>
 
       {showUnsavedConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs" id="unsaved-modal-overlay">
@@ -357,7 +272,6 @@ export default function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

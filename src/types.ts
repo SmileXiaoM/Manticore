@@ -360,3 +360,64 @@ export type SearchRunResult = {
   errorMessage?: string;
 };
 
+export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectType: ObjectType): any[] {
+  return rules
+    .filter(r => r.objectType === objectType)
+    .map(r => {
+      return {
+        id: r.id,
+        objectType: r.objectType,
+        fieldName: r.fieldName,
+        propertyCode: r.propertyCode,
+        fieldType: r.fieldType,
+        weight: r.weight,
+        matchType: r.matchType,
+        nullHandling: r.nullHandling,
+        isScoreActive: r.isScoreActive,
+        isFilterCondition: r.isFilterCondition,
+        isQueryPreviewAvailable: r.isQueryPreviewAvailable,
+        isAppEndActive: r.isAppEndActive,
+        showHitReason: r.showHitReason,
+        showDiffFields: r.showDiffFields,
+        hitReasonTemplate: r.hitReasonTemplate || '',
+        diffFieldsTemplate: r.diffFieldsTemplate || '',
+        enabled: r.enabled,
+        unitFamily: r.unitFamily || '',
+        baseUnit: r.baseUnit || '',
+        displayUnit: r.displayUnit || '',
+        matchConfig: r.matchConfig ? JSON.parse(JSON.stringify(r.matchConfig)) : null,
+        filterSource: r.filterSource || 'FIXED_VALUE',
+        filterOperator: r.filterOperator || '',
+        filterFixedValue: r.filterFixedValue || '',
+        filterFailAction: r.filterFailAction || '',
+        filterReasonTemplate: r.filterReasonTemplate || '',
+      };
+    })
+    .sort((a, b) => {
+      const keyA = `${a.objectType}_${a.propertyCode}_${a.id}`;
+      const keyB = `${b.objectType}_${b.propertyCode}_${b.id}`;
+      return keyA.localeCompare(keyB);
+    });
+}
+
+export function isObjectRulesModified(
+  editingRules: FieldSimilarityRule[],
+  savedRules: FieldSimilarityRule[],
+  objectType: ObjectType
+): boolean {
+  const normEditing = normalizeRulesForCompare(editingRules, objectType);
+  const normSaved = normalizeRulesForCompare(savedRules, objectType);
+  return JSON.stringify(normEditing) !== JSON.stringify(normSaved);
+}
+
+export function restoreObjectRules(
+  editingRules: FieldSimilarityRule[],
+  savedRules: FieldSimilarityRule[],
+  objectType: ObjectType
+): FieldSimilarityRule[] {
+  const otherEditingRules = editingRules.filter(r => r.objectType !== objectType);
+  const restoredRules = savedRules.filter(r => r.objectType === objectType);
+  return [...otherEditingRules, ...restoredRules];
+}
+
+

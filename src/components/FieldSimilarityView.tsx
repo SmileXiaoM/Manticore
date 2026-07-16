@@ -672,20 +672,42 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       }
 
       if (formFilterSource === 'FIXED_VALUE') {
+        const isDateField = formFieldType.toUpperCase().includes('DATE');
+        const isNumberField = formFieldType.toUpperCase().includes('NUMBER');
+
         if (formFilterOperator === '区间内' || formFilterOperator === '区间外') {
           if (!formFilterRangeMin.trim() || !formFilterRangeMax.trim()) {
             alert('保存失败！固定区间条件必须填写开始值和结束值。');
             return;
           }
-          const minVal = Number(formFilterRangeMin);
-          const maxVal = Number(formFilterRangeMax);
-          if (isNaN(minVal) || isNaN(maxVal)) {
-            alert('保存失败！区间开始值和结束值必须为合法数字。');
-            return;
-          }
-          if (minVal > maxVal) {
-            alert('保存失败！区间反向错误：开始值不能大于结束值。');
-            return;
+
+          if (isDateField) {
+            const minTime = Date.parse(formFilterRangeMin);
+            const maxTime = Date.parse(formFilterRangeMax);
+            if (isNaN(minTime) || isNaN(maxTime)) {
+              alert('保存失败！区间开始值和结束值必须为合法日期格式（如 YYYY-MM-DD）。');
+              return;
+            }
+            if (minTime > maxTime) {
+              alert('保存失败！区间反向错误：开始日期不能晚于结束日期。');
+              return;
+            }
+          } else if (isNumberField) {
+            const minVal = Number(formFilterRangeMin);
+            const maxVal = Number(formFilterRangeMax);
+            if (isNaN(minVal) || isNaN(maxVal)) {
+              alert('保存失败！区间开始值和结束值必须为合法数字。');
+              return;
+            }
+            if (minVal > maxVal) {
+              alert('保存失败！区间反向错误：开始值不能大于结束值。');
+              return;
+            }
+          } else {
+            if (formFilterRangeMin.trim().localeCompare(formFilterRangeMax.trim()) > 0) {
+              alert('保存失败！区间反向错误：开始值不能大于结束值。');
+              return;
+            }
           }
           finalFilterFixedValue = `${formFilterRangeMin}~${formFilterRangeMax}`;
         } else {
@@ -693,10 +715,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             alert('保存失败！固定条件值不能为空。');
             return;
           }
-          if (formFieldType.toUpperCase().includes('NUMBER')) {
+          if (isNumberField) {
             const numVal = Number(formFilterFixedValue);
             if (isNaN(numVal)) {
               alert('保存失败！数值型字段固定条件值必须为合法数字。');
+              return;
+            }
+          } else if (isDateField) {
+            const dateTime = Date.parse(formFilterFixedValue);
+            if (isNaN(dateTime)) {
+              alert('保存失败！日期型字段固定条件值必须为合法日期格式（如 YYYY-MM-DD）。');
               return;
             }
           }
@@ -1332,7 +1360,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <div className="col-span-1 md:col-span-2 p-4 bg-amber-50/60 border border-amber-200/60 rounded-lg space-y-4 text-xs mt-1">
                       <h4 className="font-bold text-amber-950 flex items-center gap-1">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                        <span>强过滤一票否决规则参数设置 (R10-BLK-03)</span>
+                        <span>强过滤一票否决规则参数设置</span>
                       </h4>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

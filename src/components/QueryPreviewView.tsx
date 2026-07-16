@@ -38,6 +38,7 @@ interface LastRunContext {
   unitCatalogVersion: string;
   rulesSnapshot: FieldSimilarityRule[];
   searchResult: SearchRunResult;
+  runTime: string; // 试算时间 (R12-BLK-02)
 }
 
 export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
@@ -70,82 +71,55 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     return activeRules;
   };
 
-  const renderSnapshotDashboard = (ref: any, snapshotRules: any[]) => {
-    // 1. 标称长度
-    const nominalLength = ref?.attributes?.nominal_length !== undefined && ref?.attributes?.nominal_length !== null
-      ? `${ref.attributes.nominal_length} ${ref.units?.nominal_length || 'mm'}`
-      : '--';
-
-    // 2. 生命周期状态
-    const lifecycleState = ref?.lifecycleState || ref?.attributes?.lifecycle_state || '--';
-
-    // 3. 参考件分类
-    const classificationPath = ref?.classificationPath || ref?.classification_path || '--';
-
-    // 4. 二阶段参与计算维度数
-    const scoreDimensionsCount = snapshotRules.filter(r => r.enabled && r.isScoreActive).length;
-
-    // 5. 文本相似阈值配置
-    const textRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'TEXT_SIMILARITY');
-    const textThresh = textRule ? `${(textRule.matchConfig as any).threshold}%` : '--';
-
-    // 6. 数值匹配容差设置
-    const numTolRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'NUMERIC_TOLERANCE');
-    const numTol = numTolRule ? `±${(numTolRule.matchConfig as any).toleranceValue}${numTolRule.displayUnit || ''}` : '--';
-
-    // 7. 数值衰减满分范围
-    const decayRule = snapshotRules.find(r => r.enabled && r.matchConfig?.kind === 'NUMERIC_DECAY');
-    const decayFull = decayRule ? `±${(decayRule.matchConfig as any).fullScoreRange}${decayRule.displayUnit || ''}` : '--';
-
-    // 8. 数值衰减零分边界
-    const decayZero = decayRule ? `±${(decayRule.matchConfig as any).zeroScoreBoundary}${decayRule.displayUnit || ''}` : '--';
-
-    // 9. 作为严格过滤一票否决(Filter)策略激活数
-    const filterCount = snapshotRules.filter(r => r.enabled && r.isFilterCondition).length;
+  const renderSnapshotDashboard = (ctx: LastRunContext) => {
+    const sourceStr = ctx.ruleVersion === 'DRAFT_POOL' ? '当前编辑内容 (Draft)' : ctx.ruleVersion === 'SAVED_DRAFT' ? '已保存配置 (Saved)' : '当前启用配置 (Active)';
+    const objectTypeStr = ctx.objectType === 'PART_MECHANICAL' ? '机械零件 (PART_MECHANICAL)' : '电气元器件 (PART_ELECTRICAL)';
+    const thresholdsStr = `高相似 >= ${ctx.thresholds.high}%, 中相似 >= ${ctx.thresholds.medium}%`;
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2.5 p-4 bg-slate-50 border-b border-slate-100" id="snapshot-9-metrics-grid">
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">1. 标称长度</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={nominalLength}>{nominalLength}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">1. 配置来源</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={sourceStr}>{sourceStr}</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">2. 生命周期</span>
-          <span className="text-xs font-bold text-slate-850 truncate" title={lifecycleState}>{lifecycleState}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">2. 比分版本</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={ctx.configVersion}>{ctx.configVersion}</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">3. 参考件分类</span>
-          <span className="text-xs font-bold text-slate-850 truncate" title={classificationPath}>{classificationPath}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">3. 物料对象</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={objectTypeStr}>{objectTypeStr}</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">4. 参算维度数</span>
-          <span className="text-xs font-bold text-blue-600 font-mono">{scoreDimensionsCount} 项</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">4. 试算时间</span>
+          <span className="text-xs font-bold text-slate-800 font-mono truncate" title={ctx.runTime}>{ctx.runTime}</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">5. 文本相似阈值</span>
-          <span className="text-xs font-bold text-slate-800 font-mono">{textThresh}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">5. 参与评分字段数</span>
+          <span className="text-xs font-bold text-blue-600 font-mono">{ctx.scoreFieldsCount} 项</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">6. 数值匹配容差</span>
-          <span className="text-xs font-bold text-slate-800 font-mono">{numTol}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">6. 权重总和</span>
+          <span className="text-xs font-bold text-slate-800 font-mono">{ctx.totalWeight}%</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 数值满分范围</span>
-          <span className="text-xs font-bold text-slate-800 font-mono">{decayFull}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 强过滤字段数</span>
+          <span className="text-xs font-bold text-rose-600 font-mono">{ctx.filterConditionsCount} 项</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">8. 数值零分边界</span>
-          <span className="text-xs font-bold text-slate-800 font-mono">{decayZero}</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">8. 相似度分档阈值</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={thresholdsStr}>{thresholdsStr}</span>
         </div>
         <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">9. 强过滤激活数</span>
-          <span className="text-xs font-bold text-rose-600 font-mono">{filterCount} 项</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">9. 只读单位版本</span>
+          <span className="text-xs font-bold text-slate-800 truncate" title={ctx.unitCatalogVersion}>{ctx.unitCatalogVersion}</span>
         </div>
       </div>
     );
   };
 
   const handleRunSearch = () => {
+    const curTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
     if (objectId.trim() === '') {
       alert('请输入源物料代码/申请号');
       setLastRunContext({
@@ -164,7 +138,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           reference: null,
           scoredCandidates: [],
           filteredCandidates: []
-        }
+        },
+        runTime: curTime
       });
       setSelectedCandidate(null);
       return;
@@ -194,7 +169,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         thresholds: { high: 85, medium: 70 },
         unitCatalogVersion: 'Windchill 2026-07-15',
         rulesSnapshot,
-        searchResult: res
+        searchResult: res,
+        runTime: curTime
       });
     }, 400);
   };
@@ -360,7 +336,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 </div>
               </button>
 
-              {renderSnapshotDashboard(lastRunContext.searchResult.reference, lastRunContext.rulesSnapshot)}
+              {renderSnapshotDashboard(lastRunContext)}
 
               {isSnapshotExpanded && (
                 <div className="p-4 bg-slate-50/30" id="snapshot-content-grid">
@@ -575,9 +551,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             {/* 1.4 全宽候选件结果表 */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="preview-results-container">
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-left border-collapse text-xs min-w-[1100px]" id="preview-results-table">
+                <table className="w-full text-left border-collapse text-xs min-w-[1300px]" id="preview-results-table">
                   <thead>
-                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
+                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                       <th className="px-4 py-3 whitespace-nowrap">候选件编码</th>
                       <th className="px-4 py-3 whitespace-nowrap">名称</th>
                       <th className="px-4 py-3 whitespace-nowrap">规格/关键尺寸</th>
@@ -609,27 +585,27 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
                         >
                           {/* 候选件编码 */}
-                          <td className="px-4 py-3 font-mono font-semibold text-slate-700">
+                          <td className="px-4 py-3 font-mono font-semibold text-slate-700 whitespace-nowrap">
                             {candidate.objectId}
                           </td>
 
                           {/* 名称 */}
-                          <td className="px-4 py-3 font-semibold text-slate-900 truncate max-w-[160px]" title={candidate.objectName}>
+                          <td className="px-4 py-3 font-semibold text-slate-900 truncate max-w-[160px] whitespace-nowrap" title={candidate.objectName}>
                             {candidate.objectName}
                           </td>
 
                           {/* 规格/关键尺寸 */}
-                          <td className="px-4 py-3 font-mono text-slate-800">
+                          <td className="px-4 py-3 font-mono text-slate-800 whitespace-nowrap">
                             {candidate.specification}
                           </td>
 
                           {/* 材料 */}
-                          <td className="px-4 py-3 font-mono text-slate-600">
+                          <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">
                             {candidate.material}
                           </td>
 
                           {/* 分类 */}
-                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px]" title={candidate.classificationPath}>
+                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px] whitespace-nowrap" title={candidate.classificationPath}>
                             {candidate.classificationPath}
                           </td>
 
@@ -649,7 +625,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 相似度 */}
-                          <td className="px-4 py-3 text-center font-bold font-mono">
+                          <td className="px-4 py-3 text-center font-bold font-mono whitespace-nowrap">
                             {isSecondPhaseEnabled ? (
                               <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
                             ) : (
@@ -675,22 +651,22 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 覆盖率 */}
-                          <td className="px-4 py-3 text-center font-mono text-slate-600">
+                          <td className="px-4 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
                             {isSecondPhaseEnabled ? `${candidate.coverageRate}%` : '-'}
                           </td>
 
                           {/* 命中数 */}
-                          <td className="px-4 py-3 text-center font-mono text-slate-600">
+                          <td className="px-4 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
                             {isSecondPhaseEnabled ? `${candidate.fullHitCount} / ${candidate.compareFields.length}` : '-'}
                           </td>
 
                           {/* 差异数 */}
-                          <td className="px-4 py-3 text-center font-mono font-bold text-red-600">
+                          <td className="px-4 py-3 text-center font-mono font-bold text-red-600 whitespace-nowrap">
                             {isSecondPhaseEnabled ? candidate.differenceCount : '-'}
                           </td>
 
                           {/* 操作 */}
-                          <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                          <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => setSelectedCandidate(candidate)}

@@ -410,9 +410,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
 
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse text-xs min-w-[1200px]" id="client-results-table">
+            <table className="w-full text-left border-collapse text-xs min-w-[1300px]" id="client-results-table">
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
+                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                   <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
                   <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
                   <th className="px-4 py-3 whitespace-nowrap">名称</th>
@@ -455,7 +455,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 名称 */}
-                      <td className="px-4 py-3 font-semibold text-slate-950 truncate max-w-[150px]" title={candidate.objectName}>
+                      <td className="px-4 py-3 font-semibold text-slate-950 truncate max-w-[150px] whitespace-nowrap" title={candidate.objectName}>
                         {candidate.objectName}
                       </td>
 
@@ -470,7 +470,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 分类 */}
-                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px]" title={candidate.classificationPath}>
+                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap" title={candidate.classificationPath}>
                         {candidate.classificationPath}
                       </td>
 
@@ -531,7 +531,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 操作 */}
-                      <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                      <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
                         <div className="flex items-center justify-center space-x-1.5">
                           <button
                             type="button"
