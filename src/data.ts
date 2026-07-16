@@ -315,7 +315,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: true,
+    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -344,7 +344,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: true,
+    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -407,7 +407,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '层级关系匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: true,
+    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -441,7 +441,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: true,
+    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -489,6 +489,64 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldId: 'thread_count_stage1',
     manticoreType: 'INT',
     enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: { kind: 'EXACT' }
+  },
+  {
+    id: 'F-008',
+    objectType: 'PART_MECHANICAL',
+    fieldName: '生命周期状态',
+    propertyCode: 'lifecycle_state',
+    fieldType: '枚举 (ENUM)',
+    weight: 0,
+    matchType: '精确值匹配',
+    nullHandling: '不参与计算',
+    isScoreActive: false,
+    isFilterCondition: true,
+    isQueryPreviewAvailable: true,
+    isAppEndActive: true,
+    showHitReason: false,
+    showDiffFields: false,
+    hitReasonTemplate: '',
+    diffFieldsTemplate: '',
+    enabled: true,
+    configVersion: 'v2.5.0',
+    lastEditor: '系统管理员',
+    lastEditTime: '2026-07-15 12:00:00',
+    fieldId: 'lifecycle_state_stage1',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '生命周期状态枚举',
+    unitFamily: '无',
+    baseUnit: '无',
+    displayUnit: '无',
+    matchConfig: { kind: 'EXACT' }
+  },
+  {
+    id: 'F-009',
+    objectType: 'PART_ELECTRICAL',
+    fieldName: '生命周期状态',
+    propertyCode: 'lifecycle_state',
+    fieldType: '枚举 (ENUM)',
+    weight: 0,
+    matchType: '精确值匹配',
+    nullHandling: '不参与计算',
+    isScoreActive: false,
+    isFilterCondition: true,
+    isQueryPreviewAvailable: true,
+    isAppEndActive: true,
+    showHitReason: false,
+    showDiffFields: false,
+    hitReasonTemplate: '',
+    diffFieldsTemplate: '',
+    enabled: true,
+    configVersion: 'v1.0.0',
+    lastEditor: '系统管理员',
+    lastEditTime: '2026-07-15 12:00:00',
+    fieldId: 'lifecycle_state_stage1',
+    manticoreType: 'VARCHAR',
+    enumOrCategorySource: '生命周期状态枚举',
     unitFamily: '无',
     baseUnit: '无',
     displayUnit: '无',
@@ -1329,6 +1387,176 @@ export const initialCategoryCoverages: CategoryCoverage[] = [
   }
 ];
 
+export function calculateFieldMatchRate(
+  rule: FieldSimilarityRule,
+  refVal: any,
+  candVal: any,
+  cand: any
+): number {
+  if (refVal === undefined || refVal === null || refVal === '') {
+    return 0;
+  }
+  if (candVal === undefined || candVal === null || candVal === '') {
+    return 0;
+  }
+
+  const config = rule.matchConfig;
+  const matchKind = config?.kind || 'EXACT';
+
+  // EXACT Match
+  if (matchKind === 'EXACT') {
+    if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+      const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
+      const refUnit = rule.displayUnit || 'mm';
+      const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
+      const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+      return Math.abs(refBase - candBase) < 1e-6 ? 1.0 : 0.0;
+    }
+    return String(refVal).trim() === String(candVal).trim() ? 1.0 : 0.0;
+  }
+
+  // TEXT SIMILARITY
+  if (matchKind === 'TEXT_SIMILARITY') {
+    const s1 = String(refVal).trim();
+    const s2 = String(candVal).trim();
+    if (s1 === s2) return 1.0;
+    
+    // Character overlap similarity
+    const set1 = new Set(s1.split(''));
+    const arr2 = s2.split('');
+    const common = arr2.filter(c => set1.has(c)).length;
+    const rawRate = common / Math.max(s1.length, s2.length);
+    
+    const threshold = (config as any).threshold || 60;
+    if (rawRate * 100 < threshold) {
+      return 0.0;
+    }
+    return rawRate;
+  }
+
+  // NUMERIC TOLERANCE
+  if (matchKind === 'NUMERIC_TOLERANCE') {
+    const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
+    const refUnit = rule.displayUnit || 'mm';
+    const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
+    const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+
+    const refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+    const candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+
+    const diff = candDisp - refDisp;
+    const direction = (config as any).direction || 'BOTH';
+    if (direction === 'HIGHER' && diff < 0) return 0.0;
+    if (direction === 'LOWER' && diff > 0) return 0.0;
+
+    const absDiff = Math.abs(diff);
+    const tolType = (config as any).toleranceType || 'ABSOLUTE';
+    const tolVal = (config as any).toleranceValue || 0.2;
+
+    if (tolType === 'ABSOLUTE') {
+      return absDiff <= tolVal ? 1.0 : 0.0;
+    } else {
+      // PERCENTAGE
+      if (refDisp === 0) return absDiff === 0 ? 1.0 : 0.0;
+      return (absDiff / refDisp) <= (tolVal / 100) ? 1.0 : 0.0;
+    }
+  }
+
+  // NUMERIC DECAY
+  if (matchKind === 'NUMERIC_DECAY') {
+    const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
+    const refUnit = rule.displayUnit || 'mm';
+    const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
+    const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+
+    const refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+    const candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+
+    const diff = candDisp - refDisp;
+    const direction = (config as any).direction || 'BOTH';
+    if (direction === 'HIGHER' && diff < 0) return 0.0;
+    if (direction === 'LOWER' && diff > 0) return 0.0;
+
+    const absDiff = Math.abs(diff);
+    const fullRange = (config as any).fullScoreRange || 0.1;
+    const zeroBoundary = (config as any).zeroScoreBoundary || 1.0;
+
+    if (absDiff <= fullRange) return 1.0;
+    if (absDiff >= zeroBoundary) return 0.0;
+
+    const rate = 1.0 - (absDiff - fullRange) / (zeroBoundary - fullRange);
+    return Math.max(0, Math.min(1.0, rate));
+  }
+
+  // NATIVE HIERARCHY
+  if (matchKind === 'NATIVE_HIERARCHY') {
+    const p1 = String(refVal).replace(/^\/|\/$/g, '').split('/');
+    const p2 = String(candVal).replace(/^\/|\/$/g, '').split('/');
+    
+    let c = 0;
+    const limit = Math.min(p1.length, p2.length);
+    for (let i = 0; i < limit; i++) {
+      if (p1[i] === p2[i]) {
+        c++;
+      } else {
+        break;
+      }
+    }
+
+    if (p1.join('/') === p2.join('/')) {
+      return 1.0;
+    }
+
+    const maxGap = (config as any).maxLevelGap || 3;
+    const relation = (config as any).relation || 'ANCESTOR_DESCENDANT';
+    const deduction = (config as any).deductionPerLevel || 5;
+
+    const refDist = p1.length - c;
+    const candDist = p2.length - c;
+    const gap = refDist + candDist;
+
+    if (relation === 'PARENT_CHILD') {
+      const isParentChild = (refDist === 1 && candDist === 0) || (refDist === 0 && candDist === 1);
+      if (!isParentChild) return 0.0;
+    } else if (relation === 'ANCESTOR_DESCENDANT') {
+      const isAncestorDescendant = (refDist === 0 || candDist === 0);
+      if (!isAncestorDescendant) {
+        // Cousin relationship is acceptable
+      }
+    }
+
+    if (gap > maxGap) {
+      return 0.0;
+    }
+
+    const rate = 1.0 - (gap * deduction / 100);
+    return Math.max(0, Math.min(1.0, rate));
+  }
+
+  // DATE TOLERANCE
+  if (matchKind === 'DATE_TOLERANCE') {
+    const t1 = new Date(refVal).getTime();
+    const t2 = new Date(candVal).getTime();
+    if (isNaN(t1) || isNaN(t2)) return 0.0;
+
+    const diffMs = t2 - t1;
+    const unit = (config as any).toleranceUnit || 'DAY';
+    const factor = unit === 'DAY' ? (1000 * 60 * 60 * 24) : (1000 * 60 * 60);
+    const diff = diffMs / factor;
+
+    const direction = (config as any).direction || 'BOTH';
+    if (direction === 'HIGHER' && diff < 0) return 0.0;
+    if (direction === 'LOWER' && diff > 0) return 0.0;
+
+    const absDiff = Math.abs(diff);
+    const tolVal = (config as any).toleranceValue || 7;
+
+    return absDiff <= tolVal ? 1.0 : 0.0;
+  }
+
+  return String(refVal) === String(candVal) ? 1.0 : 0.0;
+}
+
 export function runSimilaritySearch(
   objectType: string,
   requestCodeOrId: string,
@@ -1531,17 +1759,58 @@ export function runSimilaritySearch(
 
   // Filter rules relevant to this object type
   const typeRules = rules.filter(r => r.objectType === objectType);
-  const activeRules = typeRules.filter(r => r.isScoreActive);
+  const activeRules = typeRules.filter(r => r.isScoreActive && r.enabled);
 
   for (const cand of rawCandidates) {
     // 3. Step 1: Execute candidates hard filtration first
-    const lifecycleState = cand.lifecycleState || cand.attributes.lifecycle_state;
-    if (lifecycleState === '已作废' || lifecycleState === '已停用') {
+    let isFilteredByRules = false;
+    let filterReason = '';
+
+    for (const rule of typeRules) {
+      if (!rule.isFilterCondition || !rule.enabled) continue;
+      
+      const key = rule.propertyCode;
+      const refVal = reference ? reference.attributes[key] : null;
+      const candVal = cand.attributes[key];
+
+      // Default lifecycle state filter check
+      if (key === 'lifecycle_state') {
+        const valStr = String(candVal || cand.lifecycleState || '');
+        if (valStr === '已作废' || valStr === '已停用' || valStr === '已作废、已停用' || valStr.includes('作废') || valStr.includes('停用')) {
+          isFilteredByRules = true;
+          filterReason = `生命周期状态为已作废/已停用`;
+          break;
+        }
+      } else {
+        // General strong filter: candidate must match reference using the field's match rule (must be 100% match)
+        const isMissing = (candVal === null || candVal === undefined || candVal === '');
+        if (isMissing) {
+          isFilteredByRules = true;
+          filterReason = `强过滤字段 [${rule.fieldName}] 属性缺失`;
+          break;
+        }
+
+        const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
+        if (matchRate < 1.0) {
+          let formattedRef = refVal;
+          let formattedCand = candVal;
+          if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+            formattedRef = `${refVal}${rule.displayUnit}`;
+            formattedCand = `${candVal}${(cand as any).units?.[key] || rule.displayUnit}`;
+          }
+          isFilteredByRules = true;
+          filterReason = `强过滤不满足: 属性 [${rule.fieldName}] 不吻合 (源[${formattedRef}] vs 候选[${formattedCand}])`;
+          break;
+        }
+      }
+    }
+
+    if (isFilteredByRules) {
       filteredCandidates.push({
         objectId: cand.objectId,
         objectName: cand.objectName,
-        lifecycleState: lifecycleState,
-        filterReason: `生命周期状态为${lifecycleState}`
+        lifecycleState: cand.lifecycleState || cand.attributes.lifecycle_state,
+        filterReason: filterReason
       });
       continue;
     }
@@ -1625,146 +1894,34 @@ export function runSimilaritySearch(
 
       // Candidate has value
       sumActiveWeights += rule.weight;
-      let matchRate = 0;
+      const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
+      
       let status: 'FULL' | 'PARTIAL' | 'MISS' = 'MISS';
+      if (matchRate === 1.0) status = 'FULL';
+      else if (matchRate > 0) status = 'PARTIAL';
+      else status = 'MISS';
+
+      // Build specific reasons
       let reason = '';
-
-      if (key === 'spec_description') {
-        if (cand.objectId === 'PART-B-UNIT' || candVal === '六角螺栓 M10 x 50') {
-          matchRate = 0.70;
-          status = 'PARTIAL';
-          reason = '规格文本相似度达 70.0%, 差异在【头型】描述。';
-        } else if (cand.objectId === 'PART-C-MISSING' || candVal === '螺栓 M10') {
-          matchRate = 0.40;
-          status = 'PARTIAL';
-          reason = '规格文本相似度达 40.0%, 长度缺失。';
-        } else if (refVal === candVal) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '规格文本完全匹配';
-        } else {
-          // Jaccard character overlap
-          const s1 = new Set((refVal || '').toString().split(''));
-          const s2 = (candVal || '').toString().split('');
-          const common = s2.filter((c: string) => s1.has(c)).length;
-          matchRate = common / Math.max((refVal || '').toString().length, (candVal || '').toString().length);
-          status = matchRate === 1 ? 'FULL' : matchRate > 0 ? 'PARTIAL' : 'MISS';
-          reason = `文本匹配度为 ${(matchRate * 100).toFixed(1)}%`;
-        }
-      } else if (key === 'core_material') {
-        if (refVal === candVal) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '材质完全一致 (归一化值: SUS304)';
-        } else {
-          matchRate = 0;
-          status = 'MISS';
-          reason = `材质不一致: 源[${refVal}] vs 目标[${candVal}]`;
-        }
-      } else if (key === 'nominal_diameter') {
-        // Double check displayUnit and units mapping
-        const candUnit = (cand as any).units?.nominal_diameter || rule.displayUnit || 'mm';
-        const refUnit = rule.displayUnit || 'mm';
-        
-        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
-        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
-
-        if (Math.abs(refBase - candBase) < 1e-6) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = `${candVal}${candUnit} 换算后等于 ${refVal}${refUnit}，直径匹配`;
-        } else if (rule.matchType === '数值容差匹配') {
-          const refDisp = convertFromBaseUnit(refBase, rule.displayUnit, rule.unitFamily);
-          const candDisp = convertFromBaseUnit(candBase, rule.displayUnit, rule.unitFamily);
-          const diff = Math.abs(refDisp - candDisp);
-          let limit = 0.2;
-          if (rule.matchConfig && rule.matchConfig.kind === 'NUMERIC_TOLERANCE') {
-            limit = rule.matchConfig.toleranceValue;
-          }
-          if (diff <= limit) {
-            matchRate = 1.0;
-            status = 'FULL';
-            reason = `在数值容差范围 (+/- ${limit}${rule.displayUnit}) 内`;
+      if (matchRate === 1.0) {
+        if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+          const candUnit = (cand as any).units?.[key] || rule.displayUnit || '';
+          if (candUnit && candUnit !== rule.displayUnit) {
+            reason = `${candVal}${candUnit} 换算后等值命中 (统一至 ${refVal}${rule.displayUnit})`;
           } else {
-            matchRate = 0.0;
-            status = 'MISS';
-            reason = `直径相差过大 (${diff.toFixed(2)}${rule.displayUnit} > ${limit}${rule.displayUnit})`;
+            reason = `数值完全一致 (${refVal}${rule.displayUnit})`;
           }
         } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = `直径不一致: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
+          reason = `${rule.fieldName}完全一致`;
         }
-      } else if (key === 'thread_pitch') {
-        const candUnit = (cand as any).units?.thread_pitch || rule.displayUnit || 'mm';
-        const refUnit = rule.displayUnit || 'mm';
-        
-        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
-        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
-
-        if (Math.abs(refBase - candBase) < 1e-6) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '螺距完全一致 (1.5mm)';
+      } else if (matchRate > 0) {
+        if (rule.fieldType === '长文本 (LONG_TEXT)') {
+          reason = `规格文本相似度达 ${(matchRate * 100).toFixed(1)}%`;
         } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = `螺距不匹配: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
+          reason = `部分吻合 (匹配度 ${(matchRate * 100).toFixed(1)}%)`;
         }
-      } else if (key === 'category_path') {
-        if (refVal === candVal) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '分类路径完全一致';
-        } else if (refVal && candVal && refVal.toString().split('/')[1] === candVal.toString().split('/')[1]) {
-          matchRate = 0.8;
-          status = 'PARTIAL';
-          reason = '同属标准件大类，层级偏移扣分';
-        } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = '分类路径不吻合';
-        }
-      } else if (key === 'working_voltage') {
-        if (refVal === candVal) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '工作电压完全匹配 (12V)';
-        } else if (rule.matchType === '数值容差匹配') {
-          const diff = Math.abs(Number(refVal) - Number(candVal));
-          let limit = 12;
-          if (rule.matchConfig && rule.matchConfig.kind === 'NUMERIC_TOLERANCE') {
-            limit = rule.matchConfig.toleranceValue;
-          }
-          if (diff <= limit) {
-            matchRate = 1.0;
-            status = 'FULL';
-            reason = `在工作电压容差范围 (+/- ${limit}V) 内`;
-          } else {
-            matchRate = 0.0;
-            status = 'MISS';
-            reason = `电压相差过大 (${diff}V > ${limit}V)`;
-          }
-        } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = `电压范围不一致: 源[${refVal}V] vs 目标[${candVal}V]`;
-        }
-      } else if (key === 'working_temp') {
-        const candUnit = (cand as any).units?.working_temp || rule.displayUnit || 'K';
-        const refUnit = rule.displayUnit || 'K';
-        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
-        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
-
-        if (Math.abs(refBase - candBase) < 1e-6) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '工作温度换算后完全匹配';
-        } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = `温度不一致: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
-        }
+      } else {
+        reason = `${rule.fieldName}不匹配`;
       }
 
       const weightedScore = Number((rule.weight * matchRate).toFixed(2));

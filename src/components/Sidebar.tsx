@@ -69,6 +69,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               <span>应用端查找相似件</span>
               {currentView === 'client-find-similar' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
             </button>
+
+            <button
+              onClick={() => onNavigate('publish-records')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                currentView === 'publish-records'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 text-orange-400" />
+              <span>变更记录</span>
+              {currentView === 'publish-records' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+            </button>
           </div>
         </div>
 

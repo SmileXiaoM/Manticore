@@ -123,6 +123,32 @@ export default function App() {
   
   // View Router State
   const [currentView, setCurrentView] = useState<string>('field-rules');
+  const [pendingView, setPendingView] = useState<string | null>(null);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+
+  const handleNavigate = (newView: string) => {
+    const isModified = JSON.stringify(editingFieldRules) !== JSON.stringify(savedFieldRules);
+    if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
+      setPendingView(newView);
+      setShowUnsavedConfirm(true);
+    } else {
+      setCurrentView(newView);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setEditingFieldRules(JSON.parse(JSON.stringify(savedFieldRules)));
+    if (pendingView) {
+      setCurrentView(pendingView);
+    }
+    setPendingView(null);
+    setShowUnsavedConfirm(false);
+  };
+
+  const handleCancelDiscard = () => {
+    setPendingView(null);
+    setShowUnsavedConfirm(false);
+  };
 
   // Explicit independent configuration status per object type
   const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, {
@@ -147,10 +173,10 @@ export default function App() {
         // Non-shell Figma specification sheets taking up the full screen
         <div className="flex-1 overflow-auto">
           {currentView === 'attribute-types' && (
-            <AttributeTypesView onBackToApp={() => setCurrentView('field-rules')} />
+            <AttributeTypesView onBackToApp={() => handleNavigate('field-rules')} />
           )}
           {currentView === 'attribute-enums' && (
-            <AttributeEnumsView onBackToApp={() => setCurrentView('field-rules')} />
+            <AttributeEnumsView onBackToApp={() => handleNavigate('field-rules')} />
           )}
         </div>
       ) : (
@@ -158,14 +184,14 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top Admin Header Bar */}
           <Header 
-            onNavigate={setCurrentView} 
+            onNavigate={handleNavigate} 
           />
 
           {/* Sidebar & Body Split */}
           <div className="flex-1 flex overflow-hidden">
             
             {/* Sidebar Navigation */}
-            <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+            <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
             {/* Dynamic View Dispatcher */}
             <main className="flex-1 flex flex-col overflow-hidden">
@@ -181,7 +207,7 @@ export default function App() {
                   onUpdateChangeRecords={setChangeRecords}
                   objectConfigStatus={objectConfigStatus}
                   onUpdateConfigStatus={setObjectConfigStatus}
-                  onNavigate={setCurrentView}
+                  onNavigate={handleNavigate}
                 />
               )}
 
@@ -216,7 +242,7 @@ export default function App() {
                   savedRules={savedFieldRules}
                   activeRules={activeFieldRules}
                   objectConfigStatus={objectConfigStatus}
-                  onNavigate={setCurrentView}
+                  onNavigate={handleNavigate}
                 />
               )}
 
@@ -224,7 +250,7 @@ export default function App() {
                 <ClientFindSimilarView 
                   rules={activeFieldRules} 
                   objectConfigStatus={objectConfigStatus}
-                  onNavigate={setCurrentView}
+                  onNavigate={handleNavigate}
                 />
               )}
 
@@ -279,6 +305,45 @@ export default function App() {
                 />
               )}
             </main>
+          </div>
+        </div>
+      )}
+
+      {showUnsavedConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs" id="unsaved-modal-overlay">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in duration-150" id="unsaved-modal-content">
+            <div className="flex items-start space-x-3">
+              <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">未应用配置更改警告</h3>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                  检测到您当前在<strong>「二阶段字段属性相似度配置」</strong>中有尚未应用的编辑中草稿（即临时未保存更改）。
+                </p>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                  如果您现在切换页面，所有未保存的编辑内容都将丢失。是否确认放弃更改并离开？
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={handleCancelDiscard}
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+                id="btn-unsaved-cancel"
+              >
+                留在当前页面 (返回保存)
+              </button>
+              <button
+                onClick={handleConfirmDiscard}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+                id="btn-unsaved-discard"
+              >
+                放弃更改并离开
+              </button>
+            </div>
           </div>
         </div>
       )}

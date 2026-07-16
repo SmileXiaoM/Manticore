@@ -36,6 +36,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [objectId, setObjectId] = useState('PART-2026-000100');
   const [ruleVersion, setRuleVersion] = useState('DRAFT_POOL'); // DRAFT_POOL, SAVED_DRAFT, or ACTIVE_RELEASE
+  const [isSnapshotExpanded, setIsSnapshotExpanded] = useState(false);
 
   // Result loading state simulation
   const [isSearching, setIsSearching] = useState(false);
@@ -153,9 +154,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 onChange={(e) => setRuleVersion(e.target.value)}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500 min-w-[200px]"
               >
-                <option value="DRAFT_POOL">编辑中草稿 (含临时未保存更改)</option>
-                <option value="SAVED_DRAFT">已保存草稿 (通过100%权重校验)</option>
-                <option value="ACTIVE_RELEASE">线上当前生效配置 (Active)</option>
+                <option value="DRAFT_POOL">当前编辑内容 (未发布草稿)</option>
+                <option value="SAVED_DRAFT">已保存配置 (通过校验)</option>
+                <option value="ACTIVE_RELEASE">当前启用配置 (线上运行)</option>
               </select>
             </div>
 
@@ -181,6 +182,108 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
 
           </div>
+        </div>
+
+        {/* 1.15 本次试算规则快照 */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-2xs overflow-hidden" id="trial-rules-snapshot-panel">
+          <button
+            onClick={() => setIsSnapshotExpanded(!isSnapshotExpanded)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100 hover:bg-slate-100/70 transition-all text-xs font-semibold text-slate-700"
+            id="btn-toggle-snapshot"
+          >
+            <div className="flex items-center space-x-2">
+              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-sm font-mono text-[10px]">SNAPSHOT</span>
+              <span>本次试算规则快照 ({getRulesForVersion(ruleVersion).filter(r => r.objectType === objectType).length} 项配置)</span>
+              <span className="text-slate-400 font-normal">| 试算依据：{
+                ruleVersion === 'DRAFT_POOL' ? '当前编辑内容' : ruleVersion === 'SAVED_DRAFT' ? '已保存配置' : '当前启用配置'
+              }</span>
+            </div>
+            <div className="flex items-center space-x-1.5 text-blue-600">
+              <span className="text-[11px] font-normal">{isSnapshotExpanded ? '收起明细' : '展开明细'}</span>
+              <ChevronRight className={`w-3.5 h-3.5 transform transition-transform duration-200 ${isSnapshotExpanded ? 'rotate-90' : ''}`} />
+            </div>
+          </button>
+          
+          {isSnapshotExpanded && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/30" id="snapshot-content-grid">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {getRulesForVersion(ruleVersion)
+                  .filter(r => r.objectType === objectType)
+                  .map((rule) => {
+                    const isScoreActive = rule.isScoreActive;
+                    const isFilter = rule.isFilterCondition;
+                    
+                    return (
+                      <div key={rule.id} className={`p-3 rounded-md border ${rule.enabled ? 'bg-white border-slate-200' : 'bg-slate-50/50 border-slate-200/50 opacity-60'} flex flex-col justify-between text-xs`}>
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="font-bold text-slate-800 flex items-center space-x-1">
+                            <span>{rule.fieldName}</span>
+                            <span className="text-[10px] font-mono text-slate-400 font-normal">({rule.propertyCode})</span>
+                          </div>
+                          <div className="flex items-center space-x-1 shrink-0">
+                            {isFilter && (
+                              <span className="bg-rose-50 text-rose-600 border border-rose-100 text-[10px] px-1 py-0.2 rounded font-medium">强过滤</span>
+                            )}
+                            {isScoreActive && (
+                              <span className="bg-sky-50 text-sky-600 border border-sky-100 text-[10px] px-1 py-0.2 rounded font-medium">参算评分</span>
+                            )}
+                            {!rule.enabled && (
+                              <span className="bg-slate-100 text-slate-400 text-[10px] px-1 py-0.2 rounded font-medium">已禁用</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1 text-slate-500 text-[11px]">
+                          <div className="flex justify-between">
+                            <span>匹配策略:</span>
+                            <span className="font-medium text-slate-700">{rule.matchType}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>配置权重:</span>
+                            <span className="font-bold text-blue-600">{rule.weight}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>空值处理:</span>
+                            <span className="text-slate-600 truncate max-w-[150px]" title={rule.nullHandling}>{rule.nullHandling}</span>
+                          </div>
+                          
+                          {rule.matchConfig && (
+                            <div className="mt-1.5 pt-1.5 border-t border-dashed border-slate-100 text-[10px] text-slate-400 flex flex-wrap gap-x-2">
+                              {rule.matchConfig.kind === 'NUMERIC_TOLERANCE' && (
+                                <>
+                                  <span>容差: ±{(rule.matchConfig as any).toleranceValue}{rule.displayUnit}</span>
+                                  <span>类型: {(rule.matchConfig as any).toleranceType === 'PERCENTAGE' ? '百分比' : '绝对值'}</span>
+                                </>
+                              )}
+                              {rule.matchConfig.kind === 'NUMERIC_DECAY' && (
+                                <>
+                                  <span>无损区: ±{(rule.matchConfig as any).fullScoreRange}{rule.displayUnit}</span>
+                                  <span>归零界: ±{(rule.matchConfig as any).zeroScoreBoundary}{rule.displayUnit}</span>
+                                </>
+                              )}
+                              {rule.matchConfig.kind === 'TEXT_SIMILARITY' && (
+                                <>
+                                  <span>最小阀值: {(rule.matchConfig as any).threshold}%</span>
+                                </>
+                              )}
+                              {rule.matchConfig.kind === 'NATIVE_HIERARCHY' && (
+                                <>
+                                  <span>最大层级偏差: {(rule.matchConfig as any).maxLevelGap}</span>
+                                  <span>扣分/级: {(rule.matchConfig as any).deductionPerLevel}%</span>
+                                </>
+                              )}
+                              {rule.matchConfig.kind === 'EXACT' && (
+                                <span>精确匹配</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 1.2 源物料摘要区 */}
