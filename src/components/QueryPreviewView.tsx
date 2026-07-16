@@ -14,7 +14,9 @@ import { runSimilaritySearch } from '../data';
 import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
 
 interface QueryPreviewViewProps {
-  rules: FieldSimilarityRule[];
+  editingRules: FieldSimilarityRule[];
+  savedRules: FieldSimilarityRule[];
+  activeRules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, {
     enabled: boolean;
     configVersion: string;
@@ -23,11 +25,17 @@ interface QueryPreviewViewProps {
   onNavigate?: (view: string) => void;
 }
 
-export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ rules, objectConfigStatus, onNavigate }) => {
+export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ 
+  editingRules, 
+  savedRules, 
+  activeRules, 
+  objectConfigStatus, 
+  onNavigate 
+}) => {
   // Query parameters
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [objectId, setObjectId] = useState('PART-2026-000100');
-  const [ruleVersion, setRuleVersion] = useState('DRAFT_POOL'); // DRAFT_POOL vs v2.4.0
+  const [ruleVersion, setRuleVersion] = useState('DRAFT_POOL'); // DRAFT_POOL, SAVED_DRAFT, or ACTIVE_RELEASE
 
   // Result loading state simulation
   const [isSearching, setIsSearching] = useState(false);
@@ -37,20 +45,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ rules, objec
 
   // Dynamic search result state
   const getRulesForVersion = (version: string) => {
-    let rulesToUse = [...rules];
-    if (version === 'v2.4.0') {
-      // Use published weight version snapshots
-      rulesToUse = rulesToUse.map(r => {
-        if (r.propertyCode === 'spec_description') return { ...r, weight: 30 };
-        if (r.propertyCode === 'nominal_diameter') return { ...r, weight: 20 };
-        return r;
-      });
-    }
-    return rulesToUse;
+    if (version === 'DRAFT_POOL') return editingRules;
+    if (version === 'SAVED_DRAFT') return savedRules;
+    return activeRules;
   };
 
   const [searchResult, setSearchResult] = useState<SearchRunResult>(() => 
-    runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', rules)
+    runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', activeRules)
   );
 
   const { reference, scoredCandidates } = searchResult;
@@ -73,7 +74,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ rules, objec
     setObjectType('PART_MECHANICAL');
     setObjectId('PART-2026-000100');
     setRuleVersion('DRAFT_POOL');
-    const res = runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', rules);
+    const res = runSimilaritySearch('PART_MECHANICAL', 'PART-2026-000100', editingRules);
     setSearchResult(res);
     setHasSearched(true);
     setSelectedCandidate(null);
@@ -150,10 +151,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({ rules, objec
                 id="select-rule-version"
                 value={ruleVersion}
                 onChange={(e) => setRuleVersion(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500 min-w-[180px]"
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500 min-w-[200px]"
               >
-                <option value="DRAFT_POOL">当前草稿池规则 (含未发布更改)</option>
-                <option value="v2.4.0">线上已发布规则 (v2.4.0)</option>
+                <option value="DRAFT_POOL">编辑中草稿 (含临时未保存更改)</option>
+                <option value="SAVED_DRAFT">已保存草稿 (通过100%权重校验)</option>
+                <option value="ACTIVE_RELEASE">线上当前生效配置 (Active)</option>
               </select>
             </div>
 

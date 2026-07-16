@@ -8,79 +8,23 @@ import {
   SlidersHorizontal,
   Search
 } from 'lucide-react';
+import { ChangeRecord } from '../types';
 
-interface ChangeRecord {
-  id: string;
-  objectType: string;
-  configVersion: string;
-  operationType: '保存' | '启用' | '停用';
-  summary: string;
-  operator: string;
-  time: string;
-  result: 'SUCCESS' | 'FAILED';
-  failureReason?: string;
+interface PublishRecordViewProps {
+  changeRecords: ChangeRecord[];
 }
 
-export const PublishRecordView: React.FC = () => {
-  const [changeRecords, setChangeRecords] = useState<ChangeRecord[]>([
-    {
-      id: 'CR-001',
-      objectType: '机械零件 (PART_MECHANICAL)',
-      configVersion: 'v2.5.0',
-      operationType: '启用',
-      summary: '微调主要材质权重为25%，标称直径权重为15%，启用全套相似度计算规则，单位目录验证正常。',
-      operator: '李晓华 (数据标准管理员)',
-      time: '2026-07-15 16:30:12',
-      result: 'SUCCESS'
-    },
-    {
-      id: 'CR-002',
-      objectType: '电气元器件 (PART_ELECTRICAL)',
-      configVersion: 'v1.0.1',
-      operationType: '保存',
-      summary: '配置工作电压规则，保存未完成配置但暂不启用。权重累计为30%，继续完善其他字段。',
-      operator: '赵丽 (电气工程师)',
-      time: '2026-07-15 15:45:22',
-      result: 'SUCCESS'
-    },
-    {
-      id: 'CR-003',
-      objectType: '机械零件 (PART_MECHANICAL)',
-      configVersion: 'v2.4.9',
-      operationType: '启用',
-      summary: '尝试启用新增标称直径字段强过滤规则，因配置权重总和85%不满足100%要求导致校验失败。',
-      operator: '王明 (机械工程师)',
-      time: '2026-07-15 14:10:05',
-      result: 'FAILED',
-      failureReason: '参与评分字段权重合计为 85%，不满足 100% 满分校验规则。'
-    },
-    {
-      id: 'CR-004',
-      objectType: '电气元器件 (PART_ELECTRICAL)',
-      configVersion: 'v1.0.0',
-      operationType: '停用',
-      summary: '由于电气元器件分类元数据重构，手动下线停用该对象类型的二阶段相似度对比计算。',
-      operator: '张建国 (系统架构师)',
-      time: '2026-07-12 11:20:00',
-      result: 'SUCCESS'
-    },
-    {
-      id: 'CR-005',
-      objectType: '机械零件 (PART_MECHANICAL)',
-      configVersion: 'v2.4.0',
-      operationType: '启用',
-      summary: '完成机械零件初版配置规则映射启用，主要覆盖规格描述、标称直径、主要材质、螺距和分类。',
-      operator: '张建国 (系统架构师)',
-      time: '2026-07-02 15:00:00',
-      result: 'SUCCESS'
-    }
-  ]);
-
+export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeRecords }) => {
   const [filterObjectType, setFilterObjectType] = useState<string>('ALL');
   const [filterOpType, setFilterOpType] = useState<string>('ALL');
 
   const filteredRecords = changeRecords.filter(r => {
-    const matchType = filterObjectType === 'ALL' || r.objectType.includes(filterObjectType);
+    const objectTypeMap: Record<string, string> = {
+      'PART_MECHANICAL': '机械零件',
+      'PART_ELECTRICAL': '电气元器件'
+    };
+    const targetLabel = objectTypeMap[filterObjectType] || filterObjectType;
+    const matchType = filterObjectType === 'ALL' || r.objectType.includes(targetLabel);
     const matchOp = filterOpType === 'ALL' || r.operationType === filterOpType;
     return matchType && matchOp;
   });

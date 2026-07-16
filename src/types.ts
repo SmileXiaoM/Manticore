@@ -152,6 +152,18 @@ export interface PublishRecord {
   status: 'ACTIVE' | 'SUPERSEDED' | 'ROLLEDBACK'; // 发布状态
 }
 
+export interface ChangeRecord {
+  id: string;
+  objectType: string;
+  configVersion: string;
+  operationType: '保存' | '启用' | '停用';
+  summary: string;
+  operator: string;
+  time: string;
+  result: 'SUCCESS' | 'FAILED';
+  failureReason?: string;
+}
+
 export interface VersionDiffItem {
   fieldName: string;
   beforeValue: string;

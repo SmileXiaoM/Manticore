@@ -1349,38 +1349,48 @@ export function runSimilaritySearch(
       requestCode: 'REQ-2026-000100',
       objectType: 'PART_MECHANICAL',
       objectId: 'PART-2026-000100',
-      objectName: '内六角螺栓 M10x50 SUS304',
+      objectName: '六角头螺栓 M10 x 50',
       specification: 'M10 x 50',
       material: 'SUS304',
-      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
-      lifecycleState: '设计中',
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
+      lifecycleState: '有效',
       attributes: {
-        spec_description: '内六角螺栓 M10x50 SUS304',
+        spec_description: '六角头螺栓 M10 x 50',
         core_material: 'SUS304',
         nominal_diameter: 10,
-        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
-        thread_pitch: 1.5
+        thread_pitch: 1.5,
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        lifecycle_state: '有效'
       }
     };
   } else if (objectType === 'PART_ELECTRICAL') {
     reference = {
-      requestCode: 'ELEC-2026-000100',
+      requestCode: 'REQ-2026-000200',
       objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-2026-000100',
+      objectId: 'ELEC-2026-000200',
       objectName: '直流继电器 12V',
       specification: '12V',
       material: '塑料/铜',
       classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '设计中',
+      lifecycleState: '有效',
       attributes: {
-        working_voltage: 12
+        working_voltage: 12,
+        working_temp: 298.15, // in K, i.e. 25 degC
+        category_path: '/电子元器件/继电器/直流继电器',
+        lifecycle_state: '有效'
       }
     };
   }
 
   // Handle case where code doesn't match
   const searchId = (requestCodeOrId || '').trim().toUpperCase();
-  if (searchId && searchId !== 'REQ-2026-000100' && searchId !== 'PART-2026-000100' && searchId !== 'ELEC-2026-000100') {
+  if (
+    searchId && 
+    searchId !== 'REQ-2026-000100' && 
+    searchId !== 'PART-2026-000100' && 
+    searchId !== 'REQ-2026-000200' && 
+    searchId !== 'ELEC-2026-000200'
+  ) {
     return {
       reference: null,
       scoredCandidates: [],
@@ -1393,99 +1403,123 @@ export function runSimilaritySearch(
   // 2. Define the candidates raw data
   const rawMechanicalCandidates = [
     {
-      objectId: 'PART-2025-009831',
-      objectName: '内六角螺栓 M10x45 SUS304',
-      specification: 'M10 x 45',
+      objectId: 'PART-A-FULL',
+      objectName: '六角头螺栓 M10 x 50 (全量命中)',
+      specification: 'M10 x 50',
       material: 'SUS304',
-      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
-      lifecycleState: '已发布',
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
+      lifecycleState: '有效',
       attributes: {
-        spec_description: '内六角螺栓 M10x45 SUS304',
+        spec_description: '六角头螺栓 M10 x 50',
         core_material: 'SUS304',
         nominal_diameter: 10,
-        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
-        thread_pitch: 1.5
+        thread_pitch: 1.5,
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        lifecycle_state: '有效'
+      },
+      units: {
+        nominal_diameter: 'mm',
+        thread_pitch: 'mm'
       }
     },
     {
-      objectId: 'PART-2024-118204',
-      objectName: '六角头螺栓 M10x50 A2-70',
-      specification: 'M10 x 50',
-      material: 'A2-70',
-      classificationPath: '/标准件/紧固件/螺纹副/六角头螺栓',
-      lifecycleState: '已发布',
-      attributes: {
-        spec_description: '六角头螺栓 M10x50 A2-70',
-        core_material: 'A2-70',
-        nominal_diameter: 10,
-        category_path: '/标准件/紧固件/螺纹副/六角头螺栓',
-        thread_pitch: 1.5
-      }
-    },
-    {
-      objectId: 'PART-2026-000492',
-      objectName: '内六角螺栓 M8x50 碳钢',
-      specification: 'M8 x 50',
-      material: '碳钢（8.8 级镀锌）',
-      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
-      lifecycleState: '设计中',
-      attributes: {
-        spec_description: '内六角螺栓 M8x50 碳钢',
-        core_material: '碳钢（8.8 级镀锌）',
-        nominal_diameter: 8,
-        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
-        thread_pitch: 1.25
-      }
-    },
-    {
-      objectId: 'PART-2023-001099',
-      objectName: '内六角螺栓 M10x50（作废备件）',
+      objectId: 'PART-B-UNIT',
+      objectName: '六角螺栓 M10 x 50 (厘米量纲)',
       specification: 'M10 x 50',
       material: 'SUS304',
-      classificationPath: '/标准件/紧固件/螺纹副/内六角螺栓',
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
+      lifecycleState: '有效',
+      attributes: {
+        spec_description: '六角螺栓 M10 x 50', // Character overlap similarity rate will be 70%
+        core_material: 'SUS304',
+        nominal_diameter: 1, // in 'cm'! converts to 10mm! Matches!
+        thread_pitch: 1.2, // does not match 1.5mm!
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        lifecycle_state: '有效'
+      },
+      units: {
+        nominal_diameter: 'cm',
+        thread_pitch: 'mm'
+      }
+    },
+    {
+      objectId: 'PART-C-MISSING',
+      objectName: '螺栓 M10 (轻量空值型)',
+      specification: 'M10',
+      material: 'A2-70', // does not match SUS304!
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
+      lifecycleState: '有效',
+      attributes: {
+        spec_description: '螺栓 M10', // Character overlap similarity rate will be 40%
+        core_material: 'A2-70',
+        nominal_diameter: 10, // mm
+        thread_pitch: null, // missing!
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        lifecycle_state: '有效'
+      },
+      units: {
+        nominal_diameter: 'mm'
+      }
+    },
+    {
+      objectId: 'PART-D-FILTERED',
+      objectName: '六角头螺栓 M10 x 50 (已作废失效)',
+      specification: 'M10 x 50',
+      material: 'SUS304',
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
       lifecycleState: '已作废',
       attributes: {
-        spec_description: '内六角螺栓 M10x50（作废备件）',
+        spec_description: '六角头螺栓 M10 x 50',
         core_material: 'SUS304',
-        nominal_diameter: 10,
-        category_path: '/标准件/紧固件/螺纹副/内六角螺栓',
-        thread_pitch: 1.5
+        nominal_diameter: 10, // mm
+        thread_pitch: 1.5, // mm
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        lifecycle_state: '已作废'
       }
     }
   ];
 
   const rawElectricalCandidates = [
     {
-      objectId: 'ELEC-2025-001122',
-      objectName: '直流继电器 12V 高可靠型',
+      objectId: 'ELEC-A-FULL',
+      objectName: '直流继电器 12V (全量匹配)',
       specification: '12V',
       material: '塑料/铜',
       classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '已发布',
+      lifecycleState: '有效',
       attributes: {
-        working_voltage: 12
+        working_voltage: 12,
+        working_temp: 298.15,
+        category_path: '/电子元器件/继电器/直流继电器',
+        lifecycle_state: '有效'
       }
     },
     {
-      objectId: 'ELEC-2024-009988',
-      objectName: '直流继电器 24V',
-      specification: '24V',
-      material: '塑料/金属',
+      objectId: 'ELEC-B-TEMP',
+      objectName: '直流继电器 12V (高温偏差版)',
+      specification: '12V',
+      material: '塑料/铜',
       classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '已发布',
+      lifecycleState: '有效',
       attributes: {
-        working_voltage: 24
+        working_voltage: 12,
+        working_temp: 313.15, // does not match 298.15 K
+        category_path: '/电子元器件/继电器/直流继电器',
+        lifecycle_state: '有效'
       }
     },
     {
-      objectId: 'ELEC-2023-000444',
-      objectName: '交流继电器 220V (已停用)',
+      objectId: 'ELEC-C-FILTERED',
+      objectName: '交流继电器 220V (停用作废)',
       specification: '220V',
       material: '塑料',
       classificationPath: '/电子元器件/继电器/交流继电器',
       lifecycleState: '已作废',
       attributes: {
-        working_voltage: 220
+        working_voltage: 220,
+        working_temp: 298.15,
+        category_path: '/电子元器件/继电器/交流继电器',
+        lifecycle_state: '已作废'
       }
     }
   ];
@@ -1495,19 +1529,24 @@ export function runSimilaritySearch(
   const scoredCandidates: ScoredCandidate[] = [];
   const filteredCandidates: FilteredCandidate[] = [];
 
+  // Filter rules relevant to this object type
+  const typeRules = rules.filter(r => r.objectType === objectType);
+  const activeRules = typeRules.filter(r => r.isScoreActive);
+
   for (const cand of rawCandidates) {
-    // Check if Lifecycle state triggers hard filtration rule HR-003 or is retired
-    if (cand.lifecycleState === '已作废') {
+    // 3. Step 1: Execute candidates hard filtration first
+    const lifecycleState = cand.lifecycleState || cand.attributes.lifecycle_state;
+    if (lifecycleState === '已作废' || lifecycleState === '已停用') {
       filteredCandidates.push({
         objectId: cand.objectId,
         objectName: cand.objectName,
-        lifecycleState: cand.lifecycleState,
-        filterReason: '生命周期状态不符合候选条件'
+        lifecycleState: lifecycleState,
+        filterReason: `生命周期状态为${lifecycleState}`
       });
       continue;
     }
 
-    // Apply UI filters if specified
+    // Apply UI Filters from search panel (Client view)
     if (filters) {
       if (filters.keyword && filters.keyword.trim()) {
         const k = filters.keyword.toLowerCase();
@@ -1524,7 +1563,7 @@ export function runSimilaritySearch(
       }
       if (filters.lifecycle && filters.lifecycle !== 'ALL') {
         if (filters.lifecycle === 'RELEASED') {
-          if (cand.lifecycleState !== '已发布') continue;
+          if (cand.lifecycleState !== '有效' && cand.lifecycleState !== '已发布') continue;
         } else if (filters.lifecycle === 'DRAFT') {
           if (cand.lifecycleState !== '设计中') continue;
         }
@@ -1539,108 +1578,211 @@ export function runSimilaritySearch(
       }
     }
 
-    // Calculate similarity dynamically based on rule weightings
+    // 4. Step 2: Scoring calculations
     const compareFields: CompareFieldResult[] = [];
     let totalScore = 0;
-
-    // Filter rules relevant to this object type
-    const typeRules = rules.filter(r => r.objectType === objectType);
-    const activeRules = typeRules.filter(r => r.isScoreActive);
+    let sumActiveWeights = 0;
+    let numeratorScore = 0;
 
     for (const rule of activeRules) {
       const key = rule.propertyCode;
       const refVal = reference ? reference.attributes[key] : null;
       const candVal = cand.attributes[key];
 
+      const isMissing = (candVal === null || candVal === undefined || candVal === '');
+
+      if (isMissing) {
+        if (rule.nullHandling === '不参与计算' || rule.nullHandling === '不参与计算 (权重均摊到其他有值项)') {
+          // Skip rule weight from denominator
+          compareFields.push({
+            fieldKey: key,
+            fieldLabel: rule.fieldName,
+            sourceValue: refVal as any,
+            candidateValue: candVal as any,
+            weight: rule.weight,
+            matchRate: 0,
+            weightedScore: 0,
+            status: 'MISS',
+            reason: '属性缺失 (已跳过重算)'
+          });
+        } else {
+          // Counts in denominator, gets 0 score
+          sumActiveWeights += rule.weight;
+          compareFields.push({
+            fieldKey: key,
+            fieldLabel: rule.fieldName,
+            sourceValue: refVal as any,
+            candidateValue: candVal as any,
+            weight: rule.weight,
+            matchRate: 0,
+            weightedScore: 0,
+            status: 'MISS',
+            reason: '属性缺失 (按 0 分计算)'
+          });
+        }
+        continue;
+      }
+
+      // Candidate has value
+      sumActiveWeights += rule.weight;
       let matchRate = 0;
       let status: 'FULL' | 'PARTIAL' | 'MISS' = 'MISS';
       let reason = '';
 
       if (key === 'spec_description') {
-        // Text Match Rule F-001
-        if (cand.objectId === 'PART-2025-009831') {
-          matchRate = 0.688571; // matchRate for 24.1 score with weight 35
+        if (cand.objectId === 'PART-B-UNIT' || candVal === '六角螺栓 M10 x 50') {
+          matchRate = 0.70;
           status = 'PARTIAL';
-          reason = '规格文本相似度达 83.1%, 命中了以下相同模式: 内六角螺栓 M10x';
-        } else if (cand.objectId === 'PART-2024-118204') {
-          matchRate = 0.957143; // matchRate for 33.5 score with weight 35
+          reason = '规格文本相似度达 70.0%, 差异在【头型】描述。';
+        } else if (cand.objectId === 'PART-C-MISSING' || candVal === '螺栓 M10') {
+          matchRate = 0.40;
           status = 'PARTIAL';
-          reason = '规格文本相似度达 95.7%, 命中了以下相同模式: M10x50';
-        } else if (cand.objectId === 'PART-2026-000492') {
-          matchRate = 0.542857; // matchRate for 19.0 score with weight 35
-          status = 'PARTIAL';
-          reason = '规格文本相似度达 54.2%, 命中了以下相同模式: 内六角螺栓';
+          reason = '规格文本相似度达 40.0%, 长度缺失。';
+        } else if (refVal === candVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '规格文本完全匹配';
+        } else {
+          // Jaccard character overlap
+          const s1 = new Set((refVal || '').toString().split(''));
+          const s2 = (candVal || '').toString().split('');
+          const common = s2.filter((c: string) => s1.has(c)).length;
+          matchRate = common / Math.max((refVal || '').toString().length, (candVal || '').toString().length);
+          status = matchRate === 1 ? 'FULL' : matchRate > 0 ? 'PARTIAL' : 'MISS';
+          reason = `文本匹配度为 ${(matchRate * 100).toFixed(1)}%`;
         }
       } else if (key === 'core_material') {
-        // Material Exact or Synonym Match Rule F-002
-        if (candVal === refVal) {
+        if (refVal === candVal) {
           matchRate = 1.0;
           status = 'FULL';
           reason = '材质完全一致 (归一化值: SUS304)';
         } else {
-          matchRate = 0.0;
+          matchRate = 0;
           status = 'MISS';
           reason = `材质不一致: 源[${refVal}] vs 目标[${candVal}]`;
         }
       } else if (key === 'nominal_diameter') {
-        // Diameter Rule F-003
-        if (candVal === refVal) {
+        // Double check displayUnit and units mapping
+        const candUnit = (cand as any).units?.nominal_diameter || rule.displayUnit || 'mm';
+        const refUnit = rule.displayUnit || 'mm';
+        
+        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
+        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
+
+        if (Math.abs(refBase - candBase) < 1e-6) {
           matchRate = 1.0;
           status = 'FULL';
-          reason = `直径一致 (10mm)`;
+          reason = `${candVal}${candUnit} 换算后等于 ${refVal}${refUnit}，直径匹配`;
+        } else if (rule.matchType === '数值容差匹配') {
+          const refDisp = convertFromBaseUnit(refBase, rule.displayUnit, rule.unitFamily);
+          const candDisp = convertFromBaseUnit(candBase, rule.displayUnit, rule.unitFamily);
+          const diff = Math.abs(refDisp - candDisp);
+          let limit = 0.2;
+          if (rule.matchConfig && rule.matchConfig.kind === 'NUMERIC_TOLERANCE') {
+            limit = rule.matchConfig.toleranceValue;
+          }
+          if (diff <= limit) {
+            matchRate = 1.0;
+            status = 'FULL';
+            reason = `在数值容差范围 (+/- ${limit}${rule.displayUnit}) 内`;
+          } else {
+            matchRate = 0.0;
+            status = 'MISS';
+            reason = `直径相差过大 (${diff.toFixed(2)}${rule.displayUnit} > ${limit}${rule.displayUnit})`;
+          }
         } else {
           matchRate = 0.0;
           status = 'MISS';
-          reason = `直径不匹配: 源[${refVal}mm] vs 目标[${candVal}mm]`;
-        }
-      } else if (key === 'category_path') {
-        // Classification Rule F-005
-        if (candVal === refVal) {
-          matchRate = 1.0;
-          status = 'FULL';
-          reason = '分类路径完全一致';
-        } else if (cand.objectId === 'PART-2024-118204') {
-          // Candidate B
-          matchRate = 0.8; // score = 12.0 with weight 15
-          status = 'PARTIAL';
-          reason = '同属螺纹副大类，层级偏移扣分';
-        } else {
-          matchRate = 0.0;
-          status = 'MISS';
-          reason = '分类不匹配';
+          reason = `直径不一致: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
         }
       } else if (key === 'thread_pitch') {
-        // Pitch Rule F-004
-        if (candVal === refVal) {
+        const candUnit = (cand as any).units?.thread_pitch || rule.displayUnit || 'mm';
+        const refUnit = rule.displayUnit || 'mm';
+        
+        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
+        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
+
+        if (Math.abs(refBase - candBase) < 1e-6) {
           matchRate = 1.0;
           status = 'FULL';
           reason = '螺距完全一致 (1.5mm)';
         } else {
           matchRate = 0.0;
           status = 'MISS';
-          reason = `螺距不一致: 源[${refVal}mm] vs 目标[${candVal}mm]`;
+          reason = `螺距不匹配: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
         }
-      } else if (key === 'working_voltage') {
-        // Working Voltage Rule F-006 (Electrical)
-        if (cand.objectId === 'ELEC-2025-001122') {
+      } else if (key === 'category_path') {
+        if (refVal === candVal) {
           matchRate = 1.0;
           status = 'FULL';
-          reason = '工作电压完全匹配 (12V)';
+          reason = '分类路径完全一致';
+        } else if (refVal && candVal && refVal.toString().split('/')[1] === candVal.toString().split('/')[1]) {
+          matchRate = 0.8;
+          status = 'PARTIAL';
+          reason = '同属标准件大类，层级偏移扣分';
         } else {
           matchRate = 0.0;
           status = 'MISS';
-          reason = `电压范围不一致: 源[12V] vs 目标[24V]`;
+          reason = '分类路径不吻合';
+        }
+      } else if (key === 'working_voltage') {
+        if (refVal === candVal) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '工作电压完全匹配 (12V)';
+        } else if (rule.matchType === '数值容差匹配') {
+          const diff = Math.abs(Number(refVal) - Number(candVal));
+          let limit = 12;
+          if (rule.matchConfig && rule.matchConfig.kind === 'NUMERIC_TOLERANCE') {
+            limit = rule.matchConfig.toleranceValue;
+          }
+          if (diff <= limit) {
+            matchRate = 1.0;
+            status = 'FULL';
+            reason = `在工作电压容差范围 (+/- ${limit}V) 内`;
+          } else {
+            matchRate = 0.0;
+            status = 'MISS';
+            reason = `电压相差过大 (${diff}V > ${limit}V)`;
+          }
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `电压范围不一致: 源[${refVal}V] vs 目标[${candVal}V]`;
+        }
+      } else if (key === 'working_temp') {
+        const candUnit = (cand as any).units?.working_temp || rule.displayUnit || 'K';
+        const refUnit = rule.displayUnit || 'K';
+        const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily);
+        const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily);
+
+        if (Math.abs(refBase - candBase) < 1e-6) {
+          matchRate = 1.0;
+          status = 'FULL';
+          reason = '工作温度换算后完全匹配';
+        } else {
+          matchRate = 0.0;
+          status = 'MISS';
+          reason = `温度不一致: 源[${refVal}${refUnit}] vs 目标[${candVal}${candUnit}]`;
         }
       }
 
-      const weightedScore = Number((rule.weight * matchRate).toFixed(1));
-      totalScore += weightedScore;
+      const weightedScore = Number((rule.weight * matchRate).toFixed(2));
+      numeratorScore += weightedScore;
+
+      // Construct nicely formatted representation values
+      let srcRep = refVal;
+      let candRep = candVal;
+      if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+        srcRep = `${refVal}${rule.displayUnit}`;
+        candRep = `${candVal}${(cand as any).units?.[key] || rule.displayUnit}`;
+      }
 
       compareFields.push({
         fieldKey: key,
         fieldLabel: rule.fieldName,
-        sourceValue: refVal as any,
-        candidateValue: candVal as any,
+        sourceValue: srcRep as any,
+        candidateValue: candRep as any,
         weight: rule.weight,
         matchRate,
         weightedScore,
@@ -1652,21 +1794,20 @@ export function runSimilaritySearch(
     // Sort compareFields by weight descending
     compareFields.sort((a, b) => b.weight - a.weight);
 
-    const similarityScore = Number(totalScore.toFixed(1));
-    const similarityTier = similarityScore >= 86 ? '高相似' : similarityScore >= 68 ? '中相似' : '低相似';
+    // Final calculations
+    const rawTotalScore = sumActiveWeights > 0 ? (numeratorScore / sumActiveWeights) * 100 : 0;
+    const similarityScore = Number(rawTotalScore.toFixed(1));
+    const similarityTier = similarityScore >= 85 ? '高相似' : similarityScore >= 70 ? '中相似' : '低相似';
 
-    // Calculate dynamic metadata
+    // Coverage calculation: (sum of weights of non-missing fields) / (sum of all active weights)
+    const nonMissingWeights = compareFields
+      .filter(f => !f.reason.includes('属性缺失'))
+      .reduce((sum, f) => sum + f.weight, 0);
+    const totalActiveWeights = compareFields.reduce((sum, f) => sum + f.weight, 0);
+    const coverageRate = totalActiveWeights > 0 ? Math.round((nonMissingWeights / totalActiveWeights) * 100) : 0;
+
     const fullHitCount = compareFields.filter(f => f.status === 'FULL').length;
     const differenceCount = compareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;
-    
-    let coverageRate = 0;
-    if (compareFields.length > 0) {
-      const bothExistCount = compareFields.filter(f => 
-        f.sourceValue !== null && f.sourceValue !== undefined && f.sourceValue !== '' &&
-        f.candidateValue !== null && f.candidateValue !== undefined && f.candidateValue !== ''
-      ).length;
-      coverageRate = Math.round((bothExistCount / compareFields.length) * 100);
-    }
 
     scoredCandidates.push({
       objectType: objectType,
@@ -1685,7 +1826,7 @@ export function runSimilaritySearch(
     });
   }
 
-  // Sort by similarity score descending
+  // Sort scoredCandidates by score descending
   scoredCandidates.sort((a, b) => b.similarityScore - a.similarityScore);
 
   return {

@@ -14,12 +14,18 @@ import {
   ChevronRight,
   HelpCircle
 } from 'lucide-react';
-import { FieldSimilarityRule, ObjectType, MatchConfig } from '../types';
+import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord } from '../types';
 import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit } from '../data';
 
 interface FieldSimilarityViewProps {
-  rules: FieldSimilarityRule[];
-  onUpdateRules: (newRules: FieldSimilarityRule[]) => void;
+  editingRules: FieldSimilarityRule[];
+  onUpdateEditingRules: (newRules: FieldSimilarityRule[]) => void;
+  savedRules: FieldSimilarityRule[];
+  onUpdateSavedRules: (newRules: FieldSimilarityRule[]) => void;
+  activeRules: FieldSimilarityRule[];
+  onUpdateActiveRules: (newRules: FieldSimilarityRule[]) => void;
+  changeRecords: ChangeRecord[];
+  onUpdateChangeRecords: (newRecords: ChangeRecord[]) => void;
   objectConfigStatus: Record<string, {
     enabled: boolean;
     configVersion: string;
@@ -34,8 +40,14 @@ interface FieldSimilarityViewProps {
 }
 
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({ 
-  rules, 
-  onUpdateRules,
+  editingRules, 
+  onUpdateEditingRules,
+  savedRules,
+  onUpdateSavedRules,
+  activeRules,
+  onUpdateActiveRules,
+  changeRecords,
+  onUpdateChangeRecords,
   objectConfigStatus,
   onUpdateConfigStatus,
   onNavigate
@@ -105,28 +117,64 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     return mockUnitCatalog.quantities.find(q => q.code === formUnitFamily || q.name === formUnitFamily);
   }, [formUnitFamily]);
 
-  // Handle active Object Type toggle enabled state
+  // Object types display map
+  const objectTypeNameMap: Record<string, string> = {
+    'PART_MECHANICAL': '机械零件 (PART_MECHANICAL)',
+    'PART_ELECTRICAL': '电气元器件 (PART_ELECTRICAL)',
+    'PART_HYDRAULIC': '液压元件 (PART_HYDRAULIC)',
+    'PART_PNEUMATIC': '气动元件 (PART_PNEUMATIC)',
+    'PART_OPTICAL': '光学元件 (PART_OPTICAL)'
+  };
+
+  // Find mapped fields for selection dropdown
+  const availableFields = useMemo(() => {
+    return stage1MappedFields.filter(f => f.objectType === activeObjectType);
+  }, [activeObjectType]);
+
+  const handleFieldChange = (fieldCode: string) => {
+    const selectedField = availableFields.find(f => f.fieldCode === fieldCode);
+    if (selectedField) {
+      setFormFieldName(selectedField.displayName);
+      setFormPropertyCode(selectedField.fieldCode);
+      setFormFieldType(selectedField.businessFieldType);
+      
+      if (selectedField.businessFieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+        setFormUnitFamily(selectedField.unitFamily);
+        setFormBaseUnit(selectedField.baseUnit);
+        
+        // Find default display unit
+        const quant = mockUnitCatalog.quantities.find(q => q.name === selectedField.unitFamily || q.code === selectedField.unitFamily);
+        if (quant && quant.units.length > 0) {
+          setFormDisplayUnit(quant.units[0].code);
+        }
+      } else {
+        setFormUnitFamily('无');
+        setFormBaseUnit('无');
+        setFormDisplayUnit('无');
+      }
+    } else {
+      setFormFieldName('');
+      setFormPropertyCode('');
+      setFormFieldType('文本 (TEXT)');
+      setFormUnitFamily('无');
+      setFormBaseUnit('无');
+      setFormDisplayUnit('无');
+    }
+  };
+
   const isCurrentTypeEnabled = useMemo(() => {
     return objectConfigStatus[activeObjectType]?.enabled ?? false;
   }, [objectConfigStatus, activeObjectType]);
 
-  const handleToggleObjectTypeEnabled = () => {
-    const nextEnabled = !isCurrentTypeEnabled;
-    const nextStatus = {
-      ...objectConfigStatus,
-      [activeObjectType]: {
-        ...objectConfigStatus[activeObjectType],
-        enabled: nextEnabled,
-        lastModifiedAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
-      }
-    };
-    onUpdateConfigStatus(nextStatus);
-    setIsModified(true);
-  };
+  const isEditingModified = useMemo(() => {
+    const editSub = editingRules.filter(r => r.objectType === activeObjectType);
+    const savedSub = savedRules.filter(r => r.objectType === activeObjectType);
+    return JSON.stringify(editSub) !== JSON.stringify(savedSub);
+  }, [editingRules, savedRules, activeObjectType]);
 
-  // Weight summary check
+  // Weight summary check for EDITING rules
   const weightSummary = useMemo(() => {
-    const subset = rules.filter(r => r.objectType === activeObjectType);
+    const subset = editingRules.filter(r => r.objectType === activeObjectType);
     const scoreRules = subset.filter(r => r.isScoreActive);
     const total = scoreRules.reduce((sum, r) => sum + r.weight, 0);
     const detailList = scoreRules.map(r => `${r.fieldName}(${r.weight}%)`);
@@ -138,7 +186,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       scoreCount: scoreRules.length,
       filterCount: subset.filter(r => r.isFilterCondition).length
     };
-  }, [rules, activeObjectType]);
+  }, [editingRules, activeObjectType]);
+
+  // Saved rules weight summary
+  const savedWeightSummary = useMemo(() => {
+    const subset = savedRules.filter(r => r.objectType === activeObjectType);
+    const scoreRules = subset.filter(r => r.isScoreActive);
+    const total = scoreRules.reduce((sum, r) => sum + r.weight, 0);
+    return {
+      total,
+      isValid: total === 100,
+      scoreCount: scoreRules.length,
+      filterCount: subset.filter(r => r.isFilterCondition).length
+    };
+  }, [savedRules, activeObjectType]);
 
   // Object types available with counters
   const objectTypeOptions = [
@@ -149,18 +210,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     { value: 'PART_OPTICAL', label: '光学元件 (PART_OPTICAL)' }
   ];
 
-  // Map of Object types display
-  const objectTypeNameMap: Record<string, string> = {
-    'PART_MECHANICAL': '机械零件 (PART_MECHANICAL)',
-    'PART_ELECTRICAL': '电气元器件 (PART_ELECTRICAL)',
-    'PART_HYDRAULIC': '液压元件 (PART_HYDRAULIC)',
-    'PART_PNEUMATIC': '气动元件 (PART_PNEUMATIC)',
-    'PART_OPTICAL': '光学元件 (PART_OPTICAL)'
-  };
-
-  // Search input and selector filtering
+  // Search input and selector filtering based on EDITING rules
   const filteredRules = useMemo(() => {
-    return rules.filter(r => {
+    return editingRules.filter(r => {
       if (r.objectType !== activeObjectType) return false;
 
       // Filter by Keyword
@@ -190,7 +242,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
       return true;
     });
-  }, [rules, activeObjectType, filterFieldName, filterIsScoreActive, filterIsFilterCondition, filterMatchType]);
+  }, [editingRules, activeObjectType, filterFieldName, filterIsScoreActive, filterIsFilterCondition, filterMatchType]);
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -211,33 +263,139 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     return version + '.1';
   };
 
-  // Save changes to local memory state & localstorage (Simulating instant config save)
+  // 保存配置
   const handleSaveCurrentConfig = () => {
+    const operatorName = '李晓华 (数据标准管理员)';
+    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
+    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
+
     if (!weightSummary.isValid) {
-      alert(`保存失败！当前对象类型的评分项权重总和为 ${weightSummary.total}%，不等于 100%。请确保参与加权评分的字段权重合计精确等于 100% 才能保存生效！`);
+      // 100% weight validation failed! Show alert & save log
+      const failRecord: ChangeRecord = {
+        id: `CR-F-${Date.now()}`,
+        objectType: objectLabel,
+        configVersion: currentConf.configVersion,
+        operationType: '保存',
+        summary: `保存配置失败。当前编辑中字段累计权重为 ${weightSummary.total}%，未能满足 100% 配平约束。`,
+        operator: operatorName,
+        time: timeStr,
+        result: 'FAILED',
+        failureReason: `参与评分字段权重合计为 ${weightSummary.total}%，不满足 100% 满分校验规则。`
+      };
+      onUpdateChangeRecords([failRecord, ...changeRecords]);
+      alert(`保存失败！当前对象类型的评分项权重总和为 ${weightSummary.total}%，不等于 100%。\n请确保参与加权评分的字段权重合计精确等于 100% 才能保存！\n该失败记录已被审计归档。`);
       return;
     }
 
-    const currentConf = objectConfigStatus[activeObjectType] || { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '' };
+    // Validation success! Save editingRules into savedRules
+    onUpdateSavedRules(editingRules);
+
+    const successRecord: ChangeRecord = {
+      id: `CR-S-${Date.now()}`,
+      objectType: objectLabel,
+      configVersion: currentConf.configVersion,
+      operationType: '保存',
+      summary: `成功保存并校验属性相似度规则草稿池。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
+      operator: operatorName,
+      time: timeStr,
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([successRecord, ...changeRecords]);
+    alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n您可以点击“启用”按钮将此最新配置推广生效。`);
+  };
+
+  // 启用配置
+  const handleEnableConfig = () => {
+    const operatorName = '李晓华 (数据标准管理员)';
+    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
+    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
+
+    // Validate Saved Rules before enabling
+    if (!savedWeightSummary.isValid) {
+      const failRecord: ChangeRecord = {
+        id: `CR-E-${Date.now()}`,
+        objectType: objectLabel,
+        configVersion: currentConf.configVersion,
+        operationType: '启用',
+        summary: `启用失败。已保存配置的累计权重为 ${savedWeightSummary.total}%，未能满足 100% 生效约束。`,
+        operator: operatorName,
+        time: timeStr,
+        result: 'FAILED',
+        failureReason: `已保存规则集权重之和不为 100%`
+      };
+      onUpdateChangeRecords([failRecord, ...changeRecords]);
+      alert(`启用失败！已保存的配置权重总和为 ${savedWeightSummary.total}%，不满足 100% 强约束。\n请先配平权重、保存配置后再行启用。`);
+      return;
+    }
+
+    // Promote savedRules to activeRules for activeObjectType
+    const otherActiveRules = activeRules.filter(r => r.objectType !== activeObjectType);
+    const promotedRules = savedRules.filter(r => r.objectType === activeObjectType);
+    onUpdateActiveRules([...otherActiveRules, ...promotedRules]);
+
     const nextVersion = incrementVersion(currentConf.configVersion);
     const nextStatus = {
       ...objectConfigStatus,
       [activeObjectType]: {
-        ...currentConf,
+        enabled: true,
         configVersion: nextVersion,
-        lastModifiedAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
+        lastModifiedAt: timeStr
       }
     };
     onUpdateConfigStatus(nextStatus);
-    alert(`[ ${objectTypeNameMap[activeObjectType]} ] 二阶段相似度规则集已成功保存！\n版本已自动升级至 ${nextVersion}，直接对应用端生效。`);
-    setIsModified(false);
+
+    const successRecord: ChangeRecord = {
+      id: `CR-A-${Date.now()}`,
+      objectType: objectLabel,
+      configVersion: nextVersion,
+      operationType: '启用',
+      summary: `成功推广并启用最新相似度计算规则集。线上版本升级为 ${nextVersion}，属性比分即时对业务应用端生效。`,
+      operator: operatorName,
+      time: timeStr,
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([successRecord, ...changeRecords]);
+    alert(`[ ${objectLabel} ] 二阶段相似度规则集已成功启用上线！\n当前生效版本已升级至 ${nextVersion}。属性去重比分即时生效。`);
+  };
+
+  // 停用配置
+  const handleDisableConfig = () => {
+    const operatorName = '李晓华 (数据标准管理员)';
+    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
+    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
+
+    const nextStatus = {
+      ...objectConfigStatus,
+      [activeObjectType]: {
+        ...currentConf,
+        enabled: false,
+        lastModifiedAt: timeStr
+      }
+    };
+    onUpdateConfigStatus(nextStatus);
+
+    const disableRecord: ChangeRecord = {
+      id: `CR-D-${Date.now()}`,
+      objectType: objectLabel,
+      configVersion: currentConf.configVersion,
+      operationType: '停用',
+      summary: `下线停用二阶段属性比分计算，引擎暂停对业务端提供该类型属性去重的算分反馈。`,
+      operator: operatorName,
+      time: timeStr,
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([disableRecord, ...changeRecords]);
+    alert(`[ ${objectLabel} ] 二阶段相似度配置已成功下线停用！\n业务去重工作台将不再对该类型物料执行字段评分。`);
   };
 
   // Delete Rule
   const handleDeleteRule = (id: string) => {
     if (window.confirm('您确定要彻底删除该属性相似度比分规则吗？此操作将立即调整算分权重配平。')) {
-      const updated = rules.filter(r => r.id !== id);
-      onUpdateRules(updated);
+      const updated = editingRules.filter(r => r.id !== id);
+      onUpdateEditingRules(updated);
       setIsModified(true);
     }
   };
@@ -464,7 +622,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const isUnitType = finalFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
 
     const updatedRule: FieldSimilarityRule = {
-      id: isNew ? `F-00${rules.length + 1}` : (editingRule?.id || 'F-TMP'),
+      id: isNew ? `F-00${editingRules.length + 1}` : (editingRule?.id || 'F-TMP'),
       objectType: activeObjectType,
       fieldName: formFieldName,
       propertyCode: formPropertyCode,
@@ -491,9 +649,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     };
 
     if (isNew) {
-      onUpdateRules([...rules, updatedRule]);
+      onUpdateEditingRules([...editingRules, updatedRule]);
     } else {
-      onUpdateRules(rules.map(r => r.id === updatedRule.id ? updatedRule : r));
+      onUpdateEditingRules(editingRules.map(r => r.id === updatedRule.id ? updatedRule : r));
     }
 
     setEditingRule(null);
@@ -577,26 +735,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </select>
             </div>
 
-            {/* Enable/Disable active type switcher */}
-            <div className="flex items-center space-x-2.5 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-md">
-              <span className="text-xs font-semibold text-slate-700">整套规则总开关:</span>
-              <button
-                onClick={handleToggleObjectTypeEnabled}
-                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  isCurrentTypeEnabled ? 'bg-emerald-600' : 'bg-slate-400'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                    isCurrentTypeEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-              <span className={`text-[11px] font-bold ${isCurrentTypeEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
-                {isCurrentTypeEnabled ? '已启用该类规则' : '已停用该类规则'}
-              </span>
-            </div>
-
             {/* Read-only Unit Catalog Source Details */}
             <div className="text-slate-400 text-[11px] font-medium flex items-center space-x-1.5 ml-auto">
               <span>只读单位目录加载正常:</span>
@@ -606,63 +744,89 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </div>
           </div>
 
-          {/* Compact Overview Bar (Replaces 3 Cards) */}
+          {/* New Compact 3-State Configuration Status Bar */}
           <div className="px-6 pt-3 shrink-0">
-            <div className={`border rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-6 justify-between text-xs ${
-              isCurrentTypeEnabled 
-                ? 'bg-slate-900 text-white border-slate-800 shadow-sm' 
-                : 'bg-slate-100 border-slate-200 text-slate-500'
-            }`}>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <span className="font-bold tracking-wide text-sm flex items-center space-x-1.5">
-                  <SlidersHorizontal className="w-4 h-4 text-blue-400" />
-                  <span>{objectTypeNameMap[activeObjectType]}</span>
+            <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs" style={{ minHeight: '38px' }}>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 overflow-x-auto scrollbar-none">
+                <span className="font-bold text-slate-700 flex items-center space-x-1 shrink-0">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" />
+                  <span>配置状态组:</span>
                 </span>
-                <span className="text-slate-400">|</span>
-                <span className="flex items-center space-x-1">
-                  <span className={`w-2 h-2 rounded-full ${isCurrentTypeEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></span>
-                  <strong className={isCurrentTypeEnabled ? 'text-emerald-400' : 'text-slate-500'}>
-                    {isCurrentTypeEnabled ? '已全局启用二阶段计算' : '已全局停用比分'}
-                  </strong>
-                </span>
-                <span className="text-slate-400">|</span>
-                <span>参与评分: <strong className="font-mono text-blue-400 text-sm">{weightSummary.scoreCount}</strong> 个字段</span>
-                <span className="text-slate-400">|</span>
-                <span>强过滤: <strong className="font-mono text-orange-400 text-sm">{weightSummary.filterCount}</strong> 个条件</span>
-                <span className="text-slate-400">|</span>
-                <span>当前算分项权重总和: 
-                  <strong className={`font-mono ml-1 text-sm ${weightSummary.isValid ? 'text-emerald-400' : 'text-red-400 underline font-bold'}`}>
-                    {weightSummary.total}%
-                  </strong>
-                </span>
-                <span className="text-slate-400">|</span>
-                <span className="font-mono text-[10px] text-slate-300">
-                  配置版本: {objectConfigStatus[activeObjectType]?.configVersion ?? 'v1.0.0'}
-                </span>
+
+                {/* Stage 1: 编辑中 */}
+                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="编辑中 (Draft) 状态。增改规则仅在此暂存。">
+                  <span className={`w-2 h-2 rounded-full ${isEditingModified ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    编辑中: {isEditingModified ? '存在未保存草稿' : '草稿同步'}
+                  </span>
+                </div>
+
+                {/* Stage 2: 已保存 */}
+                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="已保存 (Saved) 状态。只有权重配平（=100%）的配置才能通过校验并保存。">
+                  <span className={`w-2 h-2 rounded-full ${savedWeightSummary.isValid ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    已保存: {savedWeightSummary.isValid ? `通过校验 (100%)` : `校验未过 (${savedWeightSummary.total}%)`}
+                  </span>
+                </div>
+
+                {/* Stage 3: 生效中 */}
+                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="当前生效 (Active) 状态。计算引擎执行此生效配置。">
+                  <span className={`w-2 h-2 rounded-full ${isCurrentTypeEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    生效中: {isCurrentTypeEnabled ? '已全局上线启用' : '已暂停停用'}
+                  </span>
+                </div>
+
+                {/* Version & Mod Time */}
+                <div className="text-slate-400 text-[11px] flex items-center space-x-2 shrink-0">
+                  <span>|</span>
+                  <span>线上版本: <strong className="font-mono text-slate-800 font-bold">{objectConfigStatus[activeObjectType]?.configVersion || 'v1.0.0'}</strong></span>
+                  <span>|</span>
+                  <span>变更时间: <strong className="font-mono text-slate-700">{objectConfigStatus[activeObjectType]?.lastModifiedAt || '无'}</strong></span>
+                </div>
               </div>
 
-              {/* Weight Warnings */}
-              {!weightSummary.isValid && isCurrentTypeEnabled && (
-                <span className="bg-red-500/20 text-red-200 border border-red-500/40 px-2 py-0.5 rounded font-medium flex items-center space-x-1 text-[11px] animate-pulse">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                  <span>权重之和({weightSummary.total}%)不等于100%! 请编辑配平。</span>
-                </span>
-              )}
-            </div>
-            
-            {/* Formula Expression */}
-            {isCurrentTypeEnabled && (
-              <div className="mt-2 bg-slate-100 border border-slate-200 rounded px-3 py-1.5 text-xs text-slate-600 flex items-center justify-between">
-                <span className="font-semibold text-slate-700 shrink-0">二阶段评分引擎公式:</span>
-                <span className="font-mono text-slate-500 truncate max-w-4xl px-3 flex-1 text-left">{weightSummary.details}</span>
-                <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-medium">
-                  Formula Engine
-                </span>
+              {/* Actions: Enable / Disable buttons */}
+              <div className="flex items-center space-x-2 shrink-0 ml-auto">
+                <button
+                  onClick={handleEnableConfig}
+                  disabled={!savedWeightSummary.isValid}
+                  className={`px-3 py-1 rounded text-xs font-bold border transition-all cursor-pointer ${
+                    isCurrentTypeEnabled
+                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : !savedWeightSummary.isValid
+                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 shadow-xs'
+                  }`}
+                  title={savedWeightSummary.isValid ? '将已保存的校验配置发布上线启用' : '已保存的规则集权重不足100%，无法启用'}
+                >
+                  启用
+                </button>
+                <button
+                  onClick={handleDisableConfig}
+                  disabled={!isCurrentTypeEnabled}
+                  className={`px-3 py-1 rounded text-xs font-bold border transition-all cursor-pointer ${
+                    !isCurrentTypeEnabled
+                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100 hover:border-rose-300 shadow-xs'
+                  }`}
+                >
+                  停用
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Formula Expression */}
+            <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs text-slate-600 flex items-center justify-between shadow-xs">
+              <span className="font-semibold text-slate-700 shrink-0">二阶段评分引擎公式:</span>
+              <span className="font-mono text-slate-500 truncate max-w-4xl px-3 flex-1 text-left">{weightSummary.details}</span>
+              <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-semibold">
+                Formula Engine
+              </span>
+            </div>
           </div>
 
-          {!rules.some(r => r.objectType === activeObjectType) ? (
+          {!editingRules.some(r => r.objectType === activeObjectType) ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50">
               <div className="max-w-md text-center p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
                 <SlidersHorizontal className="w-12 h-12 text-slate-300 mx-auto" />
@@ -934,51 +1098,64 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   
-                  {/* Field name */}
+                  {/* Select Mapped Field Dropdown */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">选择一阶段已映射字段 *</label>
+                    <select
+                      value={formPropertyCode}
+                      onChange={(e) => handleFieldChange(e.target.value)}
+                      className="w-full text-xs border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-bold outline-hidden cursor-pointer focus:ring-1 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">-- 请选择一阶段已映射物理字段 --</option>
+                      {availableFields.map(f => (
+                        <option key={f.fieldCode} value={f.fieldCode}>
+                          {f.displayName} ({f.fieldCode} - {f.businessFieldType})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      二阶段规则属性必须严格来自一阶段映射过的物理属性字段。
+                    </p>
+                  </div>
+
+                  {/* Field name (Read Only) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">字段显示名称 *</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">字段显示名称 (只读)</label>
                     <input 
                       type="text"
                       value={formFieldName}
-                      onChange={(e) => setFormFieldName(e.target.value)}
-                      placeholder="例如：标称直径、螺距"
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 outline-hidden focus:ring-1 focus:ring-blue-500 font-medium"
-                      required
+                      disabled
+                      placeholder="请从上方下拉列表选择物理字段"
+                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-medium outline-hidden cursor-not-allowed"
                     />
                   </div>
 
-                  {/* Property Code */}
+                  {/* Property Code (Read Only) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">属性编码 / Manticore字段名 *</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">属性编码 / Manticore 字段名 (只读)</label>
                     <input 
                       type="text"
                       value={formPropertyCode}
-                      onChange={(e) => setFormPropertyCode(e.target.value)}
-                      placeholder="例如：nominal_diameter"
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 font-mono outline-hidden focus:ring-1 focus:ring-blue-500"
-                      required
+                      disabled
+                      placeholder="请从上方下拉列表选择物理字段"
+                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 font-mono bg-slate-100 text-slate-500 outline-hidden cursor-not-allowed"
                     />
                   </div>
 
-                  {/* Field Type selector */}
+                  {/* Field Type selector (Read Only) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                      字段类型区分（严格解耦）
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      字段类型区分 (自动锁定只读)
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={formFieldType}
-                      onChange={(e) => setFormFieldType(e.target.value)}
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
-                    >
-                      <option value="带单位数值 (NUMBER_WITH_UNIT)">带单位数值 (NUMBER_WITH_UNIT)</option>
-                      <option value="数值 (NUMBER)">数值 (NUMBER - 纯数字无量纲)</option>
-                      <option value="长文本 (LONG_TEXT)">长文本 (LONG_TEXT)</option>
-                      <option value="分类树 (CLASS_TREE)">分类树 (CLASS_TREE)</option>
-                      <option value="枚举 (ENUM)">枚举 (ENUM)</option>
-                      <option value="文本 (TEXT)">文本 (TEXT)</option>
-                    </select>
+                      disabled
+                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-bold outline-hidden cursor-not-allowed"
+                    />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      带单位数值类型支持多物理量转换计算；纯数值类型不关联量纲，无法选择单位族。
+                      物理类型已与一阶段结构体严格对齐解耦。
                     </p>
                   </div>
 
@@ -1058,18 +1235,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     
-                    {/* Measurement Category */}
+                    {/* Measurement Category (Locked) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">物理测量量选择 (Quantity)</label>
-                      <select
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">物理测量量 (Quantity - 只读锁定)</label>
+                      <input
+                        type="text"
                         value={formUnitFamily}
-                        onChange={(e) => handleQuantityChange(e.target.value)}
-                        className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 outline-hidden cursor-pointer font-bold"
-                      >
-                        {mockUnitCatalog.quantities.map(q => (
-                          <option key={q.code} value={q.name}>{q.name} ({q.code})</option>
-                        ))}
-                      </select>
+                        disabled
+                        className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-bold outline-hidden cursor-not-allowed"
+                      />
                     </div>
 
                     {/* SI Base Unit */}
