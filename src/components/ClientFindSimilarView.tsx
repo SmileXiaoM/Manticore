@@ -410,22 +410,22 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
 
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse text-xs min-w-[1300px]" id="client-results-table">
+            <table className="w-full text-left border-collapse text-xs min-w-[1250px] xl:min-w-0 xl:w-full" id="client-results-table">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                   <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
                   <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
                   <th className="px-4 py-3 whitespace-nowrap">名称</th>
-                  <th className="px-3 py-3 whitespace-nowrap">规格/关键尺寸</th>
-                  <th className="px-3 py-3 whitespace-nowrap">材料</th>
-                  <th className="px-4 py-3 whitespace-nowrap">分类</th>
+                  <th className="px-3 py-3 whitespace-nowrap aux-col">规格/关键尺寸</th>
+                  <th className="px-3 py-3 whitespace-nowrap aux-col">材料</th>
+                  <th className="px-4 py-3 whitespace-nowrap aux-col">分类</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">生命周期</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">相似度</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">分档</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">覆盖率</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">命中数</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">差异数</th>
-                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky right-0 z-20 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky-ops">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -460,17 +460,17 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 规格/关键尺寸 */}
-                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono">
+                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono aux-col">
                         {candidate.specification}
                       </td>
 
                       {/* 材料 */}
-                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap">
+                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap aux-col">
                         {candidate.material}
                       </td>
 
                       {/* 分类 */}
-                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap" title={candidate.classificationPath}>
+                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap aux-col" title={candidate.classificationPath}>
                         {candidate.classificationPath}
                       </td>
 
@@ -531,7 +531,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 操作 */}
-                      <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
+                      <td className="px-4 py-3 text-center whitespace-nowrap sticky-ops">
                         <div className="flex items-center justify-center space-x-1.5">
                           <button
                             type="button"

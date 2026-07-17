@@ -14,7 +14,7 @@ import {
   ChevronRight,
   HelpCircle
 } from 'lucide-react';
-import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord } from '../types';
+import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified } from '../types';
 import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit } from '../data';
 
 interface FieldSimilarityViewProps {
@@ -179,9 +179,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   }, [objectConfigStatus, activeObjectType]);
 
   const isEditingModified = useMemo(() => {
-    const editSub = [...editingRules].filter(r => r.objectType === activeObjectType).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-    const savedSub = [...savedRules].filter(r => r.objectType === activeObjectType).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-    return JSON.stringify(editSub) !== JSON.stringify(savedSub);
+    return isObjectRulesModified(editingRules, savedRules, activeObjectType);
   }, [editingRules, savedRules, activeObjectType]);
 
   // Weight summary check for EDITING rules
@@ -1399,55 +1397,58 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </div>
 
                         {/* Fixed Value */}
-                        {formFilterSource === 'FIXED_VALUE' && (
-                          <div className="col-span-1 md:col-span-2">
-                            {formFilterOperator === '区间内' || formFilterOperator === '区间外' ? (
-                              <div>
-                                <label className="block font-semibold text-slate-700 mb-1">
-                                  固定区间值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
-                                </label>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="text"
-                                    value={formFilterRangeMin}
-                                    onChange={(e) => setFormFilterRangeMin(e.target.value)}
-                                    placeholder="区间开始值 (例如: 10)"
-                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
-                                  />
-                                  <span className="text-slate-400">至</span>
-                                  <input
-                                    type="text"
-                                    value={formFilterRangeMax}
-                                    onChange={(e) => setFormFilterRangeMax(e.target.value)}
-                                    placeholder="区间结束值 (例如: 50)"
-                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
-                                  />
-                                  {formFieldType.includes('NUMBER_WITH_UNIT') && (
-                                    <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
-                                  )}
+                        {formFilterSource === 'FIXED_VALUE' && (() => {
+                          const isDateField = (formFieldType || '').toUpperCase().includes('DATE');
+                          return (
+                            <div className="col-span-1 md:col-span-2">
+                              {formFilterOperator === '区间内' || formFilterOperator === '区间外' ? (
+                                <div>
+                                  <label className="block font-semibold text-slate-700 mb-1">
+                                    固定区间值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                  </label>
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type={isDateField ? "date" : "text"}
+                                      value={formFilterRangeMin}
+                                      onChange={(e) => setFormFilterRangeMin(e.target.value)}
+                                      placeholder={isDateField ? "" : "区间开始值 (例如: 10)"}
+                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
+                                    />
+                                    <span className="text-slate-400">至</span>
+                                    <input
+                                      type={isDateField ? "date" : "text"}
+                                      value={formFilterRangeMax}
+                                      onChange={(e) => setFormFilterRangeMax(e.target.value)}
+                                      placeholder={isDateField ? "" : "区间结束值 (例如: 50)"}
+                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
+                                    />
+                                    {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                      <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <label className="block font-semibold text-slate-700 mb-1">
-                                  固定条件值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
-                                </label>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="text"
-                                    value={formFilterFixedValue}
-                                    onChange={(e) => setFormFilterFixedValue(e.target.value)}
-                                    placeholder="如：已作废 或 12 (支持多值逗号分隔)"
-                                    className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
-                                  />
-                                  {formFieldType.includes('NUMBER_WITH_UNIT') && (
-                                    <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
-                                  )}
+                              ) : (
+                                <div>
+                                  <label className="block font-semibold text-slate-700 mb-1">
+                                    固定条件值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                  </label>
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type={isDateField ? "date" : "text"}
+                                      value={formFilterFixedValue}
+                                      onChange={(e) => setFormFilterFixedValue(e.target.value)}
+                                      placeholder={isDateField ? "" : "如：已作废 或 12 (支持多值逗号分隔)"}
+                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
+                                    />
+                                    {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                      <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Fail Action */}
                         <div>

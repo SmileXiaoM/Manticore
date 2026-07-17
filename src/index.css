@@ -27,3 +27,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Table responsive column hiding rules for Manticore */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .aux-col {
+    display: none !important;
+  }
+}
+
+/* Operations sticky rules exclusively for screens < 1280px (e.g. 820px) */
+@media (max-width: 1279px) {
+  .sticky-ops {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 20 !important;
+    background-color: white !important;
+    box-shadow: -4px 0 4px -2px rgba(0, 0, 0, 0.08) !important;
+  }
+  th.sticky-ops {
+    background-color: #f1f5f9 !important; /* matches bg-slate-100 */
+  }
+}
+

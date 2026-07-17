@@ -271,6 +271,32 @@ export const stage1MappedFields: Stage1MappedField[] = [
     baseUnit: 'm',
     indexStatus: '已索引',
     enabled: false
+  },
+  {
+    objectType: 'PART_MECHANICAL',
+    fieldId: 'creation_date_stage1',
+    displayName: '创建日期',
+    fieldCode: 'creation_date',
+    businessFieldType: '日期 (DATE)',
+    manticoreType: 'TIMESTAMP',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
+  },
+  {
+    objectType: 'PART_ELECTRICAL',
+    fieldId: 'creation_date_elec_stage1',
+    displayName: '创建日期',
+    fieldCode: 'creation_date',
+    businessFieldType: '日期 (DATE)',
+    manticoreType: 'TIMESTAMP',
+    enumOrCategorySource: '无',
+    unitFamily: '无',
+    baseUnit: '无',
+    indexStatus: '已索引',
+    enabled: true
   }
 ];
 
@@ -1706,7 +1732,8 @@ export function runSimilaritySearch(
         thread_pitch: 1.5,
         nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-15'
       },
       units: {
         nominal_diameter: 'mm',
@@ -1728,7 +1755,8 @@ export function runSimilaritySearch(
         working_voltage: 12,
         working_temp: 298.15, // in K, i.e. 25 degC
         category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-15'
       }
     };
   }
@@ -1768,7 +1796,8 @@ export function runSimilaritySearch(
         thread_pitch: 1.5,
         nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-01'
       },
       units: {
         nominal_diameter: 'mm',
@@ -1790,7 +1819,8 @@ export function runSimilaritySearch(
         thread_pitch: 1.2, // does not match 1.5mm!
         nominal_length: 5, // 5cm converts to 50mm!
         category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-31'
       },
       units: {
         nominal_diameter: 'cm',
@@ -1812,7 +1842,8 @@ export function runSimilaritySearch(
         thread_pitch: null, // missing!
         nominal_length: null, // missing!
         category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2025-12-31'
       },
       units: {
         nominal_diameter: 'mm',
@@ -1833,7 +1864,8 @@ export function runSimilaritySearch(
         thread_pitch: 1.5, // mm
         nominal_length: 50,
         category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '已作废'
+        lifecycle_state: '已作废',
+        creation_date: '2026-02-01'
       },
       units: {
         nominal_diameter: 'mm',
@@ -1855,7 +1887,8 @@ export function runSimilaritySearch(
         working_voltage: 12,
         working_temp: 298.15,
         category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-01'
       }
     },
     {
@@ -1869,7 +1902,8 @@ export function runSimilaritySearch(
         working_voltage: 12,
         working_temp: 313.15, // does not match 298.15 K
         category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效'
+        lifecycle_state: '有效',
+        creation_date: '2026-01-31'
       }
     },
     {
@@ -1883,7 +1917,8 @@ export function runSimilaritySearch(
         working_voltage: 220,
         working_temp: 298.15,
         category_path: '/电子元器件/继电器/交流继电器',
-        lifecycle_state: '已作废'
+        lifecycle_state: '已作废',
+        creation_date: '2026-02-01'
       }
     }
   ];

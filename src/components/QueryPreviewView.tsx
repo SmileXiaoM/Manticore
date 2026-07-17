@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Play,
@@ -11,7 +11,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { runSimilaritySearch } from '../data';
-import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
+import { FieldSimilarityRule, ScoredCandidate, SearchRunResult, ObjectType, isObjectRulesModified } from '../types';
 
 interface QueryPreviewViewProps {
   editingRules: FieldSimilarityRule[];
@@ -31,11 +31,13 @@ interface LastRunContext {
   ruleVersion: string; // DRAFT_POOL, SAVED_DRAFT, or ACTIVE_RELEASE
   configVersion: string;
   lastModifiedAt: string;
+  ruleUpdatedAt: string; // R13-BLK-02
   scoreFieldsCount: number;
   totalWeight: number;
   filterConditionsCount: number;
   thresholds: { high: number; medium: number };
   unitCatalogVersion: string;
+  unitCatalogStatus: string; // R13-BLK-02
   rulesSnapshot: FieldSimilarityRule[];
   searchResult: SearchRunResult;
   runTime: string; // 试算时间 (R12-BLK-02)
@@ -65,6 +67,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   // Selected candidate for detail drawer
   const [selectedCandidate, setSelectedCandidate] = useState<ScoredCandidate | null>(null);
 
+  // R13-BLK-02: Clear old snapshot, results, and drawer when input query parameters change
+  useEffect(() => {
+    setLastRunContext(null);
+    setSelectedCandidate(null);
+  }, [objectType, objectId, ruleVersion]);
+
   const getRulesForVersion = (version: string) => {
     if (version === 'DRAFT_POOL') return editingRules;
     if (version === 'SAVED_DRAFT') return savedRules;
@@ -72,47 +80,70 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   };
 
   const renderSnapshotDashboard = (ctx: LastRunContext) => {
-    const sourceStr = ctx.ruleVersion === 'DRAFT_POOL' ? '当前编辑内容 (Draft)' : ctx.ruleVersion === 'SAVED_DRAFT' ? '已保存配置 (Saved)' : '当前启用配置 (Active)';
-    const objectTypeStr = ctx.objectType === 'PART_MECHANICAL' ? '机械零件 (PART_MECHANICAL)' : '电气元器件 (PART_ELECTRICAL)';
-    const thresholdsStr = `高相似 >= ${ctx.thresholds.high}%, 中相似 >= ${ctx.thresholds.medium}%`;
+    const sourceStr = ctx.ruleVersion === 'DRAFT_POOL' ? '当前编辑内容' : ctx.ruleVersion === 'SAVED_DRAFT' ? '已保存配置' : '当前启用配置';
+    const objectTypeStr = ctx.objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件';
+    const thresholdsStr = `高相似 85 / 中相似 70`;
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2.5 p-4 bg-slate-50 border-b border-slate-100" id="snapshot-9-metrics-grid">
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4 bg-slate-50 border-b border-slate-100" id="snapshot-9-metrics-grid">
+        {/* 1. 配置来源 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
           <span className="text-[10px] text-slate-400 font-semibold block mb-1">1. 配置来源</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={sourceStr}>{sourceStr}</span>
+          <span className="text-xs font-bold text-slate-800 leading-tight" id="snapshot-source">{sourceStr}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">2. 比分版本</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={ctx.configVersion}>{ctx.configVersion}</span>
+
+        {/* 2. 配置版本 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">2. 配置版本</span>
+          <span className="text-xs font-bold text-slate-800 leading-tight font-mono" id="snapshot-version">{ctx.configVersion}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">3. 物料对象</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={objectTypeStr}>{objectTypeStr}</span>
+
+        {/* 3. 对象类型 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">3. 对象类型</span>
+          <span className="text-xs font-bold text-slate-800 leading-tight" id="snapshot-object-type">{objectTypeStr}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">4. 试算时间</span>
-          <span className="text-xs font-bold text-slate-800 font-mono truncate" title={ctx.runTime}>{ctx.runTime}</span>
+
+        {/* 4. 规则更新时间 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">4. 规则更新时间</span>
+          <span className="text-xs font-bold text-slate-800 leading-tight font-mono" id="snapshot-rule-updated-at">{ctx.ruleUpdatedAt}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
+
+        {/* 5. 参与评分字段数 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
           <span className="text-[10px] text-slate-400 font-semibold block mb-1">5. 参与评分字段数</span>
-          <span className="text-xs font-bold text-blue-600 font-mono">{ctx.scoreFieldsCount} 项</span>
+          <span className="text-xs font-bold text-blue-600 font-mono" id="snapshot-score-fields">{ctx.scoreFieldsCount} 项</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">6. 权重总和</span>
-          <span className="text-xs font-bold text-slate-800 font-mono">{ctx.totalWeight}%</span>
+
+        {/* 6. 评分权重合计 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">6. 评分权重合计</span>
+          <span className="text-xs font-bold text-slate-800 font-mono" id="snapshot-total-weight">{ctx.totalWeight}%</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 强过滤字段数</span>
-          <span className="text-xs font-bold text-rose-600 font-mono">{ctx.filterConditionsCount} 项</span>
+
+        {/* 7. 强过滤条件数 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 强过滤条件数</span>
+          <span className="text-xs font-bold text-rose-600 font-mono" id="snapshot-filter-fields">{ctx.filterConditionsCount} 项</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">8. 相似度分档阈值</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={thresholdsStr}>{thresholdsStr}</span>
+
+        {/* 8. 分档阈值 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">8. 分档阈值</span>
+          <span className="text-xs font-bold text-slate-800 leading-tight" id="snapshot-thresholds">{thresholdsStr}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-200/80 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">9. 只读单位版本</span>
-          <span className="text-xs font-bold text-slate-800 truncate" title={ctx.unitCatalogVersion}>{ctx.unitCatalogVersion}</span>
+
+        {/* 9. 单位目录 */}
+        <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">9. 单位目录</span>
+          <div className="text-xs font-bold text-slate-800 leading-tight flex flex-col gap-0.5" id="snapshot-unit-catalog">
+            <div>版本：{ctx.unitCatalogVersion}</div>
+            <div className="text-emerald-600 font-medium text-[10px] flex items-center gap-1 mt-0.5">
+              <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+              加载状态：{ctx.unitCatalogStatus}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -120,6 +151,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   const handleRunSearch = () => {
     const curTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const ruleUpAt = objectConfigStatus[objectType]?.lastModifiedAt || '无';
     if (objectId.trim() === '') {
       alert('请输入源物料代码/申请号');
       setLastRunContext({
@@ -127,12 +159,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         objectId: '',
         ruleVersion,
         configVersion: (objectConfigStatus[objectType]?.configVersion || 'v2.5.0'),
-        lastModifiedAt: objectConfigStatus[objectType]?.lastModifiedAt || '无',
+        lastModifiedAt: ruleUpAt,
+        ruleUpdatedAt: ruleUpAt,
         scoreFieldsCount: 0,
         totalWeight: 0,
         filterConditionsCount: 0,
         thresholds: { high: 85, medium: 70 },
         unitCatalogVersion: 'Windchill 2026-07-15',
+        unitCatalogStatus: '已加载',
         rulesSnapshot: [],
         searchResult: {
           reference: null,
@@ -152,7 +186,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       const rulesSnapshot = JSON.parse(JSON.stringify(rulesToUse.filter(r => r.objectType === objectType)));
       const res = runSimilaritySearch(objectType, objectId, rulesToUse);
 
-      const isEditingModified = JSON.stringify(editingRules.filter(r => r.objectType === objectType)) !== JSON.stringify(savedRules.filter(r => r.objectType === objectType));
+      const isEditingModified = isObjectRulesModified(editingRules, savedRules, objectType as ObjectType);
       const configVer = ruleVersion === 'DRAFT_POOL' && isEditingModified
         ? '未保存修改'
         : (objectConfigStatus[objectType]?.configVersion || 'v2.5.0');
@@ -162,12 +196,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         objectId,
         ruleVersion,
         configVersion: configVer,
-        lastModifiedAt: objectConfigStatus[objectType]?.lastModifiedAt || '无',
+        lastModifiedAt: ruleUpAt,
+        ruleUpdatedAt: ruleUpAt,
         scoreFieldsCount: rulesSnapshot.filter((r: any) => r.isScoreActive && r.enabled).length,
         totalWeight: rulesSnapshot.filter((r: any) => r.isScoreActive && r.enabled).reduce((sum: number, r: any) => sum + r.weight, 0),
         filterConditionsCount: rulesSnapshot.filter((r: any) => r.isFilterCondition && r.enabled).length,
         thresholds: { high: 85, medium: 70 },
         unitCatalogVersion: 'Windchill 2026-07-15',
+        unitCatalogStatus: '已加载',
         rulesSnapshot,
         searchResult: res,
         runTime: curTime
@@ -551,21 +587,21 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             {/* 1.4 全宽候选件结果表 */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="preview-results-container">
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-left border-collapse text-xs min-w-[1300px]" id="preview-results-table">
+                <table className="w-full text-left border-collapse text-xs min-w-[1250px] xl:min-w-0 xl:w-full" id="preview-results-table">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                       <th className="px-4 py-3 whitespace-nowrap">候选件编码</th>
                       <th className="px-4 py-3 whitespace-nowrap">名称</th>
-                      <th className="px-4 py-3 whitespace-nowrap">规格/关键尺寸</th>
-                      <th className="px-4 py-3 whitespace-nowrap">材料</th>
-                      <th className="px-4 py-3 whitespace-nowrap">分类</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col">规格/关键尺寸</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col">材料</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col">分类</th>
                       <th className="px-3 py-3 whitespace-nowrap">生命周期</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">相似度</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">分档</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">覆盖率</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">命中数</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">差异数</th>
-                      <th className="px-4 py-3 text-center whitespace-nowrap w-32 sticky right-0 z-20 bg-slate-100 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">操作</th>
+                      <th className="px-4 py-3 text-center whitespace-nowrap w-32 sticky-ops">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -595,17 +631,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 规格/关键尺寸 */}
-                          <td className="px-4 py-3 font-mono text-slate-800 whitespace-nowrap">
+                          <td className="px-4 py-3 font-mono text-slate-800 whitespace-nowrap aux-col">
                             {candidate.specification}
                           </td>
 
                           {/* 材料 */}
-                          <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">
+                          <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap aux-col">
                             {candidate.material}
                           </td>
 
                           {/* 分类 */}
-                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px] whitespace-nowrap" title={candidate.classificationPath}>
+                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px] whitespace-nowrap aux-col" title={candidate.classificationPath}>
                             {candidate.classificationPath}
                           </td>
 
@@ -666,7 +702,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 操作 */}
-                          <td className="px-4 py-3 text-center sticky right-0 z-10 bg-white shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] whitespace-nowrap">
+                          <td className="px-4 py-3 text-center whitespace-nowrap sticky-ops">
                             <button
                               type="button"
                               onClick={() => setSelectedCandidate(candidate)}
