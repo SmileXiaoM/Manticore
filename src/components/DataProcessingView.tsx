@@ -242,25 +242,33 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       {/* Header Area */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <div>
+          <div className="w-full">
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
                 <Settings className="w-5 h-5 text-slate-500" />
                 <span>数据处理规则 (算分前置清洗)</span>
               </h1>
-              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-semibold border border-blue-200">
-                [正式系统界面]
+              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px] font-semibold border border-amber-200">
+                三阶段后续概念原型
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1.5 flex items-center">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
-              数据处理规则：用于字段相似度计算前的单位、格式、同义词和分类归一，不直接配置字段权重。
-            </p>
+            
+            <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 leading-relaxed">
+              <p className="font-semibold text-slate-800 mb-1 flex items-center">
+                <Info className="w-4 h-4 mr-1 text-slate-500" />
+                三阶段后续规则行为说明
+              </p>
+              <p>
+                标准化、同义词、分类/类型归一属于三阶段后续能力。
+                <strong>二阶段当前不读取、不执行这些规则。</strong>
+                三阶段未来启用后，可在字段评分前进行数据清洗和归一，并解释处理前值与处理后值。
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <span className="text-[11px] text-slate-400 font-mono">
-              v2.4.0 (生产同步中)
+          <div className="flex items-center space-x-2 shrink-0 self-start mt-1">
+            <span className="text-[11px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+              后续阶段草案，不进入二阶段交付
             </span>
           </div>
         </div>
@@ -593,7 +601,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
               <div className="p-2.5 bg-amber-50 rounded text-[11px] text-amber-800 flex items-start space-x-1.5">
                 <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <span>
-                  <strong>原型提示：</strong>当前编辑的数据预处理参数仅影响算分前的统一性，不直接决定物料字段权重（权重需在《字段相似度规则》中设置）。
+                  <strong>三阶段原型提示：</strong>当前编辑的数据预处理参数属于<strong>三阶段未来启用后的规则行为</strong>，仅作原型交互，不直接或间接决定当前的二阶段物料字段相似度算分。
                 </span>
               </div>
 

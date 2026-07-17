@@ -1027,11 +1027,11 @@ export const queryResults: QueryResultItem[] = [
     material: '06Cr19Ni10 不锈钢',
     classificationPath: '/国家标准分类/紧固件/螺栓/内六角螺栓',
     lifecycleState: '已发布 (Released)',
-    hitReason: '规格长文本高度重叠 (得29.1分/满分35)；材质 06Cr19Ni10 经标准化收敛至 304 (得25分)；标称直径一致 (得15分)；螺距一致 (得10分)。由于规格长度差异扣除 5.9 分，且无螺栓俗称扣 5 分。',
+    hitReason: '规格长文本高度重叠 (得29.1分/满分35)；材质 06Cr19Ni10 匹配至 304 (得25分)；标称直径一致 (得15分)；螺距一致 (得10分)。由于规格长度差异扣除 5.9 分，且无螺栓俗称扣 5 分。',
     diffFields: '长度存在差异: 源[50mm] vs 目标[45mm]；规格名称用词差异(“螺丝” vs “圆柱头螺钉”)。',
     scoreDetail: [
       { fieldName: '规格描述 (spec_description)', score: 29.1, weight: 35, matchInfo: 'TF-IDF 相似度: 83.1%' },
-      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '同义归一 (06Cr19Ni10 === 304)' },
+      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '材质匹配 (06Cr19Ni10 与 304 相似)' },
       { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
       { fieldName: '分类路径 (category_path)', score: 15.0, weight: 15, matchInfo: '同路径一致' },
       { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }
@@ -1051,11 +1051,11 @@ export const queryResults: QueryResultItem[] = [
     material: 'A2-70 不锈钢',
     classificationPath: '/国家标准分类/紧固件/螺栓/六角头螺栓/普通级',
     lifecycleState: '已发布 (Released)',
-    hitReason: '基本属性吻合：标称直径 (得15分)；规格描述(得22.5分)；材质同义映射(得25分)。由于分类路径不匹配，仅得同属螺栓大类的折扣分 4 分 (满分15)；由于螺纹型式差异(外六角 vs 内六角)造成规格模式不匹配扣分。',
+    hitReason: '基本属性吻合：标称直径 (得15分)；规格描述(得22.5分)；材质匹配(得25分)。由于分类路径不匹配，仅得同属螺栓大类的折扣分 4 分 (满分15)；由于螺纹型式差异(外六角 vs 内六角)造成规格模式不匹配扣分。',
     diffFields: '分类不一致: 源[内六角螺栓] vs 目标[六角头螺栓/普通级]；驱动头几何型式不同。',
     scoreDetail: [
       { fieldName: '规格描述 (spec_description)', score: 22.5, weight: 35, matchInfo: 'TF-IDF 相似度: 64.3%' },
-      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '归一匹配 (A2-70 === 304 对应不锈钢)' },
+      { fieldName: '主要材质 (core_material)', score: 25.0, weight: 25, matchInfo: '材质匹配 (A2-70 映射至不锈钢大类)' },
       { fieldName: '标称直径 (nominal_diameter)', score: 15.0, weight: 15, matchInfo: '精确等值 (10mm)' },
       { fieldName: '分类路径 (category_path)', score: 4.0, weight: 15, matchInfo: '分类树同级退避相似 (折扣系数0.85)' },
       { fieldName: '螺距 (thread_pitch)', score: 10.0, weight: 10, matchInfo: '精确等值 (1.5mm)' }

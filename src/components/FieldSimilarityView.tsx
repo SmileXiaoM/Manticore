@@ -68,6 +68,45 @@ const getDefaultMatchType = (fieldType: string): string => {
   return '精确值匹配';
 };
 
+const getFieldEligibility = (
+  field: any,
+  objectType: string,
+  editingRules: any[],
+  currentRuleId?: string
+): { eligible: boolean; reason?: string } => {
+  if (field.objectType !== objectType) {
+    return { eligible: false, reason: '对象类型不匹配' };
+  }
+  if (field.enabled !== true) {
+    return { eligible: false, reason: '字段已停用' };
+  }
+  if (field.indexStatus !== '已索引') {
+    return { eligible: false, reason: '未索引' };
+  }
+  const supportedTypes = [
+    '文本 (TEXT)',
+    '长文本 (LONG_TEXT)',
+    '枚举 (ENUM)',
+    '数值 (NUMBER)',
+    '带单位数值 (NUMBER_WITH_UNIT)',
+    '日期 (DATE)',
+    '分类树 (CLASS_TREE)'
+  ];
+  if (!supportedTypes.includes(field.businessFieldType)) {
+    return { eligible: false, reason: '字段类型暂不支持' };
+  }
+  const hasDuplicate = editingRules.some(
+    rule =>
+      rule.objectType === objectType &&
+      rule.propertyCode === field.fieldCode &&
+      rule.id !== currentRuleId
+  );
+  if (hasDuplicate) {
+    return { eligible: false, reason: '当前对象已配置' };
+  }
+  return { eligible: true };
+};
+
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   editingRules,
   onUpdateEditingRules,
@@ -743,6 +782,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
 
+    // Defensive Check: Field eligibility validation
+    const targetField = stage1MappedFields.find(f => f.fieldCode === formPropertyCode && f.objectType === activeObjectType);
+    if (!targetField) {
+      alert('保存失败！一阶段中未找到该属性映射字段。');
+      return;
+    }
+
+    const eligibility = getFieldEligibility(targetField, activeObjectType, editingRules, editingRule?.id);
+    if (!eligibility.eligible) {
+      alert(`保存失败！字段【${targetField.displayName}】一阶段资质校验未通过，原因：${eligibility.reason}。`);
+      return;
+    }
+
     let finalFilterFixedValue = formFilterFixedValue;
 
     if (formIsFilterCondition) {
@@ -1373,16 +1425,37 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       required
                     >
                       <option value="">-- 请选择一阶段已映射物理字段 --</option>
-                      {availableFields.map(f => (
-                        <option key={f.fieldCode} value={f.fieldCode}>
-                          {f.displayName} ({f.fieldCode} - {f.businessFieldType})
-                        </option>
-                      ))}
+                      {availableFields.map(f => {
+                        const eligibility = getFieldEligibility(f, activeObjectType, editingRules, editingRule?.id);
+                        const labelSuffix = eligibility.eligible ? '' : ` [${eligibility.reason}]`;
+                        return (
+                          <option key={f.fieldCode} value={f.fieldCode} disabled={!eligibility.eligible}>
+                            {f.displayName} ({f.fieldCode} - {f.businessFieldType}){labelSuffix}
+                          </option>
+                        );
+                      })}
                     </select>
                     {!isNew ? (
-                      <p className="text-[10px] text-amber-600 mt-1 font-semibold">
-                        ⚠️ 已有规则的映射字段不可变更；如需更换字段，请新建规则。
-                      </p>
+                      (() => {
+                        const originalField = stage1MappedFields.find(f => f.fieldCode === formPropertyCode && f.objectType === activeObjectType);
+                        let originalFieldEligibleResult: { eligible: boolean; reason?: string } = { eligible: true, reason: '' };
+                        if (originalField) {
+                          originalFieldEligibleResult = getFieldEligibility(originalField, activeObjectType, editingRules, editingRule?.id);
+                        } else {
+                          originalFieldEligibleResult = { eligible: false, reason: '字段不存在' };
+                        }
+
+                        return !originalFieldEligibleResult.eligible ? (
+                          <div className="mt-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs">
+                            <span className="font-bold">⚠️ 字段映射已失效:</span>
+                            <span className="ml-1">该字段一阶段映射可能不存在、已被停用、未索引或类型暂不支持。原因:【{originalFieldEligibleResult.reason}】。禁止继续保存！</span>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-amber-600 mt-1 font-semibold">
+                            ⚠️ 已有规则的映射字段不可变更；如需更换字段，请新建规则。
+                          </p>
+                        );
+                      })()
                     ) : (
                       <p className="text-[10px] text-slate-400 mt-1">
                         属性相似度规则必须严格来自已映射的物理属性字段。

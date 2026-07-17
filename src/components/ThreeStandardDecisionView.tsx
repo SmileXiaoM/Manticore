@@ -218,23 +218,32 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       {/* Top Main Banner with explicit Stage Definition */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <div>
+          <div className="w-full">
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
                 <ShieldAlert className="w-5 h-5 text-amber-500" />
                 <span>三化决策规则配置</span>
               </h1>
-              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-semibold border border-amber-200">
-                [正式系统界面]
+              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px] font-semibold border border-amber-200">
+                三阶段后续概念原型
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1.5 flex items-center">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mr-2"></span>
-              三化决策规则：用于将相似度结果转换为复用、复核、新建等业务建议，不负责相似度计算本身。
-            </p>
+            
+            <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 leading-relaxed">
+              <p className="font-semibold text-slate-800 mb-1 flex items-center">
+                <Info className="w-4 h-4 mr-1 text-slate-500" />
+                三阶段后续决策规则行为说明
+              </p>
+              <ul className="list-disc pl-4 space-y-1 mt-1">
+                <li><strong>二阶段</strong>只输出相似度分数、命中原因和差异字段等证据；</li>
+                <li><strong>三阶段</strong>规则才输出建议复用、建议复核、允许新建、禁止复用等业务建议；</li>
+                <li>三阶段规则不参与二阶段字段相似度算分；</li>
+                <li className="text-amber-700 font-semibold">当前页面仅作为概念设计原型，不进入二阶段交付和验收基线。</li>
+              </ul>
+            </div>
           </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-400 font-mono">
-            <span>决策引擎版本: V1.2.0</span>
+          <div className="flex items-center space-x-2 text-xs text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-100 shrink-0 self-start mt-1">
+            <span>参考规则集 V1.2.0（草案）</span>
           </div>
         </div>
 

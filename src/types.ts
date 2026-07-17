@@ -62,7 +62,7 @@ export interface FieldSimilarityRule {
   propertyCode: string; // 属性编码 / Manticore 字段
   fieldType: string; // 字段类型
   weight: number; // 权重
-  matchType: string; // 匹配方式 (精确, 模糊, 范围, 权重词, 向量等)
+  matchType: string; // 匹配方式 (精确、文本、数值、分类等)
   nullHandling: string; // 空值处理 (不参与, 扣分, 设为默认值等)
   isScoreActive: boolean; // 参与相似度评分
   isFilterCondition: boolean; // 作为过滤条件
