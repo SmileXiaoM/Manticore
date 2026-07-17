@@ -359,7 +359,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[...lastRunContext.rulesSnapshot].sort((a, b) => a.propertyCode.localeCompare(b.propertyCode)).map((rule) => {
                       const isScoreActive = rule.isScoreActive;
-                      const isFilter = rule.isFilterCondition;
+                      
 
                       return (
                         <div key={rule.id} className={`p-3 rounded-md border ${rule.enabled ? 'bg-white border-slate-200' : 'bg-slate-50/50 border-slate-200/50 opacity-60'} flex flex-col justify-between text-xs`}>
@@ -369,9 +369,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               <span className="text-[10px] font-mono text-slate-400 font-normal">({rule.propertyCode})</span>
                             </div>
                             <div className="flex items-center space-x-1 shrink-0">
-                              {isFilter && (
-                                <span className="bg-rose-50 text-rose-600 border border-rose-100 text-[10px] px-1 py-0.2 rounded font-medium">强过滤</span>
-                              )}
+
                               {isScoreActive && (
                                 <span className="bg-sky-50 text-sky-600 border border-sky-100 text-[10px] px-1 py-0.2 rounded font-medium">参算评分</span>
                               )}

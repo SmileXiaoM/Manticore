@@ -252,7 +252,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 三阶段后续概念原型
               </span>
             </div>
-            
+
             <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 leading-relaxed">
               <p className="font-semibold text-slate-800 mb-1 flex items-center">
                 <Info className="w-4 h-4 mr-1 text-slate-500" />

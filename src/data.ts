@@ -1608,21 +1608,7 @@ function evaluateNumeric(numCand: number, targetVal: string, operator: string, r
   return false;
 }
 
-function formatFilterReason(
-  template: string | undefined,
-  fieldName: string,
-  candValStr: string,
-  refValStr: string,
-  conditionValStr: string,
-  operator: string
-): string {
-  const defaultReason = `强过滤不满足: [${fieldName}] 值为 "${candValStr}"，不满足 [${operator}] "${conditionValStr}"`;
-  const tmpl = template || defaultReason;
-  return tmpl
-    .replace(/{candidateValue}/g, candValStr)
-    .replace(/{referenceValue}/g, refValStr)
-    .replace(/{conditionValue}/g, conditionValStr);
-}
+
 
 export function runSimilaritySearch(
   objectType: string,

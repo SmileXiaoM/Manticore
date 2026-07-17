@@ -71,7 +71,7 @@ export default function App() {
       objectType: '机械零件 (PART_MECHANICAL)',
       configVersion: 'v2.4.9',
       operationType: '启用',
-      summary: '尝试启用新增标称直径字段强过滤规则，因配置权重总和85%不满足100%要求导致校验失败。',
+      summary: '尝试启用新增标称直径评分规则，因配置权重总和85%不满足100%要求导致校验失败。',
       operator: '王明 (机械工程师)',
       time: '2026-07-15 14:10:05',
       result: 'FAILED',
