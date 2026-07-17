@@ -34,7 +34,7 @@ interface LastRunContext {
   ruleUpdatedAt: string; // R13-BLK-02
   scoreFieldsCount: number;
   totalWeight: number;
-  filterConditionsCount: number;
+  candidateDataSource: string;
   thresholds: { high: number; medium: number };
   unitCatalogVersion: string;
   unitCatalogStatus: string; // R13-BLK-02
@@ -122,10 +122,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <span className="text-xs font-bold text-slate-800 font-mono" id="snapshot-total-weight">{ctx.totalWeight}%</span>
         </div>
 
-        {/* 7. 强过滤条件数 */}
+        {/* 7. 候选集数据源 */}
         <div className="bg-white p-3 rounded border border-slate-200 flex flex-col justify-between shadow-2xs">
-          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 强过滤条件数</span>
-          <span className="text-xs font-bold text-rose-600 font-mono" id="snapshot-filter-fields">{ctx.filterConditionsCount} 项</span>
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">7. 候选集数据源</span>
+          <span className="text-xs font-bold text-emerald-600 font-medium" id="snapshot-candidate-datasource">{ctx.candidateDataSource}</span>
         </div>
 
         {/* 8. 分档阈值 */}
@@ -180,7 +180,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         ruleUpdatedAt: ruleUpAt,
         scoreFieldsCount: rulesSnapshot.filter((r: any) => r.isScoreActive && r.enabled).length,
         totalWeight: rulesSnapshot.filter((r: any) => r.isScoreActive && r.enabled).reduce((sum: number, r: any) => sum + r.weight, 0),
-        filterConditionsCount: rulesSnapshot.filter((r: any) => r.isFilterCondition && r.enabled).length,
+        candidateDataSource: '一阶段有效索引（仅有效件）',
         thresholds: { high: 85, medium: 70 },
         unitCatalogVersion: 'Windchill 2026-07-15',
         unitCatalogStatus: '已加载',
@@ -521,46 +521,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-semibold shrink-0">
                   沙盒独立验证中
                 </span>
-              </div>
-            )}
-
-            {/* 强过滤剔除候选件 (R10-BLK-03) */}
-            {lastRunContext.searchResult.filteredCandidates && lastRunContext.searchResult.filteredCandidates.length > 0 && (
-              <div className="bg-rose-50/50 border border-rose-200/60 rounded-lg p-4 space-y-2">
-                <details className="group" open>
-                  <summary className="list-none flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-900">
-                      <AlertTriangle className="w-4 h-4 text-rose-700" />
-                      <span>强过滤一票否决剔除候选件 ({lastRunContext.searchResult.filteredCandidates.length} 件)</span>
-                    </div>
-                    <span className="text-xs text-rose-600 font-medium group-open:hidden">点击展开查看原因</span>
-                    <span className="text-xs text-rose-600 font-medium hidden group-open:inline">点击收起</span>
-                  </summary>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-rose-100/60 text-rose-900 border-b border-rose-200">
-                          <th className="p-2.5 font-bold">候选编码</th>
-                          <th className="p-2.5 font-bold">物料名称</th>
-                          <th className="p-2.5 font-bold">状态</th>
-                          <th className="p-2.5 font-bold">过滤原因</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-rose-100 text-rose-800">
-                        {lastRunContext.searchResult.filteredCandidates.map(fc => (
-                          <tr key={fc.objectId} className="hover:bg-rose-100/20">
-                            <td className="p-2.5 font-mono font-bold">{fc.objectId}</td>
-                            <td className="p-2.5">{fc.objectName}</td>
-                            <td className="p-2.5">
-                              <span className="px-2 py-0.5 bg-rose-200/50 rounded text-xs">{fc.lifecycleState}</span>
-                            </td>
-                            <td className="p-2.5 font-medium text-rose-900">{fc.filterReason}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
               </div>
             )}
 

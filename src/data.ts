@@ -21,7 +21,6 @@ import {
   ReferenceObject,
   CompareFieldResult,
   ScoredCandidate,
-  FilteredCandidate,
   SearchRunResult,
   UnitCatalog
 } from './types';
@@ -249,7 +248,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
   {
     objectType: 'PART_MECHANICAL',
     fieldId: 'surface_treatment_stage1',
-    displayName: '表面处理 (演示置灰)',
+    displayName: '表面处理',
     fieldCode: 'surface_treatment',
     businessFieldType: '文本 (TEXT)',
     manticoreType: 'VARCHAR',
@@ -262,7 +261,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
   {
     objectType: 'PART_MECHANICAL',
     fieldId: 'material_thickness_stage1',
-    displayName: '材料厚度 (演示置灰)',
+    displayName: '材料厚度',
     fieldCode: 'material_thickness',
     businessFieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     manticoreType: 'DOUBLE',
@@ -312,7 +311,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '文本相似匹配 (非 AI)',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -341,7 +339,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -370,7 +367,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -404,7 +400,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: false,
@@ -433,7 +428,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '层级关系匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -467,7 +461,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '数值容差匹配',
     nullHandling: '候选缺失按 0 分',
     isScoreActive: true,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: true,
@@ -501,7 +494,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchType: '精确值匹配',
     nullHandling: '不参与计算',
     isScoreActive: false,
-    isFilterCondition: false,
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: false,
@@ -519,74 +511,6 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     baseUnit: '无',
     displayUnit: '无',
     matchConfig: { kind: 'EXACT' }
-  },
-  {
-    id: 'F-008',
-    objectType: 'PART_MECHANICAL',
-    fieldName: '生命周期状态',
-    propertyCode: 'lifecycle_state',
-    fieldType: '枚举 (ENUM)',
-    weight: 0,
-    matchType: '精确值匹配',
-    nullHandling: '不参与计算',
-    isScoreActive: false,
-    isFilterCondition: true,
-    isQueryPreviewAvailable: true,
-    isAppEndActive: true,
-    showHitReason: false,
-    showDiffFields: false,
-    hitReasonTemplate: '',
-    diffFieldsTemplate: '',
-    enabled: true,
-    configVersion: 'v2.5.0',
-    lastEditor: '系统管理员',
-    lastEditTime: '2026-07-15 12:00:00',
-    fieldId: 'lifecycle_state_stage1',
-    manticoreType: 'VARCHAR',
-    enumOrCategorySource: '生命周期状态枚举',
-    unitFamily: '无',
-    baseUnit: '无',
-    displayUnit: '无',
-    matchConfig: { kind: 'EXACT' },
-    filterSource: 'FIXED_VALUE',
-    filterOperator: '不属于',
-    filterFixedValue: '已作废、已停用',
-    filterFailAction: '过滤候选，不进入评分',
-    filterReasonTemplate: '生命周期状态为“{candidateValue}”，未进入评分和排序'
-  },
-  {
-    id: 'F-009',
-    objectType: 'PART_ELECTRICAL',
-    fieldName: '生命周期状态',
-    propertyCode: 'lifecycle_state',
-    fieldType: '枚举 (ENUM)',
-    weight: 0,
-    matchType: '精确值匹配',
-    nullHandling: '不参与计算',
-    isScoreActive: false,
-    isFilterCondition: true,
-    isQueryPreviewAvailable: true,
-    isAppEndActive: true,
-    showHitReason: false,
-    showDiffFields: false,
-    hitReasonTemplate: '',
-    diffFieldsTemplate: '',
-    enabled: true,
-    configVersion: 'v1.0.0',
-    lastEditor: '系统管理员',
-    lastEditTime: '2026-07-15 12:00:00',
-    fieldId: 'lifecycle_state_stage1',
-    manticoreType: 'VARCHAR',
-    enumOrCategorySource: '生命周期状态枚举',
-    unitFamily: '无',
-    baseUnit: '无',
-    displayUnit: '无',
-    matchConfig: { kind: 'EXACT' },
-    filterSource: 'FIXED_VALUE',
-    filterOperator: '不属于',
-    filterFixedValue: '已作废、已停用',
-    filterFailAction: '过滤候选，不进入评分',
-    filterReasonTemplate: '生命周期状态为“{candidateValue}”，未进入评分和排序'
   }
 ];
 
@@ -1774,7 +1698,6 @@ export function runSimilaritySearch(
     return {
       reference: null,
       scoredCandidates: [],
-      filteredCandidates: [],
       errorCode: 'REFERENCE_NOT_FOUND',
       errorMessage: `未找到源申请件或物料代码: ${requestCodeOrId}`
     };
@@ -1849,29 +1772,6 @@ export function runSimilaritySearch(
         nominal_diameter: 'mm',
         nominal_length: 'mm'
       }
-    },
-    {
-      objectId: 'PART-D-FILTERED',
-      objectName: '六角头螺栓 M10 x 50 (已作废失效)',
-      specification: 'M10 x 50',
-      material: 'SUS304',
-      classificationPath: '/紧固件/螺栓/六角头螺栓',
-      lifecycleState: '已作废',
-      attributes: {
-        spec_description: '六角头螺栓 M10 x 50',
-        core_material: 'SUS304',
-        nominal_diameter: 10, // mm
-        thread_pitch: 1.5, // mm
-        nominal_length: 50,
-        category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '已作废',
-        creation_date: '2026-02-01'
-      },
-      units: {
-        nominal_diameter: 'mm',
-        thread_pitch: 'mm',
-        nominal_length: 'mm'
-      }
     }
   ];
 
@@ -1905,133 +1805,18 @@ export function runSimilaritySearch(
         lifecycle_state: '有效',
         creation_date: '2026-01-31'
       }
-    },
-    {
-      objectId: 'ELEC-C-FILTERED',
-      objectName: '交流继电器 220V (停用作废)',
-      specification: '220V',
-      material: '塑料',
-      classificationPath: '/电子元器件/继电器/交流继电器',
-      lifecycleState: '已作废',
-      attributes: {
-        working_voltage: 220,
-        working_temp: 298.15,
-        category_path: '/电子元器件/继电器/交流继电器',
-        lifecycle_state: '已作废',
-        creation_date: '2026-02-01'
-      }
     }
   ];
 
   const rawCandidates = objectType === 'PART_MECHANICAL' ? rawMechanicalCandidates : rawElectricalCandidates;
 
   const scoredCandidates: ScoredCandidate[] = [];
-  const filteredCandidates: FilteredCandidate[] = [];
 
   // Filter rules relevant to this object type
   const typeRules = rules.filter(r => r.objectType === objectType);
   const activeRules = typeRules.filter(r => r.isScoreActive && r.enabled);
 
   for (const cand of rawCandidates) {
-    // 3. Step 1: Execute candidates hard filtration first (R10-BLK-03)
-    let isFilteredByRules = false;
-    let filterReason = '';
-
-    for (const rule of typeRules) {
-      if (!rule.isFilterCondition || !rule.enabled) continue;
-
-      const key = rule.propertyCode;
-      const refVal = reference ? reference.attributes[key] : null;
-      const rawCandVal = cand.attributes[key];
-      // Fallback for lifecycle state if not direct in attributes
-      const candVal = (rawCandVal !== undefined && rawCandVal !== null)
-        ? rawCandVal
-        : (key === 'lifecycle_state' ? (cand.lifecycleState || cand.attributes.lifecycle_state) : null);
-
-      const source = rule.filterSource || 'FIXED_VALUE';
-      const operator = rule.filterOperator || '等于';
-      const fixedVal = rule.filterFixedValue || '';
-
-      const isCandMissing = (candVal === null || candVal === undefined || candVal === '');
-      const isRefMissing = (source === 'REF_VALUE' && (refVal === null || refVal === undefined || refVal === ''));
-
-      const targetVal = source === 'REF_VALUE' ? refVal : fixedVal;
-
-      if (isCandMissing) {
-        isFilteredByRules = true;
-        filterReason = formatFilterReason(
-          rule.filterReasonTemplate,
-          rule.fieldName,
-          '无',
-          String(refVal ?? '无'),
-          String(targetVal ?? '无'),
-          operator
-        );
-        break;
-      }
-
-      if (isRefMissing) {
-        isFilteredByRules = true;
-        filterReason = `强过滤字段 [${rule.fieldName}] 在参考件中缺失值，比对终止`;
-        break;
-      }
-
-      let isPassed = true;
-      const fieldTypeUpper = (rule.fieldType || '').toUpperCase();
-
-      if (fieldTypeUpper.includes('CLASS_TREE')) {
-        isPassed = evaluateClassTree(String(candVal), String(targetVal), operator);
-      } else if (fieldTypeUpper.includes('DATE')) {
-        isPassed = evaluateDate(String(candVal), String(targetVal), operator);
-      } else if (fieldTypeUpper.includes('NUMBER')) {
-        const qtyFamily = rule.unitFamily || '长度';
-        const candUnit = (cand as any).units?.[key] || rule.displayUnit || '';
-        const candValBase = fieldTypeUpper.includes('NUMBER_WITH_UNIT')
-          ? convertToBaseUnit(Number(candVal), candUnit, qtyFamily)
-          : Number(candVal);
-
-        isPassed = evaluateNumeric(candValBase, String(targetVal), operator, rule);
-      } else {
-        // String and Enum types
-        if (operator === '等于') {
-          isPassed = String(candVal).trim() === String(targetVal).trim();
-        } else if (operator === '不等于') {
-          isPassed = String(candVal).trim() !== String(targetVal).trim();
-        } else if (operator === '属于') {
-          const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
-          isPassed = list.includes(String(candVal).trim());
-        } else if (operator === '不属于') {
-          const list = String(targetVal).split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
-          isPassed = !list.includes(String(candVal).trim());
-        } else {
-          isPassed = false;
-        }
-      }
-
-      if (!isPassed) {
-        isFilteredByRules = true;
-        filterReason = formatFilterReason(
-          rule.filterReasonTemplate,
-          rule.fieldName,
-          String(candVal),
-          String(refVal ?? '无'),
-          String(targetVal),
-          operator
-        );
-        break;
-      }
-    }
-
-    if (isFilteredByRules) {
-      filteredCandidates.push({
-        objectId: cand.objectId,
-        objectName: cand.objectName,
-        lifecycleState: cand.lifecycleState || cand.attributes.lifecycle_state,
-        filterReason: filterReason
-      });
-      continue;
-    }
-
     // Apply UI Filters from search panel (Client view)
     if (filters) {
       if (filters.keyword && filters.keyword.trim()) {
@@ -2223,7 +2008,6 @@ export function runSimilaritySearch(
 
   return {
     reference,
-    scoredCandidates,
-    filteredCandidates
+    scoredCandidates
   };
 }

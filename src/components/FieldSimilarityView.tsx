@@ -134,7 +134,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // Filters State
   const [filterFieldName, setFilterFieldName] = useState('');
   const [filterIsScoreActive, setFilterIsScoreActive] = useState<string>('ALL');
-  const [filterIsFilterCondition, setFilterIsFilterCondition] = useState<string>('ALL');
   const [filterMatchType, setFilterMatchType] = useState<string>('ALL');
 
   // Form State variables
@@ -145,18 +144,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formMatchTypeState, setFormMatchTypeState] = useState<string>('数值容差匹配');
   const [formNullHandling, setFormNullHandling] = useState<string>('候选缺失按 0 分');
   const [formIsScoreActive, setFormIsScoreActive] = useState<boolean>(true);
-  const [formIsFilterCondition, setFormIsFilterCondition] = useState<boolean>(false);
   const [formHitReasonTemplate, setFormHitReasonTemplate] = useState<string>('');
   const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState<string>('');
-
-  // Strong filter config (R10-BLK-03)
-  const [formFilterSource, setFormFilterSource] = useState<'REF_VALUE' | 'FIXED_VALUE'>('FIXED_VALUE');
-  const [formFilterOperator, setFormFilterOperator] = useState<string>('不属于');
-  const [formFilterFixedValue, setFormFilterFixedValue] = useState<string>('');
-  const [formFilterFailAction, setFormFilterFailAction] = useState<string>('过滤候选，不进入评分');
-  const [formFilterReasonTemplate, setFormFilterReasonTemplate] = useState<string>('');
-  const [formFilterRangeMin, setFormFilterRangeMin] = useState<string>('');
-  const [formFilterRangeMax, setFormFilterRangeMax] = useState<string>('');
 
   // Unit catalog fields
   const [formUnitFamily, setFormUnitFamily] = useState<string>('长度');
@@ -236,17 +225,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setParamDateToleranceUnit('DAY');
       setParamDateToleranceDirection('BOTH');
 
-      // Reset filter parameters
-      if (fieldType.toUpperCase().includes('CLASS_TREE')) {
-        setFormFilterOperator('路径一致');
-      } else {
-        setFormFilterOperator('等于');
-      }
-      setFormFilterFixedValue('');
-      setFormFilterRangeMin('');
-      setFormFilterRangeMax('');
-      setFormFilterReasonTemplate('');
-
       // Reset units
       if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
         setFormUnitFamily(selectedField.unitFamily);
@@ -280,12 +258,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setFormBaseUnit('无');
       setFormDisplayUnit('无');
 
-      setFormFilterOperator('等于');
-      setFormFilterFixedValue('');
-      setFormFilterRangeMin('');
-      setFormFilterRangeMax('');
-      setFormFilterReasonTemplate('');
-
       setPreviewSrcVal('10.0');
       setPreviewTgtVal('10.2');
     }
@@ -310,8 +282,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       total,
       details,
       isValid: total === 100,
-      scoreCount: scoreRules.length,
-      filterCount: subset.filter(r => r.isFilterCondition).length
+      scoreCount: scoreRules.length
     };
   }, [editingRules, activeObjectType]);
 
@@ -323,8 +294,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     return {
       total,
       isValid: total === 100,
-      scoreCount: scoreRules.length,
-      filterCount: subset.filter(r => r.isFilterCondition).length
+      scoreCount: scoreRules.length
     };
   }, [savedRules, activeObjectType]);
 
@@ -356,12 +326,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         if (r.isScoreActive !== target) return false;
       }
 
-      // Filter by Filter Active
-      if (filterIsFilterCondition !== 'ALL') {
-        const target = filterIsFilterCondition === 'TRUE';
-        if (r.isFilterCondition !== target) return false;
-      }
-
       // Filter by Match Type
       if (filterMatchType !== 'ALL') {
         if (r.matchType !== filterMatchType) return false;
@@ -369,13 +333,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
       return true;
     }).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-  }, [editingRules, activeObjectType, filterFieldName, filterIsScoreActive, filterIsFilterCondition, filterMatchType]);
+  }, [editingRules, activeObjectType, filterFieldName, filterIsScoreActive, filterMatchType]);
 
   // Reset Filters
   const handleResetFilters = () => {
     setFilterFieldName('');
     setFilterIsScoreActive('ALL');
-    setFilterIsFilterCondition('ALL');
     setFilterMatchType('ALL');
   };
 
@@ -572,24 +535,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormMatchTypeState(rule.matchType);
     setFormNullHandling(rule.nullHandling);
     setFormIsScoreActive(rule.isScoreActive);
-    setFormIsFilterCondition(rule.isFilterCondition);
     setFormHitReasonTemplate(rule.hitReasonTemplate || '');
     setFormDiffFieldsTemplate(rule.diffFieldsTemplate || '');
-
-    setFormFilterSource(rule.filterSource || 'FIXED_VALUE');
-    setFormFilterOperator(rule.filterOperator || '等于');
-    setFormFilterFixedValue(rule.filterFixedValue || '');
-    setFormFilterFailAction(rule.filterFailAction || '过滤候选，不进入评分');
-    setFormFilterReasonTemplate(rule.filterReasonTemplate || '');
-
-    if (rule.filterOperator === '区间内' || rule.filterOperator === '区间外') {
-      const parts = (rule.filterFixedValue || '').split('~');
-      setFormFilterRangeMin(parts[0] || '');
-      setFormFilterRangeMax(parts[1] || '');
-    } else {
-      setFormFilterRangeMin('');
-      setFormFilterRangeMax('');
-    }
 
     setFormUnitFamily(rule.unitFamily || '长度');
     setFormBaseUnit(rule.baseUnit || 'm');
@@ -641,15 +588,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormMatchTypeState('精确值匹配');
     setFormNullHandling('候选缺失按 0 分');
     setFormIsScoreActive(true);
-    setFormIsFilterCondition(false);
     setFormHitReasonTemplate('');
     setFormDiffFieldsTemplate('');
-
-    setFormFilterSource('FIXED_VALUE');
-    setFormFilterOperator('等于');
-    setFormFilterFixedValue('');
-    setFormFilterFailAction('过滤候选，不进入评分');
-    setFormFilterReasonTemplate('');
 
     setFormUnitFamily('长度');
     setFormBaseUnit('m');
@@ -759,20 +699,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     paramHierarchyDeduction
   ]);
 
-  const getOperatorsForFieldType = (fieldType: string) => {
-    const typeUpper = (fieldType || '').toUpperCase();
-    if (typeUpper.includes('CLASS_TREE')) {
-      return ['路径一致', '属于该路径', '父子关系', '祖先/后代关系'];
-    }
-    if (typeUpper.includes('DATE')) {
-      return ['等于', '早于', '晚于', '区间内'];
-    }
-    if (typeUpper.includes('NUMBER')) {
-      return ['等于', '大于等于', '小于等于', '区间内', '区间外'];
-    }
-    return ['等于', '不等于', '属于', '不属于'];
-  };
-
   // Handle Form Submit
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -793,76 +719,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (!eligibility.eligible) {
       alert(`保存失败！字段【${targetField.displayName}】一阶段资质校验未通过，原因：${eligibility.reason}。`);
       return;
-    }
-
-    let finalFilterFixedValue = formFilterFixedValue;
-
-    if (formIsFilterCondition) {
-      const allowedOps = getOperatorsForFieldType(formFieldType);
-      if (!allowedOps.includes(formFilterOperator)) {
-        alert(`保存失败！未识别的运算符 [${formFilterOperator}] 用于 [${formFieldType}] 字段。`);
-        return;
-      }
-
-      if (formFilterSource === 'FIXED_VALUE') {
-        const isDateField = formFieldType.toUpperCase().includes('DATE');
-        const isNumberField = formFieldType.toUpperCase().includes('NUMBER');
-
-        if (formFilterOperator === '区间内' || formFilterOperator === '区间外') {
-          if (!formFilterRangeMin.trim() || !formFilterRangeMax.trim()) {
-            alert('保存失败！固定区间条件必须填写开始值和结束值。');
-            return;
-          }
-
-          if (isDateField) {
-            const minTime = Date.parse(formFilterRangeMin);
-            const maxTime = Date.parse(formFilterRangeMax);
-            if (isNaN(minTime) || isNaN(maxTime)) {
-              alert('保存失败！区间开始值和结束值必须为合法日期格式（如 YYYY-MM-DD）。');
-              return;
-            }
-            if (minTime > maxTime) {
-              alert('保存失败！区间反向错误：开始日期不能晚于结束日期。');
-              return;
-            }
-          } else if (isNumberField) {
-            const minVal = Number(formFilterRangeMin);
-            const maxVal = Number(formFilterRangeMax);
-            if (isNaN(minVal) || isNaN(maxVal)) {
-              alert('保存失败！区间开始值和结束值必须为合法数字。');
-              return;
-            }
-            if (minVal > maxVal) {
-              alert('保存失败！区间反向错误：开始值不能大于结束值。');
-              return;
-            }
-          } else {
-            if (formFilterRangeMin.trim().localeCompare(formFilterRangeMax.trim()) > 0) {
-              alert('保存失败！区间反向错误：开始值不能大于结束值。');
-              return;
-            }
-          }
-          finalFilterFixedValue = `${formFilterRangeMin}~${formFilterRangeMax}`;
-        } else {
-          if (!formFilterFixedValue.trim()) {
-            alert('保存失败！固定条件值不能为空。');
-            return;
-          }
-          if (isNumberField) {
-            const numVal = Number(formFilterFixedValue);
-            if (isNaN(numVal)) {
-              alert('保存失败！数值型字段固定条件值必须为合法数字。');
-              return;
-            }
-          } else if (isDateField) {
-            const dateTime = Date.parse(formFilterFixedValue);
-            if (isNaN(dateTime)) {
-              alert('保存失败！日期型字段固定条件值必须为合法日期格式（如 YYYY-MM-DD）。');
-              return;
-            }
-          }
-        }
-      }
     }
 
     // Validate compatibility of field type and match type
@@ -935,7 +791,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       matchType: formMatchTypeState,
       nullHandling: formNullHandling,
       isScoreActive: formIsScoreActive,
-      isFilterCondition: formIsFilterCondition,
       isQueryPreviewAvailable: true,
       isAppEndActive: true,
       showHitReason: formHitReasonTemplate.trim().length > 0,
@@ -949,14 +804,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       unitFamily: isUnitType ? formUnitFamily : '无',
       baseUnit: isUnitType ? formBaseUnit : '无',
       displayUnit: isUnitType ? formDisplayUnit : '无',
-      matchConfig: matchConfig,
-
-      // Strong filter config (R10-BLK-03)
-      filterSource: formFilterSource,
-      filterOperator: formFilterOperator,
-      filterFixedValue: finalFilterFixedValue,
-      filterFailAction: formFilterFailAction,
-      filterReasonTemplate: formFilterReasonTemplate
+      matchConfig: matchConfig
     };
 
     if (isNew) {
@@ -1189,20 +1037,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </select>
                 </div>
 
-                {/* Filter condition toggle */}
-                <div className="flex items-center space-x-1.5 text-xs">
-                  <span className="text-slate-500 font-medium">作为过滤条件:</span>
-                  <select
-                    value={filterIsFilterCondition}
-                    onChange={(e) => setFilterIsFilterCondition(e.target.value)}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-                  >
-                    <option value="ALL">全部</option>
-                    <option value="TRUE">是</option>
-                    <option value="FALSE">否</option>
-                  </select>
-                </div>
-
                 {/* Match type filter */}
                 <div className="flex items-center space-x-1.5 text-xs">
                   <span className="text-slate-500 font-medium">匹配方式:</span>
@@ -1243,7 +1077,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           <th className="px-4 py-3">比对参数规格摘要</th>
                           <th className="px-4 py-3">空值回退策略</th>
                           <th className="px-3 py-3 text-center">评分</th>
-                          <th className="px-3 py-3 text-center">过滤</th>
                           <th className="px-4 py-3 text-center">管理操作</th>
                         </tr>
                       </thead>
@@ -1251,7 +1084,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         {filteredRules.length > 0 ? (
                           filteredRules.map((rule) => {
                             const isScore = rule.isScoreActive;
-                            const isFilter = rule.isFilterCondition;
 
                             // Parameter Summary builder
                             let paramSummary = '无特殊匹配参数';
@@ -1346,17 +1178,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                                   </span>
                                 </td>
 
-                                {/* Filter Toggle Switch */}
-                                <td className="px-3 py-2.5 text-center">
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isFilter
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                      : 'bg-slate-100 text-slate-500 border border-slate-200'
-                                  }`}>
-                                    {isFilter ? '过滤中' : '不参与'}
-                                  </span>
-                                </td>
-
                                 {/* Actions */}
                                 <td className="px-4 py-2.5 text-center">
                                   <div className="flex items-center justify-center space-x-2">
@@ -1382,7 +1203,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           })
                         ) : (
                           <tr>
-                            <td colSpan={9} className="text-center py-10 text-slate-400">
+                            <td colSpan={8} className="text-center py-10 text-slate-400">
                               未搜索到匹配的字段对比规则。
                             </td>
                           </tr>
@@ -1511,7 +1332,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       onChange={(e) => setFormNullHandling(e.target.value)}
                       className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 outline-hidden cursor-pointer font-medium"
                     >
-                      <option value="候选缺失按 0 分">候选缺失按 0 分 (一票否决)</option>
+                      <option value="候选缺失按 0 分">候选缺失按 0 分</option>
                       <option value="不参与计算">不参与计算 (权重均摊到其他有值项)</option>
                     </select>
                   </div>
@@ -1529,153 +1350,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       />
                       <span>参与属性级相似度加权评分</span>
                     </label>
-
-                    <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formIsFilterCondition}
-                        onChange={(e) => setFormIsFilterCondition(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>作为严格过滤一票否决条件 (Filter)</span>
-                    </label>
                   </div>
-
-                  {formIsFilterCondition && (
-                    <div className="col-span-1 md:col-span-2 p-4 bg-amber-50/60 border border-amber-200/60 rounded-lg space-y-4 text-xs mt-1">
-                      <h4 className="font-bold text-amber-950 flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                        <span>强过滤一票否决规则参数设置</span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Filter Source */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">条件来源</label>
-                          <select
-                            value={formFilterSource}
-                            onChange={(e) => setFormFilterSource(e.target.value as any)}
-                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
-                          >
-                            <option value="REF_VALUE">按参考件当前值 (REF_VALUE)</option>
-                            <option value="FIXED_VALUE">固定条件 (FIXED_VALUE)</option>
-                          </select>
-                        </div>
-
-                         {/* Filter Operator */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">运算符</label>
-                          <select
-                            value={formFilterOperator}
-                            onChange={(e) => {
-                              const newOp = e.target.value;
-                              setFormFilterOperator(newOp);
-                              if (newOp !== '区间内' && newOp !== '区间外') {
-                                setFormFilterRangeMin('');
-                                setFormFilterRangeMax('');
-                              }
-                            }}
-                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
-                          >
-                            {getOperatorsForFieldType(formFieldType).map(op => (
-                              <option key={op} value={op}>{op}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Fixed Value */}
-                        {formFilterSource === 'FIXED_VALUE' && (() => {
-                          const typeUpper = (formFieldType || '').toUpperCase();
-                          const isDateField = typeUpper.includes('DATE');
-                          const isNumericField = typeUpper.includes('NUMBER') || typeUpper.includes('NUMBER_WITH_UNIT');
-                          const isUnitNumericField = typeUpper.includes('NUMBER_WITH_UNIT');
-
-                          let inputType = "text";
-                          if (isDateField) {
-                            inputType = "date";
-                          } else if (isNumericField) {
-                            inputType = "number";
-                          }
-
-                          return (
-                            <div className="col-span-1 md:col-span-2">
-                              {formFilterOperator === '区间内' || formFilterOperator === '区间外' ? (
-                                <div>
-                                  <label className="block font-semibold text-slate-700 mb-1">
-                                    固定区间值 {isUnitNumericField && `(单位: ${formDisplayUnit})`}
-                                  </label>
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type={inputType}
-                                      step={isNumericField ? "any" : undefined}
-                                      value={formFilterRangeMin}
-                                      onChange={(e) => setFormFilterRangeMin(e.target.value)}
-                                      placeholder={isDateField ? "" : isNumericField ? "区间开始数值" : "区间开始值 (例如: 10)"}
-                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
-                                    />
-                                    <span className="text-slate-400">至</span>
-                                    <input
-                                      type={inputType}
-                                      step={isNumericField ? "any" : undefined}
-                                      value={formFilterRangeMax}
-                                      onChange={(e) => setFormFilterRangeMax(e.target.value)}
-                                      placeholder={isDateField ? "" : isNumericField ? "区间结束数值" : "区间结束值 (例如: 50)"}
-                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
-                                    />
-                                    {isUnitNumericField && (
-                                      <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div>
-                                  <label className="block font-semibold text-slate-700 mb-1">
-                                    固定条件值 {isUnitNumericField && `(单位: ${formDisplayUnit})`}
-                                  </label>
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type={inputType}
-                                      step={isNumericField ? "any" : undefined}
-                                      value={formFilterFixedValue}
-                                      onChange={(e) => setFormFilterFixedValue(e.target.value)}
-                                      placeholder={isDateField ? "" : isNumericField ? "输入数值条件" : "如：已作废 或 12 (支持多值逗号分隔)"}
-                                      className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
-                                    />
-                                    {isUnitNumericField && (
-                                      <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-
-                        {/* Fail Action */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">不满足处理</label>
-                          <input
-                            type="text"
-                            value={formFilterFailAction}
-                            disabled
-                            className="w-full bg-slate-100 border border-slate-200 rounded px-3 py-1.5 text-slate-500 cursor-not-allowed font-medium"
-                          />
-                        </div>
-
-                        {/* Reason Template */}
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">过滤原因解释模板</label>
-                          <input
-                            type="text"
-                            value={formFilterReasonTemplate}
-                            onChange={(e) => setFormFilterReasonTemplate(e.target.value)}
-                            placeholder="如：生命周期状态为已作废，未进入评分和排序"
-                            className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 font-medium text-slate-800"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {formIsScoreActive && (
                     <div>
@@ -2108,7 +1783,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-date-only-filter-placeholder">
                     <div className="text-slate-500 font-bold text-xs">📅 日期字段评分未启用</div>
                     <p className="text-slate-400 text-[11px] leading-relaxed">
-                      日期字段当前用于固定条件或强过滤验证。
+                      该属性当前未启用参与相似度评分计算。
                     </p>
                   </div>
                 );

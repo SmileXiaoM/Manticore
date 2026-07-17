@@ -65,7 +65,6 @@ export interface FieldSimilarityRule {
   matchType: string; // 匹配方式 (精确、文本、数值、分类等)
   nullHandling: string; // 空值处理 (不参与, 扣分, 设为默认值等)
   isScoreActive: boolean; // 参与相似度评分
-  isFilterCondition: boolean; // 作为过滤条件
   isQueryPreviewAvailable: boolean; // 查询预览可用
   isAppEndActive: boolean; // 应用端生效
   showHitReason: boolean; // 展示命中原因
@@ -85,13 +84,6 @@ export interface FieldSimilarityRule {
   baseUnit?: string; // 基准单位
   displayUnit?: string; // 显示单位
   matchConfig?: MatchConfig; // 匹配方式对应的动态参数
-
-  // 强过滤条件配置 (R10-BLK-03)
-  filterSource?: 'REF_VALUE' | 'FIXED_VALUE'; // 条件来源: REF_VALUE 按参考件当前值, FIXED_VALUE 固定条件
-  filterOperator?: string; // 运算符: 等于, 不等于, 属于, 不属于, 大于等于, 小于等于, 路径一致, 属于该路径, 父子/祖先关系
-  filterFixedValue?: string; // 固定条件值
-  filterFailAction?: string; // 不满足处理: 过滤候选，不进入评分
-  filterReasonTemplate?: string; // 过滤原因模板
 }
 
 export interface StandardizationRule {
@@ -345,17 +337,9 @@ export type ScoredCandidate = {
   differenceCount: number;
 };
 
-export type FilteredCandidate = {
-  objectId: string;
-  objectName: string;
-  lifecycleState: string;
-  filterReason: string;
-};
-
 export type SearchRunResult = {
   reference: ReferenceObject | null;
   scoredCandidates: ScoredCandidate[];
-  filteredCandidates: FilteredCandidate[];
   errorCode?: 'REFERENCE_NOT_FOUND' | 'OBJECT_TYPE_MISMATCH';
   errorMessage?: string;
 };
@@ -374,7 +358,6 @@ export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectTyp
         matchType: r.matchType,
         nullHandling: r.nullHandling,
         isScoreActive: r.isScoreActive,
-        isFilterCondition: r.isFilterCondition,
         isQueryPreviewAvailable: r.isQueryPreviewAvailable,
         isAppEndActive: r.isAppEndActive,
         showHitReason: r.showHitReason,
@@ -386,11 +369,6 @@ export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectTyp
         baseUnit: r.baseUnit || '',
         displayUnit: r.displayUnit || '',
         matchConfig: r.matchConfig ? JSON.parse(JSON.stringify(r.matchConfig)) : null,
-        filterSource: r.filterSource || 'FIXED_VALUE',
-        filterOperator: r.filterOperator || '',
-        filterFixedValue: r.filterFixedValue || '',
-        filterFailAction: r.filterFailAction || '',
-        filterReasonTemplate: r.filterReasonTemplate || '',
       };
     })
     .sort((a, b) => {

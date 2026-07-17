@@ -41,11 +41,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   const [isWaiting, setIsWaiting] = useState<boolean>(true);
   const [searchResult, setSearchResult] = useState<SearchRunResult>(() => ({
     reference: null,
-    scoredCandidates: [],
-    filteredCandidates: []
+    scoredCandidates: []
   }));
 
-  const { reference, scoredCandidates, filteredCandidates } = searchResult;
+  const { reference, scoredCandidates } = searchResult;
 
   // Selected candidate for side comparative drawer
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
@@ -53,8 +52,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   const invalidateOldResults = () => {
     setSearchResult({
       reference: null,
-      scoredCandidates: [],
-      filteredCandidates: []
+      scoredCandidates: []
     });
     setSelectedForCompare(null);
     setIsWaiting(true);
@@ -65,8 +63,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
       alert('请输入源物料代码/申请号');
       setSearchResult({
         reference: null,
-        scoredCandidates: [],
-        filteredCandidates: []
+        scoredCandidates: []
       });
       setSelectedForCompare(null);
       setIsWaiting(true);
@@ -93,8 +90,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     setMaterialInput('');
     setSearchResult({
       reference: null,
-      scoredCandidates: [],
-      filteredCandidates: []
+      scoredCandidates: []
     });
     setIsWaiting(true);
   };
@@ -338,46 +334,6 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-800 shadow-2xs" id="client-target-error">
                 未找到源申请件或物料代码: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
-              </div>
-            )}
-
-            {/* 强过滤剔除候选件 (R10-BLK-03) */}
-            {filteredCandidates && filteredCandidates.length > 0 && (
-              <div className="bg-rose-50/50 border border-rose-200/60 rounded-lg p-4 space-y-2 w-full">
-                <details className="group" open>
-                  <summary className="list-none flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center space-x-2 text-xs font-bold text-rose-900">
-                      <AlertTriangle className="w-4 h-4 text-rose-700 font-semibold" />
-                      <span>强过滤一票否决剔除候选件 ({filteredCandidates.length} 件)</span>
-                    </div>
-                    <span className="text-xs text-rose-600 font-medium group-open:hidden">点击展开查看原因</span>
-                    <span className="text-xs text-rose-600 font-medium hidden group-open:inline">点击收起</span>
-                  </summary>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-rose-100/60 text-rose-900 border-b border-rose-200">
-                          <th className="p-2.5 font-bold">候选编码</th>
-                          <th className="p-2.5 font-bold">物料名称</th>
-                          <th className="p-2.5 font-bold">状态</th>
-                          <th className="p-2.5 font-bold">过滤原因</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-rose-100 text-rose-800">
-                        {filteredCandidates.map(fc => (
-                          <tr key={fc.objectId} className="hover:bg-rose-100/20">
-                            <td className="p-2.5 font-mono font-bold">{fc.objectId}</td>
-                            <td className="p-2.5">{fc.objectName}</td>
-                            <td className="p-2.5">
-                              <span className="px-2 py-0.5 bg-rose-200/50 rounded text-xs">{fc.lifecycleState}</span>
-                            </td>
-                            <td className="p-2.5 font-medium text-rose-900">{fc.filterReason}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
               </div>
             )}
 
