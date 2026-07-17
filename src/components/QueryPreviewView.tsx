@@ -359,7 +359,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[...lastRunContext.rulesSnapshot].sort((a, b) => a.propertyCode.localeCompare(b.propertyCode)).map((rule) => {
                       const isScoreActive = rule.isScoreActive;
-                      
 
                       return (
                         <div key={rule.id} className={`p-3 rounded-md border ${rule.enabled ? 'bg-white border-slate-200' : 'bg-slate-50/50 border-slate-200/50 opacity-60'} flex flex-col justify-between text-xs`}>
@@ -513,7 +512,15 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <div className="flex items-center space-x-2">
                   <Info className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>
-                    <strong>沙盒试算结论:</strong> 模拟申请件与底层库字段属性匹配完成。测试共计算并输出 <strong className="text-slate-950 font-mono">{lastRunContext.searchResult.scoredCandidates.length}</strong> 个属性相似的候选件。其中高相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 85).length} 个，中相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 70 && c.similarityScore < 85).length} 个，低相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore < 70).length} 个。
+                    {isSecondPhaseEnabled ? (
+                      <>
+                        <strong>沙盒试算结论:</strong> 模拟申请件与底层库字段属性匹配完成。测试共计算并输出 <strong className="text-slate-950 font-mono">{lastRunContext.searchResult.scoredCandidates.length}</strong> 个属性相似的候选件。其中高相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 85).length} 个，中相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 70 && c.similarityScore < 85).length} 个，低相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore < 70).length} 个。
+                      </>
+                    ) : (
+                      <>
+                        <strong>沙盒试算结论：</strong>一阶段检索返回 <strong className="text-slate-950 font-mono">{lastRunContext.searchResult.scoredCandidates.length}</strong> 个有效候选；二阶段相似度计算已停用，本次不输出相似度分数和分档。
+                      </>
+                    )}
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-semibold shrink-0">
@@ -603,7 +610,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                             {isSecondPhaseEnabled ? (
                               <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
                             ) : (
-                              <span className="text-slate-400 text-xs font-semibold">0.0% <span className="text-[10px] text-slate-400 font-normal">(计算关闭)</span></span>
+                              <span className="text-slate-400 text-xs font-semibold">0.0%（计算关闭）</span>
                             )}
                           </td>
 

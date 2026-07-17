@@ -355,157 +355,173 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
         )}
 
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
-
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
-            <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-              <Eye className="w-4 h-4 text-emerald-600" />
-              <span>属性相似件检索结果 (Manticore 实时比对)</span>
-            </span>
-            <span className="text-xs text-slate-400 font-medium">共检索到 {scoredCandidates.length} 条相似件纪录，点击“字段对比”进行去重闭环。</span>
+        {scoredCandidates.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-lg p-12 text-center shadow-2xs" id="client-empty-results-placeholder">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
+                <Search className="w-6 h-6 text-slate-400" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-bold text-slate-800">未找到符合当前查询条件的相似候选件</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  请调整关键词、分类、生命周期、规格或材质条件后重新查询。
+                </p>
+              </div>
+            </div>
           </div>
+        ) : (
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden w-full" id="client-results-box">
 
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse text-xs min-w-[1250px] xl:min-w-0 xl:w-full" id="client-results-table">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
-                  <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
-                  <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
-                  <th className="px-4 py-3 whitespace-nowrap">名称</th>
-                  <th className="px-3 py-3 whitespace-nowrap aux-col-spec">规格/关键尺寸</th>
-                  <th className="px-3 py-3 whitespace-nowrap aux-col-mat">材料</th>
-                  <th className="px-4 py-3 whitespace-nowrap aux-col-class">分类</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">生命周期</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">相似度</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">分档</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">覆盖率</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">命中数</th>
-                  <th className="px-3 py-3 text-center whitespace-nowrap">差异数</th>
-                  <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky-ops">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {scoredCandidates.map((candidate, idx) => {
-                  const isSelected = selectedForCompare?.objectId === candidate.objectId;
-                  const scoreColor = !isSecondPhaseEnabled
-                    ? 'text-slate-400 font-medium'
-                    : candidate.similarityScore >= 85
-                    ? 'text-emerald-700 font-extrabold'
-                    : candidate.similarityScore >= 70
-                    ? 'text-blue-700 font-bold'
-                    : 'text-slate-600 font-medium';
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shrink-0">
+              <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                <Eye className="w-4 h-4 text-emerald-600" />
+                <span>属性相似件检索结果 (Manticore 实时比对)</span>
+              </span>
+              <span className="text-xs text-slate-400 font-medium">共检索到 {scoredCandidates.length} 条相似件纪录，点击“字段对比”进行去重闭环。</span>
+            </div>
 
-                  return (
-                    <tr
-                      key={candidate.objectId}
-                      className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
-                    >
-                      {/* 序号 */}
-                      <td className="px-3 py-3 text-center font-mono text-slate-400 whitespace-nowrap">
-                        {idx + 1}
-                      </td>
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left border-collapse text-xs min-w-[1250px] xl:min-w-0 xl:w-full" id="client-results-table">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
+                    <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
+                    <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
+                    <th className="px-4 py-3 whitespace-nowrap">名称</th>
+                    <th className="px-3 py-3 whitespace-nowrap aux-col-spec">规格/关键尺寸</th>
+                    <th className="px-3 py-3 whitespace-nowrap aux-col-mat">材料</th>
+                    <th className="px-4 py-3 whitespace-nowrap aux-col-class">分类</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">生命周期</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">相似度</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">分档</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">覆盖率</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">命中数</th>
+                    <th className="px-3 py-3 text-center whitespace-nowrap">差异数</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap w-40 sticky-ops">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {scoredCandidates.map((candidate, idx) => {
+                    const isSelected = selectedForCompare?.objectId === candidate.objectId;
+                    const scoreColor = !isSecondPhaseEnabled
+                      ? 'text-slate-400 font-medium'
+                      : candidate.similarityScore >= 85
+                      ? 'text-emerald-700 font-extrabold'
+                      : candidate.similarityScore >= 70
+                      ? 'text-blue-700 font-bold'
+                      : 'text-slate-600 font-medium';
 
-                      {/* 候选件编码 */}
-                      <td className="px-3 py-3 font-mono font-bold text-slate-800 whitespace-nowrap">
-                        {candidate.objectId}
-                      </td>
+                    return (
+                      <tr
+                        key={candidate.objectId}
+                        className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-emerald-50/30' : ''} ${!isSecondPhaseEnabled ? 'opacity-85' : ''}`}
+                      >
+                        {/* 序号 */}
+                        <td className="px-3 py-3 text-center font-mono text-slate-400 whitespace-nowrap">
+                          {idx + 1}
+                        </td>
 
-                      {/* 名称 */}
-                      <td className="px-4 py-3 font-semibold text-slate-950 truncate max-w-[150px] whitespace-nowrap" title={candidate.objectName}>
-                        {candidate.objectName}
-                      </td>
+                        {/* 候选件编码 */}
+                        <td className="px-3 py-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                          {candidate.objectId}
+                        </td>
 
-                      {/* 规格/关键尺寸 */}
-                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono aux-col-spec">
-                        {candidate.specification}
-                      </td>
+                        {/* 名称 */}
+                        <td className="px-4 py-3 font-semibold text-slate-950 truncate max-w-[150px] whitespace-nowrap" title={candidate.objectName}>
+                          {candidate.objectName}
+                        </td>
 
-                      {/* 材料 */}
-                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap aux-col-mat">
-                        {candidate.material}
-                      </td>
+                        {/* 规格/关键尺寸 */}
+                        <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono aux-col-spec">
+                          {candidate.specification}
+                        </td>
 
-                      {/* 分类 */}
-                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap aux-col-class" title={candidate.classificationPath}>
-                        {candidate.classificationPath}
-                      </td>
+                        {/* 材料 */}
+                        <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap aux-col-mat">
+                          {candidate.material}
+                        </td>
 
-                      {/* 生命周期 */}
-                      <td className="px-3 py-3 text-center whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded text-[11px] border ${
-                          candidate.lifecycleState === '有效' || candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
-                            : candidate.lifecycleState === '已作废' || candidate.lifecycleState.includes('作废') || candidate.lifecycleState.includes('失效')
-                            ? 'bg-rose-50 text-rose-800 border-rose-200/60'
-                            : candidate.lifecycleState === '设计中' || candidate.lifecycleState.includes('草稿')
-                            ? 'bg-blue-50 text-blue-800 border-blue-200/60'
-                            : 'bg-slate-50 text-slate-600 border border-slate-200'
-                        }`}>
-                          {candidate.lifecycleState}
-                        </span>
-                      </td>
+                        {/* 分类 */}
+                        <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap aux-col-class" title={candidate.classificationPath}>
+                          {candidate.classificationPath}
+                        </td>
 
-                      {/* 相似度 */}
-                      <td className="px-3 py-3 text-center font-mono whitespace-nowrap">
-                        {isSecondPhaseEnabled ? (
-                          <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
-                        ) : (
-                          <span className="text-slate-400 text-xs font-semibold">0.0% <span className="text-[10px] text-slate-400 font-normal">(计算关闭)</span></span>
-                        )}
-                      </td>
-
-                      {/* 分档 */}
-                      <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
-                        {isSecondPhaseEnabled ? (
-                          <span className={`px-2 py-0.5 rounded text-[11px] ${
-                            candidate.similarityScore >= 85 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
-                            candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
-                            'bg-slate-100 text-slate-600 border border-slate-200'
+                        {/* 生命周期 */}
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[11px] border ${
+                            candidate.lifecycleState === '有效' || candidate.lifecycleState.includes('已发布') || candidate.lifecycleState.includes('Released')
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
+                              : candidate.lifecycleState === '已作废' || candidate.lifecycleState.includes('作废') || candidate.lifecycleState.includes('失效')
+                              ? 'bg-rose-50 text-rose-800 border-rose-200/60'
+                              : candidate.lifecycleState === '设计中' || candidate.lifecycleState.includes('草稿')
+                              ? 'bg-blue-50 text-blue-800 border-blue-200/60'
+                              : 'bg-slate-50 text-slate-600 border border-slate-200'
                           }`}>
-                            {candidate.similarityTier}
+                            {candidate.lifecycleState}
                           </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-400 border border-slate-200 font-normal">
-                            计算停用
-                          </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* 覆盖率 */}
-                      <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {isSecondPhaseEnabled ? `${candidate.coverageRate}%` : '-'}
-                      </td>
+                        {/* 相似度 */}
+                        <td className="px-3 py-3 text-center font-mono whitespace-nowrap">
+                          {isSecondPhaseEnabled ? (
+                            <span className={`${scoreColor} text-xs`}>{candidate.similarityScore.toFixed(1)}%</span>
+                          ) : (
+                            <span className="text-slate-400 text-xs font-semibold">0.0% <span className="text-[10px] text-slate-400 font-normal">(计算关闭)</span></span>
+                          )}
+                        </td>
 
-                      {/* 命中数 */}
-                      <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {isSecondPhaseEnabled ? `${candidate.fullHitCount} / ${candidate.compareFields.length}` : '-'}
-                      </td>
+                        {/* 分档 */}
+                        <td className="px-3 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
+                          {isSecondPhaseEnabled ? (
+                            <span className={`px-2 py-0.5 rounded text-[11px] ${
+                              candidate.similarityScore >= 85 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
+                              candidate.similarityScore >= 70 ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                              'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}>
+                              {candidate.similarityTier}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-400 border border-slate-200 font-normal">
+                              计算停用
+                            </span>
+                          )}
+                        </td>
 
-                      {/* 差异数 */}
-                      <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
-                        {isSecondPhaseEnabled ? candidate.differenceCount : '-'}
-                      </td>
+                        {/* 覆盖率 */}
+                        <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                          {isSecondPhaseEnabled ? `${candidate.coverageRate}%` : '-'}
+                        </td>
 
-                      {/* 操作 */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap sticky-ops">
-                        <div className="flex items-center justify-center space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedForCompare(candidate)}
-                            className="px-2.5 py-1 text-xs font-bold rounded cursor-pointer border border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors whitespace-nowrap"
-                          >
-                            字段对比
-                          </button>
-                        </div>
-                      </td>
+                        {/* 命中数 */}
+                        <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                          {isSecondPhaseEnabled ? `${candidate.fullHitCount} / ${candidate.compareFields.length}` : '-'}
+                        </td>
 
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* 差异数 */}
+                        <td className="px-3 py-3 text-center font-mono font-semibold text-red-600 whitespace-nowrap">
+                          {isSecondPhaseEnabled ? candidate.differenceCount : '-'}
+                        </td>
+
+                        {/* 操作 */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap sticky-ops">
+                          <div className="flex items-center justify-center space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedForCompare(candidate)}
+                              className="px-2.5 py-1 text-xs font-bold rounded cursor-pointer border border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors whitespace-nowrap"
+                            >
+                              字段对比
+                            </button>
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
           </>
         )}
