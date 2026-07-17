@@ -41,6 +41,33 @@ interface FieldSimilarityViewProps {
   setActiveObjectType?: (type: ObjectType) => void;
 }
 
+const getAllowedMatchTypes = (fieldType: string): string[] => {
+  const typeUpper = (fieldType || '').toUpperCase();
+  if (typeUpper.includes('LONG_TEXT')) {
+    return ['精确值匹配', '文本相似匹配 (非 AI)'];
+  }
+  if (typeUpper.includes('TEXT')) {
+    return ['精确值匹配'];
+  }
+  if (typeUpper.includes('ENUM')) {
+    return ['精确值匹配'];
+  }
+  if (typeUpper.includes('NUMBER')) {
+    return ['精确值匹配', '数值容差匹配', '数值距离衰减'];
+  }
+  if (typeUpper.includes('DATE')) {
+    return ['精确值匹配'];
+  }
+  if (typeUpper.includes('CLASS_TREE')) {
+    return ['精确值匹配', '层级关系匹配'];
+  }
+  return ['精确值匹配'];
+};
+
+const getDefaultMatchType = (fieldType: string): string => {
+  return '精确值匹配';
+};
+
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   editingRules,
   onUpdateEditingRules,
@@ -124,25 +151,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [previewSrcVal, setPreviewSrcVal] = useState<string>('10.0');
   const [previewTgtVal, setPreviewTgtVal] = useState<string>('10.1');
 
-  useEffect(() => {
-    const isDate = (formFieldType || '').toUpperCase().includes('DATE');
-    if (isDate) {
-      if (!previewSrcVal.includes('-')) {
-        setPreviewSrcVal('2026-01-01');
-      }
-      if (!previewTgtVal.includes('-')) {
-        setPreviewTgtVal('2026-01-15');
-      }
-    } else {
-      if (previewSrcVal.includes('-')) {
-        setPreviewSrcVal('10.0');
-      }
-      if (previewTgtVal.includes('-')) {
-        setPreviewTgtVal('10.2');
-      }
-    }
-  }, [formFieldType]);
-
   // Load selected Unit Quantity units
   const currentQuantityData = useMemo(() => {
     return mockUnitCatalog.quantities.find(q => q.code === formUnitFamily || q.name === formUnitFamily);
@@ -165,11 +173,43 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleFieldChange = (fieldCode: string) => {
     const selectedField = availableFields.find(f => f.fieldCode === fieldCode);
     if (selectedField) {
+      const fieldType = selectedField.businessFieldType;
       setFormFieldName(selectedField.displayName);
       setFormPropertyCode(selectedField.fieldCode);
-      setFormFieldType(selectedField.businessFieldType);
+      setFormFieldType(fieldType);
 
-      if (selectedField.businessFieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+      // Reset Match Type to default
+      const defMatch = getDefaultMatchType(fieldType);
+      setFormMatchTypeState(defMatch);
+
+      // Reset matchConfig dynamic parameters
+      setParamMinTextThreshold(60);
+      setParamNumToleranceType('ABSOLUTE');
+      setParamNumToleranceVal(0.2);
+      setParamNumToleranceDirection('BOTH');
+      setParamDecayFullScore(0.1);
+      setParamDecayZeroBoundary(1.0);
+      setParamDecayDirection('BOTH');
+      setParamHierarchyMaxDiff(3);
+      setParamHierarchyRequirement('ANCESTOR_DESCENDANT');
+      setParamHierarchyDeduction(5);
+      setParamDateToleranceVal(7);
+      setParamDateToleranceUnit('DAY');
+      setParamDateToleranceDirection('BOTH');
+
+      // Reset filter parameters
+      if (fieldType.toUpperCase().includes('CLASS_TREE')) {
+        setFormFilterOperator('路径一致');
+      } else {
+        setFormFilterOperator('等于');
+      }
+      setFormFilterFixedValue('');
+      setFormFilterRangeMin('');
+      setFormFilterRangeMax('');
+      setFormFilterReasonTemplate('');
+
+      // Reset units
+      if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
         setFormUnitFamily(selectedField.unitFamily);
         setFormBaseUnit(selectedField.baseUnit);
 
@@ -183,13 +223,32 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         setFormBaseUnit('无');
         setFormDisplayUnit('无');
       }
+
+      // Reset interactive simulator values synchronously to avoid DATE warning on render
+      if (fieldType.toUpperCase().includes('DATE')) {
+        setPreviewSrcVal('2026-01-01');
+        setPreviewTgtVal('2026-01-15');
+      } else {
+        setPreviewSrcVal('10.0');
+        setPreviewTgtVal('10.2');
+      }
     } else {
       setFormFieldName('');
       setFormPropertyCode('');
       setFormFieldType('文本 (TEXT)');
+      setFormMatchTypeState('精确值匹配');
       setFormUnitFamily('无');
       setFormBaseUnit('无');
       setFormDisplayUnit('无');
+
+      setFormFilterOperator('等于');
+      setFormFilterFixedValue('');
+      setFormFilterRangeMin('');
+      setFormFilterRangeMax('');
+      setFormFilterReasonTemplate('');
+
+      setPreviewSrcVal('10.0');
+      setPreviewTgtVal('10.2');
     }
   };
 
@@ -522,8 +581,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     }
 
     // Default interactive test values
-    setPreviewSrcVal('10.0');
-    setPreviewTgtVal('10.2');
+    if ((rule.fieldType || '').toUpperCase().includes('DATE')) {
+      setPreviewSrcVal('2026-01-01');
+      setPreviewTgtVal('2026-01-15');
+    } else {
+      setPreviewSrcVal('10.0');
+      setPreviewTgtVal('10.2');
+    }
   };
 
   // Trigger New Rule Form
@@ -749,6 +813,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       }
     }
 
+    // Validate compatibility of field type and match type
+    const allowedMatchTypes = getAllowedMatchTypes(formFieldType);
+    if (!allowedMatchTypes.includes(formMatchTypeState)) {
+      alert(`保存失败！字段类型与匹配方式不兼容，请重新选择匹配方式。字段类型: ${formFieldType}, 匹配方式: ${formMatchTypeState}`);
+      return;
+    }
+
     // Build MatchConfig
     let matchConfig: MatchConfig = { kind: 'EXACT' };
     if (formMatchTypeState === '文本相似匹配 (非 AI)') {
@@ -781,6 +852,21 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         toleranceUnit: paramDateToleranceUnit,
         direction: paramDateToleranceDirection
       };
+    }
+
+    // Defensive check: matchType must match matchConfig.kind
+    const kindMap: Record<string, string> = {
+      '精确值匹配': 'EXACT',
+      '文本相似匹配 (非 AI)': 'TEXT_SIMILARITY',
+      '数值容差匹配': 'NUMERIC_TOLERANCE',
+      '数值距离衰减': 'NUMERIC_DECAY',
+      '层级关系匹配': 'NATIVE_HIERARCHY',
+      '日期容差匹配': 'DATE_TOLERANCE'
+    };
+
+    if (kindMap[formMatchTypeState] !== matchConfig.kind) {
+      alert(`保存失败！算法配置内部不一致：匹配方式为 [${formMatchTypeState}] 但算法内部类型为 [${matchConfig.kind}]，请重新确认！`);
+      return;
     }
 
     // Ensure unit details are cleaned up if plain number
@@ -1280,7 +1366,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <select
                       value={formPropertyCode}
                       onChange={(e) => handleFieldChange(e.target.value)}
-                      className="w-full text-xs border border-slate-300 rounded px-3 py-1.5 bg-white text-slate-800 font-bold outline-hidden cursor-pointer focus:ring-1 focus:ring-blue-500"
+                      disabled={!isNew}
+                      className={`w-full text-xs border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-bold outline-hidden focus:ring-1 focus:ring-blue-500 ${
+                        !isNew ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white cursor-pointer'
+                      }`}
                       required
                     >
                       <option value="">-- 请选择一阶段已映射物理字段 --</option>
@@ -1290,9 +1379,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      属性相似度规则必须严格来自已映射的物理属性字段。
-                    </p>
+                    {!isNew ? (
+                      <p className="text-[10px] text-amber-600 mt-1 font-semibold">
+                        ⚠️ 已有规则的映射字段不可变更；如需更换字段，请新建规则。
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        属性相似度规则必须严格来自已映射的物理属性字段。
+                      </p>
+                    )}
                   </div>
 
                   {/* Field name (Read Only) */}
@@ -1661,25 +1756,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       onChange={(e) => setFormMatchTypeState(e.target.value)}
                       className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
                     >
-                      <option value="精确值匹配">精确值匹配 (EXACT)</option>
-                      {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
-                        <>
-                          <option value="数值容差匹配">数值容差匹配 (NUMERIC_TOLERANCE)</option>
-                          <option value="数值距离衰减">数值距离衰减 (NUMERIC_DECAY)</option>
-                        </>
-                      )}
-                      {formFieldType === '数值 (NUMBER)' && (
-                        <>
-                          <option value="数值容差匹配">数值容差匹配 (NUMERIC_TOLERANCE)</option>
-                          <option value="数值距离衰减">数值距离衰减 (NUMERIC_DECAY)</option>
-                        </>
-                      )}
-                      {formFieldType === '长文本 (LONG_TEXT)' && (
-                        <option value="文本相似匹配 (非 AI)">文本相似匹配 (非 AI)</option>
-                      )}
-                      {formFieldType === '分类树 (CLASS_TREE)' && (
-                        <option value="层级关系匹配">层级关系匹配 (NATIVE_HIERARCHY)</option>
-                      )}
+                      {getAllowedMatchTypes(formFieldType).map((mt) => {
+                        let label = mt;
+                        if (mt === '精确值匹配') label = '精确值匹配 (EXACT)';
+                        else if (mt === '数值容差匹配') label = '数值容差匹配 (NUMERIC_TOLERANCE)';
+                        else if (mt === '数值距离衰减') label = '数值距离衰减 (NUMERIC_DECAY)';
+                        else if (mt === '文本相似匹配 (非 AI)') label = '文本相似匹配 (非 AI)';
+                        else if (mt === '层级关系匹配') label = '层级关系匹配 (NATIVE_HIERARCHY)';
+                        return (
+                          <option key={mt} value={mt}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -1881,7 +1970,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               {/* Card 4: Action reasoning template tags */}
               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                  第四部分：业务语义命中间隙原因说明模板
+                  第四部分：规则比对命中原因与差异反馈模板
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2000,7 +2089,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                   {isDateField && (
                     <p className="text-[10px] text-slate-400 leading-normal" id="date-match-tip-msg">
-                      说明：若两日期一致（如均未 {previewSrcVal}）则计算为 100% 匹配，否则扣分或归零。
+                      说明：若两日期一致（如均为 {previewSrcVal}）则计算为 100% 匹配，否则扣分或归零。
                     </p>
                   )}
 

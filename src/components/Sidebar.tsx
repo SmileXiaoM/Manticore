@@ -29,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
         {/* Section 1: 属性相似度 */}
         <div>
-          <span className="px-3 text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-2">属性相似度</span>
+          <span className="px-3 text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-2">二阶段：属性相似度</span>
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('field-rules')}

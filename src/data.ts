@@ -872,7 +872,7 @@ export const attributeTypes: AttributeTypeItem[] = [
     configComponent: '多行文本框 (TextArea)',
     queryComponent: '模糊匹配输入框',
     isEnum: false,
-    optionalMatchTypes: ['Manticore 模糊匹配', 'Cosine 向量余弦值', 'TF-IDF 相似度'],
+    optionalMatchTypes: ['Manticore 模糊匹配', '模糊词典匹配', 'TF-IDF 相似度'],
     optionalStandardization: ['特殊字符过滤'],
     description: '物料的详细文本规格描述，常在属性级评分中占高权重。'
   },
@@ -1051,7 +1051,7 @@ export const queryResults: QueryResultItem[] = [
     material: 'A2-70 不锈钢',
     classificationPath: '/国家标准分类/紧固件/螺栓/六角头螺栓/普通级',
     lifecycleState: '已发布 (Released)',
-    hitReason: '基本属性吻合：标称直径 (得15分)；规格描述(得22.5分)；材质同义映射(得25分)。由于分类路径不匹配，仅得同属螺栓大类的折扣分 4 分 (满分15)；由于螺纹型式差异(外六角 vs 内六角)造成语义相似度扣分。',
+    hitReason: '基本属性吻合：标称直径 (得15分)；规格描述(得22.5分)；材质同义映射(得25分)。由于分类路径不匹配，仅得同属螺栓大类的折扣分 4 分 (满分15)；由于螺纹型式差异(外六角 vs 内六角)造成规格模式不匹配扣分。',
     diffFields: '分类不一致: 源[内六角螺栓] vs 目标[六角头螺栓/普通级]；驱动头几何型式不同。',
     scoreDetail: [
       { fieldName: '规格描述 (spec_description)', score: 22.5, weight: 35, matchInfo: 'TF-IDF 相似度: 64.3%' },
