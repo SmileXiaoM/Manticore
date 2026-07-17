@@ -154,27 +154,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     const ruleUpAt = objectConfigStatus[objectType]?.lastModifiedAt || '无';
     if (objectId.trim() === '') {
       alert('请输入源物料代码/申请号');
-      setLastRunContext({
-        objectType,
-        objectId: '',
-        ruleVersion,
-        configVersion: (objectConfigStatus[objectType]?.configVersion || 'v2.5.0'),
-        lastModifiedAt: ruleUpAt,
-        ruleUpdatedAt: ruleUpAt,
-        scoreFieldsCount: 0,
-        totalWeight: 0,
-        filterConditionsCount: 0,
-        thresholds: { high: 85, medium: 70 },
-        unitCatalogVersion: 'Windchill 2026-07-15',
-        unitCatalogStatus: '已加载',
-        rulesSnapshot: [],
-        searchResult: {
-          reference: null,
-          scoredCandidates: [],
-          filteredCandidates: []
-        },
-        runTime: curTime
-      });
+      setLastRunContext(null);
       setSelectedCandidate(null);
       return;
     }
@@ -232,7 +212,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
           <h1 className="text-lg font-bold text-slate-900">相似度查询预览</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            管理端沙盒验证工具：验证二阶段各字段属性相似度算分、命中原因解释与字段差异标注，提供全链条模拟对齐。
+            管理端沙盒验证工具：验证各字段属性相似度算分、命中原因解释与字段差异标注，提供全链条模拟对齐。
           </p>
         </div>
 
@@ -517,7 +497,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <div className="flex items-center space-x-2">
                   <AlertTriangle className="w-4.5 h-4.5 text-red-600 shrink-0" />
                   <span>
-                    <strong>⚠️ 相似度计算受限：</strong>当前选择的物料分类 [{lastRunContext.objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 处于<strong>「已全局停用比分 (计算关闭)」</strong>状态。一阶段检索始终激活，但二阶段相似度算分、量纲对齐及匹配差异分析已关闭，计算结果归零。
+                    <strong>⚠️ 相似度计算受限：</strong>当前选择的物料分类 [{lastRunContext.objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 处于<strong>「已全局停用比分 (计算关闭)」</strong>状态。一阶段检索始终激活，但属性相似度算分、量纲对齐及匹配差异分析已关闭，计算结果归零。
                   </span>
                 </div>
                 <button
@@ -592,9 +572,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold font-sans">
                       <th className="px-4 py-3 whitespace-nowrap">候选件编码</th>
                       <th className="px-4 py-3 whitespace-nowrap">名称</th>
-                      <th className="px-4 py-3 whitespace-nowrap aux-col">规格/关键尺寸</th>
-                      <th className="px-4 py-3 whitespace-nowrap aux-col">材料</th>
-                      <th className="px-4 py-3 whitespace-nowrap aux-col">分类</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col-spec">规格/关键尺寸</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col-mat">材料</th>
+                      <th className="px-4 py-3 whitespace-nowrap aux-col-class">分类</th>
                       <th className="px-3 py-3 whitespace-nowrap">生命周期</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">相似度</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">分档</th>
@@ -631,17 +611,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           </td>
 
                           {/* 规格/关键尺寸 */}
-                          <td className="px-4 py-3 font-mono text-slate-800 whitespace-nowrap aux-col">
+                          <td className="px-4 py-3 font-mono text-slate-800 whitespace-nowrap aux-col-spec">
                             {candidate.specification}
                           </td>
 
                           {/* 材料 */}
-                          <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap aux-col">
+                          <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap aux-col-mat">
                             {candidate.material}
                           </td>
 
                           {/* 分类 */}
-                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px] whitespace-nowrap aux-col" title={candidate.classificationPath}>
+                          <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[160px] whitespace-nowrap aux-col-class" title={candidate.classificationPath}>
                             {candidate.classificationPath}
                           </td>
 
@@ -771,7 +751,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 </div>
                 <div className="border-t border-slate-200/60 my-2"></div>
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span>二阶段相似度总评分:</span>
+                  <span>属性相似度总评分:</span>
                   {isSecondPhaseEnabled ? (
                     <span className="text-blue-600 font-extrabold text-sm">{selectedCandidate.similarityScore.toFixed(1)}%</span>
                   ) : (
@@ -782,10 +762,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
               {!isSecondPhaseEnabled ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 text-center space-y-3">
-                  <AlertTriangle className="w-8 h-8 text-slate-400 mx-auto" />
-                  <p className="font-bold text-slate-700 text-xs">二阶段比分不可用</p>
+                   <AlertTriangle className="w-8 h-8 text-slate-400 mx-auto" />
+                  <p className="font-bold text-slate-700 text-xs">属性比分不可用</p>
                   <p className="text-slate-500 text-[11px] leading-relaxed">
-                    当前分类的二阶段属性相似度比分规则在配置端已被管理员关闭（停用）。物理缺口分析和加权分数明细已关闭，仅执行一阶段基础检索召回。
+                    当前分类的属性相似度比分规则在配置端已被管理员关闭（停用）。物理缺口分析和加权分数明细已关闭，仅执行基础检索召回。
                   </p>
                   <button
                     type="button"
@@ -836,7 +816,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     </h3>
                     <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
                       <div>
-                        <span className="text-slate-400 block mb-0.5">二阶段属性匹配分析：</span>
+                        <span className="text-slate-400 block mb-0.5">属性匹配分析：</span>
                         <p className="text-slate-700 leading-relaxed font-medium">
                           {selectedCandidate.compareFields
                             .filter(f => f.status !== 'FULL')

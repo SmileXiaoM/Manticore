@@ -1,5 +1,5 @@
 /**
- * PLM / Manticore 二阶段相似度搜索配置 - TypeScript 类型声明
+ * PLM / Manticore 属性相似度搜索配置 - TypeScript 类型声明
  */
 
 export type ObjectType = 'PART_MECHANICAL' | 'PART_ELECTRICAL' | 'DOCUMENT' | 'CAD_MODEL' | 'ALL';

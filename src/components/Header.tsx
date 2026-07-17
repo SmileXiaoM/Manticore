@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-slate-900 text-sm tracking-tight">PLM / Manticore</span>
-            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">二阶段相似度引擎</span>
+            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">属性相似度引擎</span>
           </div>
           <span className="text-[11px] text-slate-500 leading-none">企业级物料去重与多维搜索管理台</span>
         </div>

@@ -569,7 +569,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           {/* Business Guide */}
           <div>
             <p>
-              此模块属于<strong>三阶段（三化决策）的规则中心</strong>。系统在二阶段根据属性、名称等计算出纯客观的相似度得分（像不像）后，三化决策模块将分数对应到管理阈值线，并加载硬性控制或强控规则，输出最终的业务治理建议（能不能直接复用 / 是否需要人工复核 / 是否允许新建），不负责相似度分数的计算本身。应用端查找时只输出建议，不硬性拦截用户新建。
+              此模块属于<strong>三阶段（三化决策）的规则中心</strong>。系统首先根据属性、名称等计算出纯客观的相似度得分（像不像）后，三化决策模块将分数对应到管理阈值线，并加载硬性控制或强控规则，输出最终的业务治理建议（能不能直接复用 / 是否需要人工复核 / 是否允许新建），不负责相似度分数的计算本身。应用端查找时只输出建议，不硬性拦截用户新建。
             </p>
           </div>
 
@@ -639,7 +639,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
               <div className="p-2.5 bg-blue-50 rounded text-[11px] text-blue-800 flex items-start space-x-1.5">
                 <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
                 <span>
-                  <strong>阶段导视：</strong>此处的改动不作用于二阶段字段算分。它主要负责把相似度得分 (0-100) 的计算结果，转义为应用端新建时的业务建议逻辑。
+                  <strong>阶段导视：</strong>此处的改动不作用于相似度字段算分。它主要负责把相似度得分 (0-100) 的计算结果，转义为应用端新建时的业务建议逻辑。
                 </span>
               </div>
 

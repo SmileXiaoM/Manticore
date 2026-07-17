@@ -42,7 +42,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           </div>
           <h1 className="text-xl font-bold text-slate-900">配置变更审计历史</h1>
           <p className="text-xs text-slate-500 mt-1">
-            追溯各对象类型下 Manticore 二阶段相似度配置的保存、启用、停用及完整性校验审计日志。
+            追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。
           </p>
         </div>
       </div>

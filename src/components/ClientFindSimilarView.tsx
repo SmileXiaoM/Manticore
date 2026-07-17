@@ -69,7 +69,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
         filteredCandidates: []
       });
       setSelectedForCompare(null);
-      setIsWaiting(false);
+      setIsWaiting(true);
       return;
     }
     const res = runSimilaritySearch(objectType, reqCode, rules, {
@@ -284,7 +284,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <div className="space-y-1.5">
                 <h3 className="text-sm font-bold text-slate-800">等待查询，请先执行试算</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  系统已载入最新配置，应用端首期自动试算保护已启动。请在上方输入条件，并点击<strong>“查询相似件”</strong>按钮，系统将执行 Manticore 去重引擎及二阶段加权属性评分。
+                  系统已载入最新配置，应用端首期自动试算保护已启动。请在上方输入条件，并点击<strong>“查询相似件”</strong>按钮，系统将执行 Manticore 去重引擎及属性相似度加权算分。
                 </p>
               </div>
             </div>
@@ -387,7 +387,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             <div className="flex items-center space-x-2">
               <AlertTriangle className="w-4.5 h-4.5 text-red-600 shrink-0" />
               <span>
-                <strong>⚠️ 二阶段计算关闭：</strong>业务端提示：当前物料类别 [{objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 二阶段规则比分已被管理员停用。一阶段基础检索召回功能正常，但相似度分数归 0。
+                <strong>⚠️ 属性相似度计算关闭：</strong>业务端提示：当前物料类别 [{objectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}] 属性相似度规则比分已被管理员停用。一阶段基础检索召回功能正常，但相似度分数归 0。
               </span>
             </div>
             <button
@@ -416,9 +416,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   <th className="px-3 py-3 text-center w-12 whitespace-nowrap">序号</th>
                   <th className="px-3 py-3 whitespace-nowrap">候选件编码</th>
                   <th className="px-4 py-3 whitespace-nowrap">名称</th>
-                  <th className="px-3 py-3 whitespace-nowrap aux-col">规格/关键尺寸</th>
-                  <th className="px-3 py-3 whitespace-nowrap aux-col">材料</th>
-                  <th className="px-4 py-3 whitespace-nowrap aux-col">分类</th>
+                  <th className="px-3 py-3 whitespace-nowrap aux-col-spec">规格/关键尺寸</th>
+                  <th className="px-3 py-3 whitespace-nowrap aux-col-mat">材料</th>
+                  <th className="px-4 py-3 whitespace-nowrap aux-col-class">分类</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">生命周期</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">相似度</th>
                   <th className="px-3 py-3 text-center whitespace-nowrap">分档</th>
@@ -460,17 +460,17 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       </td>
 
                       {/* 规格/关键尺寸 */}
-                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono aux-col">
+                      <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap font-mono aux-col-spec">
                         {candidate.specification}
                       </td>
 
                       {/* 材料 */}
-                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap aux-col">
+                      <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap aux-col-mat">
                         {candidate.material}
                       </td>
 
                       {/* 分类 */}
-                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap aux-col" title={candidate.classificationPath}>
+                      <td className="px-4 py-3 text-slate-500 font-mono truncate max-w-[150px] whitespace-nowrap aux-col-class" title={candidate.classificationPath}>
                         {candidate.classificationPath}
                       </td>
 
@@ -575,7 +575,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               <div className="space-y-0.5">
                 <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase flex items-center space-x-1">
                   <ArrowLeftRight className="w-3 h-3" />
-                  <span>二阶段精密属性对齐看板</span>
+                  <span>精密属性对齐看板</span>
                 </span>
                 <h2 className="text-sm font-bold flex items-center space-x-2">
                   <span>对齐比对:</span>
@@ -585,7 +585,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
               <div className="flex items-center space-x-2.5">
                 <span className="text-[11px] bg-slate-700/70 text-emerald-300 border border-slate-600 px-2 py-0.5 rounded font-mono font-bold shrink-0">
-                  一/二阶段映射拉通
+                  属性/字段映射拉通
                 </span>
                 <button
                   onClick={() => setSelectedForCompare(null)}
@@ -624,10 +624,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3.5 text-red-800 text-xs flex flex-col gap-1.5 leading-relaxed">
                   <div className="font-bold flex items-center space-x-1">
                     <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                    <span>⚠️ 二阶段计算处于全局停用状态</span>
+                    <span>⚠️ 属性级计算处于全局停用状态</span>
                   </div>
                   <p className="text-[11px] text-red-700">
-                    当前选择的分类已全局关闭二阶段相似度比分。下方各特征值比对正常展示，但未激活量纲换算、扣分机制及归一化百分比算分（相似度强制归 0）。
+                    当前选择的分类已全局关闭属性相似度比分。下方各特征值比对正常展示，但未激活量纲换算、扣分机制及归一化百分比算分（相似度强制归 0）。
                   </p>
                 </div>
               )}
@@ -635,7 +635,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               {/* Mapped Table Comparison Details */}
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-                  <span>一阶段/二阶段映射字段对齐细节</span>
+                  <span>映射字段属性对齐细节</span>
                 </span>
 
                 <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs bg-white">
@@ -680,7 +680,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   <div className="leading-relaxed bg-white p-2.5 rounded border border-slate-100 text-slate-600 space-y-1">
                     {!isSecondPhaseEnabled ? (
                       <div className="text-slate-400 font-medium">
-                        因该对象类型的二阶段比分处于全局关闭状态，无属性差异扣分诊断。
+                        因该对象类型的属性比分处于全局关闭状态，无属性差异扣分诊断。
                       </div>
                     ) : selectedForCompare.differenceCount > 0 ? (
                       selectedForCompare.compareFields

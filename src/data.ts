@@ -1,5 +1,5 @@
 /**
- * PLM / Manticore 二阶段相似度搜索配置 - 模拟企业级真实数据
+ * PLM / Manticore 属性相似度搜索配置 - 模拟企业级真实数据
  */
 
 import {
@@ -662,7 +662,7 @@ export const initialStandardizationRules: StandardizationRule[] = [
     version: 'v1.0.1',
     lastEditor: '赵丽 (电气工程师)',
     lastEditTime: '2026-05-20 09:33:00',
-    remarks: '规范不同供应商提供的电气元器件参数绝缘等级，提升二阶段精确配对成功率。'
+    remarks: '规范不同供应商提供的电气元器件参数绝缘等级，提升精确属性配对成功率。'
   }
 ];
 
@@ -711,7 +711,7 @@ export const initialSynonymRules: SynonymRule[] = [
     version: 'v1.8.0',
     lastEditor: '赵丽 (电气工程师)',
     lastEditTime: '2026-07-05 16:50:00',
-    remarks: '电气元器件核心同义词，确保采购件与自制件命名别名能够完成二阶段相似对齐。'
+    remarks: '电气元器件核心同义词，确保采购件与自制件命名别名能够完成属性相似对齐。'
   }
 ];
 
@@ -848,7 +848,7 @@ export const attributeTypes: AttributeTypeItem[] = [
     isEnum: true,
     optionalMatchTypes: ['精确比对', '外形别名匹配'],
     optionalStandardization: ['材料牌号归一映射'],
-    description: '指导材质如 SUS304 与 304 不锈钢的一阶段与二阶段映射。'
+    description: '指导材质如 SUS304 与 304 不锈钢的字段与属性相似度映射。'
   },
   {
     id: 'T-002',
@@ -874,7 +874,7 @@ export const attributeTypes: AttributeTypeItem[] = [
     isEnum: false,
     optionalMatchTypes: ['Manticore 模糊匹配', 'Cosine 向量余弦值', 'TF-IDF 相似度'],
     optionalStandardization: ['特殊字符过滤'],
-    description: '物料的详细文本规格描述，常在二阶段评分中占高权重。'
+    description: '物料的详细文本规格描述，常在属性级评分中占高权重。'
   },
   {
     id: 'T-004',

@@ -30,7 +30,15 @@ body {
 
 /* Table responsive column hiding rules for Manticore */
 @media (min-width: 1280px) and (max-width: 1439px) {
-  .aux-col {
+  .aux-col-spec,
+  .aux-col-mat,
+  .aux-col-class {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1440px) and (max-width: 1599px) {
+  .aux-col-class {
     display: none !important;
   }
 }

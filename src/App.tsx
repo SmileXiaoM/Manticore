@@ -82,7 +82,7 @@ export default function App() {
       objectType: '电气元器件 (PART_ELECTRICAL)',
       configVersion: 'v1.0.0',
       operationType: '停用',
-      summary: '由于电气元器件分类元数据重构，手动下线停用该对象类型的二阶段相似度对比计算。',
+      summary: '由于电气元器件分类元数据重构，手动下线停用该对象类型的属性相似度对比计算。',
       operator: '张建国 (系统架构师)',
       time: '2026-07-12 11:20:00',
       result: 'SUCCESS'
@@ -246,7 +246,7 @@ export default function App() {
               <div>
                 <h3 className="text-sm font-bold text-slate-900">未应用配置更改警告</h3>
                 <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                  检测到您当前在<strong>「二阶段字段属性相似度配置」</strong>中有尚未应用的编辑中草稿（即临时未保存更改）。
+                  检测到您当前在<strong>「字段属性相似度配置」</strong>中有尚未应用的编辑中草稿（即临时未保存更改）。
                 </p>
                 <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                   如果您现在切换页面，所有未保存的编辑内容都将丢失。是否确认放弃更改并离开？

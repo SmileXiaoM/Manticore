@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   SlidersHorizontal,
   Plus,
@@ -123,6 +123,25 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // Interactive Score Preview states
   const [previewSrcVal, setPreviewSrcVal] = useState<string>('10.0');
   const [previewTgtVal, setPreviewTgtVal] = useState<string>('10.1');
+
+  useEffect(() => {
+    const isDate = (formFieldType || '').toUpperCase().includes('DATE');
+    if (isDate) {
+      if (!previewSrcVal.includes('-')) {
+        setPreviewSrcVal('2026-01-01');
+      }
+      if (!previewTgtVal.includes('-')) {
+        setPreviewTgtVal('2026-01-15');
+      }
+    } else {
+      if (previewSrcVal.includes('-')) {
+        setPreviewSrcVal('10.0');
+      }
+      if (previewTgtVal.includes('-')) {
+        setPreviewTgtVal('10.2');
+      }
+    }
+  }, [formFieldType]);
 
   // Load selected Unit Quantity units
   const currentQuantityData = useMemo(() => {
@@ -400,7 +419,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 二阶段相似度规则集已成功启用上线！\n当前生效版本为 ${currentConf.configVersion}。属性去重比分即时生效。`);
+    alert(`[ ${objectLabel} ] 属性相似度规则集已成功启用上线！\n当前生效版本为 ${currentConf.configVersion}。属性去重比分即时生效。`);
   };
 
   // 停用配置
@@ -425,13 +444,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       objectType: objectLabel,
       configVersion: currentConf.configVersion,
       operationType: '停用',
-      summary: `下线停用二阶段属性比分计算，引擎暂停对业务端提供该类型属性去重的算分反馈。`,
+      summary: `下线停用属性比分计算，引擎暂停对业务端提供该类型属性去重的算分反馈。`,
       operator: operatorName,
       time: timeStr,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([disableRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 二阶段相似度配置已成功下线停用！\n业务去重工作台将不再对该类型物料执行字段评分。`);
+    alert(`[ ${objectLabel} ] 属性相似度配置已成功下线停用！\n业务去重工作台将不再对该类型物料执行字段评分。`);
   };
 
   // Delete Rule
@@ -824,10 +843,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <span className="text-slate-800 font-medium">字段相似度规则</span>
           </div>
           <h1 className="text-xl font-bold text-slate-900">
-            {isNew ? '新建字段相似度规则' : editingRule ? '配置相似度对比属性' : '二阶段：字段相似度规则管理'}
+            {isNew ? '新建字段相似度规则' : editingRule ? '配置相似度对比属性' : '属性相似度：字段规则管理'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            精准配平 Manticore 二阶段多维度加权比分权重，自动适配度量衡单位转换及区间偏差退让评分。
+            精准配平 Manticore 属性级多维度加权比分权重，自动适配度量衡单位转换及区间偏差退让评分。
           </p>
         </div>
 
@@ -975,7 +994,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
             {/* Formula Expression */}
             <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs text-slate-600 flex items-center justify-between shadow-xs">
-              <span className="font-semibold text-slate-700 shrink-0">二阶段评分引擎公式:</span>
+              <span className="font-semibold text-slate-700 shrink-0">属性级评分引擎公式:</span>
               <span className="font-mono text-slate-500 truncate max-w-4xl px-3 flex-1 text-left">{weightSummary.details}</span>
               <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-semibold">
                 Manticore Engine
@@ -989,7 +1008,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <SlidersHorizontal className="w-12 h-12 text-slate-300 mx-auto" />
                 <h3 className="text-sm font-bold text-slate-800">该类型尚未配置相似度比分规则</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  当前对象分类 [{objectTypeNameMap[activeObjectType]}] 暂未定义任何二阶段属性比分与过滤映射规则。您可以点击右上角的“添加字段规则”开始创建。
+                  当前对象分类 [{objectTypeNameMap[activeObjectType]}] 暂未定义任何属性相似度比分与过滤映射规则。您可以点击右上角的“添加字段规则”开始创建。
                 </p>
                 <div className="flex justify-center pt-2">
                   <button
@@ -1272,7 +1291,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       ))}
                     </select>
                     <p className="text-[10px] text-slate-400 mt-1">
-                      二阶段规则属性必须严格来自一阶段映射过的物理属性字段。
+                      属性相似度规则必须严格来自已映射的物理属性字段。
                     </p>
                   </div>
 
@@ -1340,7 +1359,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         onChange={(e) => setFormIsScoreActive(e.target.checked)}
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span>参与二阶段相似度加权评分</span>
+                      <span>参与属性级相似度加权评分</span>
                     </label>
 
                     <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
@@ -1398,31 +1417,44 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                         {/* Fixed Value */}
                         {formFilterSource === 'FIXED_VALUE' && (() => {
-                          const isDateField = (formFieldType || '').toUpperCase().includes('DATE');
+                          const typeUpper = (formFieldType || '').toUpperCase();
+                          const isDateField = typeUpper.includes('DATE');
+                          const isNumericField = typeUpper.includes('NUMBER') || typeUpper.includes('NUMBER_WITH_UNIT');
+                          const isUnitNumericField = typeUpper.includes('NUMBER_WITH_UNIT');
+
+                          let inputType = "text";
+                          if (isDateField) {
+                            inputType = "date";
+                          } else if (isNumericField) {
+                            inputType = "number";
+                          }
+
                           return (
                             <div className="col-span-1 md:col-span-2">
                               {formFilterOperator === '区间内' || formFilterOperator === '区间外' ? (
                                 <div>
                                   <label className="block font-semibold text-slate-700 mb-1">
-                                    固定区间值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                    固定区间值 {isUnitNumericField && `(单位: ${formDisplayUnit})`}
                                   </label>
                                   <div className="flex items-center space-x-2">
                                     <input
-                                      type={isDateField ? "date" : "text"}
+                                      type={inputType}
+                                      step={isNumericField ? "any" : undefined}
                                       value={formFilterRangeMin}
                                       onChange={(e) => setFormFilterRangeMin(e.target.value)}
-                                      placeholder={isDateField ? "" : "区间开始值 (例如: 10)"}
+                                      placeholder={isDateField ? "" : isNumericField ? "区间开始数值" : "区间开始值 (例如: 10)"}
                                       className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
                                     />
                                     <span className="text-slate-400">至</span>
                                     <input
-                                      type={isDateField ? "date" : "text"}
+                                      type={inputType}
+                                      step={isNumericField ? "any" : undefined}
                                       value={formFilterRangeMax}
                                       onChange={(e) => setFormFilterRangeMax(e.target.value)}
-                                      placeholder={isDateField ? "" : "区间结束值 (例如: 50)"}
+                                      placeholder={isDateField ? "" : isNumericField ? "区间结束数值" : "区间结束值 (例如: 50)"}
                                       className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800 text-xs"
                                     />
-                                    {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                    {isUnitNumericField && (
                                       <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
                                     )}
                                   </div>
@@ -1430,17 +1462,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                               ) : (
                                 <div>
                                   <label className="block font-semibold text-slate-700 mb-1">
-                                    固定条件值 {formFieldType.includes('NUMBER_WITH_UNIT') && `(单位: ${formDisplayUnit})`}
+                                    固定条件值 {isUnitNumericField && `(单位: ${formDisplayUnit})`}
                                   </label>
                                   <div className="flex items-center space-x-2">
                                     <input
-                                      type={isDateField ? "date" : "text"}
+                                      type={inputType}
+                                      step={isNumericField ? "any" : undefined}
                                       value={formFilterFixedValue}
                                       onChange={(e) => setFormFilterFixedValue(e.target.value)}
-                                      placeholder={isDateField ? "" : "如：已作废 或 12 (支持多值逗号分隔)"}
+                                      placeholder={isDateField ? "" : isNumericField ? "输入数值条件" : "如：已作废 或 12 (支持多值逗号分隔)"}
                                       className="flex-1 bg-white border border-slate-200 rounded px-3 py-1.5 font-mono text-slate-800"
                                     />
-                                    {formFieldType.includes('NUMBER_WITH_UNIT') && (
+                                    {isUnitNumericField && (
                                       <span className="text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs shrink-0">{formDisplayUnit}</span>
                                     )}
                                   </div>
@@ -1658,7 +1691,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {formMatchTypeState === '精确值匹配' && (
                     <div className="text-xs text-slate-500 space-y-1">
                       <p className="font-bold text-slate-700 mb-1">精确等值算法 (EXACT)</p>
-                      <p>● 源属性值与目标属性值在转换为相同单位后必须绝对等值 (如 10mm 与 1cm 相同)。</p>
+                      {(formFieldType || '').toUpperCase().includes('DATE') ? (
+                        <p>● 日期源属性值与目标属性在标准化后必须绝对一致。</p>
+                      ) : (
+                        <p>● 源属性值与目标属性值在转换为相同单位后必须绝对等值 (如 10mm 与 1cm 相同)。</p>
+                      )}
                       <p>● 适用于离散螺距、螺栓表面处理、物料大类、标准件级别等无浮动公差的强规则约束。</p>
                     </div>
                   )}
@@ -1900,54 +1937,86 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <span>所选算法即时算分反馈</span>
             </h3>
 
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5">
-              <span className="text-[11px] font-bold text-slate-600 block">
-                输入比对模拟数值 (自适应当前配置)
-              </span>
+            {(() => {
+              const typeUpper = (formFieldType || '').toUpperCase();
+              const isDateField = typeUpper.includes('DATE');
 
-              {/* Source val */}
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-500 mb-1">源物理属性数值 (Source Value)</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={previewSrcVal}
-                    onChange={(e) => setPreviewSrcVal(e.target.value)}
-                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
-                    {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' ? formDisplayUnit : ''}
-                  </span>
-                </div>
-              </div>
+              if (isDateField && !formIsScoreActive) {
+                return (
+                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-date-only-filter-placeholder">
+                    <div className="text-slate-500 font-bold text-xs">📅 日期字段评分未启用</div>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      日期字段当前用于固定条件或强过滤验证。
+                    </p>
+                  </div>
+                );
+              }
 
-              {/* Target val */}
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-500 mb-1">候选件对比属性数值 (Target Value)</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={previewTgtVal}
-                    onChange={(e) => setPreviewTgtVal(e.target.value)}
-                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
-                    {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' ? formDisplayUnit : ''}
+              return (
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5" id="preview-sim-interactive-inputs">
+                  <span className="text-[11px] font-bold text-slate-600 block">
+                    输入比对模拟数值 (自适应当前配置)
                   </span>
-                </div>
-              </div>
 
-              {/* Real-time score calculator feedback */}
-              <div className="pt-2 border-t border-slate-200 flex flex-col items-center">
-                <span className="text-[10px] text-slate-400 block font-semibold mb-1">即时比算匹配结果得分</span>
-                <div className="flex items-baseline space-x-1 justify-center">
-                  <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
-                    {realTimePreviewScore}
-                  </span>
-                  <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
+                  {/* Source val */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                      {isDateField ? '源日期属性 (Source Date)' : '源物理属性数值 (Source Value)'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={isDateField ? 'date' : 'text'}
+                        value={previewSrcVal}
+                        onChange={(e) => setPreviewSrcVal(e.target.value)}
+                        className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
+                      />
+                      {!isDateField && formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
+                        <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
+                          {formDisplayUnit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Target val */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                      {isDateField ? '候选日期属性 (Target Date)' : '候选件对比属性数值 (Target Value)'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={isDateField ? 'date' : 'text'}
+                        value={previewTgtVal}
+                        onChange={(e) => setPreviewTgtVal(e.target.value)}
+                        className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
+                      />
+                      {!isDateField && formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
+                        <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
+                          {formDisplayUnit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isDateField && (
+                    <p className="text-[10px] text-slate-400 leading-normal" id="date-match-tip-msg">
+                      说明：若两日期一致（如均未 {previewSrcVal}）则计算为 100% 匹配，否则扣分或归零。
+                    </p>
+                  )}
+
+                  {/* Real-time score calculator feedback */}
+                  <div className="pt-2 border-t border-slate-200 flex flex-col items-center">
+                    <span className="text-[10px] text-slate-400 block font-semibold mb-1">即时比算匹配结果得分</span>
+                    <div className="flex items-baseline space-x-1 justify-center">
+                      <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
+                        {realTimePreviewScore}
+                      </span>
+                      <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Instruction about calculated formula process */}
             <div className="text-[11px] text-slate-500 leading-normal space-y-2">
