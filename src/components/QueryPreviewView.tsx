@@ -153,7 +153,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     const curTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const ruleUpAt = objectConfigStatus[objectType]?.lastModifiedAt || '无';
     if (objectId.trim() === '') {
-      alert('请输入源物料代码/申请号');
+      alert('请输入基准对象编码');
       setLastRunContext(null);
       setSelectedCandidate(null);
       return;
@@ -261,7 +261,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             {/* Object ID */}
             <div className="flex flex-col space-y-1.5 w-full">
-              <label className="font-semibold text-slate-600">源物料代码/申请号:</label>
+              <label className="font-semibold text-slate-600">基准对象编码:</label>
               <input
                 id="input-object-id"
                 type="text"
@@ -326,7 +326,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-800">试算就绪，等待启动</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              当前暂无计算结果。请在顶部配置“物料对象类型”、“源物料代码/申请号”及比对使用的“调试规则版本”后，点击右侧<strong>「启动沙盒试算」</strong>按钮，开始模拟 Manticore 检索算分。
+              当前暂无计算结果。请在顶部配置“物料对象类型”、“基准对象编码”及比对使用的“调试规则版本”后，点击右侧<strong>「启动沙盒试算」</strong>按钮，开始模拟 Manticore 检索算分。
             </p>
           </div>
         ) : (
@@ -435,11 +435,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             {lastRunContext.searchResult.reference ? (
               <div className="bg-slate-100/80 border border-slate-200/80 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="source-summary-stripe">
                 <div className="flex items-center space-x-1.5">
-                  <span className="font-bold text-slate-800">源物料申请信息</span>
+                  <span className="font-bold text-slate-800">基准对象属性摘要</span>
                   <span className="text-slate-300">|</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">申请名称:</span>{' '}
+                  <span className="text-slate-400">对象名称:</span>{' '}
                   <span className="font-semibold text-slate-900">{lastRunContext.searchResult.reference.objectName}</span>
                 </div>
                 <div>
@@ -481,7 +481,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             ) : (
               <div className="bg-red-50 border border-red-200 px-4 py-2.5 rounded-lg text-xs text-red-800" id="source-error-stripe">
                 {lastRunContext.objectId.trim() === '' ? (
-                  <span>请输入源物料代码/申请号</span>
+                  <span>请输入基准对象编码</span>
                 ) : (
                   <>未找到基准零部件: <strong className="font-mono">{lastRunContext.objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)</>
                 )}
@@ -514,7 +514,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <span>
                     {isSecondPhaseEnabled ? (
                       <>
-                        <strong>沙盒试算结论:</strong> 模拟申请件与底层库字段属性匹配完成。测试共计算并输出 <strong className="text-slate-950 font-mono">{lastRunContext.searchResult.scoredCandidates.length}</strong> 个属性相似的候选件。其中高相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 85).length} 个，中相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 70 && c.similarityScore < 85).length} 个，低相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore < 70).length} 个。
+                        <strong>沙盒试算结论:</strong> 基准对象与底层库字段属性匹配完成。测试共计算并输出 <strong className="text-slate-950 font-mono">{lastRunContext.searchResult.scoredCandidates.length}</strong> 个属性相似的候选件。其中高相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 85).length} 个，中相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore >= 70 && c.similarityScore < 85).length} 个，低相似档 {lastRunContext.searchResult.scoredCandidates.filter(c => c.similarityScore < 70).length} 个。
                       </>
                     ) : (
                       <>

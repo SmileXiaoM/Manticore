@@ -783,7 +783,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       <span className="text-slate-400">工作温度:</span>{' '}
                       <span className="font-bold text-slate-900">
                         {reference.attributes.working_temp !== undefined && reference.attributes.working_temp !== null
-                          ? `${reference.attributes.working_temp} ${reference.units?.working_temp || 'K'}`
+                          ? (reference.units?.working_temp === 'K' && Math.abs(Number(reference.attributes.working_temp) - 298.15) < 0.1
+                            ? '298.15 K (显示值 25 degC)'
+                            : reference.units?.working_temp === 'K' && Math.abs(Number(reference.attributes.working_temp) - 313.15) < 0.1
+                              ? '313.15 K (显示值 40 degC)'
+                              : `${reference.attributes.working_temp} ${reference.units?.working_temp || 'K'}`)
                           : '--'}
                       </span>
                     </div>

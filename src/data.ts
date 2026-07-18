@@ -1332,11 +1332,49 @@ export const initialCategoryCoverages: CategoryCoverage[] = [
   }
 ];
 
+function resolveAndConvertToBase(
+  value: any,
+  propertyCode: string,
+  object: any,
+  quantityCode: string
+): number {
+  if (value === undefined || value === null || value === '') {
+    throw new Error('数值缺失');
+  }
+  const numericVal = Number(value);
+  if (isNaN(numericVal)) {
+    throw new Error('非法数值');
+  }
+
+  // Read unit from object units mapping
+  const unitCode = object?.units?.[propertyCode];
+  if (!unitCode) {
+    throw new Error(`原始单位缺失`);
+  }
+
+  // Validate unitCode is ACTIVE in quantityCode
+  const normalizedQuantityCode = quantityCode.toUpperCase();
+  const qty = mockUnitCatalog.quantities.find(q => q.code === normalizedQuantityCode || q.name === quantityCode);
+  if (!qty) {
+    throw new Error(`未知或不支持的测量类型 [${quantityCode}]`);
+  }
+  const unit = qty.units.find(u => u.code === unitCode);
+  if (!unit) {
+    throw new Error(`未找到原始单位 [${unitCode}]`);
+  }
+  if (unit.status && unit.status !== 'ACTIVE') {
+    throw new Error(`单位 [${unitCode}] 处于非激活状态`);
+  }
+
+  return numericVal * unit.scale + unit.offset;
+}
+
 export function calculateFieldMatchRate(
   rule: FieldSimilarityRule,
   refVal: any,
   candVal: any,
-  cand: any
+  cand: any,
+  reference: any
 ): number {
   if (refVal === undefined || refVal === null || refVal === '') {
     return 0;
@@ -1348,13 +1386,25 @@ export function calculateFieldMatchRate(
   const config = rule.matchConfig;
   const matchKind = config?.kind || 'EXACT';
 
+  const isUnitField = rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)';
+
+  let refBase: number = 0;
+  let candBase: number = 0;
+  let hasUnitError = false;
+
+  if (isUnitField) {
+    try {
+      refBase = resolveAndConvertToBase(refVal, rule.propertyCode, reference, rule.unitFamily || '');
+      candBase = resolveAndConvertToBase(candVal, rule.propertyCode, cand, rule.unitFamily || '');
+    } catch (e) {
+      hasUnitError = true;
+    }
+  }
+
   // EXACT Match
   if (matchKind === 'EXACT') {
-    if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-      const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
-      const refUnit = rule.displayUnit || 'mm';
-      const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
-      const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+    if (isUnitField) {
+      if (hasUnitError) return 0.0;
       return Math.abs(refBase - candBase) < 1e-6 ? 1.0 : 0.0;
     }
     return String(refVal).trim() === String(candVal).trim() ? 1.0 : 0.0;
@@ -1381,13 +1431,23 @@ export function calculateFieldMatchRate(
 
   // NUMERIC TOLERANCE
   if (matchKind === 'NUMERIC_TOLERANCE') {
-    const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
-    const refUnit = rule.displayUnit || 'mm';
-    const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
-    const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+    let refDisp: number;
+    let candDisp: number;
 
-    const refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
-    const candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+    if (isUnitField) {
+      if (hasUnitError) return 0.0;
+      try {
+        refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+        candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+      } catch (e) {
+        return 0.0;
+      }
+    } else {
+      refDisp = Number(refVal);
+      candDisp = Number(candVal);
+    }
+
+    if (isNaN(refDisp) || isNaN(candDisp)) return 0.0;
 
     const diff = candDisp - refDisp;
     const direction = (config as any).direction || 'BOTH';
@@ -1409,13 +1469,23 @@ export function calculateFieldMatchRate(
 
   // NUMERIC DECAY
   if (matchKind === 'NUMERIC_DECAY') {
-    const candUnit = cand.units?.[rule.propertyCode] || rule.displayUnit || 'mm';
-    const refUnit = rule.displayUnit || 'mm';
-    const refBase = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
-    const candBase = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+    let refDisp: number;
+    let candDisp: number;
 
-    const refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
-    const candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+    if (isUnitField) {
+      if (hasUnitError) return 0.0;
+      try {
+        refDisp = convertFromBaseUnit(refBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+        candDisp = convertFromBaseUnit(candBase, rule.displayUnit || 'mm', rule.unitFamily || '');
+      } catch (e) {
+        return 0.0;
+      }
+    } else {
+      refDisp = Number(refVal);
+      candDisp = Number(candVal);
+    }
+
+    if (isNaN(refDisp) || isNaN(candDisp)) return 0.0;
 
     const diff = candDisp - refDisp;
     const direction = (config as any).direction || 'BOTH';
@@ -1989,7 +2059,7 @@ export function runSimilaritySearch(
 
       // Candidate has value
       sumActiveWeights += rule.weight;
-      const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand);
+      const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand, reference);
 
       let status: 'FULL' | 'PARTIAL' | 'MISS' = 'MISS';
       if (matchRate === 1.0) status = 'FULL';
@@ -1998,25 +2068,51 @@ export function runSimilaritySearch(
 
       // Build specific reasons
       let reason = '';
-      if (matchRate === 1.0) {
-        if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-          const candUnit = (cand as any).units?.[key] || rule.displayUnit || '';
-          if (candUnit && candUnit !== rule.displayUnit) {
-            reason = `${candVal}${candUnit} 换算后等值命中 (统一至 ${refVal}${rule.displayUnit})`;
-          } else {
-            reason = `数值完全一致 (${refVal}${rule.displayUnit})`;
-          }
-        } else {
-          reason = `${rule.fieldName}完全一致`;
+      if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+        const refUnit = reference?.units?.[key] || rule.displayUnit || '';
+        const candUnit = cand.units?.[key] || rule.displayUnit || '';
+        
+        let refBase = 0;
+        let candBase = 0;
+        let refDisp = Number(refVal);
+        let candDisp = Number(candVal);
+        let hasErr = false;
+        try {
+          refBase = resolveAndConvertToBase(refVal, key, reference, rule.unitFamily || '');
+          candBase = resolveAndConvertToBase(candVal, key, cand, rule.unitFamily || '');
+          refDisp = convertFromBaseUnit(refBase, rule.displayUnit || '', rule.unitFamily || '');
+          candDisp = convertFromBaseUnit(candBase, rule.displayUnit || '', rule.unitFamily || '');
+        } catch (e) {
+          hasErr = true;
         }
-      } else if (matchRate > 0) {
-        if (rule.fieldType === '长文本 (LONG_TEXT)') {
-          reason = `规格文本相似度达 ${(matchRate * 100).toFixed(1)}%`;
+
+        if (hasErr) {
+          reason = `单位或数值换算错误`;
         } else {
-          reason = `部分吻合 (匹配度 ${(matchRate * 100).toFixed(1)}%)`;
+          if (matchRate === 1.0) {
+            if (refUnit !== candUnit) {
+              reason = `数值换算等值一致 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 统一显示为 ${refDisp}${rule.displayUnit})`;
+            } else {
+              reason = `数值一致 (${refVal}${refUnit})`;
+            }
+          } else if (matchRate > 0) {
+            reason = `偏差在设定范围内 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 统一显示差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
+          } else {
+            reason = `偏差超出范围 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
+          }
         }
       } else {
-        reason = `${rule.fieldName}不匹配`;
+        if (matchRate === 1.0) {
+          reason = `${rule.fieldName}完全一致`;
+        } else if (matchRate > 0) {
+          if (rule.fieldType === '长文本 (LONG_TEXT)') {
+            reason = `规格文本相似度达 ${(matchRate * 100).toFixed(1)}%`;
+          } else {
+            reason = `部分吻合 (匹配度 ${(matchRate * 100).toFixed(1)}%)`;
+          }
+        } else {
+          reason = `${rule.fieldName}不匹配`;
+        }
       }
 
       const weightedScore = Number((rule.weight * matchRate).toFixed(2));
@@ -2026,8 +2122,30 @@ export function runSimilaritySearch(
       let srcRep = refVal;
       let candRep = candVal;
       if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-        srcRep = `${refVal}${rule.displayUnit}`;
-        candRep = `${candVal}${(cand as any).units?.[key] || rule.displayUnit}`;
+        const refUnit = reference?.units?.[key] || rule.displayUnit || '';
+        const candUnit = cand.units?.[key] || rule.displayUnit || '';
+        
+        let srcDisplay = `${refVal} ${refUnit}`;
+        let candDisplay = `${candVal} ${candUnit}`;
+
+        try {
+          if (refUnit && rule.displayUnit && refUnit !== rule.displayUnit) {
+            const baseVal = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
+            const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit, rule.unitFamily || '');
+            srcDisplay = `${refVal} ${refUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
+          }
+        } catch (e) {}
+
+        try {
+          if (candUnit && rule.displayUnit && candUnit !== rule.displayUnit) {
+            const baseVal = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
+            const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit, rule.unitFamily || '');
+            candDisplay = `${candVal} ${candUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
+          }
+        } catch (e) {}
+
+        srcRep = srcDisplay;
+        candRep = candDisplay;
       }
 
       compareFields.push({
