@@ -13,11 +13,13 @@ export type UnitCatalog = {
   quantities: QuantityDefinition[];
 };
 
-type UnitDefinition = {
+export type UnitDefinition = {
   code: string;
   name: string;
   scale: number;
   offset: number;
+  aliases?: string[];
+  status?: string;
 };
 
 export type QuantityDefinition = {

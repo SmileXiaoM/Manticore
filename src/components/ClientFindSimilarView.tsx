@@ -26,12 +26,44 @@ interface ClientFindSimilarViewProps {
 }
 
 export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ rules, objectConfigStatus, onNavigate }) => {
+  // Benchmark part options lists
+  const mechanicalBenchmarkOptions = [
+    { code: 'PART-2026-000100', name: '六角头螺栓 M10 x 50 (PART-2026-000100)' },
+    { code: 'PART-A-FULL', name: '六角头螺栓 M10 x 50 (全量命中) (PART-A-FULL)' },
+    { code: 'PART-B-UNIT', name: '六角螺栓 M10 x 50 (厘米量纲) (PART-B-UNIT)' },
+    { code: 'PART-C-MISSING', name: '螺栓 M10 (轻量空值型) (PART-C-MISSING)' }
+  ];
+
+  const electricalBenchmarkOptions = [
+    { code: 'ELEC-2026-000100', name: '直流继电器 12V (ELEC-2026-000100)' },
+    { code: 'ELEC-A-FULL', name: '直流继电器 12V (全量匹配) (ELEC-A-FULL)' },
+    { code: 'ELEC-B-TEMP', name: '直流继电器 12V (高温偏差版) (ELEC-B-TEMP)' }
+  ];
+
   // Query Filters State
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
-  const [reqCode, setReqCode] = useState('REQ-2026-000100');
+  const [reqCode, setReqCode] = useState('PART-2026-000100'); // set default benchmark part code
   const [keyword, setKeyword] = useState('');
   const [category, setCategory] = useState('ALL');
-  const [lifecycle, setLifecycle] = useState('ALL');
+  
+  // Benchmark searchable combobox dropdown states
+  const [benchmarkSearchText, setBenchmarkSearchText] = useState('');
+  const [isBenchmarkDropdownOpen, setIsBenchmarkDropdownOpen] = useState(false);
+
+  // R19-UI-02: Unit-based Numerical filter state
+  const [diameterNumValue, setDiameterNumValue] = useState('10');
+  const [diameterUnit, setDiameterUnit] = useState('mm');
+  const [diameterOperator, setDiameterOperator] = useState('EQUALS'); // 'EQUALS', 'ALL'
+
+  const [voltageNumValue, setVoltageNumValue] = useState('12');
+  const [voltageUnit, setVoltageUnit] = useState('V');
+  const [voltageOperator, setVoltageOperator] = useState('EQUALS'); // 'EQUALS', 'ALL'
+
+  // R19-UI-03: Enum dual-mode lifecycle state filter
+  const [lifecycleOperator, setLifecycleOperator] = useState('EQUALS'); // 'CONTAINS', 'EQUALS', 'NOT_EQUALS'
+  const [lifecycleTextValue, setLifecycleTextValue] = useState('有效');
+  const [lifecycleSelectValue, setLifecycleSelectValue] = useState('有效');
+
   const [specInput, setSpecInput] = useState('');
   const [materialInput, setMaterialInput] = useState('');
 
@@ -60,7 +92,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
   const handleSearch = () => {
     if (reqCode.trim() === '') {
-      alert('请输入源物料代码/申请号');
+      alert('请先选择基准零部件！');
       setSearchResult({
         reference: null,
         scoredCandidates: []
@@ -72,9 +104,16 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     const res = runSimilaritySearch(objectType, reqCode, rules, {
       keyword,
       category,
-      lifecycle,
       specInput,
-      materialInput
+      materialInput,
+      diameterValue: diameterNumValue,
+      diameterUnit: diameterUnit,
+      diameterOperator: diameterOperator,
+      voltageValue: voltageNumValue,
+      voltageUnit: voltageUnit,
+      voltageOperator: voltageOperator,
+      lifecycleOperator: lifecycleOperator,
+      lifecycleValue: lifecycleOperator === 'CONTAINS' ? lifecycleTextValue : lifecycleSelectValue
     });
     setSearchResult(res);
     setIsWaiting(false);
@@ -82,12 +121,20 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
   const handleResetFilters = () => {
     setObjectType('PART_MECHANICAL');
-    setReqCode('REQ-2026-000100');
+    setReqCode('PART-2026-000100');
     setKeyword('');
     setCategory('ALL');
-    setLifecycle('ALL');
     setSpecInput('');
     setMaterialInput('');
+    setDiameterNumValue('10');
+    setDiameterUnit('mm');
+    setDiameterOperator('EQUALS');
+    setVoltageNumValue('12');
+    setVoltageUnit('V');
+    setVoltageOperator('EQUALS');
+    setLifecycleOperator('EQUALS');
+    setLifecycleTextValue('有效');
+    setLifecycleSelectValue('有效');
     setSearchResult({
       reference: null,
       scoredCandidates: []
@@ -131,41 +178,279 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
       <div className="flex-1 overflow-y-auto p-5 space-y-4" id="client-scroll-area">
 
         {/* 2.2 顶部查询条件区 */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs space-y-3" id="client-query-box">
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-4" id="client-query-box">
 
-          {/* Row 1 Filter fields */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">物料对象类型:</label>
+          {/* Row 1: Core Type and Searchable Benchmark Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2 text-xs">
+              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">物料分类类型:</label>
               <select
                 id="client-select-objtype"
                 value={objectType}
                 onChange={(e) => {
-                  setObjectType(e.target.value);
-                  setReqCode(e.target.value === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'REQ-2026-000100');
+                  const newType = e.target.value;
+                  setObjectType(newType);
+                  setReqCode(newType === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'PART-2026-000100');
                   invalidateOldResults();
                 }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs min-w-[150px]"
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs w-full max-w-[200px] shadow-2xs"
               >
                 <option value="PART_MECHANICAL">机械零件</option>
                 <option value="PART_ELECTRICAL">电气元器件</option>
               </select>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">申请流水号/参考编码:</label>
-              <input
-                id="client-input-reqcode"
-                type="text"
-                value={reqCode}
-                onChange={(e) => {
-                  setReqCode(e.target.value);
-                  invalidateOldResults();
-                }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs text-slate-800 w-40"
-              />
+            {/* R19-UI-04: Searchable Benchmark Select */}
+            <div className="flex items-center space-x-2 text-xs relative" id="benchmark-combobox-wrapper">
+              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">基准件 (Benchmark):</label>
+              <div className="relative w-full max-w-[320px]" id="benchmark-combobox">
+                <div className="flex border border-slate-300 rounded overflow-hidden bg-white focus-within:ring-1 focus-within:ring-slate-400 w-full">
+                  <input
+                    type="text"
+                    id="benchmark-search-input"
+                    value={benchmarkSearchText}
+                    onChange={(e) => {
+                      setBenchmarkSearchText(e.target.value);
+                      setIsBenchmarkDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      setIsBenchmarkDropdownOpen(true);
+                    }}
+                    placeholder={
+                      (() => {
+                        const pool = objectType === 'PART_MECHANICAL' ? mechanicalBenchmarkOptions : electricalBenchmarkOptions;
+                        const match = pool.find(p => p.code === reqCode);
+                        return match ? match.name : "输入名称或编码检索基准件...";
+                      })()
+                    }
+                    className="w-full text-xs px-2.5 py-1.5 bg-white text-slate-800 outline-hidden font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBenchmarkDropdownOpen(!isBenchmarkDropdownOpen);
+                      if (!isBenchmarkDropdownOpen) {
+                        setBenchmarkSearchText('');
+                      }
+                    }}
+                    className="px-2 text-slate-500 hover:bg-slate-100 text-xs focus:outline-hidden border-l border-slate-100"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {isBenchmarkDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto" id="benchmark-options-list">
+                    {(() => {
+                      const pool = objectType === 'PART_MECHANICAL' ? mechanicalBenchmarkOptions : electricalBenchmarkOptions;
+                      const filtered = pool.filter(p => {
+                        const searchLower = benchmarkSearchText.toLowerCase().trim();
+                        if (!searchLower) return true;
+                        return p.code.toLowerCase().includes(searchLower) || p.name.toLowerCase().includes(searchLower);
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="p-3 text-xs text-slate-400 text-center font-medium bg-slate-50/50" id="benchmark-empty">
+                            未找到可用物料
+                          </div>
+                        );
+                      }
+
+                      return filtered.map(opt => {
+                        const isSelected = opt.code === reqCode;
+                        return (
+                          <button
+                            type="button"
+                            key={opt.code}
+                            onClick={() => {
+                              setReqCode(opt.code);
+                              setBenchmarkSearchText('');
+                              setIsBenchmarkDropdownOpen(false);
+                              invalidateOldResults();
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center ${
+                              isSelected ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700'
+                            }`}
+                          >
+                            <span className="font-semibold">{opt.name}</span>
+                            {isSelected && <span className="text-slate-900 font-bold">✓</span>}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+                {isBenchmarkDropdownOpen && (
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default" 
+                    onClick={() => {
+                      setIsBenchmarkDropdownOpen(false);
+                      setBenchmarkSearchText('');
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: R19-UI-02 & R19-UI-03 Special Attribute Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100 text-xs">
+            
+            {/* R19-UI-02: Conditionally render based on objectType */}
+            {objectType === 'PART_MECHANICAL' ? (
+              <div className="flex items-center space-x-2" id="mechanical-diameter-filter">
+                <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">标称直径 (Dia):</label>
+                <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+                  <select
+                    id="diameter-operator-select"
+                    value={diameterOperator}
+                    onChange={(e) => {
+                      setDiameterOperator(e.target.value);
+                      invalidateOldResults();
+                    }}
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                  >
+                    <option value="EQUALS">等于 (=)</option>
+                    <option value="ALL">全部/不限</option>
+                  </select>
+                  {diameterOperator === 'EQUALS' && (
+                    <>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="数值"
+                        value={diameterNumValue}
+                        onChange={(e) => {
+                          setDiameterNumValue(e.target.value);
+                          invalidateOldResults();
+                        }}
+                        className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-20 font-semibold"
+                      />
+                      <select
+                        id="diameter-unit-select"
+                        value={diameterUnit}
+                        onChange={(e) => {
+                          setDiameterUnit(e.target.value);
+                          invalidateOldResults();
+                        }}
+                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
+                      >
+                        <option value="mm">mm (毫米)</option>
+                        <option value="cm">cm (厘米)</option>
+                        <option value="m">m (米)</option>
+                      </select>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2" id="electrical-voltage-filter">
+                <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">工作电压 (Vol):</label>
+                <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+                  <select
+                    id="voltage-operator-select"
+                    value={voltageOperator}
+                    onChange={(e) => {
+                      setVoltageOperator(e.target.value);
+                      invalidateOldResults();
+                    }}
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                  >
+                    <option value="EQUALS">等于 (=)</option>
+                    <option value="ALL">全部/不限</option>
+                  </select>
+                  {voltageOperator === 'EQUALS' && (
+                    <>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="数值"
+                        value={voltageNumValue}
+                        onChange={(e) => {
+                          setVoltageNumValue(e.target.value);
+                          invalidateOldResults();
+                        }}
+                        className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-20 font-semibold"
+                      />
+                      <select
+                        id="voltage-unit-select"
+                        value={voltageUnit}
+                        onChange={(e) => {
+                          setVoltageUnit(e.target.value);
+                          invalidateOldResults();
+                        }}
+                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
+                      >
+                        <option value="V">V (伏特)</option>
+                        <option value="kV">kV (千伏)</option>
+                        <option value="mV">mV (毫伏)</option>
+                      </select>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* R19-UI-03: Enum dual-mode query for Lifecycle state */}
+            <div className="flex items-center space-x-2" id="enum-lifecycle-filter">
+              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">生命周期:</label>
+              <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+                <select
+                  id="lifecycle-operator-select"
+                  value={lifecycleOperator}
+                  onChange={(e) => {
+                    const op = e.target.value;
+                    setLifecycleOperator(op);
+                    // Match default appropriate value based on op
+                    if (op === 'CONTAINS') {
+                      setLifecycleTextValue('效');
+                    } else {
+                      setLifecycleSelectValue('有效');
+                    }
+                    invalidateOldResults();
+                  }}
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                >
+                  <option value="EQUALS">等于 (=)</option>
+                  <option value="NOT_EQUALS">不等于 (≠)</option>
+                  <option value="CONTAINS">包含 (Contains)</option>
+                </select>
+
+                {lifecycleOperator === 'CONTAINS' ? (
+                  <input
+                    type="text"
+                    id="lifecycle-text-input"
+                    placeholder="输入匹配子串..."
+                    value={lifecycleTextValue}
+                    onChange={(e) => {
+                      setLifecycleTextValue(e.target.value);
+                      invalidateOldResults();
+                    }}
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-36 font-semibold"
+                  />
+                ) : (
+                  <select
+                    id="lifecycle-select-dropdown"
+                    value={lifecycleSelectValue}
+                    onChange={(e) => {
+                      setLifecycleSelectValue(e.target.value);
+                      invalidateOldResults();
+                    }}
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-36 font-semibold"
+                  >
+                    {(objectType === 'PART_MECHANICAL' ? ['有效', '草稿'] : ['有效', '设计中']).map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
 
+          </div>
+
+          {/* Row 3: General Text & Classification Filters */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
             <div className="flex items-center space-x-2">
               <label className="font-medium text-slate-600 shrink-0">名称/关键词:</label>
               <input
@@ -182,7 +467,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             </div>
 
             <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">计划分类:</label>
+              <label className="font-medium text-slate-600 shrink-0">分类目录:</label>
               <select
                 id="client-select-category"
                 value={category}
@@ -199,62 +484,41 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             </div>
 
             <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">生命周期:</label>
-              <select
-                id="client-select-lifecycle"
-                value={lifecycle}
+              <label className="font-medium text-slate-500 shrink-0">规格描述:</label>
+              <input
+                id="client-input-spec"
+                type="text"
+                placeholder="如: M10 x 50"
+                value={specInput}
                 onChange={(e) => {
-                  setLifecycle(e.target.value);
+                  setSpecInput(e.target.value);
                   invalidateOldResults();
                 }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
-              >
-                <option value="ALL">全部状态</option>
-                <option value="RELEASED">已发布 (Released)</option>
-                <option value="DRAFT">研究/草稿 (Draft)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Row 2 More conditions */}
-          <div className="flex flex-wrap items-center justify-between gap-4 text-xs border-t border-slate-100 pt-3">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <label className="font-medium text-slate-500 shrink-0">规格描述/关键尺寸:</label>
-                <input
-                  id="client-input-spec"
-                  type="text"
-                  placeholder="如: M10 x 50"
-                  value={specInput}
-                  onChange={(e) => {
-                    setSpecInput(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <label className="font-medium text-slate-500 shrink-0">材质要求:</label>
-                <input
-                  id="client-input-material"
-                  type="text"
-                  placeholder="如: SUS304"
-                  value={materialInput}
-                  onChange={(e) => {
-                    setMaterialInput(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
-                />
-              </div>
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
+              />
             </div>
 
             <div className="flex items-center space-x-2">
+              <label className="font-medium text-slate-500 shrink-0">材质要求:</label>
+              <input
+                id="client-input-material"
+                type="text"
+                placeholder="如: SUS304"
+                value={materialInput}
+                onChange={(e) => {
+                  setMaterialInput(e.target.value);
+                  invalidateOldResults();
+                }}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
+              />
+            </div>
+
+            {/* Buttons Group */}
+            <div className="ml-auto flex items-center space-x-2">
               <button
                 id="client-btn-search"
                 onClick={handleSearch}
-                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-2xs flex items-center space-x-1 cursor-pointer transition-colors"
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-sm flex items-center space-x-1 cursor-pointer transition-colors"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>查询相似件</span>

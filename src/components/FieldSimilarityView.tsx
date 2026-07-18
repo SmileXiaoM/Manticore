@@ -179,6 +179,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [previewSrcVal, setPreviewSrcVal] = useState<string>('10.0');
   const [previewTgtVal, setPreviewTgtVal] = useState<string>('10.1');
 
+  // Searchable Unit dropdown states
+  const [unitSearchText, setUnitSearchText] = useState<string>('');
+  const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState<boolean>(false);
+
   // Load selected Unit Quantity units
   const currentQuantityData = useMemo(() => {
     return mockUnitCatalog.quantities.find(q => q.code === formUnitFamily || q.name === formUnitFamily);
@@ -230,10 +234,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         setFormUnitFamily(selectedField.unitFamily);
         setFormBaseUnit(selectedField.baseUnit);
 
-        // Find default display unit
-        const quant = mockUnitCatalog.quantities.find(q => q.name === selectedField.unitFamily || q.code === selectedField.unitFamily);
-        if (quant && quant.units.length > 0) {
-          setFormDisplayUnit(quant.units[0].code);
+        // Find default display unit from selectedField or catalog
+        if (selectedField.displayUnit) {
+          setFormDisplayUnit(selectedField.displayUnit);
+        } else {
+          const quant = mockUnitCatalog.quantities.find(q => q.name === selectedField.unitFamily || q.code === selectedField.unitFamily);
+          if (quant && quant.units.length > 0) {
+            setFormDisplayUnit(quant.units[0].code);
+          }
         }
       } else {
         setFormUnitFamily('无');
@@ -781,6 +789,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const finalFieldType = formFieldType;
     const isUnitType = finalFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
 
+    if (isUnitType) {
+      const activeUnits = currentQuantityData?.units.filter(u => !u.status || u.status === 'ACTIVE') || [];
+      const isValidUnit = activeUnits.some(u => u.code === formDisplayUnit);
+      if (!isValidUnit) {
+        alert(`保存失败！首选显示配置单位 [${formDisplayUnit}] 在外部 JSON 单位目录中未找到或不处于 ACTIVE 状态。请选择有效单位！`);
+        return;
+      }
+    }
+
     const updatedRule: FieldSimilarityRule = {
       id: isNew ? `F-00${editingRules.length + 1}` : (editingRule?.id || 'F-TMP'),
       objectType: activeObjectType,
@@ -898,10 +915,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </div>
 
             {/* Read-only Unit Catalog Source Details */}
-            <div className="text-slate-400 text-[11px] font-medium flex items-center space-x-1.5 ml-auto">
-              <span>只读单位目录加载正常:</span>
+            <div className="text-slate-400 text-[11px] font-medium flex items-center space-x-1.5 ml-auto" id="unit-catalog-status">
+              <span>外部 JSON 单位目录:</span>
               <span className="text-slate-600 font-mono bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded font-bold">
-                {mockUnitCatalog.catalogVersion} ({mockUnitCatalog.sourceSystem})
+                {mockUnitCatalog.catalogVersion} · 已加载
               </span>
             </div>
           </div>
@@ -1413,15 +1430,98 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     {/* Display Unit selection */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1.5">首选显示配置单位 (Display Unit)</label>
-                      <select
-                        value={formDisplayUnit}
-                        onChange={(e) => setFormDisplayUnit(e.target.value)}
-                        className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
-                      >
-                        {currentQuantityData?.units.map(u => (
-                          <option key={u.code} value={u.code}>{u.name}</option>
-                        ))}
-                      </select>
+                      <div className="relative" id="unit-display-combobox">
+                        <div className="flex border border-slate-200 rounded overflow-hidden bg-slate-50 focus-within:ring-1 focus-within:ring-blue-500">
+                          <input
+                            type="text"
+                            id="unit-display-search"
+                            value={unitSearchText}
+                            onChange={(e) => {
+                              setUnitSearchText(e.target.value);
+                              setIsUnitDropdownOpen(true);
+                            }}
+                            onFocus={() => {
+                              setIsUnitDropdownOpen(true);
+                            }}
+                            placeholder={formDisplayUnit ? `当前选中: ${formDisplayUnit}` : "输入编码、中文、英文或别名检索..."}
+                            className="w-full text-xs px-3 py-1.5 bg-white text-slate-800 outline-hidden border-r border-slate-100 font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUnitDropdownOpen(!isUnitDropdownOpen);
+                              if (!isUnitDropdownOpen) {
+                                setUnitSearchText('');
+                              }
+                            }}
+                            className="px-2.5 text-slate-500 hover:bg-slate-100 text-xs focus:outline-hidden"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                        
+                        {isUnitDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto" id="unit-display-options">
+                            {(() => {
+                              const unitsList = currentQuantityData?.units || [];
+                              const filtered = unitsList.filter(u => {
+                                if (u.status && u.status !== 'ACTIVE') return false;
+                                const searchLower = unitSearchText.toLowerCase().trim();
+                                if (!searchLower) return true;
+                                return (
+                                  u.code.toLowerCase().includes(searchLower) ||
+                                  u.name.toLowerCase().includes(searchLower) ||
+                                  (u.aliases && u.aliases.some(alias => alias.toLowerCase().includes(searchLower)))
+                                );
+                              });
+
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="p-3 text-xs text-slate-400 text-center font-medium bg-slate-50/50" id="unit-display-empty">
+                                    未找到可用单位，请维护外部单位目录
+                                  </div>
+                                );
+                              }
+
+                              return filtered.map(u => {
+                                const isSelected = u.code === formDisplayUnit;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={u.code}
+                                    onClick={() => {
+                                      setFormDisplayUnit(u.code);
+                                      setUnitSearchText('');
+                                      setIsUnitDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center ${
+                                      isSelected ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">{u.name} ({u.code})</span>
+                                      {u.aliases && u.aliases.length > 0 && (
+                                        <span className="text-[10px] text-slate-400">别名: {u.aliases.join(', ')}</span>
+                                      )}
+                                    </div>
+                                    {isSelected && <span className="text-blue-600 font-bold">✓</span>}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        )}
+                        {/* Outside click handler simulation using an invisible backdrop when open */}
+                        {isUnitDropdownOpen && (
+                          <div 
+                            className="fixed inset-0 z-40 cursor-default" 
+                            onClick={() => {
+                              setIsUnitDropdownOpen(false);
+                              setUnitSearchText('');
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
 

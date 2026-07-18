@@ -24,46 +24,10 @@ import {
   SearchRunResult,
   UnitCatalog
 } from './types';
+import unitCatalogData from './unit-catalog.json';
 
 // Unit Catalog Model - Read-Only Versioned Simulation
-export const mockUnitCatalog: UnitCatalog = {
-  schemaVersion: '1.0.0',
-  catalogVersion: 'Windchill 2026-07-15',
-  sourceSystem: 'Windchill PLM Enterprise Service',
-  loadedAt: '2026-07-15 17:00:00',
-  status: 'LOADED',
-  quantities: [
-    {
-      code: 'LENGTH',
-      name: '长度',
-      baseUnit: 'm',
-      units: [
-        { code: 'm', name: 'm (米)', scale: 1.0, offset: 0.0 },
-        { code: 'cm', name: 'cm (厘米)', scale: 0.01, offset: 0.0 },
-        { code: 'mm', name: 'mm (毫米)', scale: 0.001, offset: 0.0 }
-      ]
-    },
-    {
-      code: 'VOLTAGE',
-      name: '电压',
-      baseUnit: 'V',
-      units: [
-        { code: 'V', name: 'V (伏特)', scale: 1.0, offset: 0.0 },
-        { code: 'mV', name: 'mV (毫伏)', scale: 0.001, offset: 0.0 },
-        { code: 'kV', name: 'kV (千伏)', scale: 1000.0, offset: 0.0 }
-      ]
-    },
-    {
-      code: 'TEMPERATURE',
-      name: '温度',
-      baseUnit: 'K',
-      units: [
-        { code: 'K', name: 'K (开尔文)', scale: 1.0, offset: 0.0 },
-        { code: 'degC', name: '℃ (摄氏度)', scale: 1.0, offset: 273.15 }
-      ]
-    }
-  ]
-};
+export const mockUnitCatalog: UnitCatalog = unitCatalogData as UnitCatalog;
 
 // Unit conversion helpers
 // Base value = Display value * scale + offset
@@ -99,6 +63,7 @@ export interface Stage1MappedField {
   baseUnit: string;
   indexStatus: string;
   enabled: boolean;
+  displayUnit?: string;
 }
 
 export const stage1MappedFields: Stage1MappedField[] = [
@@ -151,6 +116,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '长度',
     baseUnit: 'm',
+    displayUnit: 'mm',
     indexStatus: '已索引',
     enabled: true
   },
@@ -164,6 +130,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '长度',
     baseUnit: 'm',
+    displayUnit: 'mm',
     indexStatus: '已索引',
     enabled: true
   },
@@ -177,6 +144,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '长度',
     baseUnit: 'm',
+    displayUnit: 'mm',
     indexStatus: '已索引',
     enabled: true
   },
@@ -229,6 +197,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '电压',
     baseUnit: 'V',
+    displayUnit: 'V',
     indexStatus: '已索引',
     enabled: true
   },
@@ -242,6 +211,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '温度',
     baseUnit: 'K',
+    displayUnit: 'degC',
     indexStatus: '已索引',
     enabled: true
   },
@@ -268,6 +238,7 @@ export const stage1MappedFields: Stage1MappedField[] = [
     enumOrCategorySource: '无',
     unitFamily: '长度',
     baseUnit: 'm',
+    displayUnit: 'mm',
     indexStatus: '已索引',
     enabled: false
   },
@@ -1620,13 +1591,19 @@ export function runSimilaritySearch(
     lifecycle?: string;
     specInput?: string;
     materialInput?: string;
+    diameterValue?: string;
+    diameterUnit?: string;
+    diameterOperator?: string;
+    voltageValue?: string;
+    voltageUnit?: string;
+    voltageOperator?: string;
+    lifecycleOperator?: string;
+    lifecycleValue?: string;
   }
 ): SearchRunResult {
-  // 1. Resolve Reference Object
-  let reference: ReferenceObject | null = null;
-
-  if (objectType === 'PART_MECHANICAL') {
-    reference = {
+  // 1. Unified lists of all available parts
+  const allMechanicalParts = [
+    {
       requestCode: 'REQ-2026-000100',
       objectType: 'PART_MECHANICAL',
       objectId: 'PART-2026-000100',
@@ -1650,48 +1627,10 @@ export function runSimilaritySearch(
         thread_pitch: 'mm',
         nominal_length: 'mm'
       }
-    };
-  } else if (objectType === 'PART_ELECTRICAL') {
-    reference = {
-      requestCode: 'REQ-2026-000200',
-      objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-2026-000100',
-      objectName: '直流继电器 12V',
-      specification: '12V',
-      material: '塑料/铜',
-      classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '有效',
-      attributes: {
-        working_voltage: 12,
-        working_temp: 298.15, // in K, i.e. 25 degC
-        category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-15'
-      }
-    };
-  }
-
-  // Handle case where code doesn't match
-  const searchId = (requestCodeOrId || '').trim().toUpperCase();
-  if (
-    searchId &&
-    searchId !== 'REQ-2026-000100' &&
-    searchId !== 'PART-2026-000100' &&
-    searchId !== 'REQ-2026-000200' &&
-    searchId !== 'ELEC-2026-000200' &&
-    searchId !== 'ELEC-2026-000100'
-  ) {
-    return {
-      reference: null,
-      scoredCandidates: [],
-      errorCode: 'REFERENCE_NOT_FOUND',
-      errorMessage: `未找到源申请件或物料代码: ${requestCodeOrId}`
-    };
-  }
-
-  // 2. Define the candidates raw data
-  const rawMechanicalCandidates = [
+    },
     {
+      requestCode: 'REQ-2026-000101',
+      objectType: 'PART_MECHANICAL',
       objectId: 'PART-A-FULL',
       objectName: '六角头螺栓 M10 x 50 (全量命中)',
       specification: 'M10 x 50',
@@ -1715,6 +1654,8 @@ export function runSimilaritySearch(
       }
     },
     {
+      requestCode: 'REQ-2026-000102',
+      objectType: 'PART_MECHANICAL',
       objectId: 'PART-B-UNIT',
       objectName: '六角螺栓 M10 x 50 (厘米量纲)',
       specification: 'M10 x 50',
@@ -1722,11 +1663,11 @@ export function runSimilaritySearch(
       classificationPath: '/紧固件/螺栓/六角头螺栓',
       lifecycleState: '有效',
       attributes: {
-        spec_description: '六角头螺栓M10 x 50 碳钢防锈器件', // Character overlap similarity rate will be exactly 70%
+        spec_description: '六角头螺栓M10 x 50 碳钢防锈器件',
         core_material: 'SUS304',
-        nominal_diameter: 1, // in 'cm'! converts to 10mm! Matches!
-        thread_pitch: 1.2, // does not match 1.5mm!
-        nominal_length: 5, // 5cm converts to 50mm!
+        nominal_diameter: 1, // in cm, converts to 10mm
+        thread_pitch: 1.2,
+        nominal_length: 5, // in cm, converts to 50mm
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效',
         creation_date: '2026-01-31'
@@ -1738,18 +1679,20 @@ export function runSimilaritySearch(
       }
     },
     {
+      requestCode: 'REQ-2026-000103',
+      objectType: 'PART_MECHANICAL',
       objectId: 'PART-C-MISSING',
       objectName: '螺栓 M10 (轻量空值型)',
       specification: 'M10',
-      material: 'A2-70', // does not match SUS304!
+      material: 'A2-70',
       classificationPath: '/紧固件/螺栓/六角头螺栓',
       lifecycleState: '有效',
       attributes: {
-        spec_description: '螺栓 M10', // Character overlap similarity rate will be 40%
+        spec_description: '螺栓 M10',
         core_material: 'A2-70',
-        nominal_diameter: 10, // mm
-        thread_pitch: null, // missing!
-        nominal_length: null, // missing!
+        nominal_diameter: 10,
+        thread_pitch: null,
+        nominal_length: null,
         category_path: '/紧固件/螺栓/六角头螺栓',
         lifecycle_state: '有效',
         creation_date: '2025-12-31'
@@ -1761,8 +1704,27 @@ export function runSimilaritySearch(
     }
   ];
 
-  const rawElectricalCandidates = [
+  const allElectricalParts = [
     {
+      requestCode: 'REQ-2026-000200',
+      objectType: 'PART_ELECTRICAL',
+      objectId: 'ELEC-2026-000100',
+      objectName: '直流继电器 12V',
+      specification: '12V',
+      material: '塑料/铜',
+      classificationPath: '/电子元器件/继电器/直流继电器',
+      lifecycleState: '有效',
+      attributes: {
+        working_voltage: 12,
+        working_temp: 298.15, // in K (25 degC)
+        category_path: '/电子元器件/继电器/直流继电器',
+        lifecycle_state: '有效',
+        creation_date: '2026-01-15'
+      }
+    },
+    {
+      requestCode: 'REQ-2026-000201',
+      objectType: 'PART_ELECTRICAL',
       objectId: 'ELEC-A-FULL',
       objectName: '直流继电器 12V (全量匹配)',
       specification: '12V',
@@ -1778,6 +1740,8 @@ export function runSimilaritySearch(
       }
     },
     {
+      requestCode: 'REQ-2026-000202',
+      objectType: 'PART_ELECTRICAL',
       objectId: 'ELEC-B-TEMP',
       objectName: '直流继电器 12V (高温偏差版)',
       specification: '12V',
@@ -1786,7 +1750,7 @@ export function runSimilaritySearch(
       lifecycleState: '有效',
       attributes: {
         working_voltage: 12,
-        working_temp: 313.15, // does not match 298.15 K
+        working_temp: 313.15,
         category_path: '/电子元器件/继电器/直流继电器',
         lifecycle_state: '有效',
         creation_date: '2026-01-31'
@@ -1794,7 +1758,26 @@ export function runSimilaritySearch(
     }
   ];
 
-  const rawCandidates = objectType === 'PART_MECHANICAL' ? rawMechanicalCandidates : rawElectricalCandidates;
+  // Resolve reference part and raw candidates
+  const targetPool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
+  const searchId = (requestCodeOrId || '').trim().toUpperCase();
+
+  const referenceItem = targetPool.find(
+    p => p.objectId.toUpperCase() === searchId || p.requestCode.toUpperCase() === searchId
+  );
+
+  if (!referenceItem) {
+    return {
+      reference: null,
+      scoredCandidates: [],
+      errorCode: 'REFERENCE_NOT_FOUND',
+      errorMessage: `未找到源申请件或物料代码: ${requestCodeOrId}`
+    };
+  }
+
+  const reference: ReferenceObject = referenceItem;
+  // Candidates are all pool items EXCEPT the selected benchmark reference
+  const rawCandidates = targetPool.filter(p => p.objectId !== referenceItem.objectId);
 
   const scoredCandidates: ScoredCandidate[] = [];
 
@@ -1832,6 +1815,95 @@ export function runSimilaritySearch(
       if (filters.materialInput && filters.materialInput.trim()) {
         const m = filters.materialInput.toLowerCase();
         if (!cand.material.toLowerCase().includes(m)) continue;
+      }
+
+      // R19-UI-02: Unit-based Numerical filter for Mechanical (nominal_diameter)
+      if (objectType === 'PART_MECHANICAL' && filters.diameterOperator === 'EQUALS' && filters.diameterValue !== undefined && filters.diameterValue !== '') {
+        const val = parseFloat(filters.diameterValue);
+        if (!isNaN(val)) {
+          const unitDef = mockUnitCatalog.quantities.find(q => q.code === '长度' || q.name === '长度')?.units.find(u => u.code === filters.diameterUnit);
+          if (!unitDef || (unitDef.status && unitDef.status !== 'ACTIVE')) {
+            return {
+              reference: reference,
+              scoredCandidates: [],
+              errorCode: 'OBJECT_TYPE_MISMATCH',
+              errorMessage: `未知或停用的单位 [${filters.diameterUnit}]，等值换算被拒绝！`
+            };
+          }
+          const filterBaseDiameter = val * unitDef.scale + unitDef.offset;
+
+          const candDiameter = (cand.attributes as any).nominal_diameter;
+          if (candDiameter !== undefined && candDiameter !== null) {
+            const candUnitStr = (cand as any).units?.nominal_diameter || 'mm';
+            const candUnitDef = mockUnitCatalog.quantities.find(q => q.code === '长度' || q.name === '长度')?.units.find(u => u.code === candUnitStr);
+            if (!candUnitDef) {
+              return {
+                reference: reference,
+                scoredCandidates: [],
+                errorCode: 'OBJECT_TYPE_MISMATCH',
+                errorMessage: `候选物料 [${cand.objectId}] 包含未知单位 [${candUnitStr}]，换算失败！`
+              };
+            }
+            const candBaseDiameter = Number(candDiameter) * candUnitDef.scale + candUnitDef.offset;
+            if (Math.abs(candBaseDiameter - filterBaseDiameter) > 1e-6) {
+              continue;
+            }
+          } else {
+            continue;
+          }
+        }
+      }
+
+      // R19-UI-02: Unit-based Numerical filter for Electrical (working_voltage)
+      if (objectType === 'PART_ELECTRICAL' && filters.voltageOperator === 'EQUALS' && filters.voltageValue !== undefined && filters.voltageValue !== '') {
+        const val = parseFloat(filters.voltageValue);
+        if (!isNaN(val)) {
+          const unitDef = mockUnitCatalog.quantities.find(q => q.code === '电压' || q.name === '电压')?.units.find(u => u.code === filters.voltageUnit);
+          if (!unitDef || (unitDef.status && unitDef.status !== 'ACTIVE')) {
+            return {
+              reference: reference,
+              scoredCandidates: [],
+              errorCode: 'OBJECT_TYPE_MISMATCH',
+              errorMessage: `未知或停用的单位 [${filters.voltageUnit}]，等值换算被拒绝！`
+            };
+          }
+          const filterBaseVoltage = val * unitDef.scale + unitDef.offset;
+
+          const candVoltage = (cand.attributes as any).working_voltage;
+          if (candVoltage !== undefined && candVoltage !== null) {
+            const candUnitStr = (cand as any).units?.working_voltage || 'V';
+            const candUnitDef = mockUnitCatalog.quantities.find(q => q.code === '电压' || q.name === '电压')?.units.find(u => u.code === candUnitStr);
+            if (!candUnitDef) {
+              return {
+                reference: reference,
+                scoredCandidates: [],
+                errorCode: 'OBJECT_TYPE_MISMATCH',
+                errorMessage: `候选物料 [${cand.objectId}] 包含未知单位 [${candUnitStr}]，换算失败！`
+              };
+            }
+            const candBaseVoltage = Number(candVoltage) * candUnitDef.scale + candUnitDef.offset;
+            if (Math.abs(candBaseVoltage - filterBaseVoltage) > 1e-6) {
+              continue;
+            }
+          } else {
+            continue;
+          }
+        }
+      }
+
+      // R19-UI-03: Enum lifecycle state switcher filter
+      if (filters.lifecycleOperator && filters.lifecycleValue !== undefined && filters.lifecycleValue !== '') {
+        const op = filters.lifecycleOperator;
+        const val = filters.lifecycleValue.trim().toLowerCase();
+        const candState = (cand.lifecycleState || '').toLowerCase();
+        
+        if (op === 'CONTAINS') {
+          if (!candState.includes(val)) continue;
+        } else if (op === 'EQUALS') {
+          if (candState !== val) continue;
+        } else if (op === 'NOT_EQUALS') {
+          if (candState === val) continue;
+        }
       }
     }
 
