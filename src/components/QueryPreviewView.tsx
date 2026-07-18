@@ -483,7 +483,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 {lastRunContext.objectId.trim() === '' ? (
                   <span>请输入源物料代码/申请号</span>
                 ) : (
-                  <>未找到源申请件或物料代码: <strong className="font-mono">{lastRunContext.objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)</>
+                  <>未找到基准零部件: <strong className="font-mono">{lastRunContext.objectId}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)</>
                 )}
               </div>
             )}

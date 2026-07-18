@@ -734,47 +734,63 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
         ) : (
           <>
-            {/* 2.3 待申请物料摘要区 */}
+            {/* 2.3 基准零部件摘要区 */}
             {reference ? (
               <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-xs text-slate-600 shadow-2xs" id="client-target-summary">
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-slate-800">待申请物料</span>
+                  <span className="font-bold text-slate-800">基准零部件</span>
                   <span className="text-slate-300">|</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">申请流水号:</span>{' '}
-                  <span className="font-mono font-bold text-slate-900">{reqCode}</span>
+                  <span className="text-slate-400">基准件编码:</span>{' '}
+                  <span className="font-mono font-bold text-slate-900">{reference.objectId || reqCode}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">申请物料名称:</span>{' '}
+                  <span className="text-slate-400">基准件名称:</span>{' '}
                   <span className="font-semibold text-slate-900">{reference.objectName}</span>
                 </div>
-                {reference.objectType === 'PART_MECHANICAL' ? (
+                <div>
+                  <span className="text-slate-400">主要材质:</span>{' '}
+                  <span className="font-mono font-bold text-slate-900">{reference.attributes.core_material || reference.material || '--'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">标称直径及单位:</span>{' '}
+                  <span className="font-bold text-slate-900">
+                    {reference.attributes.nominal_diameter !== undefined && reference.attributes.nominal_diameter !== null
+                      ? `${reference.attributes.nominal_diameter} ${reference.units?.nominal_diameter || ''}`.trim()
+                      : '--'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400">长度及单位:</span>{' '}
+                  <span className="font-bold text-slate-900">
+                    {reference.attributes.nominal_length !== undefined && reference.attributes.nominal_length !== null
+                      ? `${reference.attributes.nominal_length} ${reference.units?.nominal_length || ''}`.trim()
+                      : '--'}
+                  </span>
+                </div>
+                {reference.objectType === 'PART_ELECTRICAL' && (
                   <>
                     <div>
-                      <span className="text-slate-400">主要材质:</span>{' '}
-                      <span className="font-mono font-bold text-slate-900">{reference.attributes.core_material}</span>
+                      <span className="text-slate-400">工作电压:</span>{' '}
+                      <span className="font-bold text-slate-900">
+                        {reference.attributes.working_voltage !== undefined && reference.attributes.working_voltage !== null
+                          ? `${reference.attributes.working_voltage} ${reference.units?.working_voltage || 'V'}`
+                          : '--'}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-slate-400">标称直径/长度:</span>{' '}
+                      <span className="text-slate-400">工作温度:</span>{' '}
                       <span className="font-bold text-slate-900">
-                        直径: {reference.attributes.nominal_diameter}mm / 长度:{' '}
-                        {reference.attributes.nominal_length !== undefined && reference.attributes.nominal_length !== null
-                          ? `${reference.attributes.nominal_length}${reference.units?.nominal_length || 'mm'}`
+                        {reference.attributes.working_temp !== undefined && reference.attributes.working_temp !== null
+                          ? `${reference.attributes.working_temp} ${reference.units?.working_temp || 'K'}`
                           : '--'}
                       </span>
                     </div>
                   </>
-                ) : (
-                  <>
-                    <div>
-                      <span className="text-slate-400">工作电压:</span>{' '}
-                      <span className="font-bold text-slate-900">{reference.attributes.working_voltage} V</span>
-                    </div>
-                  </>
                 )}
                 <div>
-                  <span className="text-slate-400">计划分类路径:</span>{' '}
+                  <span className="text-slate-400">分类路径:</span>{' '}
                   <span className="font-mono text-slate-700">{reference.classificationPath}</span>
                 </div>
               </div>
@@ -1021,7 +1037,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               {/* Reference Header Panel */}
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">待申请流(源) :</span>
+                  <span className="text-slate-400">基准件 :</span>
                   <strong className="text-slate-900 font-mono">{reqCode}</strong>
                 </div>
                 <div className="text-slate-700 font-semibold truncate leading-normal">
@@ -1031,7 +1047,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 <div className="border-t border-slate-200/60 my-2"></div>
 
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">已有候选(目标) :</span>
+                  <span className="text-slate-400">候选件 :</span>
                   <strong className="text-emerald-700 font-mono">{selectedForCompare.objectId}</strong>
                 </div>
                 <div className="text-emerald-800 font-semibold truncate leading-normal">
@@ -1060,8 +1076,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs bg-white">
                   <div className="grid grid-cols-3 bg-slate-100 border-b border-slate-200 p-2.5 font-semibold text-slate-700 text-xs">
                     <div>物理属性字段</div>
-                    <div>待申请件</div>
-                    <div>库内已有件</div>
+                    <div>基准件值</div>
+                    <div>候选件值</div>
                   </div>
 
                   <div className="divide-y divide-slate-100 text-xs">

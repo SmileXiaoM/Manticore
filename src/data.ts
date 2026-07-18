@@ -1713,6 +1713,10 @@ export const allElectricalParts = [
       category_path: '/电子元器件/继电器/直流继电器',
       lifecycle_state: '有效',
       creation_date: '2026-01-15'
+    },
+    units: {
+      working_voltage: 'V',
+      working_temp: 'K'
     }
   },
   {
@@ -1730,6 +1734,10 @@ export const allElectricalParts = [
       category_path: '/电子元器件/继电器/直流继电器',
       lifecycle_state: '有效',
       creation_date: '2026-01-01'
+    },
+    units: {
+      working_voltage: 'V',
+      working_temp: 'K'
     }
   },
   {
@@ -1747,6 +1755,10 @@ export const allElectricalParts = [
       category_path: '/电子元器件/继电器/直流继电器',
       lifecycle_state: '有效',
       creation_date: '2026-01-31'
+    },
+    units: {
+      working_voltage: 'V',
+      working_temp: 'K'
     }
   }
 ];

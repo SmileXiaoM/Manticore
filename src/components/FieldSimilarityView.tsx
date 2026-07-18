@@ -15,7 +15,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified } from '../types';
-import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit } from '../data';
+import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums } from '../data';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -130,6 +130,26 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // Editor state
   const [editingRule, setEditingRule] = useState<FieldSimilarityRule | null>(null);
   const [isNew, setIsNew] = useState(false);
+
+  // Reset editing states on activeObjectType change to prevent cross-contamination
+  useEffect(() => {
+    setFormFieldName('');
+    setFormPropertyCode('');
+    setFormFieldType('文本 (TEXT)');
+    setFormWeight(10);
+    setFormMatchTypeState('精确值匹配');
+    setFormNullHandling('候选缺失按 0 分');
+    setFormIsScoreActive(true);
+    setFormHitReasonTemplate('');
+    setFormDiffFieldsTemplate('');
+    setFormUnitFamily('无');
+    setFormBaseUnit('无');
+    setFormDisplayUnit('无');
+    setPreviewSrcVal('');
+    setPreviewTgtVal('');
+    setEditingRule(null);
+    setIsNew(false);
+  }, [activeObjectType]);
 
   // Filters State
   const [filterFieldName, setFilterFieldName] = useState('');
@@ -657,6 +677,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
     const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
     const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
+    const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
 
     if (isDateField) {
       const t1 = new Date(previewSrcVal).getTime();
@@ -710,8 +731,25 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
     }
 
-    const srcNum = parseFloat(previewSrcVal);
-    const tgtNum = parseFloat(previewTgtVal);
+    let srcNum = parseFloat(previewSrcVal);
+    let tgtNum = parseFloat(previewTgtVal);
+
+    if (isUnitField) {
+      try {
+        if (!isNaN(srcNum) && formDisplayUnit && formUnitFamily) {
+          srcNum = convertToBaseUnit(srcNum, formDisplayUnit, formUnitFamily);
+        }
+      } catch (e) {
+        // Fallback to raw value
+      }
+      try {
+        if (!isNaN(tgtNum) && formDisplayUnit && formUnitFamily) {
+          tgtNum = convertToBaseUnit(tgtNum, formDisplayUnit, formUnitFamily);
+        }
+      } catch (e) {
+        // Fallback to raw value
+      }
+    }
 
     if (formMatchTypeState === '精确值匹配') {
       return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
@@ -762,7 +800,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     paramMinTextThreshold, paramNumToleranceType, paramNumToleranceVal, paramNumToleranceDirection,
     paramDecayFullScore, paramDecayZeroBoundary, paramDecayDirection,
     paramHierarchyRequirement, paramHierarchyMaxDiff, paramHierarchyDeduction,
-    paramDateToleranceUnit, paramDateToleranceDirection, paramDateToleranceVal
+    paramDateToleranceUnit, paramDateToleranceDirection, paramDateToleranceVal,
+    formUnitFamily, formDisplayUnit
   ]);
 
   // Handle Form Submit
@@ -1313,7 +1352,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         </div>
       ) : (
         // ------------------------- EDITOR / FORM LAYOUT -------------------------
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
           {/* Main Scrollable editor */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -1946,13 +1985,35 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
 
           {/* Right-Side Instant Preview Panel (即时试算卡片) */}
-          <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-slate-200 bg-white overflow-y-auto p-5 shrink-0 space-y-5 h-auto md:h-full">
+          <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-white overflow-y-auto p-5 shrink-0 space-y-5 h-auto lg:h-full">
             <h3 className="text-xs font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center space-x-1.5">
               <SlidersHorizontal className="w-4 h-4 text-blue-600" />
               <span>所选算法即时算分反馈</span>
             </h3>
 
             {(() => {
+              if (!formPropertyCode || formPropertyCode === '无' || formPropertyCode.trim() === '') {
+                return (
+                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-no-field-placeholder">
+                    <div className="text-slate-500 font-bold text-xs">ℹ️ 未选择一阶段映射字段</div>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      请先在左侧选择一阶段物理字段作为属性对应。配置正确后，系统将自动对齐加载交互算分模拟器。
+                    </p>
+                  </div>
+                );
+              }
+
+              if (!formIsScoreActive) {
+                return (
+                  <div className="bg-amber-50 rounded-lg p-5 border border-amber-200 text-center space-y-2" id="preview-score-inactive-placeholder">
+                    <div className="text-amber-700 font-bold text-xs">⚠️ 该字段尚未参与相似度评分</div>
+                    <p className="text-slate-500 text-[11px] leading-relaxed">
+                      当前该字段设为“不参与相似度评分”（或仅作为过滤规则）。在一阶段检索比对中它不会贡献任何权重或计算相似度，分数固定为 0 分或作为硬过滤通过项。
+                    </p>
+                  </div>
+                );
+              }
+
               const typeUpper = (formFieldType || '').toUpperCase();
               const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
               const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
@@ -1962,13 +2023,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               const isNumberField = typeUpper.includes('NUMBER') || formFieldType.includes('数值');
 
               const getEnumOptions = (propertyCode: string) => {
+                const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
+                if (matched.length > 0) {
+                  return Array.from(new Set(matched.map(e => e.enumDisplayName)));
+                }
                 if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
-                  return ['有效', '待发布', '废弃'];
+                  return ['已发布', '已作废', '设计中'];
                 }
                 if (propertyCode === 'core_material' || propertyCode === 'material') {
-                  return ['SUS304', 'Q235', 'S136', '45#', '塑料/铜', '陶瓷'];
+                  return ['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304'];
                 }
-                return ['有效', '待发布', '废弃'];
+                return ['已发布', '已作废', '设计中'];
               };
 
               let sourceLabel = '检索输入 (Source Value)';
@@ -1992,17 +2057,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               } else if (isClassTree) {
                 sourceLabel = '检索输入 (源层级路径)';
                 targetLabel = '基准数值 (对准已有层级)';
-              }
-
-              if (isDateField && !formIsScoreActive) {
-                return (
-                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-date-only-filter-placeholder">
-                    <div className="text-slate-500 font-bold text-xs">📅 日期字段评分未启用</div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed">
-                      该属性当前未启用参与相似度评分计算。
-                    </p>
-                  </div>
-                );
               }
 
               return (
