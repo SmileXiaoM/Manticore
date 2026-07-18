@@ -250,9 +250,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       }
 
       // Reset interactive simulator values synchronously to avoid DATE warning on render
-      if (fieldType.toUpperCase().includes('DATE')) {
+      const typeUpper = (fieldType || '').toUpperCase();
+      if (typeUpper.includes('DATE') || fieldType.includes('日期')) {
         setPreviewSrcVal('2026-01-01');
         setPreviewTgtVal('2026-01-15');
+      } else if (typeUpper.includes('CLASS_TREE') || fieldType.includes('层级')) {
+        setPreviewSrcVal('/电子元器件/继电器/直流继电器');
+        setPreviewTgtVal('/电子元器件/继电器');
+      } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
+        setPreviewSrcVal('有效');
+        setPreviewTgtVal('待发布');
+      } else if (typeUpper.includes('TEXT') || fieldType.includes('文本')) {
+        setPreviewSrcVal('Manticore');
+        setPreviewTgtVal('Manticore Pro');
       } else {
         setPreviewSrcVal('10.0');
         setPreviewTgtVal('10.2');
@@ -266,8 +276,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setFormBaseUnit('无');
       setFormDisplayUnit('无');
 
-      setPreviewSrcVal('10.0');
-      setPreviewTgtVal('10.2');
+      setPreviewSrcVal('Manticore');
+      setPreviewTgtVal('Manticore Pro');
     }
   };
 
@@ -643,11 +653,68 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // Real-time Preview Score Calculation
   const realTimePreviewScore = useMemo(() => {
+    const typeUpper = (formFieldType || '').toUpperCase();
+    const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
+    const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
+    const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
+
+    if (isDateField) {
+      const t1 = new Date(previewSrcVal).getTime();
+      const t2 = new Date(previewTgtVal).getTime();
+      if (isNaN(t1) || isNaN(t2)) return 0;
+      const diffMs = t2 - t1;
+      const factor = paramDateToleranceUnit === 'DAY' ? (1000 * 60 * 60 * 24) : (1000 * 60 * 60);
+      const diff = diffMs / factor;
+
+      if (paramDateToleranceDirection === 'HIGHER' && diff < 0) return 0;
+      if (paramDateToleranceDirection === 'LOWER' && diff > 0) return 0;
+
+      return Math.abs(diff) <= paramDateToleranceVal ? 100 : 0;
+    }
+
+    if (isClassTree) {
+      const p1 = String(previewSrcVal).replace(/^\/|\/$/g, '').split('/');
+      const p2 = String(previewTgtVal).replace(/^\/|\/$/g, '').split('/');
+
+      let c = 0;
+      const limit = Math.min(p1.length, p2.length);
+      for (let i = 0; i < limit; i++) {
+        if (p1[i] === p2[i]) {
+          c++;
+        } else {
+          break;
+        }
+      }
+
+      const refDist = p1.length - c;
+      const candDist = p2.length - c;
+      const gap = refDist + candDist;
+
+      if (paramHierarchyRequirement === 'PARENT_CHILD') {
+        const isParentChild = (refDist === 1 && candDist === 0) || (refDist === 0 && candDist === 1);
+        if (!isParentChild) return 0;
+      } else if (paramHierarchyRequirement === 'ANCESTOR_DESCENDANT') {
+        const isAncestorDescendant = (refDist === 0 || candDist === 0);
+        if (!isAncestorDescendant) return 0;
+      }
+
+      if (gap > paramHierarchyMaxDiff) {
+        return 0;
+      }
+
+      const score = 100 - (gap * paramHierarchyDeduction);
+      return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    if (isEnumField) {
+      return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
+    }
+
     const srcNum = parseFloat(previewSrcVal);
     const tgtNum = parseFloat(previewTgtVal);
 
     if (formMatchTypeState === '精确值匹配') {
-      return previewSrcVal === previewTgtVal ? 100 : 0;
+      return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
     }
 
     if (formMatchTypeState === '文本相似匹配 (非 AI)') {
@@ -689,22 +756,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return Math.round(Math.max(0, Math.min(100, score)));
     }
 
-    if (formMatchTypeState === '层级关系匹配') {
-      // Simulate level depth deduction
-      const score = 100 - (paramHierarchyDeduction * 1.5);
-      return Math.max(0, score);
-    }
-
-    if (formMatchTypeState === '日期容差匹配') {
-      return 100;
-    }
-
     return 100;
   }, [
-    formMatchTypeState, previewSrcVal, previewTgtVal,
+    formFieldType, formMatchTypeState, previewSrcVal, previewTgtVal,
     paramMinTextThreshold, paramNumToleranceType, paramNumToleranceVal, paramNumToleranceDirection,
     paramDecayFullScore, paramDecayZeroBoundary, paramDecayDirection,
-    paramHierarchyDeduction
+    paramHierarchyRequirement, paramHierarchyMaxDiff, paramHierarchyDeduction,
+    paramDateToleranceUnit, paramDateToleranceDirection, paramDateToleranceVal
   ]);
 
   // Handle Form Submit
@@ -893,17 +951,37 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 value={activeObjectType}
                 onChange={(e) => {
                   const targetType = e.target.value as ObjectType;
+                  const performSwitch = () => {
+                    setActiveObjectType(targetType);
+                    // R20-UI-06: Reset all Form temporary states to prevent cross-contamination
+                    setFormFieldName('');
+                    setFormPropertyCode('');
+                    setFormFieldType('文本 (TEXT)');
+                    setFormWeight(10);
+                    setFormMatchTypeState('精确值匹配');
+                    setFormNullHandling('候选缺失按 0 分');
+                    setFormIsScoreActive(true);
+                    setFormHitReasonTemplate('');
+                    setFormDiffFieldsTemplate('');
+                    setFormUnitFamily('无');
+                    setFormBaseUnit('无');
+                    setFormDisplayUnit('无');
+                    setPreviewSrcVal('Manticore');
+                    setPreviewTgtVal('Manticore Pro');
+                    setEditingRule(null);
+                    setIsNew(false);
+                  };
+
                   if (isEditingModified) {
                     if (window.confirm('当前配置存在未保存修改，切换对象类型将丢失并重置该类型的编辑草稿，是否确认切换？')) {
                       // Discard: restore current activeObjectType editingRules from savedRules
                       const otherEditingRules = editingRules.filter(r => r.objectType !== activeObjectType);
                       const restoredRules = savedRules.filter(r => r.objectType === activeObjectType);
                       onUpdateEditingRules([...otherEditingRules, ...restoredRules]);
-
-                      setActiveObjectType(targetType);
+                      performSwitch();
                     }
                   } else {
-                    setActiveObjectType(targetType);
+                    performSwitch();
                   }
                 }}
                 className="text-xs border border-slate-200 rounded-md px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
@@ -1235,7 +1313,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         </div>
       ) : (
         // ------------------------- EDITOR / FORM LAYOUT -------------------------
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
           {/* Main Scrollable editor */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -1868,7 +1946,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
 
           {/* Right-Side Instant Preview Panel (即时试算卡片) */}
-          <div className="w-80 border-l border-slate-200 bg-white overflow-y-auto p-5 shrink-0 space-y-5">
+          <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-slate-200 bg-white overflow-y-auto p-5 shrink-0 space-y-5 h-auto md:h-full">
             <h3 className="text-xs font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center space-x-1.5">
               <SlidersHorizontal className="w-4 h-4 text-blue-600" />
               <span>所选算法即时算分反馈</span>
@@ -1876,7 +1954,45 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
             {(() => {
               const typeUpper = (formFieldType || '').toUpperCase();
-              const isDateField = typeUpper.includes('DATE');
+              const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
+              const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
+              const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
+              const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
+              const isTextField = typeUpper.includes('TEXT') || formFieldType.includes('文本');
+              const isNumberField = typeUpper.includes('NUMBER') || formFieldType.includes('数值');
+
+              const getEnumOptions = (propertyCode: string) => {
+                if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
+                  return ['有效', '待发布', '废弃'];
+                }
+                if (propertyCode === 'core_material' || propertyCode === 'material') {
+                  return ['SUS304', 'Q235', 'S136', '45#', '塑料/铜', '陶瓷'];
+                }
+                return ['有效', '待发布', '废弃'];
+              };
+
+              let sourceLabel = '检索输入 (Source Value)';
+              let targetLabel = '基准数值 (Target Value)';
+
+              if (isUnitField) {
+                sourceLabel = '检索输入 (源物理属性值)';
+                targetLabel = '基准数值 (对准已有属性值)';
+              } else if (isDateField) {
+                sourceLabel = '检索输入 (源日期)';
+                targetLabel = '基准数值 (对准已有日期)';
+              } else if (isEnumField) {
+                sourceLabel = '检索输入 (源枚举项)';
+                targetLabel = '基准数值 (对准已有枚举项)';
+              } else if (isTextField) {
+                sourceLabel = '检索输入 (源文本)';
+                targetLabel = '基准数值 (对准已有文本)';
+              } else if (isNumberField) {
+                sourceLabel = '检索输入 (源数值)';
+                targetLabel = '基准数值 (对准已有数值)';
+              } else if (isClassTree) {
+                sourceLabel = '检索输入 (源层级路径)';
+                targetLabel = '基准数值 (对准已有层级)';
+              }
 
               if (isDateField && !formIsScoreActive) {
                 return (
@@ -1898,16 +2014,29 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {/* Source val */}
                   <div>
                     <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                      {isDateField ? '源日期属性 (Source Date)' : '源物理属性数值 (Source Value)'}
+                      {sourceLabel}
                     </label>
                     <div className="relative">
-                      <input
-                        type={isDateField ? 'date' : 'text'}
-                        value={previewSrcVal}
-                        onChange={(e) => setPreviewSrcVal(e.target.value)}
-                        className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
-                      />
-                      {!isDateField && formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
+                      {isEnumField ? (
+                        <select
+                          value={previewSrcVal}
+                          onChange={(e) => setPreviewSrcVal(e.target.value)}
+                          className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                        >
+                          {getEnumOptions(formPropertyCode).map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={isDateField ? 'date' : 'text'}
+                          value={previewSrcVal}
+                          onChange={(e) => setPreviewSrcVal(e.target.value)}
+                          className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                          placeholder={isClassTree ? "如: /电子元器件/继电器" : ""}
+                        />
+                      )}
+                      {isUnitField && (
                         <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
                           {formDisplayUnit}
                         </span>
@@ -1918,16 +2047,29 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {/* Target val */}
                   <div>
                     <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                      {isDateField ? '候选日期属性 (Target Date)' : '候选件对比属性数值 (Target Value)'}
+                      {targetLabel}
                     </label>
                     <div className="relative">
-                      <input
-                        type={isDateField ? 'date' : 'text'}
-                        value={previewTgtVal}
-                        onChange={(e) => setPreviewTgtVal(e.target.value)}
-                        className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono"
-                      />
-                      {!isDateField && formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
+                      {isEnumField ? (
+                        <select
+                          value={previewTgtVal}
+                          onChange={(e) => setPreviewTgtVal(e.target.value)}
+                          className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                        >
+                          {getEnumOptions(formPropertyCode).map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={isDateField ? 'date' : 'text'}
+                          value={previewTgtVal}
+                          onChange={(e) => setPreviewTgtVal(e.target.value)}
+                          className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                          placeholder={isClassTree ? "如: /电子元器件/继电器/直流继电器" : ""}
+                        />
+                      )}
+                      {isUnitField && (
                         <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
                           {formDisplayUnit}
                         </span>
@@ -1936,20 +2078,36 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </div>
 
                   {isDateField && (
-                    <p className="text-[10px] text-slate-400 leading-normal" id="date-match-tip-msg">
-                      说明：若两日期一致（如均为 {previewSrcVal}）则计算为 100% 匹配，否则扣分或归零。
+                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="date-match-tip-msg">
+                      说明：在指定容差天数或小时数内偏离计算，超出阻断或按天数衰减。
+                    </p>
+                  )}
+                  {isClassTree && (
+                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="tree-match-tip-msg">
+                      说明：支持 / 分隔路径。若相同前缀层级不满足关系（子类/后代）或差值过大扣减得分。
+                    </p>
+                  )}
+                  {isEnumField && (
+                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="enum-match-tip-msg">
+                      说明：枚举字段精确值匹配，内容完全一致时得 100 分，不一致得 0 分。
                     </p>
                   )}
 
                   {/* Real-time score calculator feedback */}
                   <div className="pt-2 border-t border-slate-200 flex flex-col items-center">
-                    <span className="text-[10px] text-slate-400 block font-semibold mb-1">即时比算匹配结果得分</span>
+                    <span className="text-[10px] text-slate-400 block font-semibold mb-1">对齐结果得分 (即时比算)</span>
                     <div className="flex items-baseline space-x-1 justify-center">
                       <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
                         {realTimePreviewScore}
                       </span>
                       <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
                     </div>
+
+                    {isUnitField && !isNaN(parseFloat(previewSrcVal)) && !isNaN(parseFloat(previewTgtVal)) && (
+                      <div className="text-[10px] text-slate-500 text-center mt-2 bg-white px-2 py-1 rounded border border-slate-100 w-full font-sans">
+                        对齐物理差值: <span className="font-mono font-bold text-slate-700">{Math.abs(parseFloat(previewSrcVal) - parseFloat(previewTgtVal)).toFixed(2)} {formDisplayUnit}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1958,8 +2116,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {/* Instruction about calculated formula process */}
             <div className="text-[11px] text-slate-500 leading-normal space-y-2">
               <span className="font-bold text-slate-700 block">换算说明：</span>
-              <p>1. 如果是“带单位数值”，算分前将根据单位目录先将输入的换算单位，均统一折算至底层 SI 标准基准物理量再进行偏差或距离计算。</p>
-              <p>2. 数值距离衰减和容差均是在基准物理量数值（如米、伏、开尔文）的基础上进行差值容差判断。</p>
+              {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' ? (
+                <>
+                  <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量再进行偏差或距离计算。</p>
+                  <p>2. 数值距离衰减和容差在基准物理量数值（如米、伏）的基础上进行判断。</p>
+                </>
+              ) : (
+                <>
+                  <p>1. 当前字段类型不带单位，不涉及物理单位与 SI 标准基准量纲的换算。</p>
+                  <p>2. 对齐计算将直接对文本、枚举或纯数值进行内容或范围精确匹配。</p>
+                </>
+              )}
             </div>
           </div>
         </div>

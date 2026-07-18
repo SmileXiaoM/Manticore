@@ -237,11 +237,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
         {/* 1.1 顶部查询条件区 */}
         <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs" id="preview-filter-section">
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-xs text-slate-700 items-end">
 
             {/* Object Type */}
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">物料对象类型:</label>
+            <div className="flex flex-col space-y-1.5 w-full">
+              <label className="font-semibold text-slate-600">物料对象类型:</label>
               <select
                 id="select-object-type"
                 value={objectType}
@@ -252,7 +252,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   setLastRunContext(null);
                   setSelectedCandidate(null);
                 }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 focus:ring-1 focus:ring-blue-500 text-xs min-w-[180px]"
+                className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 focus:ring-1 focus:ring-blue-500 text-xs"
               >
                 <option value="PART_MECHANICAL">机械零件 (PART_MECHANICAL)</option>
                 <option value="PART_ELECTRICAL">电气元器件 (PART_ELECTRICAL)</option>
@@ -260,8 +260,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
 
             {/* Object ID */}
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">源物料代码/申请号:</label>
+            <div className="flex flex-col space-y-1.5 w-full">
+              <label className="font-semibold text-slate-600">源物料代码/申请号:</label>
               <input
                 id="input-object-id"
                 type="text"
@@ -271,13 +271,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   setLastRunContext(null);
                   setSelectedCandidate(null);
                 }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs font-bold text-slate-800 focus:ring-1 focus:ring-blue-500 w-44"
+                className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs font-bold text-slate-800 focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
             {/* Rule Snapshot */}
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">调试规则版本:</label>
+            <div className="flex flex-col space-y-1.5 w-full">
+              <label className="font-semibold text-slate-600">调试规则版本:</label>
               <select
                 id="select-rule-version"
                 value={ruleVersion}
@@ -286,7 +286,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   setLastRunContext(null);
                   setSelectedCandidate(null);
                 }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500 min-w-[200px]"
+                className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500"
               >
                 <option value="DRAFT_POOL">当前编辑内容</option>
                 <option value="SAVED_DRAFT">已保存配置</option>
@@ -295,22 +295,22 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-2 ml-auto">
+            <div className="flex items-center space-x-2 md:justify-end xl:justify-end w-full">
               <button
                 id="btn-run-sandbox"
                 onClick={handleRunSearch}
                 disabled={isSearching}
-                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer"
+                className="flex-1 md:flex-initial bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer h-[34px]"
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
+                <Play className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>{isSearching ? '计算中...' : '启动沙盒试算'}</span>
               </button>
               <button
                 id="btn-reset-sandbox"
                 onClick={handleReset}
-                className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-medium flex items-center space-x-1 transition-all cursor-pointer"
+                className="flex-1 md:flex-initial bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-medium flex items-center justify-center space-x-1 transition-all cursor-pointer h-[34px]"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3.5 h-3.5 shrink-0" />
                 <span>重置</span>
               </button>
             </div>

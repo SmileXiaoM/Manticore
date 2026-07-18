@@ -12,8 +12,9 @@ import {
   FileCheck2,
   SlidersHorizontal
 } from 'lucide-react';
-import { runSimilaritySearch } from '../data';
+import { runSimilaritySearch, allMechanicalParts, allElectricalParts } from '../data';
 import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
+import unitCatalogData from '../unit-catalog.json';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
@@ -40,6 +41,15 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     { code: 'ELEC-B-TEMP', name: '直流继电器 12V (高温偏差版) (ELEC-B-TEMP)' }
   ];
 
+  // Load active units dynamically from JSON drive
+  const lengthUnits = unitCatalogData.quantities
+    .find((q: any) => q.code === 'LENGTH' || q.name === '长度')
+    ?.units.filter((u: any) => !u.status || u.status === 'ACTIVE') || [];
+
+  const voltageUnits = unitCatalogData.quantities
+    .find((q: any) => q.code === 'VOLTAGE' || q.name === '电压')
+    ?.units.filter((u: any) => !u.status || u.status === 'ACTIVE') || [];
+
   // Query Filters State
   const [objectType, setObjectType] = useState('PART_MECHANICAL');
   const [reqCode, setReqCode] = useState('PART-2026-000100'); // set default benchmark part code
@@ -49,6 +59,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   // Benchmark searchable combobox dropdown states
   const [benchmarkSearchText, setBenchmarkSearchText] = useState('');
   const [isBenchmarkDropdownOpen, setIsBenchmarkDropdownOpen] = useState(false);
+  const [isBenchmarkFocused, setIsBenchmarkFocused] = useState(false);
 
   // R19-UI-02: Unit-based Numerical filter state
   const [diameterNumValue, setDiameterNumValue] = useState('10');
@@ -59,13 +70,25 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   const [voltageUnit, setVoltageUnit] = useState('V');
   const [voltageOperator, setVoltageOperator] = useState('EQUALS'); // 'EQUALS', 'ALL'
 
-  // R19-UI-03: Enum dual-mode lifecycle state filter
-  const [lifecycleOperator, setLifecycleOperator] = useState('EQUALS'); // 'CONTAINS', 'EQUALS', 'NOT_EQUALS'
-  const [lifecycleTextValue, setLifecycleTextValue] = useState('有效');
-  const [lifecycleSelectValue, setLifecycleSelectValue] = useState('有效');
+  // R20-UI-01: Material Enum Dual-Mode filter state
+  const [materialOperator, setMaterialOperator] = useState('EQUALS'); // 'CONTAINS', 'EQUALS', 'NOT_EQUALS'
+  const [materialTextValue, setMaterialTextValue] = useState('');
+  const [materialSelectValue, setMaterialSelectValue] = useState('SUS304');
+  const [isMaterialDropdownOpen, setIsMaterialDropdownOpen] = useState(false);
+  const [materialSearchText, setMaterialSearchText] = useState('');
+  const [isMaterialFocused, setIsMaterialFocused] = useState(false);
+
+  // R20-UI-01: Simple single-select lifecycle filter state
+  const [lifecycleFilter, setLifecycleFilter] = useState('ALL');
 
   const [specInput, setSpecInput] = useState('');
-  const [materialInput, setMaterialInput] = useState('');
+
+  // Helper to dynamically extract all unique candidate materials under current object type
+  const getCandidateMaterials = () => {
+    const pool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
+    const mats = Array.from(new Set(pool.map(p => p.material).filter(Boolean)));
+    return mats;
+  };
 
   const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
@@ -101,22 +124,52 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
       setIsWaiting(true);
       return;
     }
-    const res = runSimilaritySearch(objectType, reqCode, rules, {
-      keyword,
-      category,
-      specInput,
-      materialInput,
-      diameterValue: diameterNumValue,
-      diameterUnit: diameterUnit,
-      diameterOperator: diameterOperator,
-      voltageValue: voltageNumValue,
-      voltageUnit: voltageUnit,
-      voltageOperator: voltageOperator,
-      lifecycleOperator: lifecycleOperator,
-      lifecycleValue: lifecycleOperator === 'CONTAINS' ? lifecycleTextValue : lifecycleSelectValue
-    });
-    setSearchResult(res);
-    setIsWaiting(false);
+
+    // R20-UI-05: Pre-search unknown/inactive unit validation
+    if (objectType === 'PART_MECHANICAL') {
+      const qty = unitCatalogData.quantities.find((q: any) => q.code === 'LENGTH' || q.name === '长度');
+      const unit = qty?.units.find((u: any) => u.code === diameterUnit);
+      if (!unit || (unit.status && unit.status !== 'ACTIVE')) {
+        alert("未知或已失效度量衡单位，计算被阻断！");
+        invalidateOldResults();
+        return;
+      }
+    } else if (objectType === 'PART_ELECTRICAL') {
+      const qty = unitCatalogData.quantities.find((q: any) => q.code === 'VOLTAGE' || q.name === '电压');
+      const unit = qty?.units.find((u: any) => u.code === voltageUnit);
+      if (!unit || (unit.status && unit.status !== 'ACTIVE')) {
+        alert("未知或已失效度量衡单位，计算被阻断！");
+        invalidateOldResults();
+        return;
+      }
+    }
+
+    try {
+      const res = runSimilaritySearch(objectType, reqCode, rules, {
+        keyword,
+        category,
+        specInput,
+        materialOperator: materialOperator,
+        materialValue: materialOperator === 'CONTAINS' ? materialTextValue : materialSelectValue,
+        diameterValue: diameterNumValue,
+        diameterUnit: diameterUnit,
+        diameterOperator: diameterOperator,
+        voltageValue: voltageNumValue,
+        voltageUnit: voltageUnit,
+        voltageOperator: voltageOperator,
+        lifecycle: lifecycleFilter
+      });
+      if (res.errorCode === 'OBJECT_TYPE_MISMATCH' && res.errorMessage) {
+        alert(`检索被阻断：${res.errorMessage}`);
+        invalidateOldResults();
+        return;
+      }
+      setSearchResult(res);
+      setIsWaiting(false);
+    } catch (e: any) {
+      alert(`检索遇到未知单位换算或数据阻断异常：${e.message || e}`);
+      invalidateOldResults();
+    }
   };
 
   const handleResetFilters = () => {
@@ -125,16 +178,22 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     setKeyword('');
     setCategory('ALL');
     setSpecInput('');
-    setMaterialInput('');
     setDiameterNumValue('10');
     setDiameterUnit('mm');
     setDiameterOperator('EQUALS');
     setVoltageNumValue('12');
     setVoltageUnit('V');
     setVoltageOperator('EQUALS');
-    setLifecycleOperator('EQUALS');
-    setLifecycleTextValue('有效');
-    setLifecycleSelectValue('有效');
+    setMaterialOperator('EQUALS');
+    setMaterialTextValue('');
+    setMaterialSelectValue('SUS304');
+    setMaterialSearchText('');
+    setIsMaterialDropdownOpen(false);
+    setIsMaterialFocused(false);
+    setLifecycleFilter('ALL');
+    setBenchmarkSearchText('');
+    setIsBenchmarkDropdownOpen(false);
+    setIsBenchmarkFocused(false);
     setSearchResult({
       reference: null,
       scoredCandidates: []
@@ -156,11 +215,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
             <span>研发设计工作台</span>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-slate-800 font-medium font-semibold">物料去重与对齐比对</span>
+            <span className="text-slate-800 font-semibold">物料去重与对齐比对</span>
           </div>
-          <h1 className="text-lg font-bold text-slate-900">物料申请相似件比对（业务端）</h1>
+          <h1 className="text-lg font-bold text-slate-900">查找相似件（业务端）</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            在物料申请提报前，系统依据 Manticore 计算提供字段属性相似件算分与对齐，辅助工程师复用旧件或合理建新。
+            选择一个已有零部件作为基准，按已启用的非 AI 属性相似度规则查找相近候选件。
           </p>
         </div>
 
@@ -191,6 +250,29 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                   const newType = e.target.value;
                   setObjectType(newType);
                   setReqCode(newType === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'PART-2026-000100');
+                  
+                  // Reset all query filters on object type switch to prevent cross-contamination
+                  setKeyword('');
+                  setCategory('ALL');
+                  setSpecInput('');
+                  setDiameterNumValue('10');
+                  setDiameterUnit('mm');
+                  setDiameterOperator('EQUALS');
+                  setVoltageNumValue('12');
+                  setVoltageUnit('V');
+                  setVoltageOperator('EQUALS');
+                  setLifecycleFilter('ALL');
+                  setMaterialOperator('EQUALS');
+                  setMaterialTextValue('');
+                  setMaterialSearchText('');
+                  setIsMaterialDropdownOpen(false);
+                  setIsMaterialFocused(false);
+                  
+                  // Reset material selection to default candidate material for new type
+                  const pool = newType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
+                  const mats = Array.from(new Set(pool.map(p => p.material).filter(Boolean)));
+                  setMaterialSelectValue(mats[0] || '');
+                  
                   invalidateOldResults();
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs w-full max-w-[200px] shadow-2xs"
@@ -202,35 +284,43 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
             {/* R19-UI-04: Searchable Benchmark Select */}
             <div className="flex items-center space-x-2 text-xs relative" id="benchmark-combobox-wrapper">
-              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">基准件 (Benchmark):</label>
+              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">基准零部件:</label>
               <div className="relative w-full max-w-[320px]" id="benchmark-combobox">
                 <div className="flex border border-slate-300 rounded overflow-hidden bg-white focus-within:ring-1 focus-within:ring-slate-400 w-full">
                   <input
                     type="text"
                     id="benchmark-search-input"
-                    value={benchmarkSearchText}
+                    value={
+                      isBenchmarkFocused
+                        ? benchmarkSearchText
+                        : (() => {
+                            const pool = objectType === 'PART_MECHANICAL' ? mechanicalBenchmarkOptions : electricalBenchmarkOptions;
+                            const match = pool.find(p => p.code === reqCode);
+                            return match ? match.name : "";
+                          })()
+                    }
                     onChange={(e) => {
                       setBenchmarkSearchText(e.target.value);
                       setIsBenchmarkDropdownOpen(true);
                     }}
                     onFocus={() => {
+                      setIsBenchmarkFocused(true);
+                      setBenchmarkSearchText('');
                       setIsBenchmarkDropdownOpen(true);
                     }}
-                    placeholder={
-                      (() => {
-                        const pool = objectType === 'PART_MECHANICAL' ? mechanicalBenchmarkOptions : electricalBenchmarkOptions;
-                        const match = pool.find(p => p.code === reqCode);
-                        return match ? match.name : "输入名称或编码检索基准件...";
-                      })()
-                    }
+                    placeholder="输入名称或编码检索基准零部件..."
                     className="w-full text-xs px-2.5 py-1.5 bg-white text-slate-800 outline-hidden font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      setIsBenchmarkDropdownOpen(!isBenchmarkDropdownOpen);
-                      if (!isBenchmarkDropdownOpen) {
+                      const willOpen = !isBenchmarkDropdownOpen;
+                      setIsBenchmarkDropdownOpen(willOpen);
+                      if (willOpen) {
+                        setIsBenchmarkFocused(true);
                         setBenchmarkSearchText('');
+                      } else {
+                        setIsBenchmarkFocused(false);
                       }
                     }}
                     className="px-2 text-slate-500 hover:bg-slate-100 text-xs focus:outline-hidden border-l border-slate-100"
@@ -267,6 +357,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                               setReqCode(opt.code);
                               setBenchmarkSearchText('');
                               setIsBenchmarkDropdownOpen(false);
+                              setIsBenchmarkFocused(false);
                               invalidateOldResults();
                             }}
                             className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center ${
@@ -286,6 +377,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                     className="fixed inset-0 z-40 cursor-default" 
                     onClick={() => {
                       setIsBenchmarkDropdownOpen(false);
+                      setIsBenchmarkFocused(false);
                       setBenchmarkSearchText('');
                     }}
                   />
@@ -294,10 +386,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             </div>
           </div>
 
-          {/* Row 2: R19-UI-02 & R19-UI-03 Special Attribute Filters */}
+          {/* Row 2: Attributes Filters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100 text-xs">
             
-            {/* R19-UI-02: Conditionally render based on objectType */}
+            {/* R19-UI-02: Conditionally render based on objectType with dynamic units catalog */}
             {objectType === 'PART_MECHANICAL' ? (
               <div className="flex items-center space-x-2" id="mechanical-diameter-filter">
                 <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">标称直径 (Dia):</label>
@@ -336,9 +428,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                         }}
                         className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
                       >
-                        <option value="mm">mm (毫米)</option>
-                        <option value="cm">cm (厘米)</option>
-                        <option value="m">m (米)</option>
+                        {lengthUnits.map((u: any) => (
+                          <option key={u.code} value={u.code}>{u.name}</option>
+                        ))}
                       </select>
                     </>
                   )}
@@ -382,9 +474,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                         }}
                         className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
                       >
-                        <option value="V">V (伏特)</option>
-                        <option value="kV">kV (千伏)</option>
-                        <option value="mV">mV (毫伏)</option>
+                        {voltageUnits.map((u: any) => (
+                          <option key={u.code} value={u.code}>{u.name}</option>
+                        ))}
                       </select>
                     </>
                   )}
@@ -392,57 +484,141 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               </div>
             )}
 
-            {/* R19-UI-03: Enum dual-mode query for Lifecycle state */}
-            <div className="flex items-center space-x-2" id="enum-lifecycle-filter">
-              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">生命周期:</label>
+            {/* R20-UI-01: Material Enum Dual-Mode Filter */}
+            <div className="flex items-center space-x-2" id="enum-material-filter">
+              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">主要材质:</label>
               <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
                 <select
-                  id="lifecycle-operator-select"
-                  value={lifecycleOperator}
+                  id="material-operator-select"
+                  value={materialOperator}
                   onChange={(e) => {
                     const op = e.target.value;
-                    setLifecycleOperator(op);
-                    // Match default appropriate value based on op
+                    setMaterialOperator(op);
                     if (op === 'CONTAINS') {
-                      setLifecycleTextValue('效');
+                      setMaterialTextValue('');
                     } else {
-                      setLifecycleSelectValue('有效');
+                      const mats = getCandidateMaterials();
+                      setMaterialSelectValue(mats[0] || '');
                     }
+                    setMaterialSearchText('');
+                    setIsMaterialDropdownOpen(false);
+                    setIsMaterialFocused(false);
                     invalidateOldResults();
                   }}
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium cursor-pointer"
                 >
                   <option value="EQUALS">等于 (=)</option>
                   <option value="NOT_EQUALS">不等于 (≠)</option>
                   <option value="CONTAINS">包含 (Contains)</option>
                 </select>
 
-                {lifecycleOperator === 'CONTAINS' ? (
+                {materialOperator === 'CONTAINS' ? (
                   <input
                     type="text"
-                    id="lifecycle-text-input"
-                    placeholder="输入匹配子串..."
-                    value={lifecycleTextValue}
+                    id="material-text-input"
+                    placeholder="输入材质子串..."
+                    value={materialTextValue}
                     onChange={(e) => {
-                      setLifecycleTextValue(e.target.value);
+                      setMaterialTextValue(e.target.value);
                       invalidateOldResults();
                     }}
                     className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-36 font-semibold"
                   />
                 ) : (
-                  <select
-                    id="lifecycle-select-dropdown"
-                    value={lifecycleSelectValue}
-                    onChange={(e) => {
-                      setLifecycleSelectValue(e.target.value);
-                      invalidateOldResults();
-                    }}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-36 font-semibold"
-                  >
-                    {(objectType === 'PART_MECHANICAL' ? ['有效', '草稿'] : ['有效', '设计中']).map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </select>
+                  <div className="relative w-36" id="material-combobox-wrapper">
+                    <div className="flex border border-slate-300 rounded overflow-hidden bg-white focus-within:ring-1 focus-within:ring-slate-400 w-full">
+                      <input
+                        type="text"
+                        id="material-combobox-input"
+                        value={
+                          isMaterialFocused
+                            ? materialSearchText
+                            : materialSelectValue
+                        }
+                        onChange={(e) => {
+                          setMaterialSearchText(e.target.value);
+                          setIsMaterialDropdownOpen(true);
+                        }}
+                        onFocus={() => {
+                          setIsMaterialFocused(true);
+                          setMaterialSearchText('');
+                          setIsMaterialDropdownOpen(true);
+                        }}
+                        placeholder="检索..."
+                        className="w-full text-xs px-2 py-1 bg-white text-slate-800 outline-hidden font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const willOpen = !isMaterialDropdownOpen;
+                          setIsMaterialDropdownOpen(willOpen);
+                          if (willOpen) {
+                            setIsMaterialFocused(true);
+                            setMaterialSearchText('');
+                          } else {
+                            setIsMaterialFocused(false);
+                          }
+                        }}
+                        className="px-1 text-slate-500 hover:bg-slate-100 text-[10px] focus:outline-hidden border-l border-slate-100"
+                      >
+                        ▼
+                      </button>
+                    </div>
+
+                    {isMaterialDropdownOpen && (
+                      <div className="absolute z-50 w-48 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto left-0 md:left-auto md:right-0" id="material-combobox-options">
+                        {(() => {
+                          const pool = getCandidateMaterials();
+                          const filtered = pool.filter(mat => {
+                            const searchLower = materialSearchText.toLowerCase().trim();
+                            if (!searchLower) return true;
+                            return mat.toLowerCase().includes(searchLower);
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="p-2 text-[11px] text-slate-400 text-center font-medium bg-slate-50/50">
+                                未匹配材质
+                              </div>
+                            );
+                          }
+
+                          return filtered.map(mat => {
+                            const isSelected = mat === materialSelectValue;
+                            return (
+                              <button
+                                type="button"
+                                key={mat}
+                                onClick={() => {
+                                  setMaterialSelectValue(mat);
+                                  setMaterialSearchText('');
+                                  setIsMaterialDropdownOpen(false);
+                                  setIsMaterialFocused(false);
+                                  invalidateOldResults();
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-slate-50 transition-colors flex justify-between items-center ${
+                                  isSelected ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700'
+                                }`}
+                              >
+                                <span className="font-semibold">{mat}</span>
+                                {isSelected && <span className="text-slate-900 font-bold">✓</span>}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+                    {isMaterialDropdownOpen && (
+                      <div 
+                        className="fixed inset-0 z-40 cursor-default" 
+                        onClick={() => {
+                          setIsMaterialDropdownOpen(false);
+                          setIsMaterialFocused(false);
+                          setMaterialSearchText('');
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -450,71 +626,78 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
 
           {/* Row 3: General Text & Classification Filters */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">名称/关键词:</label>
-              <input
-                id="client-input-keyword"
-                type="text"
-                value={keyword}
-                placeholder="搜索库内候选件名称..."
-                onChange={(e) => {
-                  setKeyword(e.target.value);
-                  invalidateOldResults();
-                }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 w-44"
-              />
-            </div>
+          <div className="flex flex-col md:flex-row md:items-center gap-4 text-xs text-slate-700 pt-1">
+            <div className="flex flex-wrap items-center gap-4 flex-1">
+              <div className="flex items-center space-x-2">
+                <label className="font-medium text-slate-600 shrink-0">名称/关键词:</label>
+                <input
+                  id="client-input-keyword"
+                  type="text"
+                  value={keyword}
+                  placeholder="搜索库内候选件名称..."
+                  onChange={(e) => {
+                    setKeyword(e.target.value);
+                    invalidateOldResults();
+                  }}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 w-36"
+                />
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-600 shrink-0">分类目录:</label>
-              <select
-                id="client-select-category"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  invalidateOldResults();
-                }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
-              >
-                <option value="ALL">全部二级分类</option>
-                <option value="BOLT">螺纹副/内六角螺栓</option>
-                <option value="OTHER">其他大类</option>
-              </select>
-            </div>
+              <div className="flex items-center space-x-2">
+                <label className="font-medium text-slate-600 shrink-0">分类目录:</label>
+                <select
+                  id="client-select-category"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    invalidateOldResults();
+                  }}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
+                >
+                  <option value="ALL">全部二级分类</option>
+                  <option value="BOLT">螺纹副/内六角螺栓</option>
+                  <option value="OTHER">其他大类</option>
+                </select>
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-500 shrink-0">规格描述:</label>
-              <input
-                id="client-input-spec"
-                type="text"
-                placeholder="如: M10 x 50"
-                value={specInput}
-                onChange={(e) => {
-                  setSpecInput(e.target.value);
-                  invalidateOldResults();
-                }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
-              />
-            </div>
+              <div className="flex items-center space-x-2">
+                <label className="font-medium text-slate-500 shrink-0">规格描述:</label>
+                <input
+                  id="client-input-spec"
+                  type="text"
+                  placeholder="如: M10 x 50"
+                  value={specInput}
+                  onChange={(e) => {
+                    setSpecInput(e.target.value);
+                    invalidateOldResults();
+                  }}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-28 text-xs"
+                />
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <label className="font-medium text-slate-500 shrink-0">材质要求:</label>
-              <input
-                id="client-input-material"
-                type="text"
-                placeholder="如: SUS304"
-                value={materialInput}
-                onChange={(e) => {
-                  setMaterialInput(e.target.value);
-                  invalidateOldResults();
-                }}
-                className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-32 text-xs"
-              />
+              {/* R20-UI-01: Simple single-select lifecycle state filter */}
+              <div className="flex items-center space-x-2" id="lifecycle-filter-container">
+                <label className="font-medium text-slate-600 shrink-0">生命周期:</label>
+                <select
+                  id="client-select-lifecycle"
+                  value={lifecycleFilter}
+                  onChange={(e) => {
+                    setLifecycleFilter(e.target.value);
+                    invalidateOldResults();
+                  }}
+                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 text-xs text-slate-700 font-medium"
+                >
+                  <option value="ALL">全部生命周期</option>
+                  <option value="有效">有效</option>
+                  <option value="设计中">设计中</option>
+                  <option value="已发布">已发布</option>
+                  <option value="已作废">已作废</option>
+                </select>
+              </div>
             </div>
 
             {/* Buttons Group */}
-            <div className="ml-auto flex items-center space-x-2">
+            <div className="flex items-center space-x-2 shrink-0 justify-end mt-2 lg:mt-0">
               <button
                 id="client-btn-search"
                 onClick={handleSearch}
@@ -597,7 +780,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-800 shadow-2xs" id="client-target-error">
-                未找到源申请件或物料代码: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
+                未找到基准零部件: <strong className="font-mono">{reqCode}</strong> (可试用机械: REQ-2026-000100, 电气: ELEC-2026-000100)
               </div>
             )}
 

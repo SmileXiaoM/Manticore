@@ -34,9 +34,16 @@ export const mockUnitCatalog: UnitCatalog = unitCatalogData as UnitCatalog;
 export function convertToBaseUnit(value: number, unitCode: string, quantityCode: string): number {
   const normalizedQuantityCode = quantityCode.toUpperCase();
   const qty = mockUnitCatalog.quantities.find(q => q.code === normalizedQuantityCode || q.name === quantityCode);
-  if (!qty) return value;
+  if (!qty) {
+    throw new Error(`未知或不支持的测量类型 [${quantityCode}]！`);
+  }
   const unit = qty.units.find(u => u.code === unitCode);
-  if (!unit) return value;
+  if (!unit) {
+    throw new Error(`在测量类型 [${quantityCode}] 中未找到单位 [${unitCode}]！`);
+  }
+  if (unit.status && unit.status !== 'ACTIVE') {
+    throw new Error(`单位 [${unitCode}] 处于停用/非激活状态！`);
+  }
   return value * unit.scale + unit.offset;
 }
 
@@ -44,9 +51,16 @@ export function convertToBaseUnit(value: number, unitCode: string, quantityCode:
 export function convertFromBaseUnit(baseValue: number, unitCode: string, quantityCode: string): number {
   const normalizedQuantityCode = quantityCode.toUpperCase();
   const qty = mockUnitCatalog.quantities.find(q => q.code === normalizedQuantityCode || q.name === quantityCode);
-  if (!qty) return baseValue;
+  if (!qty) {
+    throw new Error(`未知或不支持的测量类型 [${quantityCode}]！`);
+  }
   const unit = qty.units.find(u => u.code === unitCode);
-  if (!unit) return baseValue;
+  if (!unit) {
+    throw new Error(`在测量类型 [${quantityCode}] 中未找到单位 [${unitCode}]！`);
+  }
+  if (unit.status && unit.status !== 'ACTIVE') {
+    throw new Error(`单位 [${unitCode}] 处于停用/非激活状态！`);
+  }
   return (baseValue - unit.offset) / unit.scale;
 }
 
@@ -1581,6 +1595,162 @@ function evaluateNumeric(numCand: number, targetVal: string, operator: string, r
 
 
 
+export const allMechanicalParts = [
+  {
+    requestCode: 'REQ-2026-000100',
+    objectType: 'PART_MECHANICAL',
+    objectId: 'PART-2026-000100',
+    objectName: '六角头螺栓 M10 x 50',
+    specification: 'M10 x 50',
+    material: 'SUS304',
+    classificationPath: '/紧固件/螺栓/六角头螺栓',
+    lifecycleState: '有效',
+    attributes: {
+      spec_description: '六角头螺栓 M10 x 50',
+      core_material: 'SUS304',
+      nominal_diameter: 10,
+      thread_pitch: 1.5,
+      nominal_length: 50,
+      category_path: '/紧固件/螺栓/六角头螺栓',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-15'
+    },
+    units: {
+      nominal_diameter: 'mm',
+      thread_pitch: 'mm',
+      nominal_length: 'mm'
+    }
+  },
+  {
+    requestCode: 'REQ-2026-000101',
+    objectType: 'PART_MECHANICAL',
+    objectId: 'PART-A-FULL',
+    objectName: '六角头螺栓 M10 x 50 (全量命中)',
+    specification: 'M10 x 50',
+    material: 'SUS304',
+    classificationPath: '/紧固件/螺栓/六角头螺栓',
+    lifecycleState: '有效',
+    attributes: {
+      spec_description: '六角头螺栓 M10 x 50',
+      core_material: 'SUS304',
+      nominal_diameter: 10,
+      thread_pitch: 1.5,
+      nominal_length: 50,
+      category_path: '/紧固件/螺栓/六角头螺栓',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-01'
+    },
+    units: {
+      nominal_diameter: 'mm',
+      thread_pitch: 'mm',
+      nominal_length: 'mm'
+    }
+  },
+  {
+    requestCode: 'REQ-2026-000102',
+    objectType: 'PART_MECHANICAL',
+    objectId: 'PART-B-UNIT',
+    objectName: '六角螺栓 M10 x 50 (厘米量纲)',
+    specification: 'M10 x 50',
+    material: 'SUS304',
+    classificationPath: '/紧固件/螺栓/六角头螺栓',
+    lifecycleState: '有效',
+    attributes: {
+      spec_description: '六角头螺栓M10 x 50 碳钢防锈器件',
+      core_material: 'SUS304',
+      nominal_diameter: 1, // in cm, converts to 10mm
+      thread_pitch: 1.2,
+      nominal_length: 5, // in cm, converts to 50mm
+      category_path: '/紧固件/螺栓/六角头螺栓',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-31'
+    },
+    units: {
+      nominal_diameter: 'cm',
+      thread_pitch: 'mm',
+      nominal_length: 'cm'
+    }
+  },
+  {
+    requestCode: 'REQ-2026-000103',
+    objectType: 'PART_MECHANICAL',
+    objectId: 'PART-C-MISSING',
+    objectName: '螺栓 M10 (轻量空值型)',
+    specification: 'M10',
+    material: 'A2-70',
+    classificationPath: '/紧固件/螺栓/六角头螺栓',
+    lifecycleState: '有效',
+    attributes: {
+      spec_description: '螺栓 M10',
+      core_material: 'A2-70',
+      nominal_diameter: 10,
+      thread_pitch: null,
+      nominal_length: null,
+      category_path: '/紧固件/螺栓/六角头螺栓',
+      lifecycle_state: '有效',
+      creation_date: '2025-12-31'
+    },
+    units: {
+      nominal_diameter: 'mm',
+      nominal_length: 'mm'
+    }
+  }
+];
+
+export const allElectricalParts = [
+  {
+    requestCode: 'REQ-2026-000200',
+    objectType: 'PART_ELECTRICAL',
+    objectId: 'ELEC-2026-000100',
+    objectName: '直流继电器 12V',
+    specification: '12V',
+    material: '塑料/铜',
+    classificationPath: '/电子元器件/继电器/直流继电器',
+    lifecycleState: '有效',
+    attributes: {
+      working_voltage: 12,
+      working_temp: 298.15, // in K (25 degC)
+      category_path: '/电子元器件/继电器/直流继电器',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-15'
+    }
+  },
+  {
+    requestCode: 'REQ-2026-000201',
+    objectType: 'PART_ELECTRICAL',
+    objectId: 'ELEC-A-FULL',
+    objectName: '直流继电器 12V (全量匹配)',
+    specification: '12V',
+    material: '塑料/铜',
+    classificationPath: '/电子元器件/继电器/直流继电器',
+    lifecycleState: '有效',
+    attributes: {
+      working_voltage: 12,
+      working_temp: 298.15,
+      category_path: '/电子元器件/继电器/直流继电器',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-01'
+    }
+  },
+  {
+    requestCode: 'REQ-2026-000202',
+    objectType: 'PART_ELECTRICAL',
+    objectId: 'ELEC-B-TEMP',
+    objectName: '直流继电器 12V (高温偏差版)',
+    specification: '12V',
+    material: '塑料/铜',
+    classificationPath: '/电子元器件/继电器/直流继电器',
+    lifecycleState: '有效',
+    attributes: {
+      working_voltage: 12,
+      working_temp: 313.15,
+      category_path: '/电子元器件/继电器/直流继电器',
+      lifecycle_state: '有效',
+      creation_date: '2026-01-31'
+    }
+  }
+];
+
 export function runSimilaritySearch(
   objectType: string,
   requestCodeOrId: string,
@@ -1590,174 +1760,16 @@ export function runSimilaritySearch(
     category?: string;
     lifecycle?: string;
     specInput?: string;
-    materialInput?: string;
+    materialOperator?: string;
+    materialValue?: string;
     diameterValue?: string;
     diameterUnit?: string;
     diameterOperator?: string;
     voltageValue?: string;
     voltageUnit?: string;
     voltageOperator?: string;
-    lifecycleOperator?: string;
-    lifecycleValue?: string;
   }
 ): SearchRunResult {
-  // 1. Unified lists of all available parts
-  const allMechanicalParts = [
-    {
-      requestCode: 'REQ-2026-000100',
-      objectType: 'PART_MECHANICAL',
-      objectId: 'PART-2026-000100',
-      objectName: '六角头螺栓 M10 x 50',
-      specification: 'M10 x 50',
-      material: 'SUS304',
-      classificationPath: '/紧固件/螺栓/六角头螺栓',
-      lifecycleState: '有效',
-      attributes: {
-        spec_description: '六角头螺栓 M10 x 50',
-        core_material: 'SUS304',
-        nominal_diameter: 10,
-        thread_pitch: 1.5,
-        nominal_length: 50,
-        category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-15'
-      },
-      units: {
-        nominal_diameter: 'mm',
-        thread_pitch: 'mm',
-        nominal_length: 'mm'
-      }
-    },
-    {
-      requestCode: 'REQ-2026-000101',
-      objectType: 'PART_MECHANICAL',
-      objectId: 'PART-A-FULL',
-      objectName: '六角头螺栓 M10 x 50 (全量命中)',
-      specification: 'M10 x 50',
-      material: 'SUS304',
-      classificationPath: '/紧固件/螺栓/六角头螺栓',
-      lifecycleState: '有效',
-      attributes: {
-        spec_description: '六角头螺栓 M10 x 50',
-        core_material: 'SUS304',
-        nominal_diameter: 10,
-        thread_pitch: 1.5,
-        nominal_length: 50,
-        category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-01'
-      },
-      units: {
-        nominal_diameter: 'mm',
-        thread_pitch: 'mm',
-        nominal_length: 'mm'
-      }
-    },
-    {
-      requestCode: 'REQ-2026-000102',
-      objectType: 'PART_MECHANICAL',
-      objectId: 'PART-B-UNIT',
-      objectName: '六角螺栓 M10 x 50 (厘米量纲)',
-      specification: 'M10 x 50',
-      material: 'SUS304',
-      classificationPath: '/紧固件/螺栓/六角头螺栓',
-      lifecycleState: '有效',
-      attributes: {
-        spec_description: '六角头螺栓M10 x 50 碳钢防锈器件',
-        core_material: 'SUS304',
-        nominal_diameter: 1, // in cm, converts to 10mm
-        thread_pitch: 1.2,
-        nominal_length: 5, // in cm, converts to 50mm
-        category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-31'
-      },
-      units: {
-        nominal_diameter: 'cm',
-        thread_pitch: 'mm',
-        nominal_length: 'cm'
-      }
-    },
-    {
-      requestCode: 'REQ-2026-000103',
-      objectType: 'PART_MECHANICAL',
-      objectId: 'PART-C-MISSING',
-      objectName: '螺栓 M10 (轻量空值型)',
-      specification: 'M10',
-      material: 'A2-70',
-      classificationPath: '/紧固件/螺栓/六角头螺栓',
-      lifecycleState: '有效',
-      attributes: {
-        spec_description: '螺栓 M10',
-        core_material: 'A2-70',
-        nominal_diameter: 10,
-        thread_pitch: null,
-        nominal_length: null,
-        category_path: '/紧固件/螺栓/六角头螺栓',
-        lifecycle_state: '有效',
-        creation_date: '2025-12-31'
-      },
-      units: {
-        nominal_diameter: 'mm',
-        nominal_length: 'mm'
-      }
-    }
-  ];
-
-  const allElectricalParts = [
-    {
-      requestCode: 'REQ-2026-000200',
-      objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-2026-000100',
-      objectName: '直流继电器 12V',
-      specification: '12V',
-      material: '塑料/铜',
-      classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '有效',
-      attributes: {
-        working_voltage: 12,
-        working_temp: 298.15, // in K (25 degC)
-        category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-15'
-      }
-    },
-    {
-      requestCode: 'REQ-2026-000201',
-      objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-A-FULL',
-      objectName: '直流继电器 12V (全量匹配)',
-      specification: '12V',
-      material: '塑料/铜',
-      classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '有效',
-      attributes: {
-        working_voltage: 12,
-        working_temp: 298.15,
-        category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-01'
-      }
-    },
-    {
-      requestCode: 'REQ-2026-000202',
-      objectType: 'PART_ELECTRICAL',
-      objectId: 'ELEC-B-TEMP',
-      objectName: '直流继电器 12V (高温偏差版)',
-      specification: '12V',
-      material: '塑料/铜',
-      classificationPath: '/电子元器件/继电器/直流继电器',
-      lifecycleState: '有效',
-      attributes: {
-        working_voltage: 12,
-        working_temp: 313.15,
-        category_path: '/电子元器件/继电器/直流继电器',
-        lifecycle_state: '有效',
-        creation_date: '2026-01-31'
-      }
-    }
-  ];
-
   // Resolve reference part and raw candidates
   const targetPool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
   const searchId = (requestCodeOrId || '').trim().toUpperCase();
@@ -1771,7 +1783,7 @@ export function runSimilaritySearch(
       reference: null,
       scoredCandidates: [],
       errorCode: 'REFERENCE_NOT_FOUND',
-      errorMessage: `未找到源申请件或物料代码: ${requestCodeOrId}`
+      errorMessage: `未找到基准零部件: ${requestCodeOrId}`
     };
   }
 
@@ -1802,19 +1814,25 @@ export function runSimilaritySearch(
         }
       }
       if (filters.lifecycle && filters.lifecycle !== 'ALL') {
-        if (filters.lifecycle === 'RELEASED') {
-          if (cand.lifecycleState !== '有效' && cand.lifecycleState !== '已发布') continue;
-        } else if (filters.lifecycle === 'DRAFT') {
-          if (cand.lifecycleState !== '设计中') continue;
-        }
+        const val = filters.lifecycle.toLowerCase();
+        const candState = (cand.lifecycleState || '').toLowerCase();
+        if (candState !== val) continue;
       }
       if (filters.specInput && filters.specInput.trim()) {
         const s = filters.specInput.toLowerCase();
         if (!cand.objectName.toLowerCase().includes(s)) continue;
       }
-      if (filters.materialInput && filters.materialInput.trim()) {
-        const m = filters.materialInput.toLowerCase();
-        if (!cand.material.toLowerCase().includes(m)) continue;
+      if (filters.materialOperator && filters.materialValue !== undefined && filters.materialValue !== '') {
+        const op = filters.materialOperator;
+        const val = filters.materialValue.trim().toLowerCase();
+        const candMat = (cand.material || '').toLowerCase();
+        if (op === 'CONTAINS') {
+          if (!candMat.includes(val)) continue;
+        } else if (op === 'EQUALS') {
+          if (candMat !== val) continue;
+        } else if (op === 'NOT_EQUALS') {
+          if (candMat === val) continue;
+        }
       }
 
       // R19-UI-02: Unit-based Numerical filter for Mechanical (nominal_diameter)
@@ -1891,20 +1909,7 @@ export function runSimilaritySearch(
         }
       }
 
-      // R19-UI-03: Enum lifecycle state switcher filter
-      if (filters.lifecycleOperator && filters.lifecycleValue !== undefined && filters.lifecycleValue !== '') {
-        const op = filters.lifecycleOperator;
-        const val = filters.lifecycleValue.trim().toLowerCase();
-        const candState = (cand.lifecycleState || '').toLowerCase();
-        
-        if (op === 'CONTAINS') {
-          if (!candState.includes(val)) continue;
-        } else if (op === 'EQUALS') {
-          if (candState !== val) continue;
-        } else if (op === 'NOT_EQUALS') {
-          if (candState === val) continue;
-        }
-      }
+
     }
 
     // 4. Step 2: Scoring calculations
