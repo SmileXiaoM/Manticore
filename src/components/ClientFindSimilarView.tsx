@@ -90,6 +90,13 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     return mats;
   };
 
+  // Helper to dynamically extract all unique candidate lifecycles under current object type
+  const getCandidateLifecycles = () => {
+    const pool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
+    const states = Array.from(new Set(pool.map(p => p.lifecycleState).filter(Boolean)));
+    return states;
+  };
+
   const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
   // Dynamic Search Run Result State
@@ -386,14 +393,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             </div>
           </div>
 
-          {/* Row 2: Attributes Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100 text-xs">
+          {/* Row 2: Query Filters Grid (Robust, non-overflowing grid) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 pb-3 border-b border-slate-100 text-xs">
             
-            {/* R19-UI-02: Conditionally render based on objectType with dynamic units catalog */}
+            {/* Cell 1: Nominal Diameter / Working Voltage */}
             {objectType === 'PART_MECHANICAL' ? (
-              <div className="flex items-center space-x-2" id="mechanical-diameter-filter">
-                <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">标称直径 (Dia):</label>
-                <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+              <div className="flex flex-col space-y-1.5" id="mechanical-diameter-filter">
+                <label className="font-semibold text-slate-700">标称直径 (Dia):</label>
+                <div className="flex items-center space-x-1 w-full">
                   <select
                     id="diameter-operator-select"
                     value={diameterOperator}
@@ -401,7 +408,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       setDiameterOperator(e.target.value);
                       invalidateOldResults();
                     }}
-                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium h-8 shrink-0"
                   >
                     <option value="EQUALS">等于 (=)</option>
                     <option value="ALL">全部/不限</option>
@@ -417,7 +424,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                           setDiameterNumValue(e.target.value);
                           invalidateOldResults();
                         }}
-                        className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-20 font-semibold"
+                        className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 w-full font-semibold h-8"
                       />
                       <select
                         id="diameter-unit-select"
@@ -426,7 +433,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                           setDiameterUnit(e.target.value);
                           invalidateOldResults();
                         }}
-                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
+                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold h-8 shrink-0"
                       >
                         {lengthUnits.map((u: any) => (
                           <option key={u.code} value={u.code}>{u.name}</option>
@@ -437,9 +444,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 </div>
               </div>
             ) : (
-              <div className="flex items-center space-x-2" id="electrical-voltage-filter">
-                <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">工作电压 (Vol):</label>
-                <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+              <div className="flex flex-col space-y-1.5" id="electrical-voltage-filter">
+                <label className="font-semibold text-slate-700">工作电压 (Vol):</label>
+                <div className="flex items-center space-x-1 w-full">
                   <select
                     id="voltage-operator-select"
                     value={voltageOperator}
@@ -447,7 +454,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       setVoltageOperator(e.target.value);
                       invalidateOldResults();
                     }}
-                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium h-8 shrink-0"
                   >
                     <option value="EQUALS">等于 (=)</option>
                     <option value="ALL">全部/不限</option>
@@ -463,7 +470,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                           setVoltageNumValue(e.target.value);
                           invalidateOldResults();
                         }}
-                        className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-20 font-semibold"
+                        className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 w-full font-semibold h-8"
                       />
                       <select
                         id="voltage-unit-select"
@@ -472,7 +479,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                           setVoltageUnit(e.target.value);
                           invalidateOldResults();
                         }}
-                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold"
+                        className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs text-slate-600 font-semibold h-8 shrink-0"
                       >
                         {voltageUnits.map((u: any) => (
                           <option key={u.code} value={u.code}>{u.name}</option>
@@ -484,10 +491,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               </div>
             )}
 
-            {/* R20-UI-01: Material Enum Dual-Mode Filter */}
-            <div className="flex items-center space-x-2" id="enum-material-filter">
-              <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">主要材质:</label>
-              <div className="flex items-center space-x-1.5 w-full max-w-[320px]">
+            {/* Cell 2: Primary Material */}
+            <div className="flex flex-col space-y-1.5" id="enum-material-filter">
+              <label className="font-semibold text-slate-700">主要材质:</label>
+              <div className="flex items-center space-x-1 w-full">
                 <select
                   id="material-operator-select"
                   value={materialOperator}
@@ -505,7 +512,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                     setIsMaterialFocused(false);
                     invalidateOldResults();
                   }}
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium cursor-pointer"
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium cursor-pointer h-8 shrink-0 animate-none"
                 >
                   <option value="EQUALS">等于 (=)</option>
                   <option value="NOT_EQUALS">不等于 (≠)</option>
@@ -522,11 +529,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       setMaterialTextValue(e.target.value);
                       invalidateOldResults();
                     }}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-36 font-semibold"
+                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-full font-semibold h-8"
                   />
                 ) : (
-                  <div className="relative w-36" id="material-combobox-wrapper">
-                    <div className="flex border border-slate-300 rounded overflow-hidden bg-white focus-within:ring-1 focus-within:ring-slate-400 w-full">
+                  <div className="relative w-full" id="material-combobox-wrapper">
+                    <div className="flex border border-slate-300 rounded overflow-hidden bg-white focus-within:ring-1 focus-within:ring-slate-400 w-full h-8">
                       <input
                         type="text"
                         id="material-combobox-input"
@@ -566,7 +573,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                     </div>
 
                     {isMaterialDropdownOpen && (
-                      <div className="absolute z-50 w-48 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto left-0 md:left-auto md:right-0" id="material-combobox-options">
+                      <div className="absolute z-50 w-48 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto left-0" id="material-combobox-options">
                         {(() => {
                           const pool = getCandidateMaterials();
                           const filtered = pool.filter(mat => {
@@ -623,97 +630,94 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
               </div>
             </div>
 
+            {/* Cell 3: Keyword Search */}
+            <div className="flex flex-col space-y-1.5">
+              <label className="font-semibold text-slate-700">名称/关键词:</label>
+              <input
+                id="client-input-keyword"
+                type="text"
+                value={keyword}
+                placeholder="搜索库内候选件名称..."
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  invalidateOldResults();
+                }}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-full h-8 font-semibold"
+              />
+            </div>
+
+            {/* Cell 4: Category Search */}
+            <div className="flex flex-col space-y-1.5">
+              <label className="font-semibold text-slate-700">分类目录:</label>
+              <select
+                id="client-select-category"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  invalidateOldResults();
+                }}
+                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-semibold h-8 w-full cursor-pointer"
+              >
+                <option value="ALL">全部二级分类</option>
+                <option value="BOLT">螺纹副/内六角螺栓</option>
+                <option value="OTHER">其他大类</option>
+              </select>
+            </div>
+
+            {/* Cell 5: Spec Description */}
+            <div className="flex flex-col space-y-1.5">
+              <label className="font-semibold text-slate-500">规格描述:</label>
+              <input
+                id="client-input-spec"
+                type="text"
+                placeholder="如: M10 x 50"
+                value={specInput}
+                onChange={(e) => {
+                  setSpecInput(e.target.value);
+                  invalidateOldResults();
+                }}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 w-full h-8 font-semibold"
+              />
+            </div>
+
+            {/* Cell 6: Lifecycle State */}
+            <div className="flex flex-col space-y-1.5" id="lifecycle-filter-container">
+              <label className="font-semibold text-slate-700">生命周期:</label>
+              <select
+                id="client-select-lifecycle"
+                value={lifecycleFilter}
+                onChange={(e) => {
+                  setLifecycleFilter(e.target.value);
+                  invalidateOldResults();
+                }}
+                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium h-8 w-full cursor-pointer"
+              >
+                <option value="ALL">全部生命周期</option>
+                {getCandidateLifecycles().map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+
           </div>
 
-          {/* Row 3: General Text & Classification Filters */}
-          <div className="flex flex-col md:flex-row md:items-center gap-4 text-xs text-slate-700 pt-1">
-            <div className="flex flex-wrap items-center gap-4 flex-1">
-              <div className="flex items-center space-x-2">
-                <label className="font-medium text-slate-600 shrink-0">名称/关键词:</label>
-                <input
-                  id="client-input-keyword"
-                  type="text"
-                  value={keyword}
-                  placeholder="搜索库内候选件名称..."
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800 w-36"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <label className="font-medium text-slate-600 shrink-0">分类目录:</label>
-                <select
-                  id="client-select-category"
-                  value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700"
-                >
-                  <option value="ALL">全部二级分类</option>
-                  <option value="BOLT">螺纹副/内六角螺栓</option>
-                  <option value="OTHER">其他大类</option>
-                </select>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <label className="font-medium text-slate-500 shrink-0">规格描述:</label>
-                <input
-                  id="client-input-spec"
-                  type="text"
-                  placeholder="如: M10 x 50"
-                  value={specInput}
-                  onChange={(e) => {
-                    setSpecInput(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 w-28 text-xs"
-                />
-              </div>
-
-              {/* R20-UI-01: Simple single-select lifecycle state filter */}
-              <div className="flex items-center space-x-2" id="lifecycle-filter-container">
-                <label className="font-medium text-slate-600 shrink-0">生命周期:</label>
-                <select
-                  id="client-select-lifecycle"
-                  value={lifecycleFilter}
-                  onChange={(e) => {
-                    setLifecycleFilter(e.target.value);
-                    invalidateOldResults();
-                  }}
-                  className="bg-white border border-slate-300 rounded px-2.5 py-1.2 text-xs text-slate-700 font-medium"
-                >
-                  <option value="ALL">全部生命周期</option>
-                  <option value="有效">有效</option>
-                  <option value="设计中">设计中</option>
-                  <option value="已发布">已发布</option>
-                  <option value="已作废">已作废</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Buttons Group */}
-            <div className="flex items-center space-x-2 shrink-0 justify-end mt-2 lg:mt-0">
-              <button
-                id="client-btn-search"
-                onClick={handleSearch}
-                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-sm flex items-center space-x-1 cursor-pointer transition-colors"
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>查询相似件</span>
-              </button>
-              <button
-                id="client-btn-clear"
-                onClick={handleResetFilters}
-                className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors"
-              >
-                <span>清空条件</span>
-              </button>
-            </div>
+          {/* Row 3: Action Buttons */}
+          <div className="flex justify-end items-center space-x-2 pt-1">
+            <button
+              id="client-btn-search"
+              onClick={handleSearch}
+              className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-semibold shadow-sm flex items-center space-x-1 cursor-pointer transition-colors h-8"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>查询相似件</span>
+            </button>
+            <button
+              id="client-btn-clear"
+              onClick={handleResetFilters}
+              className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors h-8"
+            >
+              <span>清空条件</span>
+            </button>
           </div>
 
         </div>

@@ -2069,36 +2069,40 @@ export function runSimilaritySearch(
       // Build specific reasons
       let reason = '';
       if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-        const refUnit = reference?.units?.[key] || rule.displayUnit || '';
-        const candUnit = cand.units?.[key] || rule.displayUnit || '';
-        
+        const refUnit = reference?.units?.[key];
+        const candUnit = cand.units?.[key];
+
         let refBase = 0;
         let candBase = 0;
         let refDisp = Number(refVal);
         let candDisp = Number(candVal);
         let hasErr = false;
+        let errMsg = '';
         try {
           refBase = resolveAndConvertToBase(refVal, key, reference, rule.unitFamily || '');
           candBase = resolveAndConvertToBase(candVal, key, cand, rule.unitFamily || '');
           refDisp = convertFromBaseUnit(refBase, rule.displayUnit || '', rule.unitFamily || '');
           candDisp = convertFromBaseUnit(candBase, rule.displayUnit || '', rule.unitFamily || '');
-        } catch (e) {
+        } catch (e: any) {
           hasErr = true;
+          errMsg = e.message || '单位或数值换算错误';
         }
 
         if (hasErr) {
-          reason = `单位或数值换算错误`;
+          reason = `换算错误: ${errMsg}`;
         } else {
+          const refUnitStr = refUnit || '';
+          const candUnitStr = candUnit || '';
           if (matchRate === 1.0) {
-            if (refUnit !== candUnit) {
-              reason = `数值换算等值一致 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 统一显示为 ${refDisp}${rule.displayUnit})`;
+            if (refUnitStr !== candUnitStr) {
+              reason = `数值换算等值一致 (源: ${refVal}${refUnitStr}, 候选: ${candVal}${candUnitStr}, 统一显示为 ${refDisp}${rule.displayUnit})`;
             } else {
-              reason = `数值一致 (${refVal}${refUnit})`;
+              reason = `数值一致 (${refVal}${refUnitStr})`;
             }
           } else if (matchRate > 0) {
-            reason = `偏差在设定范围内 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 统一显示差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
+            reason = `偏差在设定范围内 (源: ${refVal}${refUnitStr}, 候选: ${candVal}${candUnitStr}, 统一显示差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
           } else {
-            reason = `偏差超出范围 (源: ${refVal}${refUnit}, 候选: ${candVal}${candUnit}, 差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
+            reason = `偏差超出范围 (源: ${refVal}${refUnitStr}, 候选: ${candVal}${candUnitStr}, 差值: ${Math.abs(candDisp - refDisp).toFixed(2)}${rule.displayUnit})`;
           }
         }
       } else {
@@ -2122,27 +2126,31 @@ export function runSimilaritySearch(
       let srcRep = refVal;
       let candRep = candVal;
       if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-        const refUnit = reference?.units?.[key] || rule.displayUnit || '';
-        const candUnit = cand.units?.[key] || rule.displayUnit || '';
-        
-        let srcDisplay = `${refVal} ${refUnit}`;
-        let candDisplay = `${candVal} ${candUnit}`;
+        const refUnit = reference?.units?.[key];
+        const candUnit = cand.units?.[key];
+
+        let srcDisplay = `${refVal} ${refUnit || '无'}`;
+        let candDisplay = `${candVal} ${candUnit || '无'}`;
 
         try {
+          const baseVal = convertToBaseUnit(Number(refVal), refUnit || '', rule.unitFamily || '');
+          const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit || '', rule.unitFamily || '');
           if (refUnit && rule.displayUnit && refUnit !== rule.displayUnit) {
-            const baseVal = convertToBaseUnit(Number(refVal), refUnit, rule.unitFamily || '');
-            const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit, rule.unitFamily || '');
             srcDisplay = `${refVal} ${refUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
           }
-        } catch (e) {}
+        } catch (e: any) {
+          srcDisplay = `${refVal} ${refUnit || '无'} (换算错误: ${e.message})`;
+        }
 
         try {
+          const baseVal = convertToBaseUnit(Number(candVal), candUnit || '', rule.unitFamily || '');
+          const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit || '', rule.unitFamily || '');
           if (candUnit && rule.displayUnit && candUnit !== rule.displayUnit) {
-            const baseVal = convertToBaseUnit(Number(candVal), candUnit, rule.unitFamily || '');
-            const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit, rule.unitFamily || '');
             candDisplay = `${candVal} ${candUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
           }
-        } catch (e) {}
+        } catch (e: any) {
+          candDisplay = `${candVal} ${candUnit || '无'} (换算错误: ${e.message})`;
+        }
 
         srcRep = srcDisplay;
         candRep = candDisplay;

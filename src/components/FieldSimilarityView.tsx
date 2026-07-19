@@ -167,7 +167,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // Form State variables
   const [formFieldName, setFormFieldName] = useState('');
   const [formPropertyCode, setFormPropertyCode] = useState('');
-  const [formFieldType, setFormFieldType] = useState<string>('带单位数值 (NUMBER_WITH_UNIT)');
+  const [formFieldType, setFormFieldType] = useState<string>('');
   const [formWeight, setFormWeight] = useState<number>(15);
   const [formMatchTypeState, setFormMatchTypeState] = useState<string>('数值容差匹配');
   const [formNullHandling, setFormNullHandling] = useState<string>('候选缺失按 0 分');
@@ -176,9 +176,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState<string>('');
 
   // Unit catalog fields
-  const [formUnitFamily, setFormUnitFamily] = useState<string>('长度');
-  const [formBaseUnit, setFormBaseUnit] = useState<string>('m');
-  const [formDisplayUnit, setFormDisplayUnit] = useState<string>('mm');
+  const [formUnitFamily, setFormUnitFamily] = useState<string>('');
+  const [formBaseUnit, setFormBaseUnit] = useState<string>('');
+  const [formDisplayUnit, setFormDisplayUnit] = useState<string>('');
 
   // Interactive unit calculator states
   const [calcInput, setCalcInput] = useState<string>('50');
@@ -721,26 +721,45 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     };
   }, [calcInput, formUnitFamily, formDisplayUnit]);
 
-  // Real-time Preview Score Calculation
-  const realTimePreviewScore = useMemo(() => {
+  // Real-time Trial Calculation State Machine (Dynamic & Precise)
+  const trialCalculation = useMemo(() => {
     const typeUpper = (formFieldType || '').toUpperCase();
     const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
     const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
     const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
     const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
 
+    let score = 0;
+    let error: string | null = null;
+    let info: {
+      srcBaseVal?: number;
+      tgtBaseVal?: number;
+      baseUnit?: string;
+      diffDisplay?: string;
+    } | null = null;
+
+    if (!formPropertyCode || formPropertyCode === '无' || formPropertyCode.trim() === '') {
+      return { score: 0, error: null, info: null, noField: true };
+    }
+    if (!formIsScoreActive) {
+      return { score: 0, error: null, info: null, scoreInactive: true };
+    }
+
     if (isDateField) {
       const t1 = new Date(previewSrcVal).getTime();
       const t2 = new Date(previewTgtVal).getTime();
-      if (isNaN(t1) || isNaN(t2)) return 0;
+      if (isNaN(t1) || isNaN(t2)) {
+        return { score: 0, error: '请输入合法的日期以进行模拟比对', info: null };
+      }
       const diffMs = t2 - t1;
       const factor = paramDateToleranceUnit === 'DAY' ? (1000 * 60 * 60 * 24) : (1000 * 60 * 60);
       const diff = diffMs / factor;
 
-      if (paramDateToleranceDirection === 'HIGHER' && diff < 0) return 0;
-      if (paramDateToleranceDirection === 'LOWER' && diff > 0) return 0;
+      if (paramDateToleranceDirection === 'HIGHER' && diff < 0) score = 0;
+      else if (paramDateToleranceDirection === 'LOWER' && diff > 0) score = 0;
+      else score = Math.abs(diff) <= paramDateToleranceVal ? 100 : 0;
 
-      return Math.abs(diff) <= paramDateToleranceVal ? 100 : 0;
+      return { score, error: null, info: null };
     }
 
     if (isClassTree) {
@@ -763,22 +782,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
       if (paramHierarchyRequirement === 'PARENT_CHILD') {
         const isParentChild = (refDist === 1 && candDist === 0) || (refDist === 0 && candDist === 1);
-        if (!isParentChild) return 0;
+        if (!isParentChild) return { score: 0, error: null, info: null };
       } else if (paramHierarchyRequirement === 'ANCESTOR_DESCENDANT') {
         const isAncestorDescendant = (refDist === 0 || candDist === 0);
-        if (!isAncestorDescendant) return 0;
+        if (!isAncestorDescendant) return { score: 0, error: null, info: null };
       }
 
       if (gap > paramHierarchyMaxDiff) {
-        return 0;
+        return { score: 0, error: null, info: null };
       }
 
-      const score = 100 - (gap * paramHierarchyDeduction);
-      return Math.max(0, Math.min(100, Math.round(score)));
+      const rawScore = 100 - (gap * paramHierarchyDeduction);
+      score = Math.max(0, Math.min(100, Math.round(rawScore)));
+      return { score, error: null, info: null };
     }
 
     if (isEnumField) {
-      return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
+      score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
+      return { score, error: null, info: null };
     }
 
     let srcNum = parseFloat(previewSrcVal);
@@ -787,89 +808,155 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (isUnitField) {
       try {
         const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-        if (!qty) return 0;
+        if (!qty) throw new Error("未知量纲");
 
         // Validate source unit
-        if (!previewSrcUnit) return 0;
+        if (!previewSrcUnit) throw new Error("请选择源单位");
         const sUnit = qty.units.find(u => u.code === previewSrcUnit);
-        if (!sUnit) return 0;
-        if (sUnit.status && sUnit.status !== 'ACTIVE') return 0;
+        if (!sUnit) throw new Error(`未知或不支持的源单位 [${previewSrcUnit}]`);
+        if (sUnit.status && sUnit.status !== 'ACTIVE') throw new Error(`源单位 [${previewSrcUnit}] 处于停用/非激活状态`);
 
         // Validate target unit
-        if (!previewTgtUnit) return 0;
+        if (!previewTgtUnit) throw new Error("请选择候选单位");
         const tUnit = qty.units.find(u => u.code === previewTgtUnit);
-        if (!tUnit) return 0;
-        if (tUnit.status && tUnit.status !== 'ACTIVE') return 0;
+        if (!tUnit) throw new Error(`未知或不支持的候选单位 [${previewTgtUnit}]`);
+        if (tUnit.status && tUnit.status !== 'ACTIVE') throw new Error(`候选单位 [${previewTgtUnit}] 处于停用/非激活状态`);
+
+        if (isNaN(srcNum) || isNaN(tgtNum)) {
+          throw new Error("请输入合法的数值以进行换算比对");
+        }
 
         const srcBaseVal = srcNum * sUnit.scale + sUnit.offset;
         const tgtBaseVal = tgtNum * tUnit.scale + tUnit.offset;
 
         if (formMatchTypeState === '精确值匹配') {
-          return Math.abs(srcBaseVal - tgtBaseVal) < 1e-9 ? 100 : 0;
+          score = Math.abs(srcBaseVal - tgtBaseVal) < 1e-9 ? 100 : 0;
+        } else {
+          let convertedSrc = srcNum;
+          let convertedTgt = tgtNum;
+          if (formDisplayUnit) {
+            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
+            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
+          }
+
+          if (formMatchTypeState === '数值容差匹配') {
+            const diff = Math.abs(convertedSrc - convertedTgt);
+            let limit = paramNumToleranceVal;
+            if (paramNumToleranceType === 'PERCENTAGE') {
+              limit = (convertedSrc * paramNumToleranceVal) / 100;
+            }
+
+            if (paramNumToleranceDirection === 'HIGHER' && convertedTgt < convertedSrc) score = 0;
+            else if (paramNumToleranceDirection === 'LOWER' && convertedTgt > convertedSrc) score = 0;
+            else score = diff <= limit ? 100 : 0;
+          } else if (formMatchTypeState === '数值距离衰减') {
+            const diff = Math.abs(convertedSrc - convertedTgt);
+            if (paramDecayDirection === 'HIGHER' && convertedTgt < convertedSrc) score = 0;
+            else if (paramDecayDirection === 'LOWER' && convertedTgt > convertedSrc) score = 0;
+            else if (diff <= paramDecayFullScore) score = 100;
+            else if (diff >= paramDecayZeroBoundary) score = 0;
+            else {
+              const rawScore = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
+              score = Math.round(Math.max(0, Math.min(100, rawScore)));
+            }
+          }
         }
 
+        let diffDisplayStr = '';
         if (formDisplayUnit) {
-          srcNum = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-          tgtNum = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
+          const sDisp = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
+          const tDisp = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
+          diffDisplayStr = `${Math.abs(sDisp - tDisp).toFixed(4)} ${formDisplayUnit}`;
+        } else {
+          diffDisplayStr = `${Math.abs(srcBaseVal - tgtBaseVal).toFixed(4)} ${qty.baseUnit}`;
         }
-      } catch (e) {
-        return 0;
+
+        info = {
+          srcBaseVal,
+          tgtBaseVal,
+          baseUnit: qty.baseUnit,
+          diffDisplay: diffDisplayStr
+        };
+
+        return { score, error: null, info };
+      } catch (e: any) {
+        return { score: 0, error: e.message || '单位或数值换算错误', info: null };
       }
     }
 
     if (formMatchTypeState === '精确值匹配') {
-      return previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
+      score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
+      return { score, error: null, info: null };
     }
 
     if (formMatchTypeState === '文本相似匹配 (非 AI)') {
-      if (!previewSrcVal || !previewTgtVal) return 0;
+      if (!previewSrcVal || !previewTgtVal) return { score: 0, error: null, info: null };
       const srcChars = new Set(previewSrcVal.split(''));
       const tgtChars = previewTgtVal.split('');
       const overlap = tgtChars.filter(c => srcChars.has(c)).length;
       const sim = Math.round((overlap / Math.max(previewSrcVal.length, previewTgtVal.length)) * 100);
-      return sim >= paramMinTextThreshold ? sim : 0;
+      score = sim >= paramMinTextThreshold ? sim : 0;
+      return { score, error: null, info: null };
     }
 
     if (formMatchTypeState === '数值容差匹配') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return 0;
+      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null };
       const diff = Math.abs(srcNum - tgtNum);
       let limit = paramNumToleranceVal;
       if (paramNumToleranceType === 'PERCENTAGE') {
         limit = (srcNum * paramNumToleranceVal) / 100;
       }
 
-      // Direction check
-      if (paramNumToleranceDirection === 'HIGHER' && tgtNum < srcNum) return 0;
-      if (paramNumToleranceDirection === 'LOWER' && tgtNum > srcNum) return 0;
+      if (paramNumToleranceDirection === 'HIGHER' && tgtNum < srcNum) score = 0;
+      else if (paramNumToleranceDirection === 'LOWER' && tgtNum > srcNum) score = 0;
+      else score = diff <= limit ? 100 : 0;
 
-      return diff <= limit ? 100 : 0;
+      return { score, error: null, info: null };
     }
 
     if (formMatchTypeState === '数值距离衰减') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return 0;
+      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null };
       const diff = Math.abs(srcNum - tgtNum);
 
-      // Direction check
-      if (paramDecayDirection === 'HIGHER' && tgtNum < srcNum) return 0;
-      if (paramDecayDirection === 'LOWER' && tgtNum > srcNum) return 0;
-
-      if (diff <= paramDecayFullScore) return 100;
-      if (diff >= paramDecayZeroBoundary) return 0;
-
-      const score = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
-      return Math.round(Math.max(0, Math.min(100, score)));
+      if (paramDecayDirection === 'HIGHER' && tgtNum < srcNum) score = 0;
+      else if (paramDecayDirection === 'LOWER' && tgtNum > srcNum) score = 0;
+      else if (diff <= paramDecayFullScore) score = 100;
+      else if (diff >= paramDecayZeroBoundary) score = 0;
+      else {
+        const rawScore = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
+        score = Math.round(Math.max(0, Math.min(100, rawScore)));
+      }
+      return { score, error: null, info: null };
     }
 
-    return 100;
+    return { score: 0, error: null, info: null };
   }, [
-    formFieldType, formMatchTypeState, previewSrcVal, previewTgtVal,
-    previewSrcUnit, previewTgtUnit,
-    paramMinTextThreshold, paramNumToleranceType, paramNumToleranceVal, paramNumToleranceDirection,
-    paramDecayFullScore, paramDecayZeroBoundary, paramDecayDirection,
-    paramHierarchyRequirement, paramHierarchyMaxDiff, paramHierarchyDeduction,
-    paramDateToleranceUnit, paramDateToleranceDirection, paramDateToleranceVal,
-    formUnitFamily, formDisplayUnit
+    formFieldType,
+    formPropertyCode,
+    formIsScoreActive,
+    previewSrcVal,
+    previewTgtVal,
+    previewSrcUnit,
+    previewTgtUnit,
+    paramDateToleranceUnit,
+    paramDateToleranceVal,
+    paramDateToleranceDirection,
+    paramHierarchyRequirement,
+    paramHierarchyMaxDiff,
+    paramHierarchyDeduction,
+    formUnitFamily,
+    formMatchTypeState,
+    formDisplayUnit,
+    paramNumToleranceVal,
+    paramNumToleranceType,
+    paramNumToleranceDirection,
+    paramDecayDirection,
+    paramDecayFullScore,
+    paramDecayZeroBoundary,
+    paramMinTextThreshold
   ]);
+
+  const realTimePreviewScore = trialCalculation.score;
 
   // Handle Form Submit
   const handleSaveForm = (e: React.FormEvent) => {
@@ -2032,7 +2119,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </div>
               </div>
 
-              {/* Hidden Actions for submit */}
+              {/* Actions */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
@@ -2059,9 +2146,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </h3>
 
             {(() => {
-              if (!formPropertyCode || formPropertyCode === '无' || formPropertyCode.trim() === '') {
+              if (trialCalculation.noField) {
                 return (
-                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-no-field-placeholder">
+                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-empty-no-field">
                     <div className="text-slate-500 font-bold text-xs">ℹ️ 未选择一阶段映射字段</div>
                     <p className="text-slate-400 text-[11px] leading-relaxed">
                       请先在左侧选择一阶段物理字段作为属性对应。配置正确后，系统将自动对齐加载交互算分模拟器。
@@ -2070,12 +2157,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 );
               }
 
-              if (!formIsScoreActive) {
+              if (trialCalculation.scoreInactive) {
                 return (
-                  <div className="bg-amber-50 rounded-lg p-5 border border-amber-200 text-center space-y-2" id="preview-score-inactive-placeholder">
+                  <div className="bg-amber-50 rounded-lg p-5 border border-amber-200 text-center space-y-2" id="preview-disabled-scoring">
                     <div className="text-amber-700 font-bold text-xs">⚠️ 该字段尚未参与相似度评分</div>
                     <p className="text-slate-500 text-[11px] leading-relaxed">
-                      当前该字段设为“不参与相似度评分”（或仅作为过滤规则）。在一阶段检索比对中它不会贡献任何权重或计算相似度，分数固定为 0 分或作为硬过滤通过项。
+                      当前该字段设为“不参与相似度评分”。在一阶段检索比对中它不会贡献任何权重或计算相似度，分数固定为 0 分。
                     </p>
                   </div>
                 );
@@ -2153,11 +2240,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                                 onChange={(e) => setPreviewSrcVal(e.target.value)}
                                 className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
                                 placeholder="数值"
+                                id="preview-unit-source-value-input"
                               />
                               <select
                                 value={previewSrcUnit}
                                 onChange={(e) => setPreviewSrcUnit(e.target.value)}
                                 className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
+                                id="preview-unit-source-unit-select"
                               >
                                 <option value="">选择单位</option>
                                 {activeUnitsOfFamily.map(u => (
@@ -2179,11 +2268,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                                 onChange={(e) => setPreviewTgtVal(e.target.value)}
                                 className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
                                 placeholder="数值"
+                                id="preview-unit-target-value-input"
                               />
                               <select
                                 value={previewTgtUnit}
                                 onChange={(e) => setPreviewTgtUnit(e.target.value)}
                                 className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
+                                id="preview-unit-target-unit-select"
                               >
                                 <option value="">选择单位</option>
                                 {activeUnitsOfFamily.map(u => (
@@ -2273,74 +2364,40 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                   {/* Real-time score calculator feedback */}
                   <div className="pt-2 border-t border-slate-200 flex flex-col items-center">
-                    <span className="text-[10px] text-slate-400 block font-semibold mb-1">对齐结果得分 (即时比算)</span>
-                    <div className="flex items-baseline space-x-1 justify-center">
-                      <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
-                        {realTimePreviewScore}
-                      </span>
-                      <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
-                    </div>
+                    {trialCalculation.error ? (
+                      <div className="text-[10px] text-red-500 text-center mt-2 bg-red-50 px-2 py-1 rounded border border-red-100 w-full font-mono font-semibold" id="preview-unit-error">
+                        ⚠️ {trialCalculation.error}
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-slate-400 block font-semibold mb-1">对齐结果得分 (即时比算)</span>
+                        <div className="flex items-baseline space-x-1 justify-center" id="preview-score-result">
+                          <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
+                            {realTimePreviewScore}
+                          </span>
+                          <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
+                        </div>
 
-                    {isUnitField && (() => {
-                      try {
-                        const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-                        if (!qty) throw new Error("未知量纲");
-
-                        const sUnit = qty.units.find(u => u.code === previewSrcUnit);
-                        if (!sUnit) throw new Error(`源单位 [${previewSrcUnit || '未选择'}] 无效`);
-                        if (sUnit.status && sUnit.status !== 'ACTIVE') throw new Error(`源单位 [${previewSrcUnit}] 处于非激活状态`);
-
-                        const tUnit = qty.units.find(u => u.code === previewTgtUnit);
-                        if (!tUnit) throw new Error(`候选单位 [${previewTgtUnit || '未选择'}] 无效`);
-                        if (tUnit.status && tUnit.status !== 'ACTIVE') throw new Error(`候选单位 [${previewTgtUnit}] 处于非激活状态`);
-
-                        const sVal = parseFloat(previewSrcVal);
-                        const tVal = parseFloat(previewTgtVal);
-                        if (isNaN(sVal) || isNaN(tVal)) {
-                          return (
-                            <div className="text-[10px] text-red-500 text-center mt-2 bg-white px-2 py-1 rounded border border-slate-100 w-full font-mono">
-                              请输入合法的数值以进行换算比对
-                            </div>
-                          );
-                        }
-
-                        const srcBaseVal = sVal * sUnit.scale + sUnit.offset;
-                        const tgtBaseVal = tVal * tUnit.scale + tUnit.offset;
-
-                        // Calculate physical diff in rule display unit
-                        let diffDisplayStr = '';
-                        if (formDisplayUnit) {
-                          const sDisp = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-                          const tDisp = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
-                          diffDisplayStr = `${Math.abs(sDisp - tDisp).toFixed(4)} ${formDisplayUnit}`;
-                        } else {
-                          diffDisplayStr = `${Math.abs(srcBaseVal - tgtBaseVal).toFixed(4)} ${qty.baseUnit}`;
-                        }
-
-                        return (
-                          <div className="text-[10px] text-slate-600 text-left mt-2 bg-white p-2 rounded border border-slate-100 w-full space-y-1 font-sans">
+                        {isUnitField && trialCalculation.info && (
+                          <div className="text-[10px] text-slate-600 text-left mt-2 bg-white p-2 rounded border border-slate-100 w-full space-y-1 font-sans" id="preview-unit-conversion">
                             <div>
                               ⚡ <span className="font-semibold text-slate-500">换算结果 (源基准值):</span>{' '}
-                              <span className="font-mono font-bold text-slate-800">{srcBaseVal.toFixed(6)} {qty.baseUnit}</span>
+                              <span className="font-mono font-bold text-slate-800" id="preview-unit-source-value">{trialCalculation.info.srcBaseVal?.toFixed(6)}</span>{' '}
+                              <span className="font-mono text-slate-500" id="preview-unit-source-unit">{trialCalculation.info.baseUnit}</span>
                             </div>
                             <div>
                               ⚡ <span className="font-semibold text-slate-500">换算结果 (候选基准值):</span>{' '}
-                              <span className="font-mono font-bold text-slate-800">{tgtBaseVal.toFixed(6)} {qty.baseUnit}</span>
+                              <span className="font-mono font-bold text-slate-800" id="preview-unit-target-value">{trialCalculation.info.tgtBaseVal?.toFixed(6)}</span>{' '}
+                              <span className="font-mono text-slate-500" id="preview-unit-target-unit">{trialCalculation.info.baseUnit}</span>
                             </div>
-                            <div className="pt-1 border-t border-dashed border-slate-100 flex justify-between">
-                              <span className="font-semibold text-slate-500">物理差值 ({formDisplayUnit || qty.baseUnit}):</span>
-                              <span className="font-mono font-bold text-blue-600">{diffDisplayStr}</span>
+                            <div className="pt-1 border-t border-dashed border-slate-100 flex justify-between" id="preview-unit-difference">
+                              <span className="font-semibold text-slate-500">物理差值 ({formDisplayUnit || trialCalculation.info.baseUnit}):</span>
+                              <span className="font-mono font-bold text-blue-600">{trialCalculation.info.diffDisplay}</span>
                             </div>
                           </div>
-                        );
-                      } catch (e: any) {
-                        return (
-                          <div className="text-[10px] text-red-500 text-center mt-2 bg-red-50 px-2 py-1 rounded border border-red-100 w-full font-mono font-semibold">
-                            ⚠️ {e.message}
-                          </div>
-                        );
-                      }
-                    })()}
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               );

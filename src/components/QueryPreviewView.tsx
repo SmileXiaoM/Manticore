@@ -443,7 +443,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   <span className="font-semibold text-slate-900">{lastRunContext.searchResult.reference.objectName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">计划分类:</span>{' '}
+                  <span className="text-slate-400">分类路径:</span>{' '}
                   <span className="font-mono text-slate-800">{lastRunContext.searchResult.reference.classificationPath}</span>
                 </div>
                 {lastRunContext.searchResult.reference.objectType === 'PART_MECHANICAL' ? (
