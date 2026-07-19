@@ -209,7 +209,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [previewSrcUnit, setPreviewSrcUnit] = useState<string>('mm');
   const [previewTgtUnit, setPreviewTgtUnit] = useState<string>('mm');
 
-  // Unified Reset Function for Field Previews (R24-UI-02)
+  // Unified Reset Function for Field Previews (R25-UI-02)
   const resetPreviewForField = (fieldType: string, defaultUnit: string, propertyCode: string) => {
     const typeUpper = (fieldType || '').toUpperCase();
     if (typeUpper.includes('DATE') || fieldType.includes('日期')) {
@@ -224,16 +224,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setPreviewTgtUnit('');
     } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
       const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
-      let options: string[] = [];
-      if (matched.length > 0) {
-        options = processEnumList(matched.map(e => e.enumDisplayName));
-      } else if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
-        options = processEnumList(['已发布', '已作废', '设计中']);
-      } else if (propertyCode === 'core_material' || propertyCode === 'material') {
-        options = processEnumList(['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304']);
-      } else {
-        options = processEnumList(['已发布', '已作废', '设计中']);
-      }
+      const options = processEnumList(matched.map(e => e.enumDisplayName));
       const firstOpt = options[0] || '';
       setPreviewSrcVal(firstOpt);
       setPreviewTgtVal(firstOpt);
@@ -244,19 +235,25 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setPreviewTgtVal('Manticore Pro');
       setPreviewSrcUnit('');
       setPreviewTgtUnit('');
-    } else if (propertyCode === 'working_temp') {
-      setPreviewSrcVal('298.15');
-      setPreviewTgtVal('313.15');
-      setPreviewSrcUnit('K');
-      setPreviewTgtUnit('K');
     } else if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-      setPreviewSrcVal('10.0');
-      setPreviewTgtVal('10.2');
-      setPreviewSrcUnit(defaultUnit);
-      setPreviewTgtUnit(defaultUnit);
+      setPreviewSrcVal('10');
+      setPreviewTgtVal('10');
+      
+      const selectedField = stage1MappedFields.find(f => f.fieldCode === propertyCode);
+      const resolvedUnitFamily = selectedField?.unitFamily || formUnitFamily || '长度';
+      let firstUnit = defaultUnit;
+      const qty = mockUnitCatalog.quantities.find(q => q.name === resolvedUnitFamily || q.code === resolvedUnitFamily);
+      if (qty) {
+        const activeUnits = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
+        if (activeUnits.length > 0) {
+          firstUnit = activeUnits[0].code;
+        }
+      }
+      setPreviewSrcUnit(firstUnit);
+      setPreviewTgtUnit(firstUnit);
     } else {
-      setPreviewSrcVal('10.0');
-      setPreviewTgtVal('10.2');
+      setPreviewSrcVal('10');
+      setPreviewTgtVal('10');
       setPreviewSrcUnit('');
       setPreviewTgtUnit('');
     }
@@ -2156,10 +2153,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
               if (trialCalculation.scoreInactive) {
                 return (
-                  <div className="bg-amber-50 rounded-lg p-5 border border-amber-200 text-center space-y-2" id="preview-disabled-scoring">
-                    <div className="text-amber-700 font-bold text-xs">⚠️ 该字段尚未参与相似度评分</div>
+                  <div className="bg-slate-100 rounded-lg p-5 border border-slate-200 text-center space-y-3" id="preview-disabled-scoring">
+                    <div className="text-slate-700 font-bold text-sm">💡 属性相似度计算已停用</div>
+                    <div className="text-2xl font-extrabold text-slate-400 py-4" id="preview-not-scoring-badge">
+                      未参与评分
+                    </div>
                     <p className="text-slate-500 text-[11px] leading-relaxed">
-                      当前该字段设为“不参与相似度评分”。在一阶段检索比对中它不会贡献任何权重或计算相似度，分数固定为 0 分。
+                      当前该字段已设为“不参与相似度评分”。在一阶段检索比对中它不会贡献任何权重或计算相似度，不参与总分算分。
                     </p>
                   </div>
                 );
@@ -2173,18 +2173,25 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               const isTextField = typeUpper.includes('TEXT') || formFieldType.includes('文本');
               const isNumberField = typeUpper.includes('NUMBER') || formFieldType.includes('数值');
 
+              // 1. Specific guidelines text (配对提示)
+              let pairingGuideline = '';
+              if (isUnitField) {
+                pairingGuideline = '【带单位数值配对】支持跨量纲等值换算（如 10mm = 1cm 得 100 分），支持设定容差或距离衰减判定偏差得分。';
+              } else if (isDateField) {
+                pairingGuideline = '【日期对齐配对】可设定容差天数或小时数，处于范围内得分，超出阻断或按差值进行衰减算分。';
+              } else if (isEnumField) {
+                pairingGuideline = '【枚举属性配对】精确值文本对比，可选来源属性对应的工艺或业务标准枚举值，完全一致得 100 分，不一致得 0 分。';
+              } else if (isClassTree) {
+                pairingGuideline = '【层级目录配对】对齐层级目录树路径，可限制父子、祖先后代等结构关系，层级差产生扣分衰减。';
+              } else if (isTextField) {
+                pairingGuideline = '【文本对齐配对】计算字符串字符交集相似度，低于设定的最低相似度阈值时降为 0 分。';
+              } else if (isNumberField) {
+                pairingGuideline = '【数值对齐配对】对比无单位物理量，可支持精确比对、设定偏差容差或距离函数。';
+              }
+
               const getEnumOptions = (propertyCode: string) => {
                 const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
-                if (matched.length > 0) {
-                  return processEnumList(matched.map(e => e.enumDisplayName));
-                }
-                if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
-                  return processEnumList(['已发布', '已作废', '设计中']);
-                }
-                if (propertyCode === 'core_material' || propertyCode === 'material') {
-                  return processEnumList(['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304']);
-                }
-                return processEnumList(['已发布', '已作废', '设计中']);
+                return processEnumList(matched.map(e => e.enumDisplayName));
               };
 
               let sourceLabel = '检索输入 (Source Value)';
@@ -2210,208 +2217,237 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 targetLabel = '基准数值 (对准已有层级)';
               }
 
+              // Determine trial feedback status & messages (4 specific states)
+              let feedbackStatus = 'UNKNOWN';
+              let feedbackTitle = '';
+              let feedbackDescription = '';
+              let feedbackColor = 'text-slate-600 bg-slate-50 border-slate-200';
+              let badgeColor = 'bg-slate-100 text-slate-700';
+
+              if (trialCalculation.error) {
+                feedbackStatus = 'ERROR';
+                feedbackTitle = '换算阻断 / 参数异常';
+                feedbackDescription = trialCalculation.error;
+                feedbackColor = 'text-red-700 bg-red-50 border-red-200';
+                badgeColor = 'bg-red-100 text-red-700';
+              } else if (isUnitField && realTimePreviewScore === 100 && previewSrcUnit && previewTgtUnit && previewSrcUnit !== previewTgtUnit) {
+                feedbackStatus = 'CONVERSION_MATCH';
+                feedbackTitle = '无误等值换算';
+                feedbackDescription = `源 [${previewSrcVal} ${previewSrcUnit}] 与候选 [${previewTgtVal} ${previewTgtUnit}] 经底层标准对齐换算后物理实质完全一致（物理差值为 0 ${formDisplayUnit || trialCalculation.info?.baseUnit || ''}），匹配比算满分。`;
+                feedbackColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                badgeColor = 'bg-emerald-100 text-emerald-700';
+              } else if (realTimePreviewScore === 100) {
+                feedbackStatus = 'FULL_MATCH';
+                feedbackTitle = '完全匹配';
+                feedbackDescription = '源物料物理特征值与候选已有特征值完全一致，计算无任何物理偏差，判定满分。';
+                feedbackColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                badgeColor = 'bg-emerald-100 text-emerald-700';
+              } else if (realTimePreviewScore > 0 && realTimePreviewScore < 100) {
+                feedbackStatus = 'DEVIATION_MATCH';
+                feedbackTitle = '偏差匹配';
+                const diffValStr = isUnitField ? (trialCalculation.info?.diffDisplay || '') : `${Math.abs(parseFloat(previewSrcVal) - parseFloat(previewTgtVal))} 物理单位`;
+                feedbackDescription = `物理属性存在一定偏差（实际显示偏差为 ${diffValStr}），但该偏差点落在预设容差或距离函数衰减范围内，按机制折扣算分。`;
+                feedbackColor = 'text-blue-700 bg-blue-50 border-blue-200';
+                badgeColor = 'bg-blue-100 text-blue-700';
+              } else {
+                feedbackStatus = 'MISMATCH_BLOCKED';
+                feedbackTitle = '偏差超标阻断';
+                feedbackDescription = '属性特征值存在实质不符，或偏差幅度已超出可接受的容差极限/最大衰减边界，相似度算分归零。';
+                feedbackColor = 'text-rose-700 bg-rose-50 border-rose-200';
+                badgeColor = 'bg-rose-100 text-rose-700';
+              }
+
               return (
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5" id="preview-sim-interactive-inputs">
-                  <span className="text-[11px] font-bold text-slate-600 block">
-                    输入比对模拟数值 (自适应当前配置)
-                  </span>
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-4" id="preview-sim-interactive-inputs">
+                  {/* Guideline */}
+                  <div className="bg-blue-50 text-blue-800 p-2.5 rounded border border-blue-100 text-[10px] leading-relaxed" id="preview-guideline">
+                    {pairingGuideline}
+                  </div>
 
-                  {isUnitField ? (
-                    (() => {
-                      let activeUnitsOfFamily: { code: string; name: string; status?: string }[] = [];
-                      const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-                      if (qty) {
-                        activeUnitsOfFamily = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
-                      }
-                      return (
-                        <>
-                          {/* Source unit field input */}
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-semibold text-slate-500">
-                              源属性值 (检索输入)
-                            </label>
-                            <div className="flex space-x-1">
-                              <input
-                                type="number"
-                                value={previewSrcVal}
-                                onChange={(e) => setPreviewSrcVal(e.target.value)}
-                                className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                placeholder="数值"
-                                id="preview-unit-source-value-input"
-                              />
-                              <select
-                                value={previewSrcUnit}
-                                onChange={(e) => setPreviewSrcUnit(e.target.value)}
-                                className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
-                                id="preview-unit-source-unit-select"
-                              >
-                                <option value="">选择单位</option>
-                                {activeUnitsOfFamily.map(u => (
-                                  <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* Candidate unit field input */}
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-semibold text-slate-500">
-                              候选属性值 (基准数值)
-                            </label>
-                            <div className="flex space-x-1">
-                              <input
-                                type="number"
-                                value={previewTgtVal}
-                                onChange={(e) => setPreviewTgtVal(e.target.value)}
-                                className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                placeholder="数值"
-                                id="preview-unit-target-value-input"
-                              />
-                              <select
-                                value={previewTgtUnit}
-                                onChange={(e) => setPreviewTgtUnit(e.target.value)}
-                                className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
-                                id="preview-unit-target-unit-select"
-                              >
-                                <option value="">选择单位</option>
-                                {activeUnitsOfFamily.map(u => (
-                                  <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()
-                  ) : (
-                    <>
-                      {/* Source val */}
-                      <div>
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                          {sourceLabel}
-                        </label>
-                        <div className="relative">
-                          {isEnumField ? (
-                            (() => {
-                              const opts = getEnumOptions(formPropertyCode);
-                              const hasValue = opts.includes(previewSrcVal);
-                              return (
-                                <select
+                  {/* Interactive inputs */}
+                  <div className="space-y-3.5">
+                    {isUnitField ? (
+                      (() => {
+                        let activeUnitsOfFamily: { code: string; name: string; status?: string }[] = [];
+                        const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
+                        if (qty) {
+                          activeUnitsOfFamily = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
+                        }
+                        return (
+                          <>
+                            {/* Source unit field input */}
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-semibold text-slate-500">
+                                源属性值 (检索输入)
+                              </label>
+                              <div className="flex space-x-1">
+                                <input
+                                  type="number"
                                   value={previewSrcVal}
                                   onChange={(e) => setPreviewSrcVal(e.target.value)}
-                                  className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                  className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                                  placeholder="数值"
+                                  id="preview-unit-source-value-input"
+                                />
+                                <select
+                                  value={previewSrcUnit}
+                                  onChange={(e) => setPreviewSrcUnit(e.target.value)}
+                                  className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
+                                  id="preview-unit-source-unit-select"
                                 >
-                                  {!hasValue && previewSrcVal && (
-                                    <option value={previewSrcVal}>{previewSrcVal}</option>
-                                  )}
-                                  {opts.map(opt => (
-                                    <option key={opt} value={opt}>{opt}</option>
+                                  <option value="">选择单位</option>
+                                  {activeUnitsOfFamily.map(u => (
+                                    <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
                                   ))}
                                 </select>
-                              );
-                            })()
-                          ) : (
-                            <input
-                              type={isDateField ? 'date' : 'text'}
-                              value={previewSrcVal}
-                              onChange={(e) => setPreviewSrcVal(e.target.value)}
-                              className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                              placeholder={isClassTree ? "如: /电子元器件/继电器" : ""}
-                            />
-                          )}
-                        </div>
-                      </div>
+                              </div>
+                            </div>
 
-                      {/* Target val */}
-                      <div>
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                          {targetLabel}
-                        </label>
-                        <div className="relative">
-                          {isEnumField ? (
-                            (() => {
-                              const opts = getEnumOptions(formPropertyCode);
-                              const hasValue = opts.includes(previewTgtVal);
-                              return (
-                                <select
+                            {/* Candidate unit field input */}
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-semibold text-slate-500">
+                                候选属性值 (基准数值)
+                              </label>
+                              <div className="flex space-x-1">
+                                <input
+                                  type="number"
                                   value={previewTgtVal}
                                   onChange={(e) => setPreviewTgtVal(e.target.value)}
-                                  className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                  className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                                  placeholder="数值"
+                                  id="preview-unit-target-value-input"
+                                />
+                                <select
+                                  value={previewTgtUnit}
+                                  onChange={(e) => setPreviewTgtUnit(e.target.value)}
+                                  className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
+                                  id="preview-unit-target-unit-select"
                                 >
-                                  {!hasValue && previewTgtVal && (
-                                    <option value={previewTgtVal}>{previewTgtVal}</option>
-                                  )}
-                                  {opts.map(opt => (
-                                    <option key={opt} value={opt}>{opt}</option>
+                                  <option value="">选择单位</option>
+                                  {activeUnitsOfFamily.map(u => (
+                                    <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
                                   ))}
                                 </select>
-                              );
-                            })()
-                          ) : (
-                            <input
-                              type={isDateField ? 'date' : 'text'}
-                              value={previewTgtVal}
-                              onChange={(e) => setPreviewTgtVal(e.target.value)}
-                              className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                              placeholder={isClassTree ? "如: /电子元器件/继电器/直流继电器" : ""}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {isDateField && (
-                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="date-match-tip-msg">
-                      说明：在指定容差天数或小时数内偏离计算，超出阻断或按天数衰减。
-                    </p>
-                  )}
-                  {isClassTree && (
-                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="tree-match-tip-msg">
-                      说明：支持 / 分隔路径。若相同前缀层级不满足关系（子类/后代）或差值过大扣减得分。
-                    </p>
-                  )}
-                  {isEnumField && (
-                    <p className="text-[10px] text-slate-400 leading-normal font-medium" id="enum-match-tip-msg">
-                      说明：枚举字段精确值匹配，内容完全一致时得 100 分，不一致得 0 分。
-                    </p>
-                  )}
-
-                  {/* Real-time score calculator feedback */}
-                  <div className="pt-2 border-t border-slate-200 flex flex-col items-center">
-                    {trialCalculation.error ? (
-                      <div className="text-[10px] text-red-500 text-center mt-2 bg-red-50 px-2 py-1 rounded border border-red-100 w-full font-mono font-semibold" id="preview-unit-error">
-                        ⚠️ {trialCalculation.error}
-                      </div>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()
                     ) : (
                       <>
-                        <span className="text-[10px] text-slate-400 block font-semibold mb-1">对齐结果得分 (即时比算)</span>
-                        <div className="flex items-baseline space-x-1 justify-center" id="preview-score-result">
-                          <span className={`text-4xl font-black font-mono ${realTimePreviewScore > 80 ? 'text-emerald-600' : realTimePreviewScore > 50 ? 'text-blue-600' : 'text-red-500'}`}>
-                            {realTimePreviewScore}
-                          </span>
-                          <span className="text-xs text-slate-400 font-semibold">/ 100 分</span>
+                        {/* Source val */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                            {sourceLabel}
+                          </label>
+                          <div className="relative">
+                            {isEnumField ? (
+                              (() => {
+                                const opts = getEnumOptions(formPropertyCode);
+                                const hasValue = opts.includes(previewSrcVal);
+                                return (
+                                  <select
+                                    value={previewSrcVal}
+                                    onChange={(e) => setPreviewSrcVal(e.target.value)}
+                                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                  >
+                                    {!hasValue && previewSrcVal && (
+                                      <option value={previewSrcVal}>{previewSrcVal}</option>
+                                    )}
+                                    {opts.map(opt => (
+                                      <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                  </select>
+                                );
+                              })()
+                            ) : (
+                              <input
+                                type={isDateField ? 'date' : 'text'}
+                                value={previewSrcVal}
+                                onChange={(e) => setPreviewSrcVal(e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                                placeholder={isClassTree ? "如: /电子元器件/继电器" : ""}
+                              />
+                            )}
+                          </div>
                         </div>
 
-                        {isUnitField && trialCalculation.info && (
-                          <div className="text-[10px] text-slate-600 text-left mt-2 bg-white p-2 rounded border border-slate-100 w-full space-y-1 font-sans" id="preview-unit-conversion">
-                            <div>
-                              ⚡ <span className="font-semibold text-slate-500">换算结果 (源基准值):</span>{' '}
-                              <span className="font-mono font-bold text-slate-800" id="preview-unit-source-value">{trialCalculation.info.srcBaseVal?.toFixed(6)}</span>{' '}
-                              <span className="font-mono text-slate-500" id="preview-unit-source-unit">{trialCalculation.info.baseUnit}</span>
-                            </div>
-                            <div>
-                              ⚡ <span className="font-semibold text-slate-500">换算结果 (候选基准值):</span>{' '}
-                              <span className="font-mono font-bold text-slate-800" id="preview-unit-target-value">{trialCalculation.info.tgtBaseVal?.toFixed(6)}</span>{' '}
-                              <span className="font-mono text-slate-500" id="preview-unit-target-unit">{trialCalculation.info.baseUnit}</span>
-                            </div>
-                            <div className="pt-1 border-t border-dashed border-slate-100 flex justify-between" id="preview-unit-difference">
-                              <span className="font-semibold text-slate-500">物理差值 ({formDisplayUnit || trialCalculation.info.baseUnit}):</span>
-                              <span className="font-mono font-bold text-blue-600">{trialCalculation.info.diffDisplay}</span>
-                            </div>
+                        {/* Target val */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                            {targetLabel}
+                          </label>
+                          <div className="relative">
+                            {isEnumField ? (
+                              (() => {
+                                const opts = getEnumOptions(formPropertyCode);
+                                const hasValue = opts.includes(previewTgtVal);
+                                return (
+                                  <select
+                                    value={previewTgtVal}
+                                    onChange={(e) => setPreviewTgtVal(e.target.value)}
+                                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                  >
+                                    {!hasValue && previewTgtVal && (
+                                      <option value={previewTgtVal}>{previewTgtVal}</option>
+                                    )}
+                                    {opts.map(opt => (
+                                      <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                  </select>
+                                );
+                              })()
+                            ) : (
+                              <input
+                                type={isDateField ? 'date' : 'text'}
+                                value={previewTgtVal}
+                                onChange={(e) => setPreviewTgtVal(e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
+                                placeholder={isClassTree ? "如: /电子元器件/继电器/直流继电器" : ""}
+                              />
+                            )}
                           </div>
-                        )}
+                        </div>
                       </>
+                    )}
+                  </div>
+
+                  {/* 中部：两项输入物理量的基本转换结果 */}
+                  {isUnitField && trialCalculation.info && !trialCalculation.error && (
+                    <div className="bg-white/80 p-2.5 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1 w-full" id="preview-unit-conversion">
+                      <span className="font-bold text-slate-700 block mb-1">📐 SI标准底层量纲对齐比对 :</span>
+                      <div className="flex justify-between">
+                        <span>源特征基准值:</span>
+                        <span className="font-mono font-semibold text-slate-800">{trialCalculation.info.srcBaseVal?.toFixed(6)} {trialCalculation.info.baseUnit}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>候选特征基准值:</span>
+                        <span className="font-mono font-semibold text-slate-800">{trialCalculation.info.tgtBaseVal?.toFixed(6)} {trialCalculation.info.baseUnit}</span>
+                      </div>
+                      <div className="border-t border-dashed border-slate-200 pt-1 flex justify-between">
+                        <span>统一物理显示差值:</span>
+                        <span className="font-mono font-bold text-blue-700">{trialCalculation.info.diffDisplay}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 底部：试算评分反馈 */}
+                  <div className={`p-3 rounded-lg border text-[11px] leading-relaxed space-y-2 ${feedbackColor}`} id="preview-feedback-card">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold flex items-center space-x-1">
+                        <span>⚡ 算分判定 :</span>
+                        <span className="underline decoration-dotted">{feedbackTitle}</span>
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                        {realTimePreviewScore} 分
+                      </span>
+                    </div>
+                    <p className="opacity-95">{feedbackDescription}</p>
+                    {isUnitField && formDisplayUnit && formDisplayUnit !== '无' && !trialCalculation.error && (
+                      <div className="text-[10px] pt-1.5 border-t border-current/20 flex justify-between font-mono">
+                        <span>统一目标物理单位:</span>
+                        <span>{formDisplayUnit}</span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2422,8 +2458,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && !trialCalculation.noField && !trialCalculation.scoreInactive && (
               <div className="text-[11px] text-slate-500 leading-normal space-y-2">
                 <span className="font-bold text-slate-700 block">换算说明：</span>
-                <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量再进行偏差或距离计算。</p>
-                <p>2. 数值距离衰减和容差在基准物理量数值（如米、伏）的基础上进行判断。</p>
+                <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量（如米、伏、开尔文）进行计算。</p>
+                <p>2. 数值距离衰减和容差在统一的目标物理单位基础上进行判断。</p>
               </div>
             )}
           </div>

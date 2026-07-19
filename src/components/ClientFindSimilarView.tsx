@@ -215,6 +215,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="client-similar-container">
       <style>{`
         @media (max-width: 820px) {
+          #query-row-1 {
+            grid-template-columns: 1fr !important;
+          }
           #query-filters-grid-container {
             grid-template-columns: 1fr !important;
           }
@@ -229,6 +232,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
             width: 100% !important;
             margin-left: 0 !important;
             margin-top: 4px !important;
+          }
+        }
+        @media (min-width: 821px) {
+          #query-row-1 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          #query-filters-grid-container {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
           }
         }
       `}</style>
@@ -264,7 +275,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-4" id="client-query-box">
 
           {/* Row 1: Core Type and Searchable Benchmark Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b border-slate-100" id="query-row-1">
             <div className="flex items-center space-x-2 text-xs">
               <label className="font-semibold text-slate-700 shrink-0 min-w-[80px]">物料分类类型:</label>
               <select
@@ -532,12 +543,16 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                     const op = e.target.value;
                     setMaterialOperator(op);
                     if (op === 'CONTAINS') {
-                      setMaterialTextValue('');
+                      // Switching to fuzzy search mode: clear dropdown selection and dropdown text states
+                      setMaterialSelectValue('');
+                      setMaterialSearchText('');
                     } else {
+                      // Switching to dropdown select mode: clear fuzzy text state
+                      setMaterialTextValue('');
                       const mats = getCandidateMaterials();
                       setMaterialSelectValue(mats[0] || '');
+                      setMaterialSearchText('');
                     }
-                    setMaterialSearchText('');
                     setIsMaterialDropdownOpen(false);
                     setIsMaterialFocused(false);
                     invalidateOldResults();
@@ -820,7 +835,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                           ? formatWithDisplayUnit(
                               reference.attributes.working_temp,
                               reference.units?.working_temp || 'K',
-                              rules.find(r => r.propertyCode === 'working_temp')?.displayUnit,
+                              rules.find(r => r.propertyCode === 'working_temp')?.displayUnit || 'degC',
                               '温度'
                             )
                           : '--'}

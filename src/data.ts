@@ -323,6 +323,31 @@ export const stage1MappedFields: Stage1MappedField[] = [
   }
 ];
 
+export function formatFieldWithFallback(
+  val: any,
+  rawUnit: string | undefined,
+  propertyCode: string,
+  objectType: string,
+  rules: any[]
+): string {
+  if (val === undefined || val === null || val === '') return '--';
+  
+  // 1. Prioritize from active rules
+  const rule = rules.find(r => r.propertyCode === propertyCode && r.objectType === objectType && r.isScoreActive);
+  if (rule && rule.displayUnit && rule.displayUnit !== '无') {
+    return formatWithDisplayUnit(val, rawUnit, rule.displayUnit, rule.unitFamily || '');
+  }
+  
+  // 2. Fallback to stage1MappedFields
+  const fallback = stage1MappedFields.find(f => f.fieldCode === propertyCode && f.objectType === objectType);
+  if (fallback && fallback.displayUnit && fallback.displayUnit !== '无') {
+    return formatWithDisplayUnit(val, rawUnit, fallback.displayUnit, fallback.unitFamily || '');
+  }
+  
+  // 3. Otherwise, just raw unit/value
+  return rawUnit ? `${val} ${rawUnit}` : `${val}`;
+}
+
 // 1. 字段相似度规则初始数据
 export const initialFieldRules: FieldSimilarityRule[] = [
   {
@@ -2167,8 +2192,8 @@ export function runSimilaritySearch(
       if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
         const refUnit = reference?.units?.[key];
         const candUnit = cand.units?.[key];
-        srcRep = formatWithDisplayUnit(refVal, refUnit, rule.displayUnit, rule.unitFamily || '');
-        candRep = formatWithDisplayUnit(candVal, candUnit, rule.displayUnit, rule.unitFamily || '');
+        srcRep = formatFieldWithFallback(refVal, refUnit, key, objectType, rules);
+        candRep = formatFieldWithFallback(candVal, candUnit, key, objectType, rules);
       }
 
       compareFields.push({
