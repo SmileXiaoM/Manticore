@@ -400,4 +400,10 @@ export function restoreObjectRules(
   return [...otherEditingRules, ...restoredRules];
 }
 
+export interface TrialFeedback {
+  title: '数值比较' | '文本比较' | '换算说明' | '日期比较' | '层级比较' | '枚举比较';
+  rows: { label: string; value: string }[];
+  conclusion: string;
+}
+
 

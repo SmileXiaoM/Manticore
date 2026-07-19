@@ -14,8 +14,8 @@ import {
   ChevronRight,
   HelpCircle
 } from 'lucide-react';
-import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified } from '../types';
-import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums, processEnumList } from '../data';
+import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified, TrialFeedback } from '../types';
+import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums, processEnumList, formatWithDisplayUnit } from '../data';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -225,9 +225,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
       const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
       const options = processEnumList(matched.map(e => e.enumDisplayName));
-      const firstOpt = options[0] || '';
-      setPreviewSrcVal(firstOpt);
-      setPreviewTgtVal(firstOpt);
+      if (options.length >= 2) {
+        setPreviewSrcVal(options[0]);
+        setPreviewTgtVal(options[1]);
+      } else if (options.length === 1) {
+        setPreviewSrcVal(options[0]);
+        setPreviewTgtVal(options[0]);
+      } else {
+        setPreviewSrcVal('');
+        setPreviewTgtVal('');
+      }
       setPreviewSrcUnit('');
       setPreviewTgtUnit('');
     } else if (typeUpper.includes('TEXT') || fieldType.includes('文本')) {
@@ -236,17 +243,26 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setPreviewSrcUnit('');
       setPreviewTgtUnit('');
     } else if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-      setPreviewSrcVal('10');
-      setPreviewTgtVal('10');
-      
+      if (propertyCode === 'working_temp') {
+        setPreviewSrcVal('298.15');
+        setPreviewTgtVal('313.15');
+      } else {
+        setPreviewSrcVal('10');
+        setPreviewTgtVal('10');
+      }
+
       const selectedField = stage1MappedFields.find(f => f.fieldCode === propertyCode);
       const resolvedUnitFamily = selectedField?.unitFamily || formUnitFamily || '长度';
       let firstUnit = defaultUnit;
-      const qty = mockUnitCatalog.quantities.find(q => q.name === resolvedUnitFamily || q.code === resolvedUnitFamily);
-      if (qty) {
-        const activeUnits = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
-        if (activeUnits.length > 0) {
-          firstUnit = activeUnits[0].code;
+      if (propertyCode === 'working_temp') {
+        firstUnit = 'K';
+      } else {
+        const qty = mockUnitCatalog.quantities.find(q => q.name === resolvedUnitFamily || q.code === resolvedUnitFamily);
+        if (qty) {
+          const activeUnits = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
+          if (activeUnits.length > 0) {
+            firstUnit = activeUnits[0].code;
+          }
         }
       }
       setPreviewSrcUnit(firstUnit);
@@ -731,19 +747,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       baseUnit?: string;
       diffDisplay?: string;
     } | null = null;
+    let feedback: TrialFeedback | null = null;
 
     if (!formPropertyCode || formPropertyCode === '无' || formPropertyCode.trim() === '') {
-      return { score: 0, error: null, info: null, noField: true };
+      return { score: 0, error: null, info: null, noField: true, feedback: null };
     }
     if (!formIsScoreActive) {
-      return { score: 0, error: null, info: null, scoreInactive: true };
+      return { score: 0, error: null, info: null, scoreInactive: true, feedback: null };
     }
 
     if (isDateField) {
       const t1 = new Date(previewSrcVal).getTime();
       const t2 = new Date(previewTgtVal).getTime();
       if (isNaN(t1) || isNaN(t2)) {
-        return { score: 0, error: '请输入合法的日期以进行模拟比对', info: null };
+        return { score: 0, error: '请输入合法的日期以进行模拟比对', info: null, feedback: null };
       }
       const diffMs = t2 - t1;
       const factor = paramDateToleranceUnit === 'DAY' ? (1000 * 60 * 60 * 24) : (1000 * 60 * 60);
@@ -753,7 +770,21 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       else if (paramDateToleranceDirection === 'LOWER' && diff > 0) score = 0;
       else score = Math.abs(diff) <= paramDateToleranceVal ? 100 : 0;
 
-      return { score, error: null, info: null };
+      const diffStr = `${Math.abs(diff).toFixed(1)} ${paramDateToleranceUnit === 'DAY' ? '天' : '小时'}`;
+      const tolStr = `${paramDateToleranceVal} ${paramDateToleranceUnit === 'DAY' ? '天' : '小时'}`;
+      feedback = {
+        title: '日期比较' as const,
+        rows: [
+          { label: '源日期', value: previewSrcVal },
+          { label: '候选日期', value: previewTgtVal },
+          { label: '时间差值', value: diffStr },
+          { label: '容差限制', value: `${paramDateToleranceDirection === 'HIGHER' ? '正向 ' : paramDateToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${tolStr}` },
+          { label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' }
+        ],
+        conclusion: `源日期 [${previewSrcVal}] 与候选日期 [${previewTgtVal}] 实际相差 ${diffStr}，设定容差为 [${paramDateToleranceDirection === 'HIGHER' ? '正向' : paramDateToleranceDirection === 'LOWER' ? '负向' : '双向'}] ${tolStr}，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
+      };
+
+      return { score, error: null, info: null, feedback };
     }
 
     if (isClassTree) {
@@ -776,24 +807,56 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
       if (paramHierarchyRequirement === 'PARENT_CHILD') {
         const isParentChild = (refDist === 1 && candDist === 0) || (refDist === 0 && candDist === 1);
-        if (!isParentChild) return { score: 0, error: null, info: null };
+        if (!isParentChild) {
+          score = 0;
+        }
       } else if (paramHierarchyRequirement === 'ANCESTOR_DESCENDANT') {
         const isAncestorDescendant = (refDist === 0 || candDist === 0);
-        if (!isAncestorDescendant) return { score: 0, error: null, info: null };
+        if (!isAncestorDescendant) {
+          score = 0;
+        }
       }
 
-      if (gap > paramHierarchyMaxDiff) {
-        return { score: 0, error: null, info: null };
+      if (score !== 0 || gap <= paramHierarchyMaxDiff) {
+        if (gap > paramHierarchyMaxDiff) {
+          score = 0;
+        } else {
+          const rawScore = 100 - (gap * paramHierarchyDeduction);
+          score = Math.max(0, Math.min(100, Math.round(rawScore)));
+        }
       }
 
-      const rawScore = 100 - (gap * paramHierarchyDeduction);
-      score = Math.max(0, Math.min(100, Math.round(rawScore)));
-      return { score, error: null, info: null };
+      const relationLabel = paramHierarchyRequirement === 'PARENT_CHILD' ? '父子关系' : paramHierarchyRequirement === 'ANCESTOR_DESCENDANT' ? '祖裔关系' : '任意层级关系';
+      feedback = {
+        title: '层级比较' as const,
+        rows: [
+          { label: '源分类路径', value: previewSrcVal },
+          { label: '候选分类路径', value: previewTgtVal },
+          { label: '公共祖先深度', value: `${c} 层` },
+          { label: '相对层级距离', value: `${gap} 级` },
+          { label: '最大允许距离', value: `${paramHierarchyMaxDiff} 级` },
+          { label: '层级扣分单价', value: `${paramHierarchyDeduction} 分/级` },
+          { label: '关系约束要求', value: relationLabel }
+        ],
+        conclusion: `源分类路径 [${previewSrcVal}] 与候选分类路径 [${previewTgtVal}] 公共深度为 ${c} 层，相对距离为 ${gap} 级。在满足 [${relationLabel}] 及最大距离 [${paramHierarchyMaxDiff} 级] 约束的前提下，扣除 ${gap * paramHierarchyDeduction} 分，本次试算判定得分 ${score} 分。`
+      };
+
+      return { score, error: null, info: null, feedback };
     }
 
     if (isEnumField) {
       score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
-      return { score, error: null, info: null };
+      feedback = {
+        title: '枚举比较' as const,
+        rows: [
+          { label: '源枚举值', value: previewSrcVal },
+          { label: '候选枚举值', value: previewTgtVal },
+          { label: '匹配模式', value: '精确值等值判定' },
+          { label: '判定结果', value: score === 100 ? '完全一致 (100分)' : '不匹配 (0分)' }
+        ],
+        conclusion: `源值 [${previewSrcVal}] 与候选值 [${previewTgtVal}] 进行等值比对，结果为${score === 100 ? '完全一致' : '不匹配'}。本次试算判定得分 ${score} 分。`
+      };
+      return { score, error: null, info: null, feedback };
     }
 
     let srcNum = parseFloat(previewSrcVal);
@@ -872,29 +935,120 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           diffDisplay: diffDisplayStr
         };
 
-        return { score, error: null, info };
+        const srcDisplayStr = formatWithDisplayUnit(srcNum, previewSrcUnit, formDisplayUnit, formUnitFamily);
+        const tgtDisplayStr = formatWithDisplayUnit(tgtNum, previewTgtUnit, formDisplayUnit, formUnitFamily);
+
+        let rows = [
+          { label: '源原始值', value: `${srcNum} ${previewSrcUnit}` },
+          { label: '候选原始值', value: `${tgtNum} ${previewTgtUnit}` },
+          { label: '源基准值', value: `${srcBaseVal.toFixed(4)} ${qty.baseUnit}` },
+          { label: '候选基准值', value: `${tgtBaseVal.toFixed(4)} ${qty.baseUnit}` },
+          { label: '源目标显示值', value: srcDisplayStr },
+          { label: '候选目标显示值', value: tgtDisplayStr },
+        ];
+
+        let conclusion = '';
+        if (formMatchTypeState === '精确值匹配') {
+          rows.push({ label: '判定结果', value: score === 100 ? '精确一致 (100分)' : '不匹配 (0分)' });
+          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 经量纲转换后比对，判定两端在基准单位 [${qty.baseUnit}] 下${score === 100 ? '精确一致' : '存在差异'}。本次试算判定得分 ${score} 分。`;
+        } else if (formMatchTypeState === '数值容差匹配') {
+          let convertedSrc = srcNum;
+          let convertedTgt = tgtNum;
+          if (formDisplayUnit) {
+            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
+            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
+          }
+          const diffVal = Math.abs(convertedSrc - convertedTgt);
+          const formattedDiffVal = diffVal % 1 === 0 ? diffVal.toFixed(0) : diffVal.toFixed(4);
+          const feedbackDiffDisplay = `${formattedDiffVal} ${formDisplayUnit || qty.baseUnit}`;
+
+          let limit = paramNumToleranceVal;
+          let limitStr = '';
+          if (paramNumToleranceType === 'PERCENTAGE') {
+            limit = (convertedSrc * paramNumToleranceVal) / 100;
+            limitStr = `${paramNumToleranceVal}% (折合 ${limit.toFixed(4)} ${formDisplayUnit || qty.baseUnit})`;
+          } else {
+            limitStr = `${paramNumToleranceVal} ${formDisplayUnit || qty.baseUnit}`;
+          }
+
+          rows.push({ label: '物理显示差值', value: feedbackDiffDisplay });
+          rows.push({ label: '允许容差范围', value: `${paramNumToleranceDirection === 'HIGHER' ? '正向 ' : paramNumToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${limitStr}` });
+          rows.push({ label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' });
+
+          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 在目标单位下的显示差值为 ${feedbackDiffDisplay}。当前设定容差为 [${paramNumToleranceDirection === 'HIGHER' ? '正向' : paramNumToleranceDirection === 'LOWER' ? '负向' : '双向'}] ${limitStr}，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`;
+        } else if (formMatchTypeState === '数值距离衰减') {
+          let convertedSrc = srcNum;
+          let convertedTgt = tgtNum;
+          if (formDisplayUnit) {
+            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
+            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
+          }
+          const diffVal = Math.abs(convertedSrc - convertedTgt);
+          const formattedDiffVal = diffVal % 1 === 0 ? diffVal.toFixed(0) : diffVal.toFixed(4);
+          const feedbackDiffDisplay = `${formattedDiffVal} ${formDisplayUnit || qty.baseUnit}`;
+
+          rows.push({ label: '物理显示差值', value: feedbackDiffDisplay });
+          rows.push({ label: '无损满分差值', value: `${paramDecayFullScore} ${formDisplayUnit || qty.baseUnit}` });
+          rows.push({ label: '归零差值边界', value: `${paramDecayZeroBoundary} ${formDisplayUnit || qty.baseUnit}` });
+          rows.push({ label: '计算比分', value: `${score} 分` });
+
+          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 在目标单位下的显示差值为 ${feedbackDiffDisplay}。满分差值限制为 ${paramDecayFullScore}，零分边界为 ${paramDecayZeroBoundary}。经线性距离衰减计算，本次试算判定得分 ${score} 分。`;
+        }
+
+        feedback = {
+          title: '换算说明' as const,
+          rows,
+          conclusion
+        };
+
+        return { score, error: null, info, feedback };
       } catch (e: any) {
-        return { score: 0, error: e.message || '单位或数值换算错误', info: null };
+        return { score: 0, error: e.message || '单位或数值换算错误', info: null, feedback: null };
       }
     }
 
     if (formMatchTypeState === '精确值匹配') {
       score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
-      return { score, error: null, info: null };
+      feedback = {
+        title: '文本比较' as const,
+        rows: [
+          { label: '源文本', value: previewSrcVal },
+          { label: '候选文本', value: previewTgtVal },
+          { label: '匹配模式', value: '精确值匹配' },
+          { label: '判定结果', value: score === 100 ? '完全一致 (100分)' : '不匹配 (0分)' }
+        ],
+        conclusion: `源文本 [${previewSrcVal}] 与候选文本 [${previewTgtVal}] 进行精确值比对，比对结果为${score === 100 ? '完全一致' : '不匹配'}。本次试算判定得分 ${score} 分。`
+      };
+      return { score, error: null, info: null, feedback };
     }
 
     if (formMatchTypeState === '文本相似匹配 (非 AI)') {
-      if (!previewSrcVal || !previewTgtVal) return { score: 0, error: null, info: null };
+      if (!previewSrcVal || !previewTgtVal) {
+        return { score: 0, error: null, info: null, feedback: null };
+      }
       const srcChars = new Set(previewSrcVal.split(''));
       const tgtChars = previewTgtVal.split('');
       const overlap = tgtChars.filter(c => srcChars.has(c)).length;
       const sim = Math.round((overlap / Math.max(previewSrcVal.length, previewTgtVal.length)) * 100);
       score = sim >= paramMinTextThreshold ? sim : 0;
-      return { score, error: null, info: null };
+
+      feedback = {
+        title: '文本比较' as const,
+        rows: [
+          { label: '源文本', value: previewSrcVal },
+          { label: '候选文本', value: previewTgtVal },
+          { label: '匹配模式', value: `字符相似比对 (阈值: ${paramMinTextThreshold}%)` },
+          { label: '字符交集数', value: `${overlap} 个` },
+          { label: '计算相似度', value: `${sim}%` }
+        ],
+        conclusion: `源文本 [${previewSrcVal}] 与候选文本 [${previewTgtVal}] 经非AI字符重合度计算为 ${sim}%。当前相似度判定阈值为 ${paramMinTextThreshold}%，因此比对判定结果为${score > 0 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
+      };
+
+      return { score, error: null, info: null, feedback };
     }
 
     if (formMatchTypeState === '数值容差匹配') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null };
+      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null, feedback: null };
       const diff = Math.abs(srcNum - tgtNum);
       let limit = paramNumToleranceVal;
       if (paramNumToleranceType === 'PERCENTAGE') {
@@ -905,11 +1059,30 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       else if (paramNumToleranceDirection === 'LOWER' && tgtNum > srcNum) score = 0;
       else score = diff <= limit ? 100 : 0;
 
-      return { score, error: null, info: null };
+      let limitStr = '';
+      if (paramNumToleranceType === 'PERCENTAGE') {
+        limitStr = `${paramNumToleranceVal}% (折合 ${limit.toFixed(4)})`;
+      } else {
+        limitStr = String(paramNumToleranceVal);
+      }
+
+      feedback = {
+        title: '数值比较' as const,
+        rows: [
+          { label: '源数值', value: String(srcNum) },
+          { label: '候选数值', value: String(tgtNum) },
+          { label: '数值差值', value: String(diff) },
+          { label: '允许容差范围', value: `${paramNumToleranceDirection === 'HIGHER' ? '正向 ' : paramNumToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${limitStr}` },
+          { label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' }
+        ],
+        conclusion: `源数值 [${srcNum}] 与候选数值 [${tgtNum}] 差值为 ${diff}。在 [${paramNumToleranceDirection === 'HIGHER' ? '正向' : paramNumToleranceDirection === 'LOWER' ? '负向' : '双向'}] 允许容差 [${limitStr}] 下，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
+      };
+
+      return { score, error: null, info: null, feedback };
     }
 
     if (formMatchTypeState === '数值距离衰减') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null };
+      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null, feedback: null };
       const diff = Math.abs(srcNum - tgtNum);
 
       if (paramDecayDirection === 'HIGHER' && tgtNum < srcNum) score = 0;
@@ -920,10 +1093,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         const rawScore = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
         score = Math.round(Math.max(0, Math.min(100, rawScore)));
       }
-      return { score, error: null, info: null };
+
+      feedback = {
+        title: '数值比较' as const,
+        rows: [
+          { label: '源数值', value: String(srcNum) },
+          { label: '候选数值', value: String(tgtNum) },
+          { label: '数值差值', value: String(diff) },
+          { label: '无损满分差值', value: String(paramDecayFullScore) },
+          { label: '归零差值边界', value: String(paramDecayZeroBoundary) },
+          { label: '计算比分', value: `${score} 分` }
+        ],
+        conclusion: `源数值 [${srcNum}] 与候选数值 [${tgtNum}] 差值为 ${diff}。无损满分差值限制为 ${paramDecayFullScore}，零分边界为 ${paramDecayZeroBoundary}。经线性距离衰减计算，本次试算判定得分 ${score} 分。`
+      };
+
+      return { score, error: null, info: null, feedback };
     }
 
-    return { score: 0, error: null, info: null };
+    return { score: 0, error: null, info: null, feedback: null };
   }, [
     formFieldType,
     formPropertyCode,
@@ -2153,13 +2340,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
               if (trialCalculation.scoreInactive) {
                 return (
-                  <div className="bg-slate-100 rounded-lg p-5 border border-slate-200 text-center space-y-3" id="preview-disabled-scoring">
-                    <div className="text-slate-700 font-bold text-sm">💡 属性相似度计算已停用</div>
-                    <div className="text-2xl font-extrabold text-slate-400 py-4" id="preview-not-scoring-badge">
-                      未参与评分
-                    </div>
-                    <p className="text-slate-500 text-[11px] leading-relaxed">
-                      当前该字段已设为“不参与相似度评分”。在一阶段检索比对中它不会贡献任何权重或计算相似度，不参与总分算分。
+                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-disabled-scoring">
+                    <p className="text-slate-600 text-xs leading-relaxed" id="not-scored-tip">
+                      当前字段不参与属性相似度评分，不贡献权重和字段得分。
                     </p>
                   </div>
                 );
@@ -2215,46 +2398,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               } else if (isClassTree) {
                 sourceLabel = '检索输入 (源层级路径)';
                 targetLabel = '基准数值 (对准已有层级)';
-              }
-
-              // Determine trial feedback status & messages (4 specific states)
-              let feedbackStatus = 'UNKNOWN';
-              let feedbackTitle = '';
-              let feedbackDescription = '';
-              let feedbackColor = 'text-slate-600 bg-slate-50 border-slate-200';
-              let badgeColor = 'bg-slate-100 text-slate-700';
-
-              if (trialCalculation.error) {
-                feedbackStatus = 'ERROR';
-                feedbackTitle = '换算阻断 / 参数异常';
-                feedbackDescription = trialCalculation.error;
-                feedbackColor = 'text-red-700 bg-red-50 border-red-200';
-                badgeColor = 'bg-red-100 text-red-700';
-              } else if (isUnitField && realTimePreviewScore === 100 && previewSrcUnit && previewTgtUnit && previewSrcUnit !== previewTgtUnit) {
-                feedbackStatus = 'CONVERSION_MATCH';
-                feedbackTitle = '无误等值换算';
-                feedbackDescription = `源 [${previewSrcVal} ${previewSrcUnit}] 与候选 [${previewTgtVal} ${previewTgtUnit}] 经底层标准对齐换算后物理实质完全一致（物理差值为 0 ${formDisplayUnit || trialCalculation.info?.baseUnit || ''}），匹配比算满分。`;
-                feedbackColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-                badgeColor = 'bg-emerald-100 text-emerald-700';
-              } else if (realTimePreviewScore === 100) {
-                feedbackStatus = 'FULL_MATCH';
-                feedbackTitle = '完全匹配';
-                feedbackDescription = '源物料物理特征值与候选已有特征值完全一致，计算无任何物理偏差，判定满分。';
-                feedbackColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-                badgeColor = 'bg-emerald-100 text-emerald-700';
-              } else if (realTimePreviewScore > 0 && realTimePreviewScore < 100) {
-                feedbackStatus = 'DEVIATION_MATCH';
-                feedbackTitle = '偏差匹配';
-                const diffValStr = isUnitField ? (trialCalculation.info?.diffDisplay || '') : `${Math.abs(parseFloat(previewSrcVal) - parseFloat(previewTgtVal))} 物理单位`;
-                feedbackDescription = `物理属性存在一定偏差（实际显示偏差为 ${diffValStr}），但该偏差点落在预设容差或距离函数衰减范围内，按机制折扣算分。`;
-                feedbackColor = 'text-blue-700 bg-blue-50 border-blue-200';
-                badgeColor = 'bg-blue-100 text-blue-700';
-              } else {
-                feedbackStatus = 'MISMATCH_BLOCKED';
-                feedbackTitle = '偏差超标阻断';
-                feedbackDescription = '属性特征值存在实质不符，或偏差幅度已超出可接受的容差极限/最大衰减边界，相似度算分归零。';
-                feedbackColor = 'text-rose-700 bg-rose-50 border-rose-200';
-                badgeColor = 'bg-rose-100 text-rose-700';
               }
 
               return (
@@ -2412,44 +2555,45 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     )}
                   </div>
 
-                  {/* 中部：两项输入物理量的基本转换结果 */}
-                  {isUnitField && trialCalculation.info && !trialCalculation.error && (
-                    <div className="bg-white/80 p-2.5 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1 w-full" id="preview-unit-conversion">
-                      <span className="font-bold text-slate-700 block mb-1">📐 SI标准底层量纲对齐比对 :</span>
-                      <div className="flex justify-between">
-                        <span>源特征基准值:</span>
-                        <span className="font-mono font-semibold text-slate-800">{trialCalculation.info.srcBaseVal?.toFixed(6)} {trialCalculation.info.baseUnit}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>候选特征基准值:</span>
-                        <span className="font-mono font-semibold text-slate-800">{trialCalculation.info.tgtBaseVal?.toFixed(6)} {trialCalculation.info.baseUnit}</span>
-                      </div>
-                      <div className="border-t border-dashed border-slate-200 pt-1 flex justify-between">
-                        <span>统一物理显示差值:</span>
-                        <span className="font-mono font-bold text-blue-700">{trialCalculation.info.diffDisplay}</span>
-                      </div>
+                  {/* R26-TRIAL-01: Error panel */}
+                  {trialCalculation.error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 shadow-2xs" id="preview-error-panel">
+                      <strong className="font-semibold block mb-1">换算阻断 / 参数异常:</strong>
+                      <p>{trialCalculation.error}</p>
                     </div>
                   )}
 
-                  {/* 底部：试算评分反馈 */}
-                  <div className={`p-3 rounded-lg border text-[11px] leading-relaxed space-y-2 ${feedbackColor}`} id="preview-feedback-card">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold flex items-center space-x-1">
-                        <span>⚡ 算分判定 :</span>
-                        <span className="underline decoration-dotted">{feedbackTitle}</span>
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
-                        {realTimePreviewScore} 分
-                      </span>
-                    </div>
-                    <p className="opacity-95">{feedbackDescription}</p>
-                    {isUnitField && formDisplayUnit && formDisplayUnit !== '无' && !trialCalculation.error && (
-                      <div className="text-[10px] pt-1.5 border-t border-current/20 flex justify-between font-mono">
-                        <span>统一目标物理单位:</span>
-                        <span>{formDisplayUnit}</span>
+                  {/* R26-TRIAL-01: Structured Trial Feedback */}
+                  {!trialCalculation.error && trialCalculation.feedback && (
+                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs space-y-3.5 p-4.5" id="preview-feedback-card-v2">
+                      {/* Title & Score */}
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <span className="font-bold text-xs text-slate-800 flex items-center space-x-1.5">
+                          <span className="w-1.5 h-3.5 bg-blue-600 rounded-xs inline-block"></span>
+                          <span>{trialCalculation.feedback.title}</span>
+                        </span>
+                        <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-bold text-xs font-mono border border-blue-200" id="preview-score-badge">
+                          {realTimePreviewScore} 分
+                        </span>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Rows Grid */}
+                      <div className="grid grid-cols-1 gap-2 text-xs">
+                        {trialCalculation.feedback.rows.map((row, rIdx) => (
+                          <div key={rIdx} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded transition-colors">
+                            <span className="text-slate-400 font-medium">{row.label}:</span>
+                            <span className="font-mono text-slate-800 font-semibold truncate max-w-[200px]" title={row.value}>{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Conclusion */}
+                      <div className="mt-3 bg-slate-50 border border-slate-100 rounded p-3 text-slate-600 text-xs leading-relaxed" id="preview-conclusion-box">
+                        <strong className="text-slate-700 block mb-1 font-semibold">试算结论诊断:</strong>
+                        <p className="text-slate-600 leading-relaxed">{trialCalculation.feedback.conclusion}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}

@@ -331,19 +331,19 @@ export function formatFieldWithFallback(
   rules: any[]
 ): string {
   if (val === undefined || val === null || val === '') return '--';
-  
+
   // 1. Prioritize from active rules
   const rule = rules.find(r => r.propertyCode === propertyCode && r.objectType === objectType && r.isScoreActive);
   if (rule && rule.displayUnit && rule.displayUnit !== '无') {
     return formatWithDisplayUnit(val, rawUnit, rule.displayUnit, rule.unitFamily || '');
   }
-  
+
   // 2. Fallback to stage1MappedFields
   const fallback = stage1MappedFields.find(f => f.fieldCode === propertyCode && f.objectType === objectType);
   if (fallback && fallback.displayUnit && fallback.displayUnit !== '无') {
     return formatWithDisplayUnit(val, rawUnit, fallback.displayUnit, fallback.unitFamily || '');
   }
-  
+
   // 3. Otherwise, just raw unit/value
   return rawUnit ? `${val} ${rawUnit}` : `${val}`;
 }
