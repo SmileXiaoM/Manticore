@@ -64,6 +64,45 @@ export function convertFromBaseUnit(baseValue: number, unitCode: string, quantit
   return (baseValue - unit.offset) / unit.scale;
 }
 
+export function formatWithDisplayUnit(
+  val: any,
+  rawUnit: string | undefined,
+  displayUnit: string | undefined,
+  quantityNameOrCode: string
+): string {
+  if (val === undefined || val === null || val === '') return '--';
+  const rawUnitStr = rawUnit || '';
+  if (!rawUnitStr) {
+    return `${val} 无`;
+  }
+  if (!displayUnit || rawUnitStr === displayUnit) {
+    return `${val} ${rawUnitStr}`;
+  }
+  try {
+    const baseVal = convertToBaseUnit(Number(val), rawUnitStr, quantityNameOrCode);
+    const dispVal = convertFromBaseUnit(baseVal, displayUnit, quantityNameOrCode);
+    const formattedDisp = parseFloat(dispVal.toFixed(4));
+    return `${val} ${rawUnitStr}（${formattedDisp} ${displayUnit}）`;
+  } catch (e: any) {
+    return `${val} ${rawUnitStr} (换算错误: ${e.message})`;
+  }
+}
+
+export function processEnumList(rawList: any[]): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const item of rawList) {
+    if (item === undefined || item === null) continue;
+    const s = String(item).trim();
+    if (!s || s === 'null' || s === 'undefined' || s === '--') continue;
+    if (!seen.has(s)) {
+      seen.add(s);
+      result.push(s);
+    }
+  }
+  return result.sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
 // 0. 一阶段对齐已映射字段目录 (Stage 1 Mapped Fields Directory)
 export interface Stage1MappedField {
   objectType: ObjectType;
@@ -2128,32 +2167,8 @@ export function runSimilaritySearch(
       if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
         const refUnit = reference?.units?.[key];
         const candUnit = cand.units?.[key];
-
-        let srcDisplay = `${refVal} ${refUnit || '无'}`;
-        let candDisplay = `${candVal} ${candUnit || '无'}`;
-
-        try {
-          const baseVal = convertToBaseUnit(Number(refVal), refUnit || '', rule.unitFamily || '');
-          const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit || '', rule.unitFamily || '');
-          if (refUnit && rule.displayUnit && refUnit !== rule.displayUnit) {
-            srcDisplay = `${refVal} ${refUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
-          }
-        } catch (e: any) {
-          srcDisplay = `${refVal} ${refUnit || '无'} (换算错误: ${e.message})`;
-        }
-
-        try {
-          const baseVal = convertToBaseUnit(Number(candVal), candUnit || '', rule.unitFamily || '');
-          const dispVal = convertFromBaseUnit(baseVal, rule.displayUnit || '', rule.unitFamily || '');
-          if (candUnit && rule.displayUnit && candUnit !== rule.displayUnit) {
-            candDisplay = `${candVal} ${candUnit} (显示值 ${dispVal} ${rule.displayUnit})`;
-          }
-        } catch (e: any) {
-          candDisplay = `${candVal} ${candUnit || '无'} (换算错误: ${e.message})`;
-        }
-
-        srcRep = srcDisplay;
-        candRep = candDisplay;
+        srcRep = formatWithDisplayUnit(refVal, refUnit, rule.displayUnit, rule.unitFamily || '');
+        candRep = formatWithDisplayUnit(candVal, candUnit, rule.displayUnit, rule.unitFamily || '');
       }
 
       compareFields.push({

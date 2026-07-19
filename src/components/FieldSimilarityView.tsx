@@ -15,7 +15,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified } from '../types';
-import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums } from '../data';
+import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums, processEnumList } from '../data';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -209,6 +209,59 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [previewSrcUnit, setPreviewSrcUnit] = useState<string>('mm');
   const [previewTgtUnit, setPreviewTgtUnit] = useState<string>('mm');
 
+  // Unified Reset Function for Field Previews (R24-UI-02)
+  const resetPreviewForField = (fieldType: string, defaultUnit: string, propertyCode: string) => {
+    const typeUpper = (fieldType || '').toUpperCase();
+    if (typeUpper.includes('DATE') || fieldType.includes('日期')) {
+      setPreviewSrcVal('2026-01-01');
+      setPreviewTgtVal('2026-01-15');
+      setPreviewSrcUnit('');
+      setPreviewTgtUnit('');
+    } else if (typeUpper.includes('CLASS_TREE') || fieldType.includes('层级')) {
+      setPreviewSrcVal('/电子元器件/继电器/直流继电器');
+      setPreviewTgtVal('/电子元器件/继电器');
+      setPreviewSrcUnit('');
+      setPreviewTgtUnit('');
+    } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
+      const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
+      let options: string[] = [];
+      if (matched.length > 0) {
+        options = processEnumList(matched.map(e => e.enumDisplayName));
+      } else if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
+        options = processEnumList(['已发布', '已作废', '设计中']);
+      } else if (propertyCode === 'core_material' || propertyCode === 'material') {
+        options = processEnumList(['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304']);
+      } else {
+        options = processEnumList(['已发布', '已作废', '设计中']);
+      }
+      const firstOpt = options[0] || '';
+      setPreviewSrcVal(firstOpt);
+      setPreviewTgtVal(firstOpt);
+      setPreviewSrcUnit('');
+      setPreviewTgtUnit('');
+    } else if (typeUpper.includes('TEXT') || fieldType.includes('文本')) {
+      setPreviewSrcVal('Manticore');
+      setPreviewTgtVal('Manticore Pro');
+      setPreviewSrcUnit('');
+      setPreviewTgtUnit('');
+    } else if (propertyCode === 'working_temp') {
+      setPreviewSrcVal('298.15');
+      setPreviewTgtVal('313.15');
+      setPreviewSrcUnit('K');
+      setPreviewTgtUnit('K');
+    } else if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
+      setPreviewSrcVal('10.0');
+      setPreviewTgtVal('10.2');
+      setPreviewSrcUnit(defaultUnit);
+      setPreviewTgtUnit(defaultUnit);
+    } else {
+      setPreviewSrcVal('10.0');
+      setPreviewTgtVal('10.2');
+      setPreviewSrcUnit('');
+      setPreviewTgtUnit('');
+    }
+  };
+
   // Searchable Unit dropdown states
   const [unitSearchText, setUnitSearchText] = useState<string>('');
   const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState<boolean>(false);
@@ -281,44 +334,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         setFormDisplayUnit('无');
       }
 
-      // Reset interactive simulator values synchronously to avoid DATE warning on render
-      const typeUpper = (fieldType || '').toUpperCase();
-      if (typeUpper.includes('DATE') || fieldType.includes('日期')) {
-        setPreviewSrcVal('2026-01-01');
-        setPreviewTgtVal('2026-01-15');
-        setPreviewSrcUnit('');
-        setPreviewTgtUnit('');
-      } else if (typeUpper.includes('CLASS_TREE') || fieldType.includes('层级')) {
-        setPreviewSrcVal('/电子元器件/继电器/直流继电器');
-        setPreviewTgtVal('/电子元器件/继电器');
-        setPreviewSrcUnit('');
-        setPreviewTgtUnit('');
-      } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
-        setPreviewSrcVal('有效');
-        setPreviewTgtVal('待发布');
-        setPreviewSrcUnit('');
-        setPreviewTgtUnit('');
-      } else if (typeUpper.includes('TEXT') || fieldType.includes('文本')) {
-        setPreviewSrcVal('Manticore');
-        setPreviewTgtVal('Manticore Pro');
-        setPreviewSrcUnit('');
-        setPreviewTgtUnit('');
-      } else if (selectedField.fieldCode === 'working_temp') {
-        setPreviewSrcVal('298.15');
-        setPreviewTgtVal('313.15');
-        setPreviewSrcUnit('K');
-        setPreviewTgtUnit('K');
-      } else if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-        setPreviewSrcVal('10.0');
-        setPreviewTgtVal('10.2');
-        setPreviewSrcUnit(defaultUnit);
-        setPreviewTgtUnit(defaultUnit);
-      } else {
-        setPreviewSrcVal('10.0');
-        setPreviewTgtVal('10.2');
-        setPreviewSrcUnit('');
-        setPreviewTgtUnit('');
-      }
+      // Reset interactive simulator values synchronously using unified function (R24-UI-02)
+      resetPreviewForField(fieldType, defaultUnit, selectedField.fieldCode);
     } else {
       setFormFieldName('');
       setFormPropertyCode('');
@@ -638,28 +655,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       }
     }
 
-    // Default interactive test values
-    if ((rule.fieldType || '').toUpperCase().includes('DATE')) {
-      setPreviewSrcVal('2026-01-01');
-      setPreviewTgtVal('2026-01-15');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    } else if (rule.propertyCode === 'working_temp') {
-      setPreviewSrcVal('298.15');
-      setPreviewTgtVal('313.15');
-      setPreviewSrcUnit('K');
-      setPreviewTgtUnit('K');
-    } else if (rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-      setPreviewSrcVal('10.0');
-      setPreviewTgtVal('10.2');
-      setPreviewSrcUnit(rule.displayUnit || 'mm');
-      setPreviewTgtUnit(rule.displayUnit || 'mm');
-    } else {
-      setPreviewSrcVal('10.0');
-      setPreviewTgtVal('10.2');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    }
+    // Default interactive test values using unified function (R24-UI-02)
+    resetPreviewForField(rule.fieldType, rule.displayUnit || 'mm', rule.propertyCode);
   };
 
   // Trigger New Rule Form
@@ -2179,15 +2176,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               const getEnumOptions = (propertyCode: string) => {
                 const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
                 if (matched.length > 0) {
-                  return Array.from(new Set(matched.map(e => e.enumDisplayName)));
+                  return processEnumList(matched.map(e => e.enumDisplayName));
                 }
                 if (propertyCode === 'lifecycle_state' || propertyCode === 'lifecycleState') {
-                  return ['已发布', '已作废', '设计中'];
+                  return processEnumList(['已发布', '已作废', '设计中']);
                 }
                 if (propertyCode === 'core_material' || propertyCode === 'material') {
-                  return ['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304'];
+                  return processEnumList(['304 (06Cr19Ni10)', 'Q235', '黄铜 (HPb59-1)', '45#', 'SUS304']);
                 }
-                return ['已发布', '已作废', '设计中'];
+                return processEnumList(['已发布', '已作废', '设计中']);
               };
 
               let sourceLabel = '检索输入 (Source Value)';
@@ -2295,15 +2292,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </label>
                         <div className="relative">
                           {isEnumField ? (
-                            <select
-                              value={previewSrcVal}
-                              onChange={(e) => setPreviewSrcVal(e.target.value)}
-                              className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
-                            >
-                              {getEnumOptions(formPropertyCode).map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
+                            (() => {
+                              const opts = getEnumOptions(formPropertyCode);
+                              const hasValue = opts.includes(previewSrcVal);
+                              return (
+                                <select
+                                  value={previewSrcVal}
+                                  onChange={(e) => setPreviewSrcVal(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                >
+                                  {!hasValue && previewSrcVal && (
+                                    <option value={previewSrcVal}>{previewSrcVal}</option>
+                                  )}
+                                  {opts.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              );
+                            })()
                           ) : (
                             <input
                               type={isDateField ? 'date' : 'text'}
@@ -2323,15 +2329,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </label>
                         <div className="relative">
                           {isEnumField ? (
-                            <select
-                              value={previewTgtVal}
-                              onChange={(e) => setPreviewTgtVal(e.target.value)}
-                              className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
-                            >
-                              {getEnumOptions(formPropertyCode).map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
+                            (() => {
+                              const opts = getEnumOptions(formPropertyCode);
+                              const hasValue = opts.includes(previewTgtVal);
+                              return (
+                                <select
+                                  value={previewTgtVal}
+                                  onChange={(e) => setPreviewTgtVal(e.target.value)}
+                                  className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+                                >
+                                  {!hasValue && previewTgtVal && (
+                                    <option value={previewTgtVal}>{previewTgtVal}</option>
+                                  )}
+                                  {opts.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              );
+                            })()
                           ) : (
                             <input
                               type={isDateField ? 'date' : 'text'}
@@ -2404,20 +2419,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             })()}
 
             {/* Instruction about calculated formula process */}
-            <div className="text-[11px] text-slate-500 leading-normal space-y-2">
-              <span className="font-bold text-slate-700 block">换算说明：</span>
-              {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' ? (
-                <>
-                  <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量再进行偏差或距离计算。</p>
-                  <p>2. 数值距离衰减和容差在基准物理量数值（如米、伏）的基础上进行判断。</p>
-                </>
-              ) : (
-                <>
-                  <p>1. 当前字段类型不带单位，不涉及物理单位与 SI 标准基准量纲的换算。</p>
-                  <p>2. 对齐计算将直接对文本、枚举或纯数值进行内容或范围精确匹配。</p>
-                </>
-              )}
-            </div>
+            {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && !trialCalculation.noField && !trialCalculation.scoreInactive && (
+              <div className="text-[11px] text-slate-500 leading-normal space-y-2">
+                <span className="font-bold text-slate-700 block">换算说明：</span>
+                <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量再进行偏差或距离计算。</p>
+                <p>2. 数值距离衰减和容差在基准物理量数值（如米、伏）的基础上进行判断。</p>
+              </div>
+            )}
           </div>
         </div>
       )}

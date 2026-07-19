@@ -12,7 +12,7 @@ import {
   FileCheck2,
   SlidersHorizontal
 } from 'lucide-react';
-import { runSimilaritySearch, allMechanicalParts, allElectricalParts } from '../data';
+import { runSimilaritySearch, allMechanicalParts, allElectricalParts, formatWithDisplayUnit, processEnumList } from '../data';
 import { FieldSimilarityRule, ScoredCandidate, SearchRunResult } from '../types';
 import unitCatalogData from '../unit-catalog.json';
 
@@ -86,27 +86,25 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
   // Helper to dynamically extract all unique candidate materials under current object type
   const getCandidateMaterials = () => {
     const pool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
-    const mats = Array.from(new Set(pool.map(p => p.material).filter(Boolean)));
-    return mats;
+    return processEnumList(pool.map(p => p.material));
   };
 
   // Helper to dynamically extract all unique candidate lifecycles under current object type
   const getCandidateLifecycles = () => {
     const pool = objectType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
-    const states = Array.from(new Set(pool.map(p => p.lifecycleState).filter(Boolean)));
-    return states;
+    return processEnumList(pool.map(p => p.lifecycleState));
   };
 
   const isSecondPhaseEnabled = objectConfigStatus[objectType]?.enabled ?? true;
 
   // Dynamic Search Run Result State
   const [isWaiting, setIsWaiting] = useState<boolean>(true);
-  const [searchResult, setSearchResult] = useState<SearchRunResult>(() => ({
+  const [searchResult, setSearchResult] = useState<SearchRunResult | null>(() => ({
     reference: null,
     scoredCandidates: []
   }));
 
-  const { reference, scoredCandidates } = searchResult;
+  const { reference, scoredCandidates } = searchResult || { reference: null, scoredCandidates: [] };
 
   // Selected candidate for side comparative drawer
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
@@ -215,6 +213,25 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans" id="client-similar-container">
+      <style>{`
+        @media (max-width: 820px) {
+          #query-filters-grid-container {
+            grid-template-columns: 1fr !important;
+          }
+          #query-filters-grid-container > div {
+            width: 100% !important;
+          }
+          #query-filters-grid-container .flex.items-center.space-x-1.w-full {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          #query-filters-grid-container .flex.items-center.space-x-1.w-full > * {
+            width: 100% !important;
+            margin-left: 0 !important;
+            margin-top: 4px !important;
+          }
+        }
+      `}</style>
 
       {/* 2.1 Corporate Page Header with Reset Tool */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4" id="client-header">
@@ -256,31 +273,44 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                 onChange={(e) => {
                   const newType = e.target.value;
                   setObjectType(newType);
-                  setReqCode(newType === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'PART-2026-000100');
                   
-                  // Reset all query filters on object type switch to prevent cross-contamination
+                  // R24-SWITCH-01 requirements:
+                  // 1. setSearchResult(null)
+                  setSearchResult(null);
+                  
+                  // 2. setSelectedForCompare(null)
+                  setSelectedForCompare(null);
+                  
+                  // 3. Clear search terms, category to 'ALL', spec to ''
                   setKeyword('');
                   setCategory('ALL');
                   setSpecInput('');
+                  
+                  // 4. Reset diameter value to '10', voltage value to '12'
                   setDiameterNumValue('10');
                   setDiameterUnit('mm');
                   setDiameterOperator('EQUALS');
                   setVoltageNumValue('12');
                   setVoltageUnit('V');
                   setVoltageOperator('EQUALS');
-                  setLifecycleFilter('ALL');
+                  
+                  // 5. Clean material options, select the first material of new pool, clear materialSearchText and materialTextValue
+                  const pool = newType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
+                  const mats = processEnumList(pool.map(p => p.material));
+                  setMaterialSelectValue(mats[0] || '');
                   setMaterialOperator('EQUALS');
                   setMaterialTextValue('');
                   setMaterialSearchText('');
                   setIsMaterialDropdownOpen(false);
                   setIsMaterialFocused(false);
                   
-                  // Reset material selection to default candidate material for new type
-                  const pool = newType === 'PART_MECHANICAL' ? allMechanicalParts : allElectricalParts;
-                  const mats = Array.from(new Set(pool.map(p => p.material).filter(Boolean)));
-                  setMaterialSelectValue(mats[0] || '');
+                  // 6. Set reqCode to first valid Benchmark code
+                  setReqCode(newType === 'PART_ELECTRICAL' ? 'ELEC-2026-000100' : 'PART-2026-000100');
                   
-                  invalidateOldResults();
+                  // 7. Clear lifecycle filter to 'ALL'
+                  setLifecycleFilter('ALL');
+                  
+                  setIsWaiting(true);
                 }}
                 className="bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-700 text-xs w-full max-w-[200px] shadow-2xs"
               >
@@ -394,7 +424,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
           </div>
 
           {/* Row 2: Query Filters Grid (Robust, non-overflowing grid) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 pb-3 border-b border-slate-100 text-xs">
+          <div id="query-filters-grid-container" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 pb-3 border-b border-slate-100 text-xs">
             
             {/* Cell 1: Nominal Diameter / Working Voltage */}
             {objectType === 'PART_MECHANICAL' ? (
@@ -787,11 +817,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({ ru
                       <span className="text-slate-400">工作温度:</span>{' '}
                       <span className="font-bold text-slate-900">
                         {reference.attributes.working_temp !== undefined && reference.attributes.working_temp !== null
-                          ? (reference.units?.working_temp === 'K' && Math.abs(Number(reference.attributes.working_temp) - 298.15) < 0.1
-                            ? '298.15 K (显示值 25 degC)'
-                            : reference.units?.working_temp === 'K' && Math.abs(Number(reference.attributes.working_temp) - 313.15) < 0.1
-                              ? '313.15 K (显示值 40 degC)'
-                              : `${reference.attributes.working_temp} ${reference.units?.working_temp || 'K'}`)
+                          ? formatWithDisplayUnit(
+                              reference.attributes.working_temp,
+                              reference.units?.working_temp || 'K',
+                              rules.find(r => r.propertyCode === 'working_temp')?.displayUnit,
+                              '温度'
+                            )
                           : '--'}
                       </span>
                     </div>
