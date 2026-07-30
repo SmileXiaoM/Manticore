@@ -1,8 +1,6 @@
 {
-  "name": "差旅费用管理看板",
-  "description": "企业级差旅费用管理看板，支持综合费用统计、携程对账与员工承担抵扣分析。",
+  "name": "PLM Manticore 相似度搜索配置",
+  "description": "企业级 PLM Manticore 二阶段非 AI 属性相似度搜索配置原型，包含字段相似度规则、查询预览、应用端查找相似件及配置变更记录。标准化、同义词、分类/类型归一和三化决策为三阶段后续入口。",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }
