@@ -1,50 +1,81 @@
 import React from 'react';
-import { Database, CheckCircle, AlertTriangle, User, History, ArrowUpRight } from 'lucide-react';
+import { TabType } from '../types';
+import { BarChart3, Receipt, Users, Building, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
-  onNavigate: (viewId: string) => void;
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  onNavigate
-}) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
   return (
-    <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
-      {/* Left: Brand logo & Context */}
-      <div className="flex items-center space-x-3">
-        <div className="bg-blue-600 text-white p-1.5 rounded-md flex items-center justify-center">
-          <Database className="w-5 h-5" />
-        </div>
-        <div className="flex flex-col">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-900 text-sm tracking-tight">PLM / Manticore</span>
-            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">二阶段非 AI 属性相似度</span>
+    <header className="bg-white text-slate-900 border-b border-slate-200 shadow-xs sticky top-0 z-30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo & Brand */}
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
+              <Building className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center space-x-2">
+                <span>差旅费用管理看板</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                  企业级
+                </span>
+              </h1>
+              <p className="text-xs text-slate-500">控费精细化 · 账单自动化 · 员工多维抵扣透明化</p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-500 leading-none">企业级物料去重与多维搜索管理台</span>
-        </div>
-      </div>
 
-      {/* Center/Right: Profile and shortcuts */}
-      <div className="flex items-center space-x-4">
-        {/* Link shortcuts */}
-        <div className="flex items-center space-x-3 text-slate-500 text-xs pl-4">
-          <button
-            onClick={() => onNavigate('client-find-similar')}
-            className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded hover:bg-blue-100 font-semibold transition-colors font-sans"
-          >
-            <span>应用端界面</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+          {/* Navigation Tabs */}
+          <nav className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              id="tab-summary"
+              onClick={() => onTabChange('summary')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'summary'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>综合费用统计</span>
+            </button>
 
-        {/* User profile */}
-        <div className="flex items-center space-x-2 border-l border-slate-200 pl-4">
-          <div className="w-7 h-7 bg-slate-200 rounded-full flex items-center justify-center text-slate-700 font-semibold text-xs border border-slate-300">
-            <User className="w-4 h-4 text-slate-600" />
-          </div>
-          <div className="hidden md:flex flex-col">
-            <span className="text-xs font-medium text-slate-800">李晓华</span>
-            <span className="text-[10px] text-slate-500 leading-none font-sans">数据标准管理员</span>
+            <button
+              id="tab-reconciliation"
+              onClick={() => onTabChange('reconciliation')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'reconciliation'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              <span>携程对账</span>
+            </button>
+
+            <button
+              id="tab-deduction"
+              onClick={() => onTabChange('deduction')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'deduction'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>员工承担与抵扣</span>
+            </button>
+          </nav>
+
+          {/* Right Status / User */}
+          <div className="flex items-center space-x-3 text-xs text-slate-600">
+            <div className="hidden md:flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-slate-600 font-medium">数据源: 财务ERP与携程API同步</span>
+            </div>
           </div>
         </div>
       </div>
