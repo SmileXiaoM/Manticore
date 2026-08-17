@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   SlidersHorizontal,
   Plus,
@@ -12,10 +12,31 @@ import {
   RefreshCw,
   X,
   ChevronRight,
-  HelpCircle
+  HelpCircle,
+  ShieldAlert,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
-import { FieldSimilarityRule, ObjectType, MatchConfig, ChangeRecord, isObjectRulesModified, TrialFeedback } from '../types';
-import { stage1MappedFields, mockUnitCatalog, convertToBaseUnit, convertFromBaseUnit, attributeEnums, processEnumList, formatWithDisplayUnit } from '../data';
+import {
+  FieldSimilarityRule,
+  ObjectType,
+  MatchConfig,
+  ChangeRecord,
+  isObjectRulesModified,
+  TrialFeedback,
+  MismatchAction
+} from '../types';
+import {
+  rootTypeOptions,
+  softTypeOptions,
+  stage1MappedFields,
+  mockUnitCatalog,
+  convertToBaseUnit,
+  convertFromBaseUnit,
+  processEnumList,
+  formatWithDisplayUnit,
+  calculateFieldMatchRate
+} from '../data';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -47,7 +68,7 @@ const getAllowedMatchTypes = (fieldType: string): string[] => {
     return ['精确值匹配', '文本相似匹配 (非 AI)'];
   }
   if (typeUpper.includes('TEXT')) {
-    return ['精确值匹配'];
+    return ['精确值匹配', '文本相似匹配 (非 AI)'];
   }
   if (typeUpper.includes('ENUM')) {
     return ['精确值匹配'];
@@ -64,49 +85,6 @@ const getAllowedMatchTypes = (fieldType: string): string[] => {
   return ['精确值匹配'];
 };
 
-const getDefaultMatchType = (fieldType: string): string => {
-  return '精确值匹配';
-};
-
-const getFieldEligibility = (
-  field: any,
-  objectType: string,
-  editingRules: any[],
-  currentRuleId?: string
-): { eligible: boolean; reason?: string } => {
-  if (field.objectType !== objectType) {
-    return { eligible: false, reason: '对象类型不匹配' };
-  }
-  if (field.enabled !== true) {
-    return { eligible: false, reason: '字段已停用' };
-  }
-  if (field.indexStatus !== '已索引') {
-    return { eligible: false, reason: '未索引' };
-  }
-  const supportedTypes = [
-    '文本 (TEXT)',
-    '长文本 (LONG_TEXT)',
-    '枚举 (ENUM)',
-    '数值 (NUMBER)',
-    '带单位数值 (NUMBER_WITH_UNIT)',
-    '日期 (DATE)',
-    '分类树 (CLASS_TREE)'
-  ];
-  if (!supportedTypes.includes(field.businessFieldType)) {
-    return { eligible: false, reason: '字段类型暂不支持' };
-  }
-  const hasDuplicate = editingRules.some(
-    rule =>
-      rule.objectType === objectType &&
-      rule.propertyCode === field.fieldCode &&
-      rule.id !== currentRuleId
-  );
-  if (hasDuplicate) {
-    return { eligible: false, reason: '当前对象已配置' };
-  }
-  return { eligible: true };
-};
-
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   editingRules,
   onUpdateEditingRules,
@@ -118,2494 +96,1275 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   onUpdateChangeRecords,
   objectConfigStatus,
   onUpdateConfigStatus,
-  onNavigate,
-  activeObjectType: propActiveObjectType,
-  setActiveObjectType: propSetActiveObjectType
+  onNavigate
 }) => {
-  // Active ObjectType Selector Context (Default: PART_MECHANICAL)
-  const [localActiveObjectType, localSetActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
-  const activeObjectType = propActiveObjectType || localActiveObjectType;
-  const setActiveObjectType = propSetActiveObjectType || localSetActiveObjectType;
+  // 1. 根类型与软类型上下文选择器 (默认: 零部件 PART + 自制件 IN_HOUSE)
+  const [selectedRootTypeId, setSelectedRootTypeId] = useState<string>('PART');
+  const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
 
-  // Editor state
-  const [editingRule, setEditingRule] = useState<FieldSimilarityRule | null>(null);
-  const [isNew, setIsNew] = useState(false);
+  // 当前可用的软类型列表 (根据所选根类型过滤)
+  const availableSoftTypes = useMemo(() => {
+    return softTypeOptions.filter(st => st.rootTypeId === selectedRootTypeId);
+  }, [selectedRootTypeId]);
 
-  // Reset editing states on activeObjectType change to prevent cross-contamination
-  useEffect(() => {
-    // Reset form states
-    setFormFieldName('');
-    setFormPropertyCode('');
-    setFormFieldType('');
-    setFormWeight(10);
-    setFormMatchTypeState('精确值匹配');
-    setFormNullHandling('候选缺失按 0 分');
-    setFormIsScoreActive(true);
-    setFormHitReasonTemplate('');
-    setFormDiffFieldsTemplate('');
-    setFormUnitFamily('无');
-    setFormBaseUnit('无');
-    setFormDisplayUnit('无');
-    setPreviewSrcVal('');
-    setPreviewTgtVal('');
-    setPreviewSrcUnit('');
-    setPreviewTgtUnit('');
-    setEditingRule(null);
-    setIsNew(false);
+  // 当切换根类型时，默认选中该根类型下的第一个软类型
+  const handleRootTypeChange = (newRootId: string) => {
+    setSelectedRootTypeId(newRootId);
+    const softs = softTypeOptions.filter(st => st.rootTypeId === newRootId);
+    if (softs.length > 0) {
+      setSelectedSoftTypeId(softs[0].id);
+    } else {
+      setSelectedSoftTypeId('');
+    }
+  };
 
-    // Reset list filters
-    setFilterFieldName('');
-    setFilterIsScoreActive('ALL');
-    setFilterMatchType('ALL');
-  }, [activeObjectType]);
+  const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
+  const currentSoftTypeObj = softTypeOptions.find(st => st.id === selectedSoftTypeId);
 
-  // Filters State
-  const [filterFieldName, setFilterFieldName] = useState('');
-  const [filterIsScoreActive, setFilterIsScoreActive] = useState<string>('ALL');
-  const [filterMatchType, setFilterMatchType] = useState<string>('ALL');
+  // 2. 列表筛选状态
+  const [filterKeyword, setFilterKeyword] = useState('');
+  const [filterScoreActive, setFilterScoreActive] = useState('ALL');
+  const [filterMismatchAction, setFilterMismatchAction] = useState('ALL');
 
-  // Form State variables
+  // 3. 模态框/编辑抽屉状态
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+
+  // 表单状态
+  const [formFieldId, setFormFieldId] = useState('');
   const [formFieldName, setFormFieldName] = useState('');
   const [formPropertyCode, setFormPropertyCode] = useState('');
-  const [formFieldType, setFormFieldType] = useState<string>('');
-  const [formWeight, setFormWeight] = useState<number>(15);
-  const [formMatchTypeState, setFormMatchTypeState] = useState<string>('数值容差匹配');
-  const [formNullHandling, setFormNullHandling] = useState<string>('候选缺失按 0 分');
-  const [formIsScoreActive, setFormIsScoreActive] = useState<boolean>(true);
-  const [formHitReasonTemplate, setFormHitReasonTemplate] = useState<string>('');
-  const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState<string>('');
+  const [formFieldType, setFormFieldType] = useState('');
+  const [formWeight, setFormWeight] = useState<number>(20);
+  const [formMatchType, setFormMatchType] = useState('精确值匹配');
+  const [formNullHandling, setFormNullHandling] = useState('候选缺失按 0 分');
+  const [formMismatchAction, setFormMismatchAction] = useState<MismatchAction>('ZERO_AND_CONTINUE');
+  const [formIsScoreActive, setFormIsScoreActive] = useState(true);
+  const [formShowHitReason, setFormShowHitReason] = useState(true);
+  const [formShowDiffFields, setFormShowDiffFields] = useState(true);
+  const [formHitReasonTemplate, setFormHitReasonTemplate] = useState('');
+  const [formDiffFieldsTemplate, setFormDiffFieldsTemplate] = useState('');
+  const [formUnitFamily, setFormUnitFamily] = useState('无');
+  const [formBaseUnit, setFormBaseUnit] = useState('无');
+  const [formDisplayUnit, setFormDisplayUnit] = useState('无');
 
-  // Unit catalog fields
-  const [formUnitFamily, setFormUnitFamily] = useState<string>('');
-  const [formBaseUnit, setFormBaseUnit] = useState<string>('');
-  const [formDisplayUnit, setFormDisplayUnit] = useState<string>('');
+  // MatchConfig dynamic form parameters
+  const [formTextThreshold, setFormTextThreshold] = useState(60);
+  const [formToleranceType, setFormToleranceType] = useState<'ABSOLUTE' | 'PERCENTAGE'>('ABSOLUTE');
+  const [formToleranceValue, setFormToleranceValue] = useState(0.2);
+  const [formToleranceDirection, setFormToleranceDirection] = useState<'BOTH' | 'HIGHER' | 'LOWER'>('BOTH');
+  const [formDecayFullRange, setFormDecayFullRange] = useState(0.1);
+  const [formDecayZeroBoundary, setFormDecayZeroBoundary] = useState(1.0);
+  const [formHierarchyMaxGap, setFormHierarchyMaxGap] = useState(3);
+  const [formHierarchyDeduction, setFormHierarchyDeduction] = useState(5);
 
-  // Interactive unit calculator states
-  const [calcInput, setCalcInput] = useState<string>('50');
+  // 实时试算预览输入状态 (抽屉右侧)
+  const [trialSrcVal, setTrialSrcVal] = useState('10');
+  const [trialCandVal, setTrialCandVal] = useState('16');
+  const [trialSrcUnit, setTrialSrcUnit] = useState('mm');
+  const [trialCandUnit, setTrialCandUnit] = useState('mm');
 
-  // Dynamic parameters state
-  // 1. Text Similarity
-  const [paramMinTextThreshold, setParamMinTextThreshold] = useState<number>(60);
-  // 2. Numeric Tolerance
-  const [paramNumToleranceType, setParamNumToleranceType] = useState<'ABSOLUTE' | 'PERCENTAGE'>('ABSOLUTE');
-  const [paramNumToleranceVal, setParamNumToleranceVal] = useState<number>(0.2);
-  const [paramNumToleranceDirection, setParamNumToleranceDirection] = useState<'BOTH' | 'HIGHER' | 'LOWER'>('BOTH');
-  // 3. Numeric Decay
-  const [paramDecayFullScore, setParamDecayFullScore] = useState<number>(0.1);
-  const [paramDecayZeroBoundary, setParamDecayZeroBoundary] = useState<number>(1.0);
-  const [paramDecayDirection, setParamDecayDirection] = useState<'BOTH' | 'HIGHER' | 'LOWER'>('BOTH');
-  // 4. Native Hierarchy
-  const [paramHierarchyMaxDiff, setParamHierarchyMaxDiff] = useState<number>(3);
-  const [paramHierarchyRequirement, setParamHierarchyRequirement] = useState<'PARENT_CHILD' | 'ANCESTOR_DESCENDANT'>('ANCESTOR_DESCENDANT');
-  const [paramHierarchyDeduction, setParamHierarchyDeduction] = useState<number>(5);
-  // 5. Date Tolerance
-  const [paramDateToleranceVal, setParamDateToleranceVal] = useState<number>(7);
-  const [paramDateToleranceUnit, setParamDateToleranceUnit] = useState<'DAY' | 'HOUR'>('DAY');
-  const [paramDateToleranceDirection, setParamDateToleranceDirection] = useState<'BOTH' | 'HIGHER' | 'LOWER'>('BOTH');
+  // 切换根类型或软类型时关闭可能打开的表单
+  useEffect(() => {
+    setIsModalOpen(false);
+    setEditingRuleId(null);
+  }, [selectedRootTypeId, selectedSoftTypeId]);
 
-  // Interactive Score Preview states
-  const [previewSrcVal, setPreviewSrcVal] = useState<string>('10.0');
-  const [previewTgtVal, setPreviewTgtVal] = useState<string>('10.1');
-  const [previewSrcUnit, setPreviewSrcUnit] = useState<string>('mm');
-  const [previewTgtUnit, setPreviewTgtUnit] = useState<string>('mm');
+  // 当前上下文下的编辑中规则列表
+  const currentScopeEditingRules = useMemo(() => {
+    return editingRules.filter(
+      r =>
+        (r.rootTypeId === selectedRootTypeId || r.objectType === selectedRootTypeId) &&
+        r.softTypeId === selectedSoftTypeId
+    );
+  }, [editingRules, selectedRootTypeId, selectedSoftTypeId]);
 
-  // Unified Reset Function for Field Previews (R25-UI-02)
-  const resetPreviewForField = (fieldType: string, defaultUnit: string, propertyCode: string) => {
-    const typeUpper = (fieldType || '').toUpperCase();
-    if (typeUpper.includes('DATE') || fieldType.includes('日期')) {
-      setPreviewSrcVal('2026-01-01');
-      setPreviewTgtVal('2026-01-15');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    } else if (typeUpper.includes('CLASS_TREE') || fieldType.includes('层级')) {
-      setPreviewSrcVal('/电子元器件/继电器/直流继电器');
-      setPreviewTgtVal('/电子元器件/继电器');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    } else if (typeUpper.includes('ENUM') || fieldType.includes('枚举')) {
-      const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
-      const options = processEnumList(matched.map(e => e.enumDisplayName));
-      if (options.length >= 2) {
-        setPreviewSrcVal(options[0]);
-        setPreviewTgtVal(options[1]);
-      } else if (options.length === 1) {
-        setPreviewSrcVal(options[0]);
-        setPreviewTgtVal(options[0]);
-      } else {
-        setPreviewSrcVal('');
-        setPreviewTgtVal('');
-      }
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    } else if (typeUpper.includes('TEXT') || fieldType.includes('文本')) {
-      setPreviewSrcVal('Manticore');
-      setPreviewTgtVal('Manticore Pro');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    } else if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-      if (propertyCode === 'working_temp') {
-        setPreviewSrcVal('298.15');
-        setPreviewTgtVal('313.15');
-      } else {
-        setPreviewSrcVal('10');
-        setPreviewTgtVal('10');
-      }
-
-      const selectedField = stage1MappedFields.find(f => f.fieldCode === propertyCode);
-      const resolvedUnitFamily = selectedField?.unitFamily || formUnitFamily || '长度';
-      let firstUnit = defaultUnit;
-      if (propertyCode === 'working_temp') {
-        firstUnit = 'K';
-      } else {
-        const qty = mockUnitCatalog.quantities.find(q => q.name === resolvedUnitFamily || q.code === resolvedUnitFamily);
-        if (qty) {
-          const activeUnits = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
-          if (activeUnits.length > 0) {
-            firstUnit = activeUnits[0].code;
-          }
-        }
-      }
-      setPreviewSrcUnit(firstUnit);
-      setPreviewTgtUnit(firstUnit);
-    } else {
-      setPreviewSrcVal('10');
-      setPreviewTgtVal('10');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    }
-  };
-
-  // Searchable Unit dropdown states
-  const [unitSearchText, setUnitSearchText] = useState<string>('');
-  const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState<boolean>(false);
-
-  // Load selected Unit Quantity units
-  const currentQuantityData = useMemo(() => {
-    return mockUnitCatalog.quantities.find(q => q.code === formUnitFamily || q.name === formUnitFamily);
-  }, [formUnitFamily]);
-
-  // Object types display map
-  const objectTypeNameMap: Record<string, string> = {
-    'PART_MECHANICAL': '机械零件 (PART_MECHANICAL)',
-    'PART_ELECTRICAL': '电气元器件 (PART_ELECTRICAL)',
-    'PART_HYDRAULIC': '液压元件 (PART_HYDRAULIC)',
-    'PART_PNEUMATIC': '气动元件 (PART_PNEUMATIC)',
-    'PART_OPTICAL': '光学元件 (PART_OPTICAL)'
-  };
-
-  // Find mapped fields for selection dropdown
-  const availableFields = useMemo(() => {
-    return stage1MappedFields.filter(f => f.objectType === activeObjectType);
-  }, [activeObjectType]);
-
-  const handleFieldChange = (fieldCode: string) => {
-    const selectedField = availableFields.find(f => f.fieldCode === fieldCode);
-    if (selectedField) {
-      const fieldType = selectedField.businessFieldType;
-      setFormFieldName(selectedField.displayName);
-      setFormPropertyCode(selectedField.fieldCode);
-      setFormFieldType(fieldType);
-
-      // Reset Match Type to default
-      const defMatch = getDefaultMatchType(fieldType);
-      setFormMatchTypeState(defMatch);
-
-      // Reset matchConfig dynamic parameters
-      setParamMinTextThreshold(60);
-      setParamNumToleranceType('ABSOLUTE');
-      setParamNumToleranceVal(0.2);
-      setParamNumToleranceDirection('BOTH');
-      setParamDecayFullScore(0.1);
-      setParamDecayZeroBoundary(1.0);
-      setParamDecayDirection('BOTH');
-      setParamHierarchyMaxDiff(3);
-      setParamHierarchyRequirement('ANCESTOR_DESCENDANT');
-      setParamHierarchyDeduction(5);
-      setParamDateToleranceVal(7);
-      setParamDateToleranceUnit('DAY');
-      setParamDateToleranceDirection('BOTH');
-
-      // Reset units
-      let defaultUnit = 'mm';
-      if (fieldType === '带单位数值 (NUMBER_WITH_UNIT)') {
-        setFormUnitFamily(selectedField.unitFamily);
-        setFormBaseUnit(selectedField.baseUnit);
-
-        // Find default display unit from selectedField or catalog
-        if (selectedField.displayUnit) {
-          defaultUnit = selectedField.displayUnit;
-        } else {
-          const quant = mockUnitCatalog.quantities.find(q => q.name === selectedField.unitFamily || q.code === selectedField.unitFamily);
-          if (quant && quant.units.length > 0) {
-            defaultUnit = quant.units[0].code;
-          }
-        }
-        setFormDisplayUnit(defaultUnit);
-      } else {
-        setFormUnitFamily('无');
-        setFormBaseUnit('无');
-        setFormDisplayUnit('无');
-      }
-
-      // Reset interactive simulator values synchronously using unified function (R24-UI-02)
-      resetPreviewForField(fieldType, defaultUnit, selectedField.fieldCode);
-    } else {
-      setFormFieldName('');
-      setFormPropertyCode('');
-      setFormFieldType('');
-      setFormMatchTypeState('精确值匹配');
-      setFormUnitFamily('无');
-      setFormBaseUnit('无');
-      setFormDisplayUnit('无');
-
-      setPreviewSrcVal('');
-      setPreviewTgtVal('');
-      setPreviewSrcUnit('');
-      setPreviewTgtUnit('');
-    }
-  };
-
-  const isCurrentTypeEnabled = useMemo(() => {
-    return objectConfigStatus[activeObjectType]?.enabled ?? false;
-  }, [objectConfigStatus, activeObjectType]);
-
-  const isEditingModified = useMemo(() => {
-    return isObjectRulesModified(editingRules, savedRules, activeObjectType);
-  }, [editingRules, savedRules, activeObjectType]);
-
-  // Weight summary check for EDITING rules
-  const weightSummary = useMemo(() => {
-    const subset = editingRules.filter(r => r.objectType === activeObjectType);
-    const scoreRules = subset.filter(r => r.isScoreActive);
-    const total = scoreRules.reduce((sum, r) => sum + r.weight, 0);
-    const detailList = scoreRules.map(r => `${r.fieldName}(${r.weight}%)`);
-    const details = detailList.length > 0 ? detailList.join(' + ') : '无';
-    return {
-      total,
-      details,
-      isValid: total === 100,
-      scoreCount: scoreRules.length
-    };
-  }, [editingRules, activeObjectType]);
-
-  // Saved rules weight summary
-  const savedWeightSummary = useMemo(() => {
-    const subset = savedRules.filter(r => r.objectType === activeObjectType);
-    const scoreRules = subset.filter(r => r.isScoreActive);
-    const total = scoreRules.reduce((sum, r) => sum + r.weight, 0);
-    return {
-      total,
-      isValid: total === 100,
-      scoreCount: scoreRules.length
-    };
-  }, [savedRules, activeObjectType]);
-
-  // Object types available with counters
-  const objectTypeOptions = [
-    { value: 'PART_MECHANICAL', label: '机械零件 (PART_MECHANICAL)' },
-    { value: 'PART_ELECTRICAL', label: '电气元器件 (PART_ELECTRICAL)' },
-    { value: 'PART_HYDRAULIC', label: '液压元件 (PART_HYDRAULIC)' },
-    { value: 'PART_PNEUMATIC', label: '气动元件 (PART_PNEUMATIC)' },
-    { value: 'PART_OPTICAL', label: '光学元件 (PART_OPTICAL)' }
-  ];
-
-  // Search input and selector filtering based on EDITING rules
+  // 过滤后的规则列表
   const filteredRules = useMemo(() => {
-    return editingRules.filter(r => {
-      if (r.objectType !== activeObjectType) return false;
-
-      // Filter by Keyword
-      if (filterFieldName.trim()) {
-        const query = filterFieldName.toLowerCase();
-        const nameMatch = r.fieldName.toLowerCase().includes(query);
-        const codeMatch = r.propertyCode.toLowerCase().includes(query);
-        if (!nameMatch && !codeMatch) return false;
+    return currentScopeEditingRules.filter(r => {
+      if (filterKeyword) {
+        const kw = filterKeyword.toLowerCase();
+        const matchName = r.fieldName.toLowerCase().includes(kw);
+        const matchCode = r.propertyCode.toLowerCase().includes(kw);
+        if (!matchName && !matchCode) return false;
       }
-
-      // Filter by Score Active
-      if (filterIsScoreActive !== 'ALL') {
-        const target = filterIsScoreActive === 'TRUE';
-        if (r.isScoreActive !== target) return false;
+      if (filterScoreActive !== 'ALL') {
+        const boolVal = filterScoreActive === 'YES';
+        if (r.isScoreActive !== boolVal) return false;
       }
-
-      // Filter by Match Type
-      if (filterMatchType !== 'ALL') {
-        if (r.matchType !== filterMatchType) return false;
+      if (filterMismatchAction !== 'ALL') {
+        if (r.mismatchAction !== filterMismatchAction) return false;
       }
-
       return true;
-    }).sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-  }, [editingRules, activeObjectType, filterFieldName, filterIsScoreActive, filterMatchType]);
+    });
+  }, [currentScopeEditingRules, filterKeyword, filterScoreActive, filterMismatchAction]);
 
-  // Reset Filters
-  const handleResetFilters = () => {
-    setFilterFieldName('');
-    setFilterIsScoreActive('ALL');
-    setFilterMatchType('ALL');
-  };
+  // 统计指标
+  const activeScoreRulesCount = currentScopeEditingRules.filter(r => r.isScoreActive && r.enabled).length;
+  const gateRulesCount = currentScopeEditingRules.filter(r => r.mismatchAction === 'EXCLUDE_CANDIDATE' && r.isScoreActive && r.enabled).length;
+  const totalScoreWeight = currentScopeEditingRules
+    .filter(r => r.isScoreActive && r.enabled)
+    .reduce((sum, r) => sum + r.weight, 0);
 
-  const incrementVersion = (version: string) => {
-    const match = version.match(/^v(\d+)\.(\d+)\.(\d+)$/);
-    if (match) {
-      const major = parseInt(match[1]);
-      const minor = parseInt(match[2]);
-      const patch = parseInt(match[3]);
-      return `v${major}.${minor}.${patch + 1}`;
-    }
-    return version + '.1';
-  };
+  // 检查是否有未保存修改
+  const isModified = useMemo(() => {
+    return isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
 
-  // 保存配置
-  const handleSaveCurrentConfig = () => {
-    const operatorName = '李晓华 (数据标准管理员)';
-    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
-    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
+  // 一阶段可选字段 (根据当前根类型及软类型过滤)
+  const availableStage1Fields = useMemo(() => {
+    return stage1MappedFields.filter(
+      f =>
+        f.rootTypeId === selectedRootTypeId &&
+        (!f.softTypeId || f.softTypeId === selectedSoftTypeId) &&
+        f.enabled
+    );
+  }, [selectedRootTypeId, selectedSoftTypeId]);
 
-    if (!weightSummary.isValid) {
-      // 100% weight validation failed! Show alert & save log
-      const failRecord: ChangeRecord = {
-        id: `CR-F-${Date.now()}`,
-        objectType: objectLabel,
-        configVersion: currentConf.configVersion,
-        operationType: '保存',
-        summary: `保存配置失败。当前编辑中字段累计权重为 ${weightSummary.total}%，未能满足 100% 配平约束。`,
-        operator: operatorName,
-        time: timeStr,
-        result: 'FAILED',
-        failureReason: `参与评分字段权重合计为 ${weightSummary.total}%，不满足 100% 满分校验规则。`
-      };
-      onUpdateChangeRecords([failRecord, ...changeRecords]);
-      alert(`保存失败！当前对象类型的评分项权重总和为 ${weightSummary.total}%，不等于 100%。\n请确保参与加权评分的字段权重合计精确等于 100% 才能保存！\n该失败记录已被审计归档。`);
+  // 打开新建规则模态框
+  const handleOpenCreateModal = () => {
+    if (availableStage1Fields.length === 0) {
+      alert('当前软类型下一阶段暂无可配置的已映射字段！');
       return;
     }
+    // 默认选取第一个未配置的字段
+    const unconfigured = availableStage1Fields.find(
+      f => !currentScopeEditingRules.some(r => r.propertyCode === f.fieldCode)
+    ) || availableStage1Fields[0];
 
-    // R9-BLK-02 Isolation: Only replace activeObjectType rules in savedRules
-    const otherSavedRules = savedRules.filter(r => r.objectType !== activeObjectType);
-    const currentEditingRules = editingRules.filter(r => r.objectType === activeObjectType);
-    onUpdateSavedRules([...otherSavedRules, ...currentEditingRules]);
+    setEditingRuleId(null);
+    setFormFieldId(unconfigured.fieldId);
+    setFormFieldName(unconfigured.displayName);
+    setFormPropertyCode(unconfigured.fieldCode);
+    setFormFieldType(unconfigured.businessFieldType);
+    setFormWeight(20);
+    setFormMatchType(getAllowedMatchTypes(unconfigured.businessFieldType)[0]);
+    setFormNullHandling('候选缺失按 0 分');
+    setFormMismatchAction('ZERO_AND_CONTINUE');
+    setFormIsScoreActive(true);
+    setFormShowHitReason(true);
+    setFormShowDiffFields(true);
+    setFormHitReasonTemplate(`${unconfigured.displayName}匹配一致`);
+    setFormDiffFieldsTemplate(`${unconfigured.displayName}存在差异`);
+    setFormUnitFamily(unconfigured.unitFamily || '无');
+    setFormBaseUnit(unconfigured.baseUnit || '无');
+    setFormDisplayUnit(unconfigured.displayUnit || '无');
 
-    const isEnabled = currentConf.enabled;
-    if (isEnabled) {
-      // R11-BLK-01: Also update activeRules (currently active snapshot)
-      const otherActiveRules = activeRules.filter(r => r.objectType !== activeObjectType);
-      onUpdateActiveRules([...otherActiveRules, ...currentEditingRules]);
-    }
-
-    // R9-BLK-04: Version increments on SAVE
-    const nextVersion = incrementVersion(currentConf.configVersion);
-    const nextStatus = {
-      ...objectConfigStatus,
-      [activeObjectType]: {
-        ...currentConf,
-        configVersion: nextVersion,
-        lastModifiedAt: timeStr
-      }
-    };
-    onUpdateConfigStatus(nextStatus);
-
-    const successRecord: ChangeRecord = {
-      id: `CR-S-${Date.now()}`,
-      objectType: objectLabel,
-      configVersion: nextVersion,
-      operationType: '保存',
-      summary: isEnabled
-        ? `成功保存并同步当前启用配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`
-        : `成功保存并校验属性相似度规则配置。参与加权字段共 ${weightSummary.scoreCount} 个，权重累计达到 100%。`,
-      operator: operatorName,
-      time: timeStr,
-      result: 'SUCCESS'
-    };
-    onUpdateChangeRecords([successRecord, ...changeRecords]);
-
-    if (isEnabled) {
-      alert(`[ ${objectLabel} ] 已保存并同步当前启用配置！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前生效版本和已保存版本已同步升级至 ${nextVersion}。`);
+    // 默认试算值
+    if (unconfigured.businessFieldType.includes('NUMBER')) {
+      setTrialSrcVal('10');
+      setTrialCandVal('10.1');
+      setTrialSrcUnit(unconfigured.displayUnit || 'mm');
+      setTrialCandUnit(unconfigured.displayUnit || 'mm');
     } else {
-      alert(`[ ${objectLabel} ] 相似度配置保存成功！\n参与评分的字段权重合计为 100%，已通过合规校验。\n当前草稿版本已升级至 ${nextVersion}。\n您可以点击“启用”按钮使此最新配置生效。`);
-    }
-  };
-
-  // 启用配置
-  const handleEnableConfig = () => {
-    const operatorName = '李晓华 (数据标准管理员)';
-    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
-    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
-
-    // R11-BLK-01: Idempotency check. If already enabled, return immediately without doing anything.
-    if (currentConf.enabled) {
-      return;
+      setTrialSrcVal('SUS304');
+      setTrialCandVal('SUS304');
+      setTrialSrcUnit('');
+      setTrialCandUnit('');
     }
 
-    // Validate Saved Rules before enabling
-    if (!savedWeightSummary.isValid) {
-      const failRecord: ChangeRecord = {
-        id: `CR-E-${Date.now()}`,
-        objectType: objectLabel,
-        configVersion: currentConf.configVersion,
-        operationType: '启用',
-        summary: `启用失败。已保存配置的累计权重为 ${savedWeightSummary.total}%，未能满足 100% 生效约束。`,
-        operator: operatorName,
-        time: timeStr,
-        result: 'FAILED',
-        failureReason: `已保存规则集权重之和不为 100%`
-      };
-      onUpdateChangeRecords([failRecord, ...changeRecords]);
-      alert(`启用失败！已保存的配置权重总和为 ${savedWeightSummary.total}%，不满足 100% 强约束。\n请先配平权重、保存配置后再行启用。`);
-      return;
-    }
-
-    // Promote savedRules to activeRules for activeObjectType
-    const otherActiveRules = activeRules.filter(r => r.objectType !== activeObjectType);
-    const promotedRules = savedRules.filter(r => r.objectType === activeObjectType);
-    onUpdateActiveRules([...otherActiveRules, ...promotedRules]);
-
-    // R9-BLK-04: Version does NOT increment on enable
-    const nextStatus = {
-      ...objectConfigStatus,
-      [activeObjectType]: {
-        enabled: true,
-        configVersion: currentConf.configVersion,
-        lastModifiedAt: timeStr
-      }
-    };
-    onUpdateConfigStatus(nextStatus);
-
-    const successRecord: ChangeRecord = {
-      id: `CR-A-${Date.now()}`,
-      objectType: objectLabel,
-      configVersion: currentConf.configVersion,
-      operationType: '启用',
-      summary: `成功推广并启用最新相似度计算规则集。属性比分即时对业务应用端生效。`,
-      operator: operatorName,
-      time: timeStr,
-      result: 'SUCCESS'
-    };
-    onUpdateChangeRecords([successRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 属性相似度规则集已成功启用上线！\n当前生效版本为 ${currentConf.configVersion}。属性去重比分即时生效。`);
+    setIsModalOpen(true);
   };
 
-  // 停用配置
-  const handleDisableConfig = () => {
-    const operatorName = '李晓华 (数据标准管理员)';
-    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const objectLabel = objectTypeNameMap[activeObjectType] || activeObjectType;
-    const currentConf = objectConfigStatus[activeObjectType] || { enabled: false, configVersion: 'v2.5.0', lastModifiedAt: '' };
-
-    const nextStatus = {
-      ...objectConfigStatus,
-      [activeObjectType]: {
-        ...currentConf,
-        enabled: false,
-        lastModifiedAt: timeStr
-      }
-    };
-    onUpdateConfigStatus(nextStatus);
-
-    const disableRecord: ChangeRecord = {
-      id: `CR-D-${Date.now()}`,
-      objectType: objectLabel,
-      configVersion: currentConf.configVersion,
-      operationType: '停用',
-      summary: `下线停用属性比分计算，引擎暂停对业务端提供该类型属性去重的算分反馈。`,
-      operator: operatorName,
-      time: timeStr,
-      result: 'SUCCESS'
-    };
-    onUpdateChangeRecords([disableRecord, ...changeRecords]);
-    alert(`[ ${objectLabel} ] 属性相似度配置已成功下线停用！\n业务去重工作台将不再对该类型物料执行字段评分。`);
-  };
-
-  // Delete Rule
-  const handleDeleteRule = (id: string) => {
-    if (window.confirm('您确定要彻底删除该属性相似度比分规则吗？此操作将立即调整算分权重配平。')) {
-      const updated = editingRules.filter(r => r.id !== id);
-      onUpdateEditingRules(updated);
-    }
-  };
-
-  // Handle Edit Action
-  const handleEditRule = (rule: FieldSimilarityRule) => {
-    setEditingRule(rule);
-    setIsNew(false);
-
-    // Sync form variables
+  // 打开编辑规则模态框
+  const handleOpenEditModal = (rule: FieldSimilarityRule) => {
+    setEditingRuleId(rule.id);
+    setFormFieldId(rule.fieldId || '');
     setFormFieldName(rule.fieldName);
     setFormPropertyCode(rule.propertyCode);
     setFormFieldType(rule.fieldType);
     setFormWeight(rule.weight);
-    setFormMatchTypeState(rule.matchType);
-    setFormNullHandling(rule.nullHandling);
+    setFormMatchType(rule.matchType);
+    setFormNullHandling(rule.nullHandling || '候选缺失按 0 分');
+    setFormMismatchAction(rule.mismatchAction || 'ZERO_AND_CONTINUE');
     setFormIsScoreActive(rule.isScoreActive);
+    setFormShowHitReason(rule.showHitReason);
+    setFormShowDiffFields(rule.showDiffFields);
     setFormHitReasonTemplate(rule.hitReasonTemplate || '');
     setFormDiffFieldsTemplate(rule.diffFieldsTemplate || '');
+    setFormUnitFamily(rule.unitFamily || '无');
+    setFormBaseUnit(rule.baseUnit || '无');
+    setFormDisplayUnit(rule.displayUnit || '无');
 
-    setFormUnitFamily(rule.unitFamily || '长度');
-    setFormBaseUnit(rule.baseUnit || 'm');
-    setFormDisplayUnit(rule.displayUnit || 'mm');
-
-    // Sync dynamic matching config params
+    // MatchConfig
     if (rule.matchConfig) {
-      const config = rule.matchConfig;
-      if (config.kind === 'TEXT_SIMILARITY') {
-        setParamMinTextThreshold(config.threshold);
-      } else if (config.kind === 'NUMERIC_TOLERANCE') {
-        setParamNumToleranceType(config.toleranceType);
-        setParamNumToleranceVal(config.toleranceValue);
-        setParamNumToleranceDirection(config.direction);
-      } else if (config.kind === 'NUMERIC_DECAY') {
-        setParamDecayFullScore(config.fullScoreRange);
-        setParamDecayZeroBoundary(config.zeroScoreBoundary);
-        setParamDecayDirection(config.direction);
-      } else if (config.kind === 'NATIVE_HIERARCHY') {
-        setParamHierarchyMaxDiff(config.maxLevelGap);
-        setParamHierarchyRequirement(config.relation);
-        setParamHierarchyDeduction(config.deductionPerLevel);
-      } else if (config.kind === 'DATE_TOLERANCE') {
-        setParamDateToleranceVal(config.toleranceValue);
-        setParamDateToleranceUnit(config.toleranceUnit);
-        setParamDateToleranceDirection(config.direction);
+      const cfg = rule.matchConfig;
+      if (cfg.kind === 'TEXT_SIMILARITY') setFormTextThreshold(cfg.threshold);
+      if (cfg.kind === 'NUMERIC_TOLERANCE') {
+        setFormToleranceType(cfg.toleranceType);
+        setFormToleranceValue(cfg.toleranceValue);
+        setFormToleranceDirection(cfg.direction);
+      }
+      if (cfg.kind === 'NUMERIC_DECAY') {
+        setFormDecayFullRange(cfg.fullScoreRange);
+        setFormDecayZeroBoundary(cfg.zeroScoreBoundary);
+      }
+      if (cfg.kind === 'NATIVE_HIERARCHY') {
+        setFormHierarchyMaxGap(cfg.maxLevelGap);
+        setFormHierarchyDeduction(cfg.deductionPerLevel);
       }
     }
 
-    // Default interactive test values using unified function (R24-UI-02)
-    resetPreviewForField(rule.fieldType, rule.displayUnit || 'mm', rule.propertyCode);
+    // 预填试算数据
+    if (rule.fieldType.includes('NUMBER')) {
+      setTrialSrcVal('10');
+      setTrialCandVal('10.15');
+      setTrialSrcUnit(rule.displayUnit || 'mm');
+      setTrialCandUnit(rule.displayUnit || 'mm');
+    } else {
+      setTrialSrcVal('SUS304');
+      setTrialCandVal('A2-70');
+      setTrialSrcUnit('');
+      setTrialCandUnit('');
+    }
+
+    setIsModalOpen(true);
   };
 
-  // Trigger New Rule Form
-  const handleCreateNewRule = () => {
-    setIsNew(true);
-    setEditingRule(null);
+  // 字段选择器变更
+  const handleFieldSelectChange = (fieldCode: string) => {
+    const selectedField = availableStage1Fields.find(f => f.fieldCode === fieldCode);
+    if (!selectedField) return;
 
-    setFormFieldName('');
-    setFormPropertyCode('');
-    setFormFieldType('');
-    setFormWeight(10);
-    setFormMatchTypeState('精确值匹配');
-    setFormNullHandling('候选缺失按 0 分');
-    setFormIsScoreActive(true);
-    setFormHitReasonTemplate('');
-    setFormDiffFieldsTemplate('');
-
-    setFormUnitFamily('无');
-    setFormBaseUnit('无');
-    setFormDisplayUnit('无');
-
-    setCalcInput('1');
-    setPreviewSrcVal('');
-    setPreviewTgtVal('');
-    setPreviewSrcUnit('');
-    setPreviewTgtUnit('');
+    setFormFieldId(selectedField.fieldId);
+    setFormFieldName(selectedField.displayName);
+    setFormPropertyCode(selectedField.fieldCode);
+    setFormFieldType(selectedField.businessFieldType);
+    setFormMatchType(getAllowedMatchTypes(selectedField.businessFieldType)[0]);
+    setFormUnitFamily(selectedField.unitFamily || '无');
+    setFormBaseUnit(selectedField.baseUnit || '无');
+    setFormDisplayUnit(selectedField.displayUnit || '无');
+    setFormHitReasonTemplate(`${selectedField.displayName}匹配一致`);
+    setFormDiffFieldsTemplate(`${selectedField.displayName}存在差异`);
   };
 
-  // Quantity Change -> Update SI Unit & Display Unit
-  const handleQuantityChange = (quantityName: string) => {
-    setFormUnitFamily(quantityName);
-    const qty = mockUnitCatalog.quantities.find(q => q.name === quantityName || q.code === quantityName);
-    if (qty) {
-      setFormBaseUnit(qty.baseUnit);
-      if (qty.units.length > 0) {
-        setFormDisplayUnit(qty.units[0].code);
-      } else {
-        setFormDisplayUnit('无');
-      }
-    }
-  };
-
-  // Convert on fly for calculator
-  const calcResult = useMemo(() => {
-    const inputVal = parseFloat(calcInput);
-    if (isNaN(inputVal)) return { formula: '输入非法数值', value: '-' };
-
-    // Find scale & offset from Catalog
-    const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-    if (!qty) return { formula: '未知度量衡', value: calcInput };
-    const unit = qty.units.find(u => u.code === formDisplayUnit);
-    if (!unit) return { formula: '未找到选定显示单位', value: calcInput };
-
-    const baseVal = inputVal * unit.scale + unit.offset;
-    const formulaStr = `${calcInput} ${formDisplayUnit} × ${unit.scale} + ${unit.offset} = ${baseVal.toFixed(4)} ${qty.baseUnit}`;
-    return {
-      formula: formulaStr,
-      value: `${baseVal.toFixed(4)} ${qty.baseUnit}`
-    };
-  }, [calcInput, formUnitFamily, formDisplayUnit]);
-
-  // Real-time Trial Calculation State Machine (Dynamic & Precise)
-  const trialCalculation = useMemo(() => {
-    const typeUpper = (formFieldType || '').toUpperCase();
-    const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
-    const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
-    const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
-    const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
-
-    let score = 0;
-    let error: string | null = null;
-    let info: {
-      srcBaseVal?: number;
-      tgtBaseVal?: number;
-      baseUnit?: string;
-      diffDisplay?: string;
-    } | null = null;
-    let feedback: TrialFeedback | null = null;
-
-    if (!formPropertyCode || formPropertyCode === '无' || formPropertyCode.trim() === '') {
-      return { score: 0, error: null, info: null, noField: true, feedback: null };
-    }
-    if (!formIsScoreActive) {
-      return { score: 0, error: null, info: null, scoreInactive: true, feedback: null };
-    }
-
-    if (isDateField) {
-      const t1 = new Date(previewSrcVal).getTime();
-      const t2 = new Date(previewTgtVal).getTime();
-      if (isNaN(t1) || isNaN(t2)) {
-        return { score: 0, error: '请输入合法的日期以进行模拟比对', info: null, feedback: null };
-      }
-      const diffMs = t2 - t1;
-      const factor = paramDateToleranceUnit === 'DAY' ? (1000 * 60 * 60 * 24) : (1000 * 60 * 60);
-      const diff = diffMs / factor;
-
-      if (paramDateToleranceDirection === 'HIGHER' && diff < 0) score = 0;
-      else if (paramDateToleranceDirection === 'LOWER' && diff > 0) score = 0;
-      else score = Math.abs(diff) <= paramDateToleranceVal ? 100 : 0;
-
-      const diffStr = `${Math.abs(diff).toFixed(1)} ${paramDateToleranceUnit === 'DAY' ? '天' : '小时'}`;
-      const tolStr = `${paramDateToleranceVal} ${paramDateToleranceUnit === 'DAY' ? '天' : '小时'}`;
-      feedback = {
-        title: '日期比较' as const,
-        rows: [
-          { label: '源日期', value: previewSrcVal },
-          { label: '候选日期', value: previewTgtVal },
-          { label: '时间差值', value: diffStr },
-          { label: '容差限制', value: `${paramDateToleranceDirection === 'HIGHER' ? '正向 ' : paramDateToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${tolStr}` },
-          { label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' }
-        ],
-        conclusion: `源日期 [${previewSrcVal}] 与候选日期 [${previewTgtVal}] 实际相差 ${diffStr}，设定容差为 [${paramDateToleranceDirection === 'HIGHER' ? '正向' : paramDateToleranceDirection === 'LOWER' ? '负向' : '双向'}] ${tolStr}，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
-      };
-
-      return { score, error: null, info: null, feedback };
-    }
-
-    if (isClassTree) {
-      const p1 = String(previewSrcVal).replace(/^\/|\/$/g, '').split('/');
-      const p2 = String(previewTgtVal).replace(/^\/|\/$/g, '').split('/');
-
-      let c = 0;
-      const limit = Math.min(p1.length, p2.length);
-      for (let i = 0; i < limit; i++) {
-        if (p1[i] === p2[i]) {
-          c++;
-        } else {
-          break;
-        }
-      }
-
-      const refDist = p1.length - c;
-      const candDist = p2.length - c;
-      const gap = refDist + candDist;
-
-      if (paramHierarchyRequirement === 'PARENT_CHILD') {
-        const isParentChild = (refDist === 1 && candDist === 0) || (refDist === 0 && candDist === 1);
-        if (!isParentChild) {
-          score = 0;
-        }
-      } else if (paramHierarchyRequirement === 'ANCESTOR_DESCENDANT') {
-        const isAncestorDescendant = (refDist === 0 || candDist === 0);
-        if (!isAncestorDescendant) {
-          score = 0;
-        }
-      }
-
-      if (score !== 0 || gap <= paramHierarchyMaxDiff) {
-        if (gap > paramHierarchyMaxDiff) {
-          score = 0;
-        } else {
-          const rawScore = 100 - (gap * paramHierarchyDeduction);
-          score = Math.max(0, Math.min(100, Math.round(rawScore)));
-        }
-      }
-
-      const relationLabel = paramHierarchyRequirement === 'PARENT_CHILD' ? '父子关系' : paramHierarchyRequirement === 'ANCESTOR_DESCENDANT' ? '祖裔关系' : '任意层级关系';
-      feedback = {
-        title: '层级比较' as const,
-        rows: [
-          { label: '源分类路径', value: previewSrcVal },
-          { label: '候选分类路径', value: previewTgtVal },
-          { label: '公共祖先深度', value: `${c} 层` },
-          { label: '相对层级距离', value: `${gap} 级` },
-          { label: '最大允许距离', value: `${paramHierarchyMaxDiff} 级` },
-          { label: '层级扣分单价', value: `${paramHierarchyDeduction} 分/级` },
-          { label: '关系约束要求', value: relationLabel }
-        ],
-        conclusion: `源分类路径 [${previewSrcVal}] 与候选分类路径 [${previewTgtVal}] 公共深度为 ${c} 层，相对距离为 ${gap} 级。在满足 [${relationLabel}] 及最大距离 [${paramHierarchyMaxDiff} 级] 约束的前提下，扣除 ${gap * paramHierarchyDeduction} 分，本次试算判定得分 ${score} 分。`
-      };
-
-      return { score, error: null, info: null, feedback };
-    }
-
-    if (isEnumField) {
-      score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
-      feedback = {
-        title: '枚举比较' as const,
-        rows: [
-          { label: '源枚举值', value: previewSrcVal },
-          { label: '候选枚举值', value: previewTgtVal },
-          { label: '匹配模式', value: '精确值等值判定' },
-          { label: '判定结果', value: score === 100 ? '完全一致 (100分)' : '不匹配 (0分)' }
-        ],
-        conclusion: `源值 [${previewSrcVal}] 与候选值 [${previewTgtVal}] 进行等值比对，结果为${score === 100 ? '完全一致' : '不匹配'}。本次试算判定得分 ${score} 分。`
-      };
-      return { score, error: null, info: null, feedback };
-    }
-
-    let srcNum = parseFloat(previewSrcVal);
-    let tgtNum = parseFloat(previewTgtVal);
-
-    if (isUnitField) {
-      try {
-        const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-        if (!qty) throw new Error("未知量纲");
-
-        // Validate source unit
-        if (!previewSrcUnit) throw new Error("请选择源单位");
-        const sUnit = qty.units.find(u => u.code === previewSrcUnit);
-        if (!sUnit) throw new Error(`未知或不支持的源单位 [${previewSrcUnit}]`);
-        if (sUnit.status && sUnit.status !== 'ACTIVE') throw new Error(`源单位 [${previewSrcUnit}] 处于停用/非激活状态`);
-
-        // Validate target unit
-        if (!previewTgtUnit) throw new Error("请选择候选单位");
-        const tUnit = qty.units.find(u => u.code === previewTgtUnit);
-        if (!tUnit) throw new Error(`未知或不支持的候选单位 [${previewTgtUnit}]`);
-        if (tUnit.status && tUnit.status !== 'ACTIVE') throw new Error(`候选单位 [${previewTgtUnit}] 处于停用/非激活状态`);
-
-        if (isNaN(srcNum) || isNaN(tgtNum)) {
-          throw new Error("请输入合法的数值以进行换算比对");
-        }
-
-        const srcBaseVal = srcNum * sUnit.scale + sUnit.offset;
-        const tgtBaseVal = tgtNum * tUnit.scale + tUnit.offset;
-
-        if (formMatchTypeState === '精确值匹配') {
-          score = Math.abs(srcBaseVal - tgtBaseVal) < 1e-9 ? 100 : 0;
-        } else {
-          let convertedSrc = srcNum;
-          let convertedTgt = tgtNum;
-          if (formDisplayUnit) {
-            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
-          }
-
-          if (formMatchTypeState === '数值容差匹配') {
-            const diff = Math.abs(convertedSrc - convertedTgt);
-            let limit = paramNumToleranceVal;
-            if (paramNumToleranceType === 'PERCENTAGE') {
-              limit = (convertedSrc * paramNumToleranceVal) / 100;
-            }
-
-            if (paramNumToleranceDirection === 'HIGHER' && convertedTgt < convertedSrc) score = 0;
-            else if (paramNumToleranceDirection === 'LOWER' && convertedTgt > convertedSrc) score = 0;
-            else score = diff <= limit ? 100 : 0;
-          } else if (formMatchTypeState === '数值距离衰减') {
-            const diff = Math.abs(convertedSrc - convertedTgt);
-            if (paramDecayDirection === 'HIGHER' && convertedTgt < convertedSrc) score = 0;
-            else if (paramDecayDirection === 'LOWER' && convertedTgt > convertedSrc) score = 0;
-            else if (diff <= paramDecayFullScore) score = 100;
-            else if (diff >= paramDecayZeroBoundary) score = 0;
-            else {
-              const rawScore = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
-              score = Math.round(Math.max(0, Math.min(100, rawScore)));
-            }
-          }
-        }
-
-        let diffDisplayStr = '';
-        if (formDisplayUnit) {
-          const sDisp = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-          const tDisp = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
-          diffDisplayStr = `${Math.abs(sDisp - tDisp).toFixed(4)} ${formDisplayUnit}`;
-        } else {
-          diffDisplayStr = `${Math.abs(srcBaseVal - tgtBaseVal).toFixed(4)} ${qty.baseUnit}`;
-        }
-
-        info = {
-          srcBaseVal,
-          tgtBaseVal,
-          baseUnit: qty.baseUnit,
-          diffDisplay: diffDisplayStr
-        };
-
-        const srcDisplayStr = formatWithDisplayUnit(srcNum, previewSrcUnit, formDisplayUnit, formUnitFamily);
-        const tgtDisplayStr = formatWithDisplayUnit(tgtNum, previewTgtUnit, formDisplayUnit, formUnitFamily);
-
-        let rows = [
-          { label: '源原始值', value: `${srcNum} ${previewSrcUnit}` },
-          { label: '候选原始值', value: `${tgtNum} ${previewTgtUnit}` },
-          { label: '源基准值', value: `${srcBaseVal.toFixed(4)} ${qty.baseUnit}` },
-          { label: '候选基准值', value: `${tgtBaseVal.toFixed(4)} ${qty.baseUnit}` },
-          { label: '源目标显示值', value: srcDisplayStr },
-          { label: '候选目标显示值', value: tgtDisplayStr },
-        ];
-
-        let conclusion = '';
-        if (formMatchTypeState === '精确值匹配') {
-          rows.push({ label: '判定结果', value: score === 100 ? '精确一致 (100分)' : '不匹配 (0分)' });
-          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 经量纲转换后比对，判定两端在基准单位 [${qty.baseUnit}] 下${score === 100 ? '精确一致' : '存在差异'}。本次试算判定得分 ${score} 分。`;
-        } else if (formMatchTypeState === '数值容差匹配') {
-          let convertedSrc = srcNum;
-          let convertedTgt = tgtNum;
-          if (formDisplayUnit) {
-            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
-          }
-          const diffVal = Math.abs(convertedSrc - convertedTgt);
-          const formattedDiffVal = diffVal % 1 === 0 ? diffVal.toFixed(0) : diffVal.toFixed(4);
-          const feedbackDiffDisplay = `${formattedDiffVal} ${formDisplayUnit || qty.baseUnit}`;
-
-          let limit = paramNumToleranceVal;
-          let limitStr = '';
-          if (paramNumToleranceType === 'PERCENTAGE') {
-            limit = (convertedSrc * paramNumToleranceVal) / 100;
-            limitStr = `${paramNumToleranceVal}% (折合 ${limit.toFixed(4)} ${formDisplayUnit || qty.baseUnit})`;
-          } else {
-            limitStr = `${paramNumToleranceVal} ${formDisplayUnit || qty.baseUnit}`;
-          }
-
-          rows.push({ label: '物理显示差值', value: feedbackDiffDisplay });
-          rows.push({ label: '允许容差范围', value: `${paramNumToleranceDirection === 'HIGHER' ? '正向 ' : paramNumToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${limitStr}` });
-          rows.push({ label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' });
-
-          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 在目标单位下的显示差值为 ${feedbackDiffDisplay}。当前设定容差为 [${paramNumToleranceDirection === 'HIGHER' ? '正向' : paramNumToleranceDirection === 'LOWER' ? '负向' : '双向'}] ${limitStr}，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`;
-        } else if (formMatchTypeState === '数值距离衰减') {
-          let convertedSrc = srcNum;
-          let convertedTgt = tgtNum;
-          if (formDisplayUnit) {
-            convertedSrc = convertFromBaseUnit(srcBaseVal, formDisplayUnit, formUnitFamily);
-            convertedTgt = convertFromBaseUnit(tgtBaseVal, formDisplayUnit, formUnitFamily);
-          }
-          const diffVal = Math.abs(convertedSrc - convertedTgt);
-          const formattedDiffVal = diffVal % 1 === 0 ? diffVal.toFixed(0) : diffVal.toFixed(4);
-          const feedbackDiffDisplay = `${formattedDiffVal} ${formDisplayUnit || qty.baseUnit}`;
-
-          rows.push({ label: '物理显示差值', value: feedbackDiffDisplay });
-          rows.push({ label: '无损满分差值', value: `${paramDecayFullScore} ${formDisplayUnit || qty.baseUnit}` });
-          rows.push({ label: '归零差值边界', value: `${paramDecayZeroBoundary} ${formDisplayUnit || qty.baseUnit}` });
-          rows.push({ label: '计算比分', value: `${score} 分` });
-
-          conclusion = `源值 ${srcDisplayStr} 与候选值 ${tgtDisplayStr} 在目标单位下的显示差值为 ${feedbackDiffDisplay}。满分差值限制为 ${paramDecayFullScore}，零分边界为 ${paramDecayZeroBoundary}。经线性距离衰减计算，本次试算判定得分 ${score} 分。`;
-        }
-
-        feedback = {
-          title: '换算说明' as const,
-          rows,
-          conclusion
-        };
-
-        return { score, error: null, info, feedback };
-      } catch (e: any) {
-        return { score: 0, error: e.message || '单位或数值换算错误', info: null, feedback: null };
-      }
-    }
-
-    if (formMatchTypeState === '精确值匹配') {
-      score = previewSrcVal.trim() === previewTgtVal.trim() ? 100 : 0;
-      feedback = {
-        title: '文本比较' as const,
-        rows: [
-          { label: '源文本', value: previewSrcVal },
-          { label: '候选文本', value: previewTgtVal },
-          { label: '匹配模式', value: '精确值匹配' },
-          { label: '判定结果', value: score === 100 ? '完全一致 (100分)' : '不匹配 (0分)' }
-        ],
-        conclusion: `源文本 [${previewSrcVal}] 与候选文本 [${previewTgtVal}] 进行精确值比对，比对结果为${score === 100 ? '完全一致' : '不匹配'}。本次试算判定得分 ${score} 分。`
-      };
-      return { score, error: null, info: null, feedback };
-    }
-
-    if (formMatchTypeState === '文本相似匹配 (非 AI)') {
-      if (!previewSrcVal || !previewTgtVal) {
-        return { score: 0, error: null, info: null, feedback: null };
-      }
-      const srcChars = new Set(previewSrcVal.split(''));
-      const tgtChars = previewTgtVal.split('');
-      const overlap = tgtChars.filter(c => srcChars.has(c)).length;
-      const sim = Math.round((overlap / Math.max(previewSrcVal.length, previewTgtVal.length)) * 100);
-      score = sim >= paramMinTextThreshold ? sim : 0;
-
-      feedback = {
-        title: '文本比较' as const,
-        rows: [
-          { label: '源文本', value: previewSrcVal },
-          { label: '候选文本', value: previewTgtVal },
-          { label: '匹配模式', value: `字符相似比对 (阈值: ${paramMinTextThreshold}%)` },
-          { label: '字符交集数', value: `${overlap} 个` },
-          { label: '计算相似度', value: `${sim}%` }
-        ],
-        conclusion: `源文本 [${previewSrcVal}] 与候选文本 [${previewTgtVal}] 经非AI字符重合度计算为 ${sim}%。当前相似度判定阈值为 ${paramMinTextThreshold}%，因此比对判定结果为${score > 0 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
-      };
-
-      return { score, error: null, info: null, feedback };
-    }
-
-    if (formMatchTypeState === '数值容差匹配') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null, feedback: null };
-      const diff = Math.abs(srcNum - tgtNum);
-      let limit = paramNumToleranceVal;
-      if (paramNumToleranceType === 'PERCENTAGE') {
-        limit = (srcNum * paramNumToleranceVal) / 100;
-      }
-
-      if (paramNumToleranceDirection === 'HIGHER' && tgtNum < srcNum) score = 0;
-      else if (paramNumToleranceDirection === 'LOWER' && tgtNum > srcNum) score = 0;
-      else score = diff <= limit ? 100 : 0;
-
-      let limitStr = '';
-      if (paramNumToleranceType === 'PERCENTAGE') {
-        limitStr = `${paramNumToleranceVal}% (折合 ${limit.toFixed(4)})`;
-      } else {
-        limitStr = String(paramNumToleranceVal);
-      }
-
-      feedback = {
-        title: '数值比较' as const,
-        rows: [
-          { label: '源数值', value: String(srcNum) },
-          { label: '候选数值', value: String(tgtNum) },
-          { label: '数值差值', value: String(diff) },
-          { label: '允许容差范围', value: `${paramNumToleranceDirection === 'HIGHER' ? '正向 ' : paramNumToleranceDirection === 'LOWER' ? '负向 ' : '双向 '}${limitStr}` },
-          { label: '判定结果', value: score === 100 ? '匹配 (100分)' : '不匹配 (0分)' }
-        ],
-        conclusion: `源数值 [${srcNum}] 与候选数值 [${tgtNum}] 差值为 ${diff}。在 [${paramNumToleranceDirection === 'HIGHER' ? '正向' : paramNumToleranceDirection === 'LOWER' ? '负向' : '双向'}] 允许容差 [${limitStr}] 下，判定结果为${score === 100 ? '匹配' : '不匹配'}。本次试算判定得分 ${score} 分。`
-      };
-
-      return { score, error: null, info: null, feedback };
-    }
-
-    if (formMatchTypeState === '数值距离衰减') {
-      if (isNaN(srcNum) || isNaN(tgtNum)) return { score: 0, error: null, info: null, feedback: null };
-      const diff = Math.abs(srcNum - tgtNum);
-
-      if (paramDecayDirection === 'HIGHER' && tgtNum < srcNum) score = 0;
-      else if (paramDecayDirection === 'LOWER' && tgtNum > srcNum) score = 0;
-      else if (diff <= paramDecayFullScore) score = 100;
-      else if (diff >= paramDecayZeroBoundary) score = 0;
-      else {
-        const rawScore = 100 * (1 - (diff - paramDecayFullScore) / (paramDecayZeroBoundary - paramDecayFullScore));
-        score = Math.round(Math.max(0, Math.min(100, rawScore)));
-      }
-
-      feedback = {
-        title: '数值比较' as const,
-        rows: [
-          { label: '源数值', value: String(srcNum) },
-          { label: '候选数值', value: String(tgtNum) },
-          { label: '数值差值', value: String(diff) },
-          { label: '无损满分差值', value: String(paramDecayFullScore) },
-          { label: '归零差值边界', value: String(paramDecayZeroBoundary) },
-          { label: '计算比分', value: `${score} 分` }
-        ],
-        conclusion: `源数值 [${srcNum}] 与候选数值 [${tgtNum}] 差值为 ${diff}。无损满分差值限制为 ${paramDecayFullScore}，零分边界为 ${paramDecayZeroBoundary}。经线性距离衰减计算，本次试算判定得分 ${score} 分。`
-      };
-
-      return { score, error: null, info: null, feedback };
-    }
-
-    return { score: 0, error: null, info: null, feedback: null };
-  }, [
-    formFieldType,
-    formPropertyCode,
-    formIsScoreActive,
-    previewSrcVal,
-    previewTgtVal,
-    previewSrcUnit,
-    previewTgtUnit,
-    paramDateToleranceUnit,
-    paramDateToleranceVal,
-    paramDateToleranceDirection,
-    paramHierarchyRequirement,
-    paramHierarchyMaxDiff,
-    paramHierarchyDeduction,
-    formUnitFamily,
-    formMatchTypeState,
-    formDisplayUnit,
-    paramNumToleranceVal,
-    paramNumToleranceType,
-    paramNumToleranceDirection,
-    paramDecayDirection,
-    paramDecayFullScore,
-    paramDecayZeroBoundary,
-    paramMinTextThreshold
-  ]);
-
-  const realTimePreviewScore = trialCalculation.score;
-
-  // Handle Form Submit
-  const handleSaveForm = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formFieldName.trim() || !formPropertyCode.trim()) {
-      alert('请完整填写字段名称与属性编码！');
+  // 保存规则到当前编辑态
+  const handleSaveRule = () => {
+    if (!formFieldName || !formPropertyCode) {
+      alert('请选择有效的一阶段字段！');
       return;
     }
 
-    // Defensive Check: Field eligibility validation
-    const targetField = stage1MappedFields.find(f => f.fieldCode === formPropertyCode && f.objectType === activeObjectType);
-    if (!targetField) {
-      alert('保存失败！一阶段中未找到该属性映射字段。');
-      return;
-    }
-
-    const eligibility = getFieldEligibility(targetField, activeObjectType, editingRules, editingRule?.id);
-    if (!eligibility.eligible) {
-      alert(`保存失败！字段【${targetField.displayName}】一阶段资质校验未通过，原因：${eligibility.reason}。`);
-      return;
-    }
-
-    // Validate compatibility of field type and match type
-    const allowedMatchTypes = getAllowedMatchTypes(formFieldType);
-    if (!allowedMatchTypes.includes(formMatchTypeState)) {
-      alert(`保存失败！字段类型与匹配方式不兼容，请重新选择匹配方式。字段类型: ${formFieldType}, 匹配方式: ${formMatchTypeState}`);
-      return;
-    }
-
-    // Build MatchConfig
-    let matchConfig: MatchConfig = { kind: 'EXACT' };
-    if (formMatchTypeState === '文本相似匹配 (非 AI)') {
-      matchConfig = { kind: 'TEXT_SIMILARITY', threshold: paramMinTextThreshold };
-    } else if (formMatchTypeState === '数值容差匹配') {
+    let matchConfig: MatchConfig | undefined = undefined;
+    if (formMatchType === '精确值匹配') {
+      matchConfig = { kind: 'EXACT' };
+    } else if (formMatchType === '文本相似匹配 (非 AI)') {
+      matchConfig = { kind: 'TEXT_SIMILARITY', threshold: formTextThreshold };
+    } else if (formMatchType === '数值容差匹配') {
       matchConfig = {
         kind: 'NUMERIC_TOLERANCE',
-        toleranceType: paramNumToleranceType,
-        toleranceValue: paramNumToleranceVal,
-        direction: paramNumToleranceDirection
+        toleranceType: formToleranceType,
+        toleranceValue: formToleranceValue,
+        direction: formToleranceDirection
       };
-    } else if (formMatchTypeState === '数值距离衰减') {
+    } else if (formMatchType === '数值距离衰减') {
       matchConfig = {
         kind: 'NUMERIC_DECAY',
-        fullScoreRange: paramDecayFullScore,
-        zeroScoreBoundary: paramDecayZeroBoundary,
-        direction: paramDecayDirection
+        fullScoreRange: formDecayFullRange,
+        zeroScoreBoundary: formDecayZeroBoundary,
+        direction: formToleranceDirection
       };
-    } else if (formMatchTypeState === '层级关系匹配') {
+    } else if (formMatchType === '层级关系匹配') {
       matchConfig = {
         kind: 'NATIVE_HIERARCHY',
-        maxLevelGap: paramHierarchyMaxDiff,
-        relation: paramHierarchyRequirement,
-        deductionPerLevel: paramHierarchyDeduction
-      };
-    } else if (formMatchTypeState === '日期容差匹配') {
-      matchConfig = {
-        kind: 'DATE_TOLERANCE',
-        toleranceValue: paramDateToleranceVal,
-        toleranceUnit: paramDateToleranceUnit,
-        direction: paramDateToleranceDirection
+        maxLevelGap: formHierarchyMaxGap,
+        relation: 'ANCESTOR_DESCENDANT',
+        deductionPerLevel: formHierarchyDeduction
       };
     }
 
-    // Defensive check: matchType must match matchConfig.kind
-    const kindMap: Record<string, string> = {
-      '精确值匹配': 'EXACT',
-      '文本相似匹配 (非 AI)': 'TEXT_SIMILARITY',
-      '数值容差匹配': 'NUMERIC_TOLERANCE',
-      '数值距离衰减': 'NUMERIC_DECAY',
-      '层级关系匹配': 'NATIVE_HIERARCHY',
-      '日期容差匹配': 'DATE_TOLERANCE'
+    const newRule: FieldSimilarityRule = {
+      id: editingRuleId || `R-${selectedSoftTypeId}-${Date.now().toString().slice(-4)}`,
+      rootTypeId: selectedRootTypeId,
+      rootTypeName: currentRootTypeObj?.name.split(' ')[0] || selectedRootTypeId,
+      softTypeId: selectedSoftTypeId,
+      softTypeName: currentSoftTypeObj?.name.split(' ')[0] || selectedSoftTypeId,
+      fieldName: formFieldName,
+      propertyCode: formPropertyCode,
+      fieldType: formFieldType,
+      weight: formWeight,
+      matchType: formMatchType,
+      nullHandling: formNullHandling,
+      mismatchAction: formMismatchAction,
+      isScoreActive: formIsScoreActive,
+      isQueryPreviewAvailable: true,
+      isAppEndActive: true,
+      showHitReason: formShowHitReason,
+      showDiffFields: formShowDiffFields,
+      hitReasonTemplate: formHitReasonTemplate,
+      diffFieldsTemplate: formDiffFieldsTemplate,
+      enabled: true,
+      configVersion: 'v2.5.0-draft',
+      lastEditor: '系统当前操作员',
+      lastEditTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      fieldId: formFieldId,
+      unitFamily: formUnitFamily,
+      baseUnit: formBaseUnit,
+      displayUnit: formDisplayUnit,
+      matchConfig
     };
 
-    if (kindMap[formMatchTypeState] !== matchConfig.kind) {
-      alert(`保存失败！算法配置内部不一致：匹配方式为 [${formMatchTypeState}] 但算法内部类型为 [${matchConfig.kind}]，请重新确认！`);
-      return;
+    let updatedRules: FieldSimilarityRule[];
+    if (editingRuleId) {
+      updatedRules = editingRules.map(r => (r.id === editingRuleId ? newRule : r));
+    } else {
+      updatedRules = [...editingRules, newRule];
     }
 
-    // Ensure unit details are cleaned up if plain number
-    const finalFieldType = formFieldType;
-    const isUnitType = finalFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
+    onUpdateEditingRules(updatedRules);
+    setIsModalOpen(false);
+  };
 
-    if (isUnitType) {
-      const activeUnits = currentQuantityData?.units.filter(u => !u.status || u.status === 'ACTIVE') || [];
-      const isValidUnit = activeUnits.some(u => u.code === formDisplayUnit);
-      if (!isValidUnit) {
-        alert(`保存失败！首选显示配置单位 [${formDisplayUnit}] 在外部 JSON 单位目录中未找到或不处于 ACTIVE 状态。请选择有效单位！`);
+  // 删除单条规则
+  const handleDeleteRule = (id: string) => {
+    if (confirm('确定要删除该字段相似度规则吗？')) {
+      const updatedRules = editingRules.filter(r => r.id !== id);
+      onUpdateEditingRules(updatedRules);
+    }
+  };
+
+  // 快速切换参与评分开关
+  const handleToggleScoreActive = (rule: FieldSimilarityRule) => {
+    const updated = editingRules.map(r => {
+      if (r.id === rule.id) {
+        return { ...r, isScoreActive: !r.isScoreActive };
+      }
+      return r;
+    });
+    onUpdateEditingRules(updated);
+  };
+
+  // 快速切换门槛/0分策略
+  const handleToggleMismatchAction = (rule: FieldSimilarityRule) => {
+    const nextAction: MismatchAction =
+      rule.mismatchAction === 'EXCLUDE_CANDIDATE' ? 'ZERO_AND_CONTINUE' : 'EXCLUDE_CANDIDATE';
+    const updated = editingRules.map(r => {
+      if (r.id === rule.id) {
+        return { ...r, mismatchAction: nextAction };
+      }
+      return r;
+    });
+    onUpdateEditingRules(updated);
+  };
+
+  // 保存当前软类型的配置 (保存草稿)
+  const handleSaveDraft = () => {
+    // 将当前软类型的 editingRules 同步到 savedRules
+    const otherSavedRules = savedRules.filter(
+      r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
+    );
+    const thisSavedRules = currentScopeEditingRules.map(r => ({
+      ...r,
+      configVersion: 'v2.5.0-saved',
+      lastEditTime: new Date().toISOString().replace('T', ' ').slice(0, 19)
+    }));
+    const newSavedRules = [...otherSavedRules, ...thisSavedRules];
+
+    onUpdateSavedRules(newSavedRules);
+
+    // 记录变更
+    const newRecord: ChangeRecord = {
+      id: `CR-${Date.now()}`,
+      objectType: `${selectedRootTypeId} / ${selectedSoftTypeId}`,
+      configVersion: 'v2.5.0-saved',
+      operationType: '保存',
+      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】下的 ${thisSavedRules.length} 项字段相似度规则`,
+      operator: '系统管理员',
+      time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([newRecord, ...changeRecords]);
+    alert('配置已成功保存为已保存草稿！可在查询预览中选择“已保存配置”进行验证。');
+  };
+
+  // 发布并启用当前软类型配置
+  const handlePublishActive = () => {
+    if (totalScoreWeight !== 100) {
+      if (!confirm(`当前参与评分字段权重合计为 ${totalScoreWeight}%（非 100%），确定要发布启用吗？`)) {
         return;
       }
     }
 
-    const updatedRule: FieldSimilarityRule = {
-      id: isNew ? `F-00${editingRules.length + 1}` : (editingRule?.id || 'F-TMP'),
-      objectType: activeObjectType,
+    const otherActiveRules = activeRules.filter(
+      r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
+    );
+    const thisActiveRules = currentScopeEditingRules.map(r => ({
+      ...r,
+      configVersion: 'v2.5.0-release',
+      lastEditTime: new Date().toISOString().replace('T', ' ').slice(0, 19)
+    }));
+    const newActiveRules = [...otherActiveRules, ...thisActiveRules];
+
+    onUpdateActiveRules(newActiveRules);
+    onUpdateSavedRules(newActiveRules);
+
+    // 记录发布变更
+    const newRecord: ChangeRecord = {
+      id: `CR-${Date.now()}`,
+      objectType: `${selectedRootTypeId} / ${selectedSoftTypeId}`,
+      configVersion: 'v2.5.0-release',
+      operationType: '启用',
+      summary: `发布并启用了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的规则集（包含 ${activeScoreRulesCount} 个评分字段，${gateRulesCount} 个门槛字段）`,
+      operator: '系统管理员',
+      time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([newRecord, ...changeRecords]);
+    alert('配置已成功发布并生效！应用端查找相似件将实时应用此最新规则。');
+  };
+
+  // 模态框实时试算结果
+  const modalTrialResult = useMemo(() => {
+    let matchConfig: MatchConfig | undefined = undefined;
+    if (formMatchType === '精确值匹配') {
+      matchConfig = { kind: 'EXACT' };
+    } else if (formMatchType === '文本相似匹配 (非 AI)') {
+      matchConfig = { kind: 'TEXT_SIMILARITY', threshold: formTextThreshold };
+    } else if (formMatchType === '数值容差匹配') {
+      matchConfig = {
+        kind: 'NUMERIC_TOLERANCE',
+        toleranceType: formToleranceType,
+        toleranceValue: formToleranceValue,
+        direction: formToleranceDirection
+      };
+    } else if (formMatchType === '数值距离衰减') {
+      matchConfig = {
+        kind: 'NUMERIC_DECAY',
+        fullScoreRange: formDecayFullRange,
+        zeroScoreBoundary: formDecayZeroBoundary,
+        direction: formToleranceDirection
+      };
+    } else if (formMatchType === '层级关系匹配') {
+      matchConfig = {
+        kind: 'NATIVE_HIERARCHY',
+        maxLevelGap: formHierarchyMaxGap,
+        relation: 'ANCESTOR_DESCENDANT',
+        deductionPerLevel: formHierarchyDeduction
+      };
+    }
+
+    const tempRule: FieldSimilarityRule = {
+      id: 'TEMP',
+      rootTypeId: selectedRootTypeId,
+      rootTypeName: '',
+      softTypeId: selectedSoftTypeId,
+      softTypeName: '',
       fieldName: formFieldName,
       propertyCode: formPropertyCode,
-      fieldType: finalFieldType,
-      weight: formIsScoreActive ? Number(formWeight) : 0,
-      matchType: formMatchTypeState,
+      fieldType: formFieldType,
+      weight: formWeight,
+      matchType: formMatchType,
       nullHandling: formNullHandling,
+      mismatchAction: formMismatchAction,
       isScoreActive: formIsScoreActive,
       isQueryPreviewAvailable: true,
       isAppEndActive: true,
-      showHitReason: formHitReasonTemplate.trim().length > 0,
-      showDiffFields: formDiffFieldsTemplate.trim().length > 0,
+      showHitReason: true,
+      showDiffFields: true,
       hitReasonTemplate: formHitReasonTemplate,
       diffFieldsTemplate: formDiffFieldsTemplate,
-      enabled: isCurrentTypeEnabled, // inherit object type enabled state
-      configVersion: editingRule?.configVersion || 'v2.5.0',
-      lastEditor: '李晓华 (数据标准管理员)',
-      lastEditTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      unitFamily: isUnitType ? formUnitFamily : '无',
-      baseUnit: isUnitType ? formBaseUnit : '无',
-      displayUnit: isUnitType ? formDisplayUnit : '无',
-      matchConfig: matchConfig
+      enabled: true,
+      configVersion: '',
+      lastEditor: '',
+      lastEditTime: '',
+      unitFamily: formUnitFamily,
+      displayUnit: formDisplayUnit,
+      matchConfig
     };
 
-    if (isNew) {
-      onUpdateEditingRules([...editingRules, updatedRule]);
+    const mockRef = {
+      attributes: { [formPropertyCode]: trialSrcVal },
+      units: { [formPropertyCode]: trialSrcUnit }
+    };
+    const mockCand = {
+      attributes: { [formPropertyCode]: trialCandVal },
+      units: { [formPropertyCode]: trialCandUnit }
+    };
+
+    const matchRate = calculateFieldMatchRate(tempRule, trialSrcVal, trialCandVal, mockCand, mockRef);
+    const weightedScore = Number((formWeight * matchRate).toFixed(2));
+
+    let outcomeText = '';
+    let outcomeType: 'SUCCESS' | 'PARTIAL' | 'ZERO_CONTINUE' | 'EXCLUDED' = 'SUCCESS';
+
+    if (matchRate === 1.0) {
+      outcomeText = `完全匹配（得满分 ${formWeight} 分）`;
+      outcomeType = 'SUCCESS';
+    } else if (matchRate > 0) {
+      outcomeText = `部分吻合（匹配度 ${(matchRate * 100).toFixed(1)}%，得分 ${weightedScore} 分）`;
+      outcomeType = 'PARTIAL';
     } else {
-      onUpdateEditingRules(editingRules.map(r => r.id === updatedRule.id ? updatedRule : r));
+      if (formMismatchAction === 'EXCLUDE_CANDIDATE') {
+        outcomeText = '候选被排除，不进入评分与应用端结果';
+        outcomeType = 'EXCLUDED';
+      } else {
+        outcomeText = '本字段 0 分，候选继续计算';
+        outcomeType = 'ZERO_CONTINUE';
+      }
     }
 
-    setEditingRule(null);
-    setIsNew(false);
-  };
+    return {
+      matchRate,
+      weightedScore,
+      outcomeText,
+      outcomeType
+    };
+  }, [
+    formMatchType,
+    formTextThreshold,
+    formToleranceType,
+    formToleranceValue,
+    formToleranceDirection,
+    formDecayFullRange,
+    formDecayZeroBoundary,
+    formHierarchyMaxGap,
+    formHierarchyDeduction,
+    selectedRootTypeId,
+    selectedSoftTypeId,
+    formFieldName,
+    formPropertyCode,
+    formFieldType,
+    formWeight,
+    formNullHandling,
+    formMismatchAction,
+    formIsScoreActive,
+    formHitReasonTemplate,
+    formDiffFieldsTemplate,
+    formUnitFamily,
+    formDisplayUnit,
+    trialSrcVal,
+    trialCandVal,
+    trialSrcUnit,
+    trialCandUnit
+  ]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
-
-      {/* View Title */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
-            <span>相似度配置</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-slate-800 font-medium">字段相似度规则</span>
+    <div className="space-y-6" id="field-similarity-view-container">
+      {/* 顶部标题与上下文控制栏 */}
+      <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <SlidersHorizontal className="w-5 h-5 text-blue-600" />
+              字段相似度规则配置
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              按【根类型 + 软类型】业务上下文定义二阶段属性相似度权重、匹配方式与门槛排除策略
+            </p>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">
-            {isNew ? '新建字段相似度规则' : editingRule ? '配置相似度对比属性' : '属性相似度：字段规则管理'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            精准配平 Manticore 属性级多维度加权比分权重，自动适配度量衡单位转换及区间偏差退让评分。
-          </p>
-        </div>
 
-        {/* Save & Reset Panel on top right */}
-        {!(editingRule || isNew) && (
-          <div className="flex items-center space-x-2">
-            {isEditingModified && (
-              <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded font-medium border border-amber-200 animate-pulse">
-                ● 存在未保存变更
+          {/* 操作按钮区 */}
+          <div className="flex items-center gap-2.5">
+            {isModified && (
+              <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md animate-pulse">
+                存在未保存草稿
               </span>
             )}
             <button
-              onClick={handleSaveCurrentConfig}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              onClick={handleSaveDraft}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors shadow-2xs"
+              id="save-draft-btn"
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>保存当前配置</span>
+              <Save className="w-3.5 h-3.5 text-slate-600" />
+              保存草稿
             </button>
             <button
-              onClick={handleCreateNewRule}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              onClick={handlePublishActive}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-xs"
+              id="publish-active-btn"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              发布并启用
+            </button>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('query-preview')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors shadow-2xs"
+                id="goto-query-preview-btn"
+              >
+                前往查询预览
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 根类型与软类型上下文切换条 */}
+        <div className="pt-3 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* 1. 根类型选择器 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
+              1. 根类型 (一阶段元数据)
+            </label>
+            <select
+              value={selectedRootTypeId}
+              onChange={e => handleRootTypeChange(e.target.value)}
+              className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              id="root-type-selector"
+            >
+              {rootTypeOptions.map(rt => (
+                <option key={rt.id} value={rt.id}>
+                  {rt.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 2. 软类型选择器 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              2. 软类型 (只读选择)
+            </label>
+            <select
+              value={selectedSoftTypeId}
+              onChange={e => setSelectedSoftTypeId(e.target.value)}
+              className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              id="soft-type-selector"
+            >
+              {availableSoftTypes.map(st => (
+                <option key={st.id} value={st.id}>
+                  {st.name} {st.id === 'STAMPING_UNCONFIGURED' ? '(空态测试)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. 软类型说明与特征 */}
+          <div className="flex flex-col justify-center bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+            <span className="text-[11px] text-slate-500 font-medium">当前业务口径重点：</span>
+            <span className="text-xs font-semibold text-slate-800 truncate">
+              {currentSoftTypeObj?.exampleFieldsHint || '标准属性配置'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 规则配置摘要看板 (Compact Summary Bar) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between shadow-2xs">
+          <div>
+            <span className="text-[11px] font-medium text-slate-500 block">当前规则上下文</span>
+            <span className="text-xs font-bold text-slate-900 mt-0.5 block">
+              {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name.split(' ')[0]}
+            </span>
+          </div>
+          <span className="px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-700 rounded border border-slate-200">
+            {currentScopeEditingRules.length} 条规则
+          </span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between shadow-2xs">
+          <div>
+            <span className="text-[11px] font-medium text-slate-500 block">参与评分字段数</span>
+            <span className="text-sm font-bold text-blue-600 mt-0.5 block font-mono">
+              {activeScoreRulesCount} 项
+            </span>
+          </div>
+          <span className="text-xs text-slate-400">已启用参与计算</span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between shadow-2xs">
+          <div>
+            <span className="text-[11px] font-medium text-slate-500 block">候选门槛字段数</span>
+            <span className="text-sm font-bold text-amber-600 mt-0.5 block font-mono">
+              {gateRulesCount} 项
+            </span>
+          </div>
+          <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 rounded border border-amber-200">
+            不满足即排除候选
+          </span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between shadow-2xs">
+          <div>
+            <span className="text-[11px] font-medium text-slate-500 block">评分权重合计</span>
+            <span
+              className={`text-sm font-bold mt-0.5 block font-mono ${
+                totalScoreWeight === 100 ? 'text-emerald-600' : 'text-rose-600'
+              }`}
+            >
+              {totalScoreWeight}%
+            </span>
+          </div>
+          <span
+            className={`px-2 py-0.5 text-[10px] font-semibold rounded border ${
+              totalScoreWeight === 100
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}
+          >
+            {totalScoreWeight === 100 ? '权重已配平' : '建议调整为 100%'}
+          </span>
+        </div>
+      </div>
+
+      {/* 规则列表区域 */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        {/* 表格头部搜索与新建条 */}
+        <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* 搜索 */}
+            <div className="relative w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="搜索字段名或编码..."
+                value={filterKeyword}
+                onChange={e => setFilterKeyword(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 text-xs border border-slate-300 rounded-md bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                id="filter-rules-keyword-input"
+              />
+            </div>
+
+            {/* 参与评分过滤 */}
+            <select
+              value={filterScoreActive}
+              onChange={e => setFilterScoreActive(e.target.value)}
+              className="h-8 text-xs border border-slate-300 rounded-md px-2.5 bg-white text-slate-700"
+              id="filter-score-active-select"
+            >
+              <option value="ALL">全部评分状态</option>
+              <option value="YES">仅参与评分</option>
+              <option value="NO">不参与评分</option>
+            </select>
+
+            {/* 不满足处理方式过滤 */}
+            <select
+              value={filterMismatchAction}
+              onChange={e => setFilterMismatchAction(e.target.value)}
+              className="h-8 text-xs border border-slate-300 rounded-md px-2.5 bg-white text-slate-700"
+              id="filter-mismatch-action-select"
+            >
+              <option value="ALL">全部不匹配处理</option>
+              <option value="ZERO_AND_CONTINUE">记 0 分继续计算</option>
+              <option value="EXCLUDE_CANDIDATE">排除整个候选 (门槛)</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-2xs self-start md:self-auto"
+            id="add-new-rule-btn"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            新建字段规则
+          </button>
+        </div>
+
+        {/* 规则数据表格 / 空态 */}
+        {currentScopeEditingRules.length === 0 ? (
+          <div className="p-12 text-center" id="empty-soft-type-rules-container">
+            <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center mb-3">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800">当前软类型尚未配置相似度规则</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 leading-relaxed">
+              当前软类型尚未配置相似度规则。是否回退使用根类型规则仍待业务确认，请先新建本软类型规则。
+            </p>
+            <button
+              onClick={handleOpenCreateModal}
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-2xs"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>添加字段规则</span>
+              立即为该软类型配置规则
             </button>
+          </div>
+        ) : filteredRules.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500">
+            没有符合当前筛选条件的字段规则
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="py-2.5 px-4 w-12 text-center">序号</th>
+                  <th className="py-2.5 px-4">字段名称 / 编码</th>
+                  <th className="py-2.5 px-4">字段类型</th>
+                  <th className="py-2.5 px-4">权重 (Weight)</th>
+                  <th className="py-2.5 px-4">匹配方式与门槛处理</th>
+                  <th className="py-2.5 px-4">缺失值处理</th>
+                  <th className="py-2.5 px-4 text-center">参与评分</th>
+                  <th className="py-2.5 px-4 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredRules.map((rule, idx) => {
+                  const isGate = rule.mismatchAction === 'EXCLUDE_CANDIDATE';
+                  return (
+                    <tr
+                      key={rule.id}
+                      className="hover:bg-slate-50/80 transition-colors group"
+                      id={`rule-row-${rule.id}`}
+                    >
+                      <td className="py-3 px-4 text-center text-slate-400 font-mono text-[11px]">
+                        {idx + 1}
+                      </td>
+
+                      {/* 字段名称 / 编码 */}
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                          {rule.fieldName}
+                          {rule.displayUnit && rule.displayUnit !== '无' && (
+                            <span className="text-[10px] font-normal text-slate-500 bg-slate-100 px-1 rounded">
+                              {rule.displayUnit}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          {rule.propertyCode}
+                        </div>
+                      </td>
+
+                      {/* 字段类型 */}
+                      <td className="py-3 px-4">
+                        <span className="inline-block px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 rounded border border-slate-200">
+                          {rule.fieldType}
+                        </span>
+                      </td>
+
+                      {/* 权重 */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-mono font-bold ${
+                              rule.isScoreActive ? 'text-slate-900' : 'text-slate-400 line-through'
+                            }`}
+                          >
+                            {rule.weight}%
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 匹配方式与门槛处理 */}
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="font-medium text-slate-800 text-[11px]">
+                            {rule.matchType}
+                          </span>
+                          {isGate ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300 rounded"
+                              title="门槛字段：不满足时直接排除整个候选"
+                            >
+                              <ShieldAlert className="w-3 h-3 text-amber-600" />
+                              候选门槛 (不满足排除)
+                            </span>
+                          ) : (
+                            <span className="inline-block text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                              记 0 分继续计算
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 缺失值处理 */}
+                      <td className="py-3 px-4 text-slate-600 text-[11px]">
+                        {rule.nullHandling || '候选缺失按 0 分'}
+                      </td>
+
+                      {/* 参与评分开关 */}
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => handleToggleScoreActive(rule)}
+                          className={`w-9 h-5 inline-flex items-center rounded-full transition-colors p-0.5 ${
+                            rule.isScoreActive ? 'bg-blue-600' : 'bg-slate-300'
+                          }`}
+                          title={rule.isScoreActive ? '点击停用评分' : '点击启用评分'}
+                          id={`toggle-score-active-${rule.id}`}
+                        >
+                          <span
+                            className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                              rule.isScoreActive ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </td>
+
+                      {/* 操作 */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditModal(rule)}
+                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="编辑规则"
+                            id={`edit-rule-${rule.id}`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRule(rule.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="删除规则"
+                            id={`delete-rule-${rule.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {!(editingRule || isNew) ? (
-        // ------------------------- RULE LIST LAYOUT -------------------------
-        <div className="flex-1 flex flex-col overflow-hidden">
-
-          {/* Top Selection Context & Summary Row */}
-          <div className="bg-white border-b border-slate-200 px-6 py-3 shrink-0 flex flex-wrap items-center justify-between gap-4">
-
-            {/* Active Object Type Selection */}
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-bold text-slate-700 shrink-0">当前对象类型:</span>
-              <select
-                value={activeObjectType}
-                onChange={(e) => {
-                  const targetType = e.target.value as ObjectType;
-                  const performSwitch = () => {
-                    setActiveObjectType(targetType);
-                    // R20-UI-06: Reset all Form temporary states to prevent cross-contamination
-                    setFormFieldName('');
-                    setFormPropertyCode('');
-                    setFormFieldType('文本 (TEXT)');
-                    setFormWeight(10);
-                    setFormMatchTypeState('精确值匹配');
-                    setFormNullHandling('候选缺失按 0 分');
-                    setFormIsScoreActive(true);
-                    setFormHitReasonTemplate('');
-                    setFormDiffFieldsTemplate('');
-                    setFormUnitFamily('无');
-                    setFormBaseUnit('无');
-                    setFormDisplayUnit('无');
-                    setPreviewSrcVal('Manticore');
-                    setPreviewTgtVal('Manticore Pro');
-                    setEditingRule(null);
-                    setIsNew(false);
-                  };
-
-                  if (isEditingModified) {
-                    if (window.confirm('当前配置存在未保存修改，切换对象类型将丢失并重置该类型的编辑草稿，是否确认切换？')) {
-                      // Discard: restore current activeObjectType editingRules from savedRules
-                      const otherEditingRules = editingRules.filter(r => r.objectType !== activeObjectType);
-                      const restoredRules = savedRules.filter(r => r.objectType === activeObjectType);
-                      onUpdateEditingRules([...otherEditingRules, ...restoredRules]);
-                      performSwitch();
-                    }
-                  } else {
-                    performSwitch();
-                  }
-                }}
-                className="text-xs border border-slate-200 rounded-md px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
-              >
-                {objectTypeOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Read-only Unit Catalog Source Details */}
-            <div className="text-slate-400 text-[11px] font-medium flex items-center space-x-1.5 ml-auto" id="unit-catalog-status">
-              <span>外部 JSON 单位目录:</span>
-              <span className="text-slate-600 font-mono bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded font-bold">
-                {mockUnitCatalog.catalogVersion} · 已加载
-              </span>
-            </div>
-          </div>
-
-          {/* New Compact 3-State Configuration Status Bar */}
-          <div className="px-6 pt-3 shrink-0">
-            <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs" style={{ minHeight: '38px' }}>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 overflow-x-auto scrollbar-none">
-                <span className="font-bold text-slate-700 flex items-center space-x-1 shrink-0">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" />
-                  <span>配置状态组:</span>
-                </span>
-
-                {/* Stage 1: 编辑中 */}
-                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="编辑中 (Draft) 状态。增改规则仅在此暂存。">
-                  <span className={`w-2 h-2 rounded-full ${isEditingModified ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></span>
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    编辑中: {isEditingModified ? '存在未保存草稿' : '草稿同步'}
-                  </span>
-                </div>
-
-                {/* Stage 2: 已保存 */}
-                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="已保存 (Saved) 状态。只有权重配平（=100%）的配置才能通过校验并保存。">
-                  <span className={`w-2 h-2 rounded-full ${savedWeightSummary.isValid ? 'bg-emerald-500' : 'bg-rose-400'}`}></span>
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    已保存: {savedWeightSummary.isValid ? `通过校验 (100%)` : `校验未过 (${savedWeightSummary.total}%)`}
-                  </span>
-                </div>
-
-                {/* Stage 3: 生效中 */}
-                <div className="flex items-center space-x-1.5 shrink-0 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1" title="当前生效 (Active) 状态。计算引擎执行此生效配置。">
-                  <span className={`w-2 h-2 rounded-full ${isCurrentTypeEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    生效中: {isCurrentTypeEnabled ? '已全局启用' : '已停用'}
-                  </span>
-                </div>
-
-                {/* Version & Mod Time */}
-                <div className="text-slate-400 text-[11px] flex items-center space-x-2 shrink-0">
-                  <span>|</span>
-                  <span>配置版本: <strong className="font-mono text-slate-800 font-bold">{objectConfigStatus[activeObjectType]?.configVersion || 'v1.0.0'}</strong></span>
-                  <span>|</span>
-                  <span>变更时间: <strong className="font-mono text-slate-700">{objectConfigStatus[activeObjectType]?.lastModifiedAt || '无'}</strong></span>
-                </div>
-              </div>
-
-              {/* Actions: Enable / Disable buttons */}
-              <div className="flex items-center space-x-2 shrink-0 ml-auto">
-                <button
-                  onClick={handleEnableConfig}
-                  disabled={isCurrentTypeEnabled || !savedWeightSummary.isValid}
-                  className={`px-3 py-1 rounded text-xs font-bold border transition-all cursor-pointer ${
-                    isCurrentTypeEnabled
-                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
-                      : !savedWeightSummary.isValid
-                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
-                      : 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 shadow-xs'
-                  }`}
-                  title={savedWeightSummary.isValid ? '将已保存的校验配置启用' : '已保存的规则集权重不足100%，无法启用'}
-                >
-                  启用
-                </button>
-                <button
-                  onClick={handleDisableConfig}
-                  disabled={!isCurrentTypeEnabled}
-                  className={`px-3 py-1 rounded text-xs font-bold border transition-all cursor-pointer ${
-                    !isCurrentTypeEnabled
-                      ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
-                      : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100 hover:border-rose-300 shadow-xs'
-                  }`}
-                >
-                  停用
-                </button>
-              </div>
-            </div>
-
-            {/* Formula Expression */}
-            <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs text-slate-600 flex items-center justify-between shadow-xs">
-              <span className="font-semibold text-slate-700 shrink-0">属性级评分引擎公式:</span>
-              <span className="font-mono text-slate-500 truncate max-w-4xl px-3 flex-1 text-left">{weightSummary.details}</span>
-              <span className="text-slate-400 text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono font-semibold">
-                Manticore Engine
-              </span>
-            </div>
-          </div>
-
-          {!editingRules.some(r => r.objectType === activeObjectType) ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/50">
-              <div className="max-w-md text-center p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
-                <SlidersHorizontal className="w-12 h-12 text-slate-300 mx-auto" />
-                <h3 className="text-sm font-bold text-slate-800">该类型尚未配置相似度比分规则</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  当前对象分类 [{objectTypeNameMap[activeObjectType]}] 暂未定义任何属性相似度比分与过滤映射规则。您可以点击右上角的“添加字段规则”开始创建。
-                </p>
-                <div className="flex justify-center pt-2">
-                  <button
-                    onClick={handleCreateNewRule}
-                    className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>添加第一条字段规则</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Table Filters area */}
-              <div className="px-6 py-3.5 shrink-0 flex flex-wrap items-center gap-3.5">
-                {/* Field query */}
-                <div className="relative w-64">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={filterFieldName}
-                    onChange={(e) => setFilterFieldName(e.target.value)}
-                    placeholder="搜索字段名称 / 属性编码..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden font-medium text-slate-700"
-                  />
-                </div>
-
-                {/* Score toggle filter */}
-                <div className="flex items-center space-x-1.5 text-xs">
-                  <span className="text-slate-500 font-medium">参与评分:</span>
-                  <select
-                    value={filterIsScoreActive}
-                    onChange={(e) => setFilterIsScoreActive(e.target.value)}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-                  >
-                    <option value="ALL">全部</option>
-                    <option value="TRUE">是</option>
-                    <option value="FALSE">否</option>
-                  </select>
-                </div>
-
-                {/* Match type filter */}
-                <div className="flex items-center space-x-1.5 text-xs">
-                  <span className="text-slate-500 font-medium">匹配方式:</span>
-                  <select
-                    value={filterMatchType}
-                    onChange={(e) => setFilterMatchType(e.target.value)}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 font-medium cursor-pointer"
-                  >
-                    <option value="ALL">全部方式</option>
-                    <option value="精确值匹配">精确值匹配</option>
-                    <option value="数值容差匹配">数值容差匹配</option>
-                    <option value="数值距离衰减">数值距离衰减</option>
-                    <option value="文本相似匹配 (非 AI)">文本相似匹配</option>
-                    <option value="层级关系匹配">层级关系匹配</option>
-                  </select>
-                </div>
-
-                {/* Reset Filters */}
-                <button
-                  onClick={handleResetFilters}
-                  className="px-3 py-1.5 text-xs bg-slate-200 text-slate-600 hover:bg-slate-300 rounded font-bold transition-colors cursor-pointer"
-                >
-                  重置
-                </button>
-              </div>
-
-              {/* Main compact table */}
-              <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
-                <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 flex flex-col overflow-hidden">
-                  <div className="overflow-auto flex-1">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead className="sticky top-0 bg-slate-50 z-10">
-                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-sans">
-                          <th className="px-4 py-3">字段显示名称 & 属性编码</th>
-                          <th className="px-4 py-3">字段类型 (严格区分)</th>
-                          <th className="px-3 py-3 text-center">算分权重</th>
-                          <th className="px-4 py-3">比对匹配方式</th>
-                          <th className="px-4 py-3">比对参数规格摘要</th>
-                          <th className="px-4 py-3">空值回退策略</th>
-                          <th className="px-3 py-3 text-center">评分</th>
-                          <th className="px-4 py-3 text-center">管理操作</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-sans">
-                        {filteredRules.length > 0 ? (
-                          filteredRules.map((rule) => {
-                            const isScore = rule.isScoreActive;
-
-                            // Parameter Summary builder
-                            let paramSummary = '无特殊匹配参数';
-                            if (rule.matchConfig) {
-                              const config = rule.matchConfig;
-                              if (config.kind === 'TEXT_SIMILARITY') {
-                                paramSummary = `文本匹配阈值 ≥ ${config.threshold}%`;
-                              } else if (config.kind === 'NUMERIC_TOLERANCE') {
-                                const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
-                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                                const typeLabel = config.toleranceType === 'PERCENTAGE' ? '%' : unitLabel;
-                                paramSummary = `容差 ±${config.toleranceValue}${typeLabel} (${dirLabel})`;
-                              } else if (config.kind === 'NUMERIC_DECAY') {
-                                const unitLabel = rule.displayUnit !== '无' ? rule.displayUnit : '';
-                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                                paramSummary = `无损距离:${config.fullScoreRange}${unitLabel}, 极限零分:${config.zeroScoreBoundary}${unitLabel} (${dirLabel})`;
-                              } else if (config.kind === 'NATIVE_HIERARCHY') {
-                                paramSummary = `最大层级偏移:${config.maxLevelGap}层, 每层扣减:${config.deductionPerLevel}分`;
-                              } else if (config.kind === 'DATE_TOLERANCE') {
-                                const unitLabel = config.toleranceUnit === 'DAY' ? '天' : '小时';
-                                const dirLabel = config.direction === 'BOTH' ? '双向' : config.direction === 'HIGHER' ? '仅偏高' : '仅偏低';
-                                paramSummary = `容差 ±${config.toleranceValue}${unitLabel} (${dirLabel})`;
-                              }
-                            }
-
-                            // Determine field type styling badge
-                            const isUnitType = rule.fieldType === '带单位数值 (NUMBER_WITH_UNIT)';
-
-                            return (
-                              <tr
-                                key={rule.id}
-                                className={`hover:bg-slate-50/50 transition-colors ${
-                                  !isCurrentTypeEnabled ? 'text-slate-400 bg-slate-50/50' : 'text-slate-800'
-                                }`}
-                              >
-                                {/* Display Name & Property Code */}
-                                <td className="px-4 py-2.5">
-                                  <div className="font-semibold text-slate-900">{rule.fieldName}</div>
-                                  <div className="font-mono text-[10.5px] text-slate-500 mt-0.5">{rule.propertyCode}</div>
-                                </td>
-
-                                {/* Field Type (strictly separated) */}
-                                <td className="px-4 py-2.5">
-                                  {isUnitType ? (
-                                    <div className="flex flex-col items-start">
-                                      <span className="text-[10.5px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
-                                        带单位数值_WITH_UNIT
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 mt-0.5 font-sans">
-                                        量纲: {rule.unitFamily} ({rule.displayUnit} → 基准 {rule.baseUnit})
-                                      </span>
-                                    </div>
-                                  ) : rule.fieldType === '数值 (NUMBER)' ? (
-                                    <span className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded font-semibold">
-                                      纯数值_NUMBER
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10.5px] text-slate-600 font-medium">
-                                      {rule.fieldType}
-                                    </span>
-                                  )}
-                                </td>
-
-                                {/* Weight */}
-                                <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-800">
-                                  {isScore ? `${rule.weight}%` : <span className="text-slate-400">-</span>}
-                                </td>
-
-                                {/* Match Type */}
-                                <td className="px-4 py-2.5 font-medium text-slate-700">
-                                  {rule.matchType}
-                                </td>
-
-                                {/* Parameters Summary */}
-                                <td className="px-4 py-2.5 text-slate-600 font-medium leading-relaxed">
-                                  {paramSummary}
-                                </td>
-
-                                {/* Null Handling */}
-                                <td className="px-4 py-2.5 text-slate-500">
-                                  {rule.nullHandling}
-                                </td>
-
-                                {/* Score Toggle Switch */}
-                                <td className="px-3 py-2.5 text-center">
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isScore
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : 'bg-slate-100 text-slate-500 border border-slate-200'
-                                  }`}>
-                                    {isScore ? '评分中' : '不参与'}
-                                  </span>
-                                </td>
-
-                                {/* Actions */}
-                                <td className="px-4 py-2.5 text-center">
-                                  <div className="flex items-center justify-center space-x-2">
-                                    <button
-                                      onClick={() => handleEditRule(rule)}
-                                      className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors cursor-pointer"
-                                      title="配置规则算法和量纲换算"
-                                    >
-                                      <Edit2 className="w-3.5 h-3.5" />
-                                      <span>配置</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteRule(rule.id)}
-                                      className="text-slate-400 hover:text-red-600 text-xs font-medium flex items-center space-x-0.5 px-1.5 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                                      title="删除此规则"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={8} className="text-center py-10 text-slate-400">
-                              未搜索到匹配的字段对比规则。
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        // ------------------------- EDITOR / FORM LAYOUT -------------------------
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-
-          {/* Main Scrollable editor */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-            <form onSubmit={handleSaveForm} className="space-y-6">
-
-              {/* Card 1: Base properties */}
-              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                  第一部分：基础映射与类型区分
+      {/* 规则新建 / 编辑模态抽屉 */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          id="rule-modal-backdrop"
+        >
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* 模态框顶部 */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingRuleId ? '编辑字段相似度规则' : '新建字段相似度规则'}
                 </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  当前上下文：
+                  <span className="font-semibold text-slate-700">
+                    {currentRootTypeObj?.name} &gt; {currentSoftTypeObj?.name}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                  {/* Select Mapped Field Dropdown */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">选择一阶段已映射字段 *</label>
+            {/* 模态框内容区：左侧表单配置 + 右侧实时反馈 */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* 左侧主要配置表单 (7 列) */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* 1. 字段选择 */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    一阶段已映射字段 <span className="text-rose-500">*</span>
+                  </label>
+                  {editingRuleId ? (
+                    <div className="p-2.5 bg-slate-100 rounded-md border border-slate-200 text-xs font-semibold text-slate-800 flex items-center justify-between">
+                      <span>{formFieldName} ({formPropertyCode})</span>
+                      <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {formFieldType}
+                      </span>
+                    </div>
+                  ) : (
                     <select
                       value={formPropertyCode}
-                      onChange={(e) => handleFieldChange(e.target.value)}
-                      disabled={!isNew}
-                      className={`w-full text-xs border border-slate-300 rounded px-3 py-1.5 text-slate-800 font-bold outline-hidden focus:ring-1 focus:ring-blue-500 ${
-                        !isNew ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white cursor-pointer'
-                      }`}
-                      required
+                      onChange={e => handleFieldSelectChange(e.target.value)}
+                      className="w-full h-9 text-xs border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="">-- 请选择一阶段已映射物理字段 --</option>
-                      {availableFields.map(f => {
-                        const eligibility = getFieldEligibility(f, activeObjectType, editingRules, editingRule?.id);
-                        const labelSuffix = eligibility.eligible ? '' : ` [${eligibility.reason}]`;
-                        return (
-                          <option key={f.fieldCode} value={f.fieldCode} disabled={!eligibility.eligible}>
-                            {f.displayName} ({f.fieldCode} - {f.businessFieldType}){labelSuffix}
-                          </option>
-                        );
-                      })}
+                      {availableStage1Fields.map(f => (
+                        <option key={f.fieldCode} value={f.fieldCode}>
+                          {f.displayName} ({f.fieldCode}) - {f.businessFieldType}
+                        </option>
+                      ))}
                     </select>
-                    {!isNew ? (
-                      (() => {
-                        const originalField = stage1MappedFields.find(f => f.fieldCode === formPropertyCode && f.objectType === activeObjectType);
-                        let originalFieldEligibleResult: { eligible: boolean; reason?: string } = { eligible: true, reason: '' };
-                        if (originalField) {
-                          originalFieldEligibleResult = getFieldEligibility(originalField, activeObjectType, editingRules, editingRule?.id);
-                        } else {
-                          originalFieldEligibleResult = { eligible: false, reason: '字段不存在' };
-                        }
+                  )}
+                </div>
 
-                        return !originalFieldEligibleResult.eligible ? (
-                          <div className="mt-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs">
-                            <span className="font-bold">⚠️ 字段映射已失效:</span>
-                            <span className="ml-1">该字段一阶段映射可能不存在、已被停用、未索引或类型暂不支持。原因:【{originalFieldEligibleResult.reason}】。禁止继续保存！</span>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-amber-600 mt-1 font-semibold">
-                            ⚠️ 已有规则的映射字段不可变更；如需更换字段，请新建规则。
-                          </p>
-                        );
-                      })()
-                    ) : (
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        属性相似度规则必须严格来自已映射的物理属性字段。
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Field name (Read Only) */}
+                {/* 2. 匹配方式与动态参数 */}
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">字段显示名称 (只读)</label>
-                    <input
-                      type="text"
-                      value={formFieldName}
-                      disabled
-                      placeholder="请从上方下拉列表选择物理字段"
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-medium outline-hidden cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Property Code (Read Only) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">属性编码 / Manticore 字段名 (只读)</label>
-                    <input
-                      type="text"
-                      value={formPropertyCode}
-                      disabled
-                      placeholder="请从上方下拉列表选择物理字段"
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 font-mono bg-slate-100 text-slate-500 outline-hidden cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Field Type selector (Read Only) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                      字段类型区分 (自动锁定只读)
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      匹配方式 <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={formFieldType}
-                      disabled
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-bold outline-hidden cursor-not-allowed"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      物理类型已与一阶段结构体严格对齐解耦。
-                    </p>
+                    <select
+                      value={formMatchType}
+                      onChange={e => setFormMatchType(e.target.value)}
+                      className="w-full h-9 text-xs border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    >
+                      {getAllowedMatchTypes(formFieldType).map(mt => (
+                        <option key={mt} value={mt}>
+                          {mt}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Null value handling */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">空值退让回退策略</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      评分权重 (0 - 100%) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formWeight}
+                        onChange={e => setFormWeight(Math.max(0, Math.min(100, Number(e.target.value))))}
+                        className="w-full h-9 text-xs font-mono font-bold border border-slate-300 rounded-md px-2.5 pr-8 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">
+                        %
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 动态参数配置区 */}
+                {formMatchType === '文本相似匹配 (非 AI)' && (
+                  <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-md space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-900">文本相似度下限阈值</span>
+                      <span className="text-xs font-bold text-blue-700 font-mono">{formTextThreshold}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="30"
+                      max="90"
+                      step="5"
+                      value={formTextThreshold}
+                      onChange={e => setFormTextThreshold(Number(e.target.value))}
+                      className="w-full accent-blue-600"
+                    />
+                    <p className="text-[11px] text-blue-600">低于此阈值时判定为不匹配，按不满足规则处理。</p>
+                  </div>
+                )}
+
+                {formMatchType === '数值容差匹配' && (
+                  <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-md grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-blue-900 block mb-1">容差类型</label>
+                      <select
+                        value={formToleranceType}
+                        onChange={e => setFormToleranceType(e.target.value as any)}
+                        className="w-full h-8 text-xs border border-blue-300 rounded bg-white"
+                      >
+                        <option value="ABSOLUTE">绝对数值误差 (±Δ)</option>
+                        <option value="PERCENTAGE">百分比相对误差 (±%)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-blue-900 block mb-1">
+                        容差值 ({formDisplayUnit || '单位'})
+                      </label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        value={formToleranceValue}
+                        onChange={e => setFormToleranceValue(Number(e.target.value))}
+                        className="w-full h-8 text-xs border border-blue-300 rounded px-2 bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. 字段不满足匹配条件时处理 (核心规范: 单选卡片) */}
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <label className="text-xs font-bold text-slate-800 block">
+                    字段不满足匹配条件时处理 <span className="text-rose-500">*</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* 选项 1: ZERO_AND_CONTINUE */}
+                    <div
+                      onClick={() => setFormMismatchAction('ZERO_AND_CONTINUE')}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        formMismatchAction === 'ZERO_AND_CONTINUE'
+                          ? 'border-blue-600 bg-blue-50/40 ring-1 ring-blue-600'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="mismatchAction"
+                          checked={formMismatchAction === 'ZERO_AND_CONTINUE'}
+                          onChange={() => setFormMismatchAction('ZERO_AND_CONTINUE')}
+                          className="accent-blue-600"
+                        />
+                        <span className="text-xs font-bold text-slate-900">
+                          该字段记 0 分，候选继续计算
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed pl-5">
+                        该字段不命中时仅失去本字段得分，候选仍参与其他字段评分和最终排序。
+                      </p>
+                    </div>
+
+                    {/* 选项 2: EXCLUDE_CANDIDATE */}
+                    <div
+                      onClick={() => setFormMismatchAction('EXCLUDE_CANDIDATE')}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        formMismatchAction === 'EXCLUDE_CANDIDATE'
+                          ? 'border-amber-600 bg-amber-50/40 ring-1 ring-amber-600'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="mismatchAction"
+                          checked={formMismatchAction === 'EXCLUDE_CANDIDATE'}
+                          onChange={() => setFormMismatchAction('EXCLUDE_CANDIDATE')}
+                          className="accent-amber-600"
+                        />
+                        <span className="text-xs font-bold text-slate-900">
+                          排除整个候选 (门槛字段)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed pl-5">
+                        该字段将成为候选门槛，不满足时该候选不再评分，也不会进入应用端结果。
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 门槛黄色警示横幅 */}
+                  {formMismatchAction === 'EXCLUDE_CANDIDATE' && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-md text-amber-800 text-xs flex items-start gap-2 animate-in fade-in">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="leading-relaxed">
+                        该设置会缩小候选范围。多个字段均设置为“排除整个候选”时，任一字段不满足即排除候选。建议先通过查询预览验证。
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. 缺失值处理与模板 */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">缺失值处理</label>
                     <select
                       value={formNullHandling}
-                      onChange={(e) => setFormNullHandling(e.target.value)}
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 outline-hidden cursor-pointer font-medium"
+                      onChange={e => setFormNullHandling(e.target.value)}
+                      className="w-full h-8 text-xs border border-slate-300 rounded-md px-2 bg-white text-slate-800"
                     >
-                      <option value="候选缺失按 0 分">候选缺失按 0 分</option>
-                      <option value="不参与计算">不参与计算 (权重均摊到其他有值项)</option>
+                      <option value="候选缺失按 0 分">候选缺失按 0 分 (计入分母)</option>
+                      <option value="不参与计算 (权重均摊到其他有值项)">不参与计算 (不计入分母)</option>
                     </select>
                   </div>
-                </div>
-
-                {/* Score Switch and Weight */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                  <div className="flex items-center space-x-4 py-2">
-                    <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formIsScoreActive}
-                        onChange={(e) => setFormIsScoreActive(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>参与属性级相似度加权评分</span>
-                    </label>
-                  </div>
-
-                  {formIsScoreActive && (
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        评分加权权重 (%) *
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          value={formWeight}
-                          onChange={(e) => setFormWeight(Number(e.target.value))}
-                          min={1}
-                          max={100}
-                          className="w-24 text-xs border border-slate-200 rounded px-3 py-1.5 font-bold outline-hidden focus:ring-1 focus:ring-blue-500"
-                          required
-                        />
-                        <span className="text-xs text-slate-500">权重会影响整体配平 (当前剩余可分配权重: {100 - weightSummary.total + (editingRule ? editingRule.weight : 0)}%)</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: Unit Catalog Selection & Calculator (ONLY for NUMBER_WITH_UNIT) */}
-              {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && (
-                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4 border-l-4 border-l-blue-600">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h3 className="text-sm font-bold text-slate-800">
-                      第二部分：测量量与 SI 基准单位转换配置
-                    </h3>
-                    <span className="text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono">
-                      Unit Catalog v1.0
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                    {/* Measurement Category (Locked) */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">物理测量量 (Quantity - 只读锁定)</label>
-                      <input
-                        type="text"
-                        value={formUnitFamily}
-                        disabled
-                        className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-bold outline-hidden cursor-not-allowed"
-                      />
-                    </div>
-
-                    {/* SI Base Unit */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">SI 国际标定基准单位 (Base Unit - 只读)</label>
-                      <input
-                        type="text"
-                        value={formBaseUnit}
-                        disabled
-                        className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-100 text-slate-500 font-bold font-mono outline-hidden cursor-not-allowed"
-                      />
-                    </div>
-
-                    {/* Display Unit selection */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">首选显示配置单位 (Display Unit)</label>
-                      <div className="relative" id="unit-display-combobox">
-                        <div className="flex border border-slate-200 rounded overflow-hidden bg-slate-50 focus-within:ring-1 focus-within:ring-blue-500">
-                          <input
-                            type="text"
-                            id="unit-display-search"
-                            value={unitSearchText}
-                            onChange={(e) => {
-                              setUnitSearchText(e.target.value);
-                              setIsUnitDropdownOpen(true);
-                            }}
-                            onFocus={() => {
-                              setIsUnitDropdownOpen(true);
-                            }}
-                            placeholder={formDisplayUnit ? `当前选中: ${formDisplayUnit}` : "输入编码、中文、英文或别名检索..."}
-                            className="w-full text-xs px-3 py-1.5 bg-white text-slate-800 outline-hidden border-r border-slate-100 font-bold"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsUnitDropdownOpen(!isUnitDropdownOpen);
-                              if (!isUnitDropdownOpen) {
-                                setUnitSearchText('');
-                              }
-                            }}
-                            className="px-2.5 text-slate-500 hover:bg-slate-100 text-xs focus:outline-hidden"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                        
-                        {isUnitDropdownOpen && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto" id="unit-display-options">
-                            {(() => {
-                              const unitsList = currentQuantityData?.units || [];
-                              const filtered = unitsList.filter(u => {
-                                if (u.status && u.status !== 'ACTIVE') return false;
-                                const searchLower = unitSearchText.toLowerCase().trim();
-                                if (!searchLower) return true;
-                                return (
-                                  u.code.toLowerCase().includes(searchLower) ||
-                                  u.name.toLowerCase().includes(searchLower) ||
-                                  (u.aliases && u.aliases.some(alias => alias.toLowerCase().includes(searchLower)))
-                                );
-                              });
-
-                              if (filtered.length === 0) {
-                                return (
-                                  <div className="p-3 text-xs text-slate-400 text-center font-medium bg-slate-50/50" id="unit-display-empty">
-                                    未找到可用单位，请维护外部单位目录
-                                  </div>
-                                );
-                              }
-
-                              return filtered.map(u => {
-                                const isSelected = u.code === formDisplayUnit;
-                                return (
-                                  <button
-                                    type="button"
-                                    key={u.code}
-                                    onClick={() => {
-                                      setFormDisplayUnit(u.code);
-                                      setUnitSearchText('');
-                                      setIsUnitDropdownOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center ${
-                                      isSelected ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700'
-                                    }`}
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-semibold">{u.name} ({u.code})</span>
-                                      {u.aliases && u.aliases.length > 0 && (
-                                        <span className="text-[10px] text-slate-400">别名: {u.aliases.join(', ')}</span>
-                                      )}
-                                    </div>
-                                    {isSelected && <span className="text-blue-600 font-bold">✓</span>}
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-                        )}
-                        {/* Outside click handler simulation using an invisible backdrop when open */}
-                        {isUnitDropdownOpen && (
-                          <div 
-                            className="fixed inset-0 z-40 cursor-default" 
-                            onClick={() => {
-                              setIsUnitDropdownOpen(false);
-                              setUnitSearchText('');
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Unit conversion specifications table */}
-                  <div className="bg-slate-50 rounded-lg p-3.5 border border-slate-200">
-                    <span className="text-[11px] font-bold text-slate-700 block mb-2">
-                      量纲单位转换目录：基准值 = 输入值 × scale + offset
-                    </span>
-                    <table className="w-full text-left text-[11px] border-collapse bg-white border border-slate-200/80 rounded">
-                      <thead>
-                        <tr className="bg-slate-100/50 text-slate-500 font-semibold border-b border-slate-200">
-                          <th className="px-3 py-1.5">单位编码</th>
-                          <th className="px-3 py-1.5">显示名称</th>
-                          <th className="px-3 py-1.5 text-center font-mono">换算系数 (scale)</th>
-                          <th className="px-3 py-1.5 text-center font-mono">温度偏置 (offset)</th>
-                          <th className="px-3 py-1.5">物理换算范例说明</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-150">
-                        {currentQuantityData?.units.map((u) => {
-                          const isSelected = u.code === formDisplayUnit;
-                          return (
-                            <tr key={u.code} className={isSelected ? 'bg-blue-50/50 font-semibold text-blue-900' : 'text-slate-600'}>
-                              <td className="px-3 py-1.5 font-mono">{u.code}</td>
-                              <td className="px-3 py-1.5">{u.name}</td>
-                              <td className="px-3 py-1.5 text-center font-mono">{u.scale}</td>
-                              <td className="px-3 py-1.5 text-center font-mono">{u.offset}</td>
-                              <td className="px-3 py-1.5 text-slate-500">
-                                {`100 ${u.code} = 100 × ${u.scale} + ${u.offset} = ${(100 * u.scale + u.offset).toFixed(3)} ${currentQuantityData.baseUnit}`}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-
-                    {/* Interactive conversion calculator */}
-                    <div className="mt-4 bg-blue-50/50 border border-blue-100 rounded-lg p-3 flex flex-wrap items-center gap-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold text-blue-800">实时换算公式模拟器:</span>
-                        <input
-                          type="number"
-                          value={calcInput}
-                          onChange={(e) => setCalcInput(e.target.value)}
-                          className="w-20 text-xs border border-blue-200 rounded px-2.5 py-1 bg-white font-mono text-center outline-hidden"
-                        />
-                        <span className="text-xs font-bold text-slate-700">{formDisplayUnit}</span>
-                      </div>
-
-                      <div className="text-xs text-slate-500">
-                        →
-                      </div>
-
-                      <div className="text-xs text-slate-800 flex items-center space-x-1.5">
-                        <span className="bg-slate-200 px-2 py-0.5 rounded font-mono font-semibold">
-                          {calcResult.formula}
-                        </span>
-                        <span className="text-blue-700 font-bold">
-                          (基准比分值: {calcResult.value})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Card 3: Dynamic matching config based on matchType */}
-              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                  第三部分：规则算法配置与动态阈值参数
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                  {/* Match Type Select */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">比对匹配算法种类</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">是否参与评分</label>
                     <select
-                      value={formMatchTypeState}
-                      onChange={(e) => setFormMatchTypeState(e.target.value)}
-                      className="w-full text-xs border border-slate-200 rounded px-3 py-1.5 bg-slate-50 text-slate-800 font-bold outline-hidden cursor-pointer"
+                      value={formIsScoreActive ? 'YES' : 'NO'}
+                      onChange={e => setFormIsScoreActive(e.target.value === 'YES')}
+                      className="w-full h-8 text-xs border border-slate-300 rounded-md px-2 bg-white text-slate-800 font-semibold"
                     >
-                      {getAllowedMatchTypes(formFieldType).map((mt) => {
-                        let label = mt;
-                        if (mt === '精确值匹配') label = '精确值匹配 (EXACT)';
-                        else if (mt === '数值容差匹配') label = '数值容差匹配 (NUMERIC_TOLERANCE)';
-                        else if (mt === '数值距离衰减') label = '数值距离衰减 (NUMERIC_DECAY)';
-                        else if (mt === '文本相似匹配 (非 AI)') label = '文本相似匹配 (非 AI)';
-                        else if (mt === '层级关系匹配') label = '层级关系匹配 (NATIVE_HIERARCHY)';
-                        return (
-                          <option key={mt} value={mt}>
-                            {label}
-                          </option>
-                        );
-                      })}
+                      <option value="YES">是 (参与相似度总分折算)</option>
+                      <option value="NO">否 (仅作为展示与对比)</option>
                     </select>
                   </div>
                 </div>
+              </div>
 
-                {/* Sub-panels for dynamic matchType parameters */}
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              {/* 右侧实时试算仿真器 (5 列) */}
+              <div className="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                      实时规则试算仿真
+                    </span>
+                    <span className="text-[10px] text-slate-400">瞬时反馈</span>
+                  </div>
 
-                  {/* PANEL 1: Exact Match */}
-                  {formMatchTypeState === '精确值匹配' && (
-                    <div className="text-xs text-slate-500 space-y-1">
-                      <p className="font-bold text-slate-700 mb-1">精确等值算法 (EXACT)</p>
-                      {(formFieldType || '').toUpperCase().includes('DATE') ? (
-                        <p>● 日期源属性值与目标属性在标准化后必须绝对一致。</p>
-                      ) : (
-                        <p>● 源属性值与目标属性值在转换为相同单位后必须绝对等值 (如 10mm 与 1cm 相同)。</p>
-                      )}
-                      <p>● 适用于离散螺距、螺栓表面处理、物料大类、标准件级别等无浮动公差的强规则约束。</p>
-                    </div>
-                  )}
-
-                  {/* PANEL 2: Numeric Tolerance */}
-                  {formMatchTypeState === '数值容差匹配' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2 border-b border-slate-200/50 pb-2">
-                        <span className="text-xs font-bold text-slate-800">数值区间绝对/百分比偏差容差比对参数</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Tolerance Type */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">容差类型</label>
-                          <select
-                            value={paramNumToleranceType}
-                            onChange={(e) => setParamNumToleranceType(e.target.value as any)}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white text-slate-800 outline-hidden font-medium cursor-pointer"
-                          >
-                            <option value="ABSOLUTE">绝对数值偏差 (ABSOLUTE)</option>
-                            <option value="PERCENTAGE">百分比相对偏差 (PERCENTAGE)</option>
-                          </select>
-                        </div>
-
-                        {/* Tolerance Value */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">容差偏差最大限制</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={paramNumToleranceVal}
-                              onChange={(e) => setParamNumToleranceVal(Number(e.target.value))}
-                              step={0.01}
-                              className="w-full text-xs border border-slate-200 rounded pl-2.5 pr-8 py-1 bg-white font-bold outline-hidden"
-                            />
-                            <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">
-                              {paramNumToleranceType === 'PERCENTAGE' ? '%' : formDisplayUnit}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Tolerance Direction */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">偏差约束方向</label>
-                          <select
-                            value={paramNumToleranceDirection}
-                            onChange={(e) => setParamNumToleranceDirection(e.target.value as any)}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white text-slate-800 outline-hidden font-medium cursor-pointer"
-                          >
-                            <option value="BOTH">双向偏离对称比对 (BOTH)</option>
-                            <option value="HIGHER">仅限偏高误差退让 (HIGHER)</option>
-                            <option value="LOWER">仅限偏低误差退让 (LOWER)</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PANEL 3: Numeric Decay */}
-                  {formMatchTypeState === '数值距离衰减' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2 border-b border-slate-200/50 pb-2">
-                        <span className="text-xs font-bold text-slate-800">数值距离连续线性得分衰减比对参数</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Decay Full score */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">无损得分偏差极限</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={paramDecayFullScore}
-                              onChange={(e) => setParamDecayFullScore(Number(e.target.value))}
-                              step={0.01}
-                              className="w-full text-xs border border-slate-200 rounded pl-2.5 pr-8 py-1 bg-white font-bold outline-hidden"
-                            />
-                            <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">{formDisplayUnit}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400">小于等于此偏差，仍获100分</span>
-                        </div>
-
-                        {/* Decay zero boundary */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">极限零分偏差边界</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={paramDecayZeroBoundary}
-                              onChange={(e) => setParamDecayZeroBoundary(Number(e.target.value))}
-                              step={0.1}
-                              className="w-full text-xs border border-slate-200 rounded pl-2.5 pr-8 py-1 bg-white font-bold outline-hidden"
-                            />
-                            <span className="text-[10px] text-slate-400 font-mono absolute right-2.5 top-1.5">{formDisplayUnit}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400">大于等于此偏差，直接得0分</span>
-                        </div>
-
-                        {/* Decay Direction */}
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">衰减适用偏离方向</label>
-                          <select
-                            value={paramDecayDirection}
-                            onChange={(e) => setParamDecayDirection(e.target.value as any)}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white text-slate-800 outline-hidden font-medium cursor-pointer"
-                          >
-                            <option value="BOTH">双向误差对称衰减 (BOTH)</option>
-                            <option value="HIGHER">仅支持偏高属性算分 (HIGHER)</option>
-                            <option value="LOWER">仅支持偏低属性算分 (LOWER)</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PANEL 4: Text Similarity */}
-                  {formMatchTypeState === '文本相似匹配 (非 AI)' && (
-                    <div className="space-y-3">
-                      <span className="text-xs font-bold text-slate-800 block">
-                        基于字词匹配率的非智能文本比分策略 (TEXT_SIMILARITY)
+                  {/* 模拟输入对 */}
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
+                        基准参考值 (源值)
                       </span>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">最低匹配字比率限制 (%)</label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
-                            value={paramMinTextThreshold}
-                            onChange={(e) => setParamMinTextThreshold(Number(e.target.value))}
-                            min={10}
-                            max={100}
-                            className="w-24 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-bold outline-hidden"
-                          />
-                          <span className="text-xs text-slate-500">低于此匹配字比率，得分直接判为 0</span>
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={trialSrcVal}
+                          onChange={e => setTrialSrcVal(e.target.value)}
+                          className="flex-1 h-8 text-xs border border-slate-300 rounded px-2 bg-white"
+                          placeholder="例如: 10 或 SUS304"
+                        />
+                        {formDisplayUnit && formDisplayUnit !== '无' && (
+                          <span className="text-xs text-slate-500 font-mono">{formDisplayUnit}</span>
+                        )}
                       </div>
                     </div>
-                  )}
 
-                  {/* PANEL 5: Native Hierarchy */}
-                  {formMatchTypeState === '层级关系匹配' && (
-                    <div className="space-y-4">
-                      <span className="text-xs font-bold text-slate-800 block">PLM原生树层级距离扣分规则</span>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">最大允许层级差</label>
-                          <input
-                            type="number"
-                            value={paramHierarchyMaxDiff}
-                            onChange={(e) => setParamHierarchyMaxDiff(Number(e.target.value))}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-bold outline-hidden"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">关系约束</label>
-                          <select
-                            value={paramHierarchyRequirement}
-                            onChange={(e) => setParamHierarchyRequirement(e.target.value as any)}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white text-slate-800 outline-hidden font-medium cursor-pointer"
-                          >
-                            <option value="ANCESTOR_DESCENDANT">祖先-子孙关系均可算分</option>
-                            <option value="PARENT_CHILD">仅限直接父子关系</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">层级递增每层扣除分数</label>
-                          <input
-                            type="number"
-                            value={paramHierarchyDeduction}
-                            onChange={(e) => setParamHierarchyDeduction(Number(e.target.value))}
-                            className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-bold outline-hidden"
-                          />
-                        </div>
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
+                        候选对象值 (目标值)
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={trialCandVal}
+                          onChange={e => setTrialCandVal(e.target.value)}
+                          className="flex-1 h-8 text-xs border border-slate-300 rounded px-2 bg-white"
+                          placeholder="例如: 16 或 A2-70"
+                        />
+                        {formDisplayUnit && formDisplayUnit !== '无' && (
+                          <span className="text-xs text-slate-500 font-mono">{formDisplayUnit}</span>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 4: Action reasoning template tags */}
-              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                  第四部分：规则比对命中原因与差异反馈模板
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">命中原因反馈提示模板</label>
-                    <textarea
-                      value={formHitReasonTemplate}
-                      onChange={(e) => setFormHitReasonTemplate(e.target.value)}
-                      placeholder="例如：直径完全匹配，源[{source_val}mm] 与 候选[{target_val}mm] 一致。"
-                      rows={3}
-                      className="w-full text-xs border border-slate-200 rounded p-2.5 outline-hidden focus:ring-1 focus:ring-blue-500 font-sans"
-                    />
-                    <span className="text-[10px] text-slate-400">可用占位符: {'{source_val}'}, {'{target_val}'}, {'{diff_val}'}, {'{score}'}</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">差异标注原因反馈提示模板</label>
-                    <textarea
-                      value={formDiffFieldsTemplate}
-                      onChange={(e) => setFormDiffFieldsTemplate(e.target.value)}
-                      placeholder="例如：规格描述不一致，原：{source_val} 候选：{target_val}"
-                      rows={3}
-                      className="w-full text-xs border border-slate-200 rounded p-2.5 outline-hidden focus:ring-1 focus:ring-blue-500 font-sans"
-                    />
-                    <span className="text-[10px] text-slate-400">可用占位符: {'{source_val}'}, {'{target_val}'}</span>
+                  {/* 仿真结果卡片 */}
+                  <div className="p-3 rounded-lg border bg-white space-y-2">
+                    <div className="text-[11px] text-slate-400 font-semibold">试算判定结果：</div>
+                    <div
+                      className={`p-2.5 rounded-md text-xs font-bold flex items-center gap-2 ${
+                        modalTrialResult.outcomeType === 'SUCCESS'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : modalTrialResult.outcomeType === 'PARTIAL'
+                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                          : modalTrialResult.outcomeType === 'EXCLUDED'
+                          ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {modalTrialResult.outcomeType === 'EXCLUDED' ? (
+                        <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                      ) : modalTrialResult.outcomeType === 'SUCCESS' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                      )}
+                      <span>{modalTrialResult.outcomeText}</span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 space-y-1 pt-1 border-t border-slate-100">
+                      <div className="flex justify-between">
+                        <span>匹配率：</span>
+                        <span className="font-mono font-semibold">{(modalTrialResult.matchRate * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>折算分值：</span>
+                        <span className="font-mono font-semibold">{modalTrialResult.weightedScore} 分</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  提示：调整左侧参数或不匹配处理模式，右侧将即时响应判定结论。
+                </p>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => { setEditingRule(null); setIsNew(false); }}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded text-xs font-bold transition-colors cursor-pointer"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
-                  确认保存变更
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Right-Side Instant Preview Panel (即时试算卡片) */}
-          <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-white overflow-y-auto p-5 shrink-0 space-y-5 h-auto lg:h-full">
-            <h3 className="text-xs font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center space-x-1.5">
-              <SlidersHorizontal className="w-4 h-4 text-blue-600" />
-              <span>所选算法即时算分反馈</span>
-            </h3>
-
-            {(() => {
-              if (trialCalculation.noField) {
-                return (
-                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-empty-no-field">
-                    <div className="text-slate-500 font-bold text-xs">ℹ️ 未选择一阶段映射字段</div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed">
-                      请先在左侧选择一阶段物理字段作为属性对应。配置正确后，系统将自动对齐加载交互算分模拟器。
-                    </p>
-                  </div>
-                );
-              }
-
-              if (trialCalculation.scoreInactive) {
-                return (
-                  <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 text-center space-y-2" id="preview-disabled-scoring">
-                    <p className="text-slate-600 text-xs leading-relaxed" id="not-scored-tip">
-                      当前字段不参与属性相似度评分，不贡献权重和字段得分。
-                    </p>
-                  </div>
-                );
-              }
-
-              const typeUpper = (formFieldType || '').toUpperCase();
-              const isDateField = typeUpper.includes('DATE') || formFieldType.includes('日期');
-              const isUnitField = formFieldType === '带单位数值 (NUMBER_WITH_UNIT)';
-              const isEnumField = typeUpper.includes('ENUM') || formFieldType.includes('枚举');
-              const isClassTree = typeUpper.includes('CLASS_TREE') || formFieldType.includes('层级');
-              const isTextField = typeUpper.includes('TEXT') || formFieldType.includes('文本');
-              const isNumberField = typeUpper.includes('NUMBER') || formFieldType.includes('数值');
-
-              // 1. Specific guidelines text (配对提示)
-              let pairingGuideline = '';
-              if (isUnitField) {
-                pairingGuideline = '【带单位数值配对】支持跨量纲等值换算（如 10mm = 1cm 得 100 分），支持设定容差或距离衰减判定偏差得分。';
-              } else if (isDateField) {
-                pairingGuideline = '【日期对齐配对】可设定容差天数或小时数，处于范围内得分，超出阻断或按差值进行衰减算分。';
-              } else if (isEnumField) {
-                pairingGuideline = '【枚举属性配对】精确值文本对比，可选来源属性对应的工艺或业务标准枚举值，完全一致得 100 分，不一致得 0 分。';
-              } else if (isClassTree) {
-                pairingGuideline = '【层级目录配对】对齐层级目录树路径，可限制父子、祖先后代等结构关系，层级差产生扣分衰减。';
-              } else if (isTextField) {
-                pairingGuideline = '【文本对齐配对】计算字符串字符交集相似度，低于设定的最低相似度阈值时降为 0 分。';
-              } else if (isNumberField) {
-                pairingGuideline = '【数值对齐配对】对比无单位物理量，可支持精确比对、设定偏差容差或距离函数。';
-              }
-
-              const getEnumOptions = (propertyCode: string) => {
-                const matched = attributeEnums.filter(e => e.propertyCode === propertyCode);
-                return processEnumList(matched.map(e => e.enumDisplayName));
-              };
-
-              let sourceLabel = '检索输入 (Source Value)';
-              let targetLabel = '基准数值 (Target Value)';
-
-              if (isUnitField) {
-                sourceLabel = '检索输入 (源物理属性值)';
-                targetLabel = '基准数值 (对准已有属性值)';
-              } else if (isDateField) {
-                sourceLabel = '检索输入 (源日期)';
-                targetLabel = '基准数值 (对准已有日期)';
-              } else if (isEnumField) {
-                sourceLabel = '检索输入 (源枚举项)';
-                targetLabel = '基准数值 (对准已有枚举项)';
-              } else if (isTextField) {
-                sourceLabel = '检索输入 (源文本)';
-                targetLabel = '基准数值 (对准已有文本)';
-              } else if (isNumberField) {
-                sourceLabel = '检索输入 (源数值)';
-                targetLabel = '基准数值 (对准已有数值)';
-              } else if (isClassTree) {
-                sourceLabel = '检索输入 (源层级路径)';
-                targetLabel = '基准数值 (对准已有层级)';
-              }
-
-              return (
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-4" id="preview-sim-interactive-inputs">
-                  {/* Guideline */}
-                  <div className="bg-blue-50 text-blue-800 p-2.5 rounded border border-blue-100 text-[10px] leading-relaxed" id="preview-guideline">
-                    {pairingGuideline}
-                  </div>
-
-                  {/* Interactive inputs */}
-                  <div className="space-y-3.5">
-                    {isUnitField ? (
-                      (() => {
-                        let activeUnitsOfFamily: { code: string; name: string; status?: string }[] = [];
-                        const qty = mockUnitCatalog.quantities.find(q => q.name === formUnitFamily || q.code === formUnitFamily);
-                        if (qty) {
-                          activeUnitsOfFamily = qty.units.filter(u => u.status === 'ACTIVE' || !u.status);
-                        }
-                        return (
-                          <>
-                            {/* Source unit field input */}
-                            <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-slate-500">
-                                源属性值 (检索输入)
-                              </label>
-                              <div className="flex space-x-1">
-                                <input
-                                  type="number"
-                                  value={previewSrcVal}
-                                  onChange={(e) => setPreviewSrcVal(e.target.value)}
-                                  className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                  placeholder="数值"
-                                  id="preview-unit-source-value-input"
-                                />
-                                <select
-                                  value={previewSrcUnit}
-                                  onChange={(e) => setPreviewSrcUnit(e.target.value)}
-                                  className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
-                                  id="preview-unit-source-unit-select"
-                                >
-                                  <option value="">选择单位</option>
-                                  {activeUnitsOfFamily.map(u => (
-                                    <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Candidate unit field input */}
-                            <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-slate-500">
-                                候选属性值 (基准数值)
-                              </label>
-                              <div className="flex space-x-1">
-                                <input
-                                  type="number"
-                                  value={previewTgtVal}
-                                  onChange={(e) => setPreviewTgtVal(e.target.value)}
-                                  className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                  placeholder="数值"
-                                  id="preview-unit-target-value-input"
-                                />
-                                <select
-                                  value={previewTgtUnit}
-                                  onChange={(e) => setPreviewTgtUnit(e.target.value)}
-                                  className="w-24 text-xs border border-slate-200 rounded px-2 py-1 bg-white font-semibold text-slate-800"
-                                  id="preview-unit-target-unit-select"
-                                >
-                                  <option value="">选择单位</option>
-                                  {activeUnitsOfFamily.map(u => (
-                                    <option key={u.code} value={u.code}>{u.code} ({u.name})</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()
-                    ) : (
-                      <>
-                        {/* Source val */}
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                            {sourceLabel}
-                          </label>
-                          <div className="relative">
-                            {isEnumField ? (
-                              (() => {
-                                const opts = getEnumOptions(formPropertyCode);
-                                const hasValue = opts.includes(previewSrcVal);
-                                return (
-                                  <select
-                                    value={previewSrcVal}
-                                    onChange={(e) => setPreviewSrcVal(e.target.value)}
-                                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
-                                  >
-                                    {!hasValue && previewSrcVal && (
-                                      <option value={previewSrcVal}>{previewSrcVal}</option>
-                                    )}
-                                    {opts.map(opt => (
-                                      <option key={opt} value={opt}>{opt}</option>
-                                    ))}
-                                  </select>
-                                );
-                              })()
-                            ) : (
-                              <input
-                                type={isDateField ? 'date' : 'text'}
-                                value={previewSrcVal}
-                                onChange={(e) => setPreviewSrcVal(e.target.value)}
-                                className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                placeholder={isClassTree ? "如: /电子元器件/继电器" : ""}
-                              />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Target val */}
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                            {targetLabel}
-                          </label>
-                          <div className="relative">
-                            {isEnumField ? (
-                              (() => {
-                                const opts = getEnumOptions(formPropertyCode);
-                                const hasValue = opts.includes(previewTgtVal);
-                                return (
-                                  <select
-                                    value={previewTgtVal}
-                                    onChange={(e) => setPreviewTgtVal(e.target.value)}
-                                    className="w-full text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-white font-semibold text-slate-800"
-                                  >
-                                    {!hasValue && previewTgtVal && (
-                                      <option value={previewTgtVal}>{previewTgtVal}</option>
-                                    )}
-                                    {opts.map(opt => (
-                                      <option key={opt} value={opt}>{opt}</option>
-                                    ))}
-                                  </select>
-                                );
-                              })()
-                            ) : (
-                              <input
-                                type={isDateField ? 'date' : 'text'}
-                                value={previewTgtVal}
-                                onChange={(e) => setPreviewTgtVal(e.target.value)}
-                                className="w-full text-xs border border-slate-200 rounded px-2.5 py-1 bg-white font-mono font-semibold"
-                                placeholder={isClassTree ? "如: /电子元器件/继电器/直流继电器" : ""}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* R26-TRIAL-01: Error panel */}
-                  {trialCalculation.error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 shadow-2xs" id="preview-error-panel">
-                      <strong className="font-semibold block mb-1">换算阻断 / 参数异常:</strong>
-                      <p>{trialCalculation.error}</p>
-                    </div>
-                  )}
-
-                  {/* R26-TRIAL-01: Structured Trial Feedback */}
-                  {!trialCalculation.error && trialCalculation.feedback && (
-                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs space-y-3.5 p-4.5" id="preview-feedback-card-v2">
-                      {/* Title & Score */}
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                        <span className="font-bold text-xs text-slate-800 flex items-center space-x-1.5">
-                          <span className="w-1.5 h-3.5 bg-blue-600 rounded-xs inline-block"></span>
-                          <span>{trialCalculation.feedback.title}</span>
-                        </span>
-                        <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-bold text-xs font-mono border border-blue-200" id="preview-score-badge">
-                          {realTimePreviewScore} 分
-                        </span>
-                      </div>
-
-                      {/* Rows Grid */}
-                      <div className="grid grid-cols-1 gap-2 text-xs">
-                        {trialCalculation.feedback.rows.map((row, rIdx) => (
-                          <div key={rIdx} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded transition-colors">
-                            <span className="text-slate-400 font-medium">{row.label}:</span>
-                            <span className="font-mono text-slate-800 font-semibold truncate max-w-[200px]" title={row.value}>{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Conclusion */}
-                      <div className="mt-3 bg-slate-50 border border-slate-100 rounded p-3 text-slate-600 text-xs leading-relaxed" id="preview-conclusion-box">
-                        <strong className="text-slate-700 block mb-1 font-semibold">试算结论诊断:</strong>
-                        <p className="text-slate-600 leading-relaxed">{trialCalculation.feedback.conclusion}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Instruction about calculated formula process */}
-            {formFieldType === '带单位数值 (NUMBER_WITH_UNIT)' && !trialCalculation.noField && !trialCalculation.scoreInactive && (
-              <div className="text-[11px] text-slate-500 leading-normal space-y-2">
-                <span className="font-bold text-slate-700 block">换算说明：</span>
-                <p>1. 算分前将根据单位目录将输入的换算单位，统一折算至底层 SI 标准基准量（如米、伏、开尔文）进行计算。</p>
-                <p>2. 数值距离衰减和容差在统一的目标物理单位基础上进行判断。</p>
-              </div>
-            )}
+            {/* 模态框底部操作 */}
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveRule}
+                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-2xs"
+              >
+                保存规则
+              </button>
+            </div>
           </div>
         </div>
       )}

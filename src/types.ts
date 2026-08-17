@@ -4,6 +4,43 @@
 
 export type ObjectType = 'PART_MECHANICAL' | 'PART_ELECTRICAL' | 'DOCUMENT' | 'CAD_MODEL' | 'ALL';
 
+export interface RootTypeOption {
+  id: string; // e.g. 'PART', 'COMPONENT', 'FASTENER'
+  name: string; // e.g. '零部件 (PART)'
+  code: string;
+  description?: string;
+}
+
+export interface SoftTypeOption {
+  id: string; // e.g. 'IN_HOUSE', 'PURCHASED', 'HEADED'
+  rootTypeId: string;
+  name: string; // e.g. '自制件 (IN_HOUSE)'
+  code: string;
+  description?: string;
+  exampleFieldsHint?: string;
+}
+
+export interface RuleScope {
+  rootTypeId: string;
+  rootTypeName: string;
+  softTypeId: string;
+  softTypeName: string;
+}
+
+export type MismatchAction = 'ZERO_AND_CONTINUE' | 'EXCLUDE_CANDIDATE';
+
+export type SimilarityBaseline =
+  | { type: 'EXISTING_PART'; objectId: string }
+  | {
+      type: 'FORM_VALUES';
+      requestNo?: string;
+      temporaryNo?: string;
+      rootTypeId: string;
+      softTypeId: string;
+      values: Record<string, any>;
+      units?: Record<string, string>;
+    };
+
 export type UnitCatalog = {
   schemaVersion: string;
   catalogVersion: string;
@@ -59,14 +96,19 @@ export type MatchConfig =
 
 export interface FieldSimilarityRule {
   id: string;
-  objectType: ObjectType;
-  fieldName: string; // 字段显示名称
-  propertyCode: string; // 属性编码 / Manticore 字段
-  fieldType: string; // 字段类型
-  weight: number; // 权重
-  matchType: string; // 匹配方式 (精确、文本、数值、分类等)
-  nullHandling: string; // 空值处理 (不参与, 扣分, 设为默认值等)
-  isScoreActive: boolean; // 参与相似度评分
+  objectType?: ObjectType; // 兼容旧逻辑
+  rootTypeId: string;      // 根类型 ID, e.g. 'PART'
+  rootTypeName: string;    // 根类型名称, e.g. '零部件'
+  softTypeId: string;      // 软类型 ID, e.g. 'IN_HOUSE'
+  softTypeName: string;    // 软类型名称, e.g. '自制件'
+  fieldName: string;       // 字段显示名称
+  propertyCode: string;    // 属性编码 / Manticore 字段
+  fieldType: string;       // 字段类型
+  weight: number;          // 权重 (0-100)
+  matchType: string;       // 匹配方式 (精确、文本、数值、分类等)
+  nullHandling: string;    // 缺失值处理
+  mismatchAction: MismatchAction; // 不满足匹配条件时处理: 该字段记0分/排除整个候选
+  isScoreActive: boolean;  // 参与相似度评分
   isQueryPreviewAvailable: boolean; // 查询预览可用
   isAppEndActive: boolean; // 应用端生效
   showHitReason: boolean; // 展示命中原因
@@ -201,8 +243,24 @@ export interface AttributeEnumItem {
   description: string;
 }
 
+export interface ExcludedCandidate {
+  objectId: string;
+  objectName: string;
+  specification: string;
+  material: string;
+  classificationPath: string;
+  lifecycleState: string;
+  excludedByField: string;
+  fieldLabel: string;
+  sourceValue: any;
+  candidateValue: any;
+  matchingRequirement: string;
+  excludeReason: string;
+}
+
 export interface SimilarityCandidate {
-  similarityScore: number; // 相似度 (0-100)
+  similarityScore: number; // 相似度显示值 (保留两位小数，如 89.14)
+  rawSimilarityScore?: number; // 原始未舍入分值 (如 89.1437)
   objectId: string; // 对象标识
   objectName: string; // 名称
   material: string; // 材料
@@ -229,7 +287,6 @@ export interface GovernanceDecisionResult {
 }
 
 export interface QueryResultItem extends SimilarityCandidate {}
-
 
 // 1. 字段白名单配置
 export interface FieldWhitelistItem {
@@ -300,7 +357,9 @@ export interface CategoryCoverage {
 
 export type ReferenceObject = {
   requestCode: string;
-  objectType: string;
+  objectType?: string;
+  rootTypeId: string;
+  softTypeId: string;
   objectId: string;
   objectName: string;
   specification: string;
@@ -319,12 +378,15 @@ export type CompareFieldResult = {
   weight: number;
   matchRate: number;       // 0-1
   weightedScore: number;   // weight * matchRate
-  status: 'FULL' | 'PARTIAL' | 'MISS';
+  status: 'FULL' | 'PARTIAL' | 'MISS' | 'EXCLUDED';
+  mismatchAction: MismatchAction;
   reason: string;
 };
 
 export type ScoredCandidate = {
-  objectType: string;
+  objectType?: string;
+  rootTypeId: string;
+  softTypeId: string;
   objectId: string;
   objectName: string;
   specification: string;
@@ -332,33 +394,47 @@ export type ScoredCandidate = {
   classificationPath: string;
   lifecycleState: string;
   compareFields: CompareFieldResult[];
-  similarityScore: number;
+  rawSimilarityScore: number; // 未舍入原始分值，用于排序
+  similarityScore: number;    // 显示用保留两位小数
   similarityTier: '高相似' | '中相似' | '低相似';
   coverageRate: number;
   fullHitCount: number;
   differenceCount: number;
+  totalScoreFieldsCount: number;
+  customAttributes?: Record<string, any>;
 };
 
 export type SearchRunResult = {
   reference: ReferenceObject | null;
+  baselineType: 'EXISTING_PART' | 'FORM_VALUES';
+  formBaselineInfo?: {
+    requestNo?: string;
+    temporaryNo?: string;
+    rootTypeId: string;
+    softTypeId: string;
+    values: Record<string, any>;
+  };
   scoredCandidates: ScoredCandidate[];
-  errorCode?: 'REFERENCE_NOT_FOUND' | 'OBJECT_TYPE_MISMATCH';
+  excludedCandidates: ExcludedCandidate[];
+  errorCode?: 'REFERENCE_NOT_FOUND' | 'OBJECT_TYPE_MISMATCH' | 'NO_RULES' | 'NO_PERMISSION' | 'QUERY_ERROR';
   errorMessage?: string;
 };
 
-export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectType: ObjectType): any[] {
+export function normalizeRulesForCompare(rules: FieldSimilarityRule[], rootTypeId: string, softTypeId: string): any[] {
   return rules
-    .filter(r => r.objectType === objectType)
+    .filter(r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && (r.softTypeId === softTypeId || !softTypeId))
     .map(r => {
       return {
         id: r.id,
-        objectType: r.objectType,
+        rootTypeId: r.rootTypeId,
+        softTypeId: r.softTypeId,
         fieldName: r.fieldName,
         propertyCode: r.propertyCode,
         fieldType: r.fieldType,
         weight: r.weight,
         matchType: r.matchType,
         nullHandling: r.nullHandling,
+        mismatchAction: r.mismatchAction || 'ZERO_AND_CONTINUE',
         isScoreActive: r.isScoreActive,
         isQueryPreviewAvailable: r.isQueryPreviewAvailable,
         isAppEndActive: r.isAppEndActive,
@@ -374,8 +450,8 @@ export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectTyp
       };
     })
     .sort((a, b) => {
-      const keyA = `${a.objectType}_${a.propertyCode}_${a.id}`;
-      const keyB = `${b.objectType}_${b.propertyCode}_${b.id}`;
+      const keyA = `${a.rootTypeId}_${a.softTypeId}_${a.propertyCode}_${a.id}`;
+      const keyB = `${b.rootTypeId}_${b.softTypeId}_${b.propertyCode}_${b.id}`;
       return keyA.localeCompare(keyB);
     });
 }
@@ -383,20 +459,22 @@ export function normalizeRulesForCompare(rules: FieldSimilarityRule[], objectTyp
 export function isObjectRulesModified(
   editingRules: FieldSimilarityRule[],
   savedRules: FieldSimilarityRule[],
-  objectType: ObjectType
+  rootTypeId: string,
+  softTypeId: string = ''
 ): boolean {
-  const normEditing = normalizeRulesForCompare(editingRules, objectType);
-  const normSaved = normalizeRulesForCompare(savedRules, objectType);
+  const normEditing = normalizeRulesForCompare(editingRules, rootTypeId, softTypeId);
+  const normSaved = normalizeRulesForCompare(savedRules, rootTypeId, softTypeId);
   return JSON.stringify(normEditing) !== JSON.stringify(normSaved);
 }
 
 export function restoreObjectRules(
   editingRules: FieldSimilarityRule[],
   savedRules: FieldSimilarityRule[],
-  objectType: ObjectType
+  rootTypeId: string,
+  softTypeId: string = ''
 ): FieldSimilarityRule[] {
-  const otherEditingRules = editingRules.filter(r => r.objectType !== objectType);
-  const restoredRules = savedRules.filter(r => r.objectType === objectType);
+  const otherEditingRules = editingRules.filter(r => !(r.rootTypeId === rootTypeId && (!softTypeId || r.softTypeId === softTypeId)));
+  const restoredRules = savedRules.filter(r => r.rootTypeId === rootTypeId && (!softTypeId || r.softTypeId === softTypeId));
   return [...otherEditingRules, ...restoredRules];
 }
 
@@ -404,6 +482,7 @@ export interface TrialFeedback {
   title: '数值比较' | '文本比较' | '换算说明' | '日期比较' | '层级比较' | '枚举比较';
   rows: { label: string; value: string }[];
   conclusion: string;
+  mismatchNote?: string;
 }
 
 

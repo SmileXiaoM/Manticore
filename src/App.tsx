@@ -168,7 +168,7 @@ export default function App() {
           <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
           {/* Dynamic View Dispatcher */}
-          <main className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-slate-100/60">
             {currentView === 'field-rules' && (
               <FieldSimilarityView
                 editingRules={editingFieldRules}
