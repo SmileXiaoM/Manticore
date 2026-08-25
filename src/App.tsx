@@ -9,6 +9,7 @@ import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
 import { DataProcessingView } from './components/DataProcessingView';
 import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
+import { DataSyncQualityView } from './components/DataSyncQualityView';
 
 // Data
 import {
@@ -160,7 +161,7 @@ export default function App() {
     <div className="w-full h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Admin Header Bar */}
-        <Header onNavigate={handleNavigate} />
+        <Header onNavigate={handleNavigate} currentView={currentView} />
 
         {/* Sidebar & Body Split */}
         <div className="flex-1 flex overflow-hidden">
@@ -169,6 +170,10 @@ export default function App() {
 
           {/* Dynamic View Dispatcher */}
           <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-slate-100/60">
+            {currentView === 'data-sync-quality' && (
+              <DataSyncQualityView />
+            )}
+
             {currentView === 'field-rules' && (
               <FieldSimilarityView
                 editingRules={editingFieldRules}

@@ -3,11 +3,23 @@ import { Database, CheckCircle, AlertTriangle, User, History, ArrowUpRight } fro
 
 interface HeaderProps {
   onNavigate: (viewId: string) => void;
+  currentView?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onNavigate
+  onNavigate,
+  currentView = 'field-rules'
 }) => {
+  const getStageBadge = () => {
+    if (currentView === 'data-sync-quality') {
+      return '一阶段检索底座';
+    }
+    if (currentView === 'data-processing' || currentView === 'decision-rules') {
+      return '三阶段业务决策';
+    }
+    return '二阶段非 AI 属性相似度';
+  };
+
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
       {/* Left: Brand logo & Context */}
@@ -18,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-slate-900 text-sm tracking-tight">PLM / Manticore</span>
-            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">二阶段非 AI 属性相似度</span>
+            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">{getStageBadge()}</span>
           </div>
           <span className="text-[11px] text-slate-500 leading-none">企业级物料去重与多维搜索管理台</span>
         </div>

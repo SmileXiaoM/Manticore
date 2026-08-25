@@ -7,7 +7,8 @@ import {
   Eye,
   ShieldAlert,
   Grid,
-  Settings
+  Settings,
+  Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +27,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+
+        {/* Section 0: 一阶段：检索底座 */}
+        <div>
+          <span className="px-3 text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-2">一阶段：检索底座</span>
+          <div className="space-y-1">
+            <button
+              onClick={() => onNavigate('data-sync-quality')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs font-medium transition-colors text-left cursor-pointer ${
+                currentView === 'data-sync-quality'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 text-blue-400" />
+              <span>数据同步质量</span>
+              {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+            </button>
+          </div>
+        </div>
 
         {/* Section 1: 属性相似度 */}
         <div>
