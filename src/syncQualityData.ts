@@ -10,7 +10,7 @@ import {
   FieldDifference
 } from './syncQualityTypes';
 
-// 初始同步批次列表（共 5 个批次）
+// 初始同步批次列表（共 6 个批次，包含关联完整的 SYNC-20260824-006）
 export const initialSyncBatches: SyncBatch[] = [
   {
     id: 'SYNC-20260825-001',
@@ -274,6 +274,56 @@ export const initialSyncBatches: SyncBatch[] = [
     ]
   },
   {
+    id: 'SYNC-20260824-006',
+    sourceSystem: 'IntePLM V21',
+    objectsSummary: ['Part'],
+    syncMethod: 'INCREMENTAL',
+    sourceDataCount: 2800,
+    successCount: 2782,
+    failedCount: 18,
+    skippedCount: 0,
+    startTime: '2026-08-24 18:15:00',
+    endTime: '2026-08-24 18:19:45',
+    durationText: '4分45秒',
+    executionStatus: 'PARTIAL_SUCCESS',
+    verificationStatus: 'FAILED',
+    linkedVerificationId: 'CHK-20260824-006',
+    statusNote: '增量批次执行完成，但一致性核验发现 18 条零件版本 UpdateCount 滞后。',
+    objectDetails: [
+      {
+        objectType: 'Part',
+        softType: '机械零件',
+        extractedCount: 2800,
+        insertedCount: 120,
+        updatedCount: 2662,
+        deletedCount: 0,
+        failedCount: 18,
+        skippedCount: 0,
+        status: 'PARTIAL_SUCCESS'
+      }
+    ],
+    failedRecords: [
+      {
+        id: 'FAIL-007',
+        objectCode: 'P-00921',
+        objectType: 'Part',
+        softType: '机械零件',
+        businessReason: '高频并发版本更新引起锁冲突，Manticore 索引未能获取到最新版本 updatecount',
+        traceId: 'TRC-PLM-20260824-1801',
+        hasExceptionCreated: true,
+        linkedExceptionId: 'EX-20260825-001',
+        techDetail: 'OptimisticLockingFailure: Version updatecount 17 conflict with cached index version 16.'
+      }
+    ],
+    timeline: [
+      { step: '任务创建与调度', timestamp: '2026-08-24 18:15:00', status: 'DONE', description: '傍晚零件增量同步触发' },
+      { step: '源数据分片抽取', timestamp: '2026-08-24 18:16:30', status: 'DONE', description: '抽取 2,800 条零件变更记录' },
+      { step: '对象模型清洗与写入', timestamp: '2026-08-24 18:19:00', status: 'DONE', description: '完成写入 2,782 条，18 条由于并发冲突写入失败' },
+      { step: '生成失败追溯单', timestamp: '2026-08-24 18:19:20', status: 'DONE', description: '生成异常并挂载追溯单' },
+      { step: '批次结束与触发核验', timestamp: '2026-08-24 18:19:45', status: 'DONE', description: '触发版本 UpdateCount 核验 CHK-20260824-006' }
+    ]
+  },
+  {
     id: 'SYNC-20260824-009',
     sourceSystem: 'IntePLM V21',
     objectsSummary: ['Part'],
@@ -286,7 +336,8 @@ export const initialSyncBatches: SyncBatch[] = [
     endTime: '2026-08-24 23:12:05',
     durationText: '2分05秒',
     executionStatus: 'FAILED',
-    verificationStatus: 'UNCHECKED',
+    verificationStatus: 'WARNING',
+    linkedVerificationId: 'CHK-20260824-006',
     statusNote: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权失败，全批次未完成写入。',
     objectDetails: [
       {
@@ -304,7 +355,7 @@ export const initialSyncBatches: SyncBatch[] = [
     failedRecords: [
       {
         id: 'FAIL-006',
-        objectCode: 'BATCH-COMPENSATE-ERROR',
+        objectCode: 'P-00811',
         objectType: 'Part',
         softType: '机械零件',
         businessReason: 'PLM 源数据快照通道认证凭证已过期 (HTTP 401 Unauthorized)',
@@ -380,6 +431,32 @@ export const initialFieldDifferences: FieldDifference[] = [
   },
   {
     id: 'DIFF-005',
+    objectCode: 'DRW-55109',
+    objectName: '主传动箱体结构装配图纸',
+    objectType: 'Document',
+    softType: '图纸',
+    fieldName: 'drawing_frame_size (图幅尺寸)',
+    plmSourceValue: 'CUSTOM_A0_EXT',
+    mappedExpectedValue: 'A0_EXTENDED',
+    manticoreActualValue: 'NULL (解析校验未通过)',
+    diffType: 'Schema 校验失败',
+    result: 'MISSING'
+  },
+  {
+    id: 'DIFF-006',
+    objectCode: 'DOC-91002',
+    objectName: '电液伺服控制阀出厂检验大纲',
+    objectType: 'Document',
+    softType: '技术文档',
+    fieldName: 'security_level (密级标签)',
+    plmSourceValue: 'INTERNAL_RESTRICTED (内部受限)',
+    mappedExpectedValue: 'RESTRICTED',
+    manticoreActualValue: 'UNCLASSIFIED (未分级)',
+    diffType: '状态不一致',
+    result: 'MISMATCH'
+  },
+  {
+    id: 'DIFF-007',
     objectCode: 'P-00102',
     objectName: '六角头螺栓 M10x50 8.8级',
     objectType: 'Part',
@@ -406,7 +483,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     integrityRate: 99.99,
     fieldConsistencyRate: 99.94,
     timelinessRate: 98.70,
-    exceptionCount: 4,
+    exceptionCount: 5,
     result: 'WARNING',
     executedAt: '2026-08-25 03:00:00',
     executor: '系统调度器 (AutoCheck)',
@@ -415,11 +492,11 @@ export const initialVerificationRecords: VerificationRecord[] = [
       { objectType: 'Part', softType: '机械零件', checkedCount: 31200, exceptionCount: 1, status: 'WARNING' },
       { objectType: 'Part', softType: '电子电气零件', checkedCount: 16800, exceptionCount: 0, status: 'PASSED' },
       { objectType: 'Document', softType: '技术文档', checkedCount: 12600, exceptionCount: 2, status: 'WARNING' },
-      { objectType: 'Document', softType: '图纸', checkedCount: 5400, exceptionCount: 0, status: 'PASSED' },
+      { objectType: 'Document', softType: '图纸', checkedCount: 5400, exceptionCount: 1, status: 'WARNING' },
       { objectType: 'Process', softType: '工艺路线', checkedCount: 2450, exceptionCount: 1, status: 'WARNING' }
     ],
-    linkedExceptionIds: ['EX-20260825-001', 'EX-20260825-002', 'EX-20260825-003', 'EX-20260825-004'],
-    fieldDifferences: initialFieldDifferences
+    linkedExceptionIds: ['EX-20260825-001', 'EX-20260825-002', 'EX-20260825-003', 'EX-20260825-004', 'EX-20260825-005'],
+    fieldDifferences: initialFieldDifferences.slice(0, 5)
   },
   {
     id: 'CHK-20260825-004',
@@ -463,7 +540,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     objectDistributions: [
       { objectType: 'Document', softType: '技术文档', checkedCount: 120, exceptionCount: 2, status: 'WARNING' }
     ],
-    linkedExceptionIds: ['EX-20260825-002', 'EX-20260825-003'],
+    linkedExceptionIds: ['EX-20260825-006', 'EX-20260825-007'],
     fieldDifferences: initialFieldDifferences.filter(d => d.objectType === 'Document')
   },
   {
@@ -485,12 +562,12 @@ export const initialVerificationRecords: VerificationRecord[] = [
     objectDistributions: [
       { objectType: 'Part', softType: '机械零件', checkedCount: 2800, exceptionCount: 18, status: 'FAILED' }
     ],
-    linkedExceptionIds: ['EX-20260825-001'],
+    linkedExceptionIds: ['EX-20260825-001', 'EX-20260824-009'],
     fieldDifferences: [initialFieldDifferences[0]]
   }
 ];
 
-// 初始异常处置列表（包含 4 类指定演示异常）
+// 初始异常处置列表（补全断链 ID，保证全网唯一与自洽）
 export const initialSyncExceptions: SyncException[] = [
   {
     id: 'EX-20260825-001',
@@ -620,5 +697,168 @@ export const initialSyncExceptions: SyncException[] = [
         result: 'INFO'
       }
     ]
+  },
+  {
+    id: 'EX-20260825-005',
+    objectCode: 'DRW-55109',
+    objectName: '主传动箱体结构装配图纸',
+    objectType: 'Document',
+    softType: '图纸',
+    exceptionType: 'SCHEMA_VIOLATION',
+    exceptionTypeLabel: 'Schema 校验失败',
+    businessDescription: '图纸矢量元数据转换异常，图幅尺寸参数 "CUSTOM_A0_EXT" 未在 Manticore Schema 白名单枚举中，导致索引构建阶段被拦截。',
+    sourceBatchId: 'SYNC-20260825-001',
+    linkedVerificationId: 'CHK-20260825-001',
+    severity: 'MEDIUM',
+    status: 'PENDING',
+    retryCount: 0,
+    assignee: '李晓华 (数据标准管理员)',
+    lastHandledTime: '2026-08-25 02:45:20',
+    hasPermission: true,
+    timeline: [
+      {
+        id: 'TL-501',
+        node: '发现异常',
+        timestamp: '2026-08-25 02:45:20',
+        operator: '同步执行器 (SYNC-20260825-001)',
+        note: '写入阶段捕获 SchemaValidationException: drawing_frame_size 枚举越界',
+        result: 'INFO'
+      }
+    ]
+  },
+  {
+    id: 'EX-20260825-006',
+    objectCode: 'DOC-91002',
+    objectName: '电液伺服控制阀出厂检验大纲',
+    objectType: 'Document',
+    softType: '技术文档',
+    exceptionType: 'STATUS_MISMATCH',
+    exceptionTypeLabel: '密级合规不一致',
+    businessDescription: '密级标签 INTERNAL_RESTRICTED 未正确映射到检索安全字典，需要数据标准管理员校准密级字典并重新下发。',
+    sourceBatchId: 'SYNC-20260825-003',
+    linkedVerificationId: 'CHK-20260825-003',
+    severity: 'HIGH',
+    status: 'PENDING',
+    retryCount: 0,
+    assignee: '李晓华 (数据标准管理员)',
+    lastHandledTime: '2026-08-25 08:33:45',
+    hasPermission: true,
+    timeline: [
+      {
+        id: 'TL-601',
+        node: '发现异常',
+        timestamp: '2026-08-25 08:33:45',
+        operator: '同步执行器 (SYNC-20260825-003)',
+        note: '密级标签未通过合规性白名单校验',
+        result: 'INFO'
+      }
+    ]
+  },
+  {
+    id: 'EX-20260825-007',
+    objectCode: 'DOC-91008',
+    objectName: '液压支架主阀体受力有限元分析报告',
+    objectType: 'Document',
+    softType: '技术文档',
+    exceptionType: 'MANTICORE_MISSING',
+    exceptionTypeLabel: '外键关联断裂',
+    businessDescription: '该文档关联的母体零部件 PART_ID_99011 在 Manticore 检索库索引中不存在，导致关联外键约束校验拦截写入。',
+    sourceBatchId: 'SYNC-20260825-003',
+    linkedVerificationId: 'CHK-20260825-003',
+    severity: 'MEDIUM',
+    status: 'PENDING',
+    retryCount: 0,
+    assignee: '李晓华 (数据标准管理员)',
+    lastHandledTime: '2026-08-25 08:33:45',
+    hasPermission: true,
+    timeline: [
+      {
+        id: 'TL-701',
+        node: '发现异常',
+        timestamp: '2026-08-25 08:33:45',
+        operator: '同步执行器 (SYNC-20260825-003)',
+        note: 'ForeignKeyConstraintException: Parent part PART_ID_99011 not found',
+        result: 'INFO'
+      }
+    ]
+  },
+  {
+    id: 'EX-20260824-009',
+    objectCode: 'P-00811',
+    objectName: '主电机轴承端盖密封组件',
+    objectType: 'Part',
+    softType: '机械零件',
+    exceptionType: 'ENCODING_ERROR',
+    exceptionTypeLabel: '网关认证过期',
+    businessDescription: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权 Token 过期，全批次未完成写入，需更新认证后重新同步。',
+    sourceBatchId: 'SYNC-20260824-009',
+    linkedVerificationId: 'CHK-20260824-006',
+    severity: 'HIGH',
+    status: 'PENDING',
+    retryCount: 0,
+    assignee: '李晓华 (数据标准管理员)',
+    lastHandledTime: '2026-08-24 23:12:00',
+    hasPermission: true,
+    timeline: [
+      {
+        id: 'TL-901',
+        node: '发现异常',
+        timestamp: '2026-08-24 23:12:00',
+        operator: '同步执行器 (SYNC-20260824-009)',
+        note: 'AuthenticationFailedException: IntePLM Gateway Token expired',
+        result: 'FAILED'
+      }
+    ]
   }
 ];
+
+// 开发阶段轻量数据完整性自检工具
+export const validateDataIntegrity = (
+  batches: SyncBatch[],
+  verifications: VerificationRecord[],
+  exceptions: SyncException[]
+): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  const batchMap = new Set(batches.map(b => b.id));
+  const verMap = new Set(verifications.map(v => v.id));
+  const exMap = new Set(exceptions.map(e => e.id));
+
+  // 1. 检查批次引用的异常和核验
+  batches.forEach(b => {
+    if (b.linkedVerificationId && !verMap.has(b.linkedVerificationId)) {
+      errors.push(`批次 ${b.id} 引用的核验单 ${b.linkedVerificationId} 不存在`);
+    }
+    b.failedRecords.forEach(fr => {
+      if (fr.hasExceptionCreated && fr.linkedExceptionId && !exMap.has(fr.linkedExceptionId)) {
+        errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 不存在`);
+      }
+    });
+  });
+
+  // 2. 检查核验单引用的批次和异常
+  verifications.forEach(v => {
+    if (!batchMap.has(v.linkedBatchId)) {
+      errors.push(`核验单 ${v.id} 引用的批次 ${v.linkedBatchId} 不存在`);
+    }
+    v.linkedExceptionIds.forEach(exId => {
+      if (!exMap.has(exId)) {
+        errors.push(`核验单 ${v.id} 引用的异常单 ${exId} 不存在`);
+      }
+    });
+  });
+
+  // 3. 检查异常单引用的批次和核验单
+  exceptions.forEach(e => {
+    if (!batchMap.has(e.sourceBatchId)) {
+      errors.push(`异常单 ${e.id} 引用的来源批次 ${e.sourceBatchId} 不存在`);
+    }
+    if (e.linkedVerificationId && !verMap.has(e.linkedVerificationId)) {
+      errors.push(`异常单 ${e.id} 引用的核验单 ${e.linkedVerificationId} 不存在`);
+    }
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+};

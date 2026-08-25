@@ -32,6 +32,12 @@ interface ExceptionDisposalTabProps {
   batches: SyncBatch[];
   verifications: VerificationRecord[];
   onUpdateExceptions: (updated: SyncException[]) => void;
+  onAddVerification?: (newRecord: VerificationRecord) => void;
+  onUpdateVerificationResult?: (
+    verificationId: string,
+    result: any,
+    updates?: Partial<VerificationRecord>
+  ) => void;
   onOpenBatchDrawer: (batchId: string) => void;
   onOpenVerificationDrawer: (verificationId: string) => void;
   selectedExceptionId?: string | null;
@@ -44,6 +50,8 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
   batches,
   verifications,
   onUpdateExceptions,
+  onAddVerification,
+  onUpdateVerificationResult,
   onOpenBatchDrawer,
   onOpenVerificationDrawer,
   selectedExceptionId,
@@ -111,16 +119,35 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     return exceptions.find(e => e.id === selectedExceptionId) || null;
   }, [exceptions, selectedExceptionId]);
 
-  // 全选/反选
+  // 可批量操作的符合条件的异常项集合（待处理 + 有权限）
+  const eligibleExceptions = useMemo(() => {
+    return filteredExceptions.filter(e => e.status === 'PENDING' && e.hasPermission);
+  }, [filteredExceptions]);
+
+  // 全选/反选 (仅限符合批量重试条件的待处理项)
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredExceptions.map(e => e.id));
+      const eligibleIds = eligibleExceptions.map(e => e.id);
+      setSelectedIds(eligibleIds);
+      if (eligibleIds.length < filteredExceptions.length) {
+        onShowToast(`已选中 ${eligibleIds.length} 条可重试项（已自动忽略无权限或非待处理记录）`, 'info');
+      }
     } else {
       setSelectedIds([]);
     }
   };
 
   const handleToggleSelect = (id: string) => {
+    const target = exceptions.find(e => e.id === id);
+    if (!target) return;
+    if (target.status !== 'PENDING') {
+      onShowToast(`记录 ${id} 当前为“${target.status}”状态，无需/不可执行补偿重试`, 'warning');
+      return;
+    }
+    if (!target.hasPermission) {
+      onShowToast(`记录 ${id} 属于工艺对象，当前角色无操作权限`, 'error');
+      return;
+    }
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
@@ -463,17 +490,55 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     onShowToast(`异常 ${closeModalEx.id} 已复核通过并正式关闭留痕`, 'success');
   };
 
-  // 6. 重新核验
+  // 6. 重新核验 (生成新的核验单闭环跨页)
   const handleExecuteReverify = (targetEx: SyncException) => {
     setIsProcessing(true);
     setReverifyModalEx(null);
 
     const nowTime = '2026-08-25 16:45:00';
+    const newChkId = `CHK-20260825-REV${Math.floor(100 + Math.random() * 900)}`;
+
+    // 1. 生成真实的核验记录
+    const newVerification: VerificationRecord = {
+      id: newChkId,
+      linkedBatchId: targetEx.sourceBatchId,
+      sourceSystem: 'IntePLM V21',
+      objectsSummary: [targetEx.objectType],
+      method: 'STANDARDIZED_HASH',
+      methodLabel: '标准化哈希核验 (异常定向闭环)',
+      sampleSize: 1,
+      integrityRate: 100,
+      fieldConsistencyRate: 100,
+      timelinessRate: 100,
+      exceptionCount: 0,
+      result: 'CHECKING',
+      executedAt: '刚刚 (2026-08-25 16:45)',
+      executor: '系统核验引擎 (自动闭环)',
+      strategyNotes: `由异常单 ${targetEx.id} 针对对象 ${targetEx.objectCode} (${targetEx.objectName}) 发起的定向复检任务。`,
+      objectDistributions: [
+        {
+          objectType: targetEx.objectType,
+          softType: targetEx.softType,
+          checkedCount: 1,
+          exceptionCount: 0,
+          status: 'PASSED'
+        }
+      ],
+      linkedExceptionIds: [targetEx.id],
+      fieldDifferences: []
+    };
+
+    if (onAddVerification) {
+      onAddVerification(newVerification);
+    }
+
+    // 2. 更新异常记录，关联新核验单并转入待复核
     const updated = exceptions.map(e => {
       if (e.id === targetEx.id) {
         return {
           ...e,
           status: 'PENDING_REVIEW' as ExceptionStatus,
+          linkedVerificationId: newChkId,
           lastHandledTime: nowTime,
           timeline: [
             ...e.timeline,
@@ -482,7 +547,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
               node: '重新核验',
               timestamp: nowTime,
               operator: '系统核验引擎',
-              note: `针对批次 ${targetEx.sourceBatchId} 及对象 ${targetEx.objectCode} 完成定向比对，差异已修复，进入待复核状态。`,
+              note: `已创建定向核验单 ${newChkId}，针对批次 ${targetEx.sourceBatchId} 及对象 ${targetEx.objectCode} 完成定向比对，差异已修复，进入待复核状态。`,
               result: 'SUCCESS' as const
             }
           ]
@@ -491,11 +556,20 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       return e;
     });
 
+    onUpdateExceptions(updated);
+
+    // 3. 2.5秒后更新核验单结果为 PASSED
     setTimeout(() => {
       setIsProcessing(false);
-      onUpdateExceptions(updated);
-      onShowToast(`对象 ${targetEx.objectCode} 重新核验已通过，已转入“待复核”状态`, 'success');
-    }, 1500);
+      if (onUpdateVerificationResult) {
+        onUpdateVerificationResult(newChkId, 'PASSED', {
+          integrityRate: 100,
+          fieldConsistencyRate: 100,
+          timelinessRate: 100
+        });
+      }
+      onShowToast(`对象 ${targetEx.objectCode} 重新核验通过（已生成核验单 ${newChkId}），异常已转入“待复核”`, 'success');
+    }, 2500);
   };
 
   return (
@@ -691,18 +765,24 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-3 w-8 text-center">
                   <input
                     type="checkbox"
                     checked={
-                      filteredExceptions.length > 0 &&
-                      selectedIds.length === filteredExceptions.length
+                      eligibleExceptions.length > 0 &&
+                      selectedIds.length === eligibleExceptions.length
                     }
                     onChange={e => handleSelectAll(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    disabled={eligibleExceptions.length === 0}
+                    title={
+                      eligibleExceptions.length === 0
+                        ? '当前筛选下没有符合批量重试条件（待处理且有权限）的异常项'
+                        : '全选/取消全选所有符合条件的待处理异常'
+                    }
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   />
                 </th>
                 <th className="py-3 px-3">异常编号</th>
@@ -722,6 +802,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
               {filteredExceptions.length > 0 ? (
                 filteredExceptions.map(item => {
                   const isChecked = selectedIds.includes(item.id);
+                  const isEligible = item.status === 'PENDING' && item.hasPermission;
                   return (
                     <tr
                       key={item.id}
@@ -733,8 +814,18 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={!isEligible}
                           onChange={() => handleToggleSelect(item.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          title={
+                            !item.hasPermission
+                              ? '无操作权限 (工艺对象需工艺系统管理员执行)'
+                              : item.status !== 'PENDING'
+                              ? `当前为“${item.status}”状态，无需重试`
+                              : '勾选以进行批量重试'
+                          }
+                          className={`rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
+                            isEligible ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                          }`}
                         />
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-rose-700 hover:underline cursor-pointer">

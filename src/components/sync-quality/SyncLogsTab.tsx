@@ -45,6 +45,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   const [objectType, setObjectType] = useState<string>('ALL');
   const [syncMethod, setSyncMethod] = useState<string>('ALL');
   const [executionStatus, setExecutionStatus] = useState<string>('ALL');
+  const [timeRange, setTimeRange] = useState<string>('ALL');
   const [searchBatchId, setSearchBatchId] = useState<string>('');
 
   // 详情抽屉内部页签
@@ -57,6 +58,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
     setObjectType('ALL');
     setSyncMethod('ALL');
     setExecutionStatus('ALL');
+    setTimeRange('ALL');
     setSearchBatchId('');
   };
 
@@ -68,9 +70,21 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       if (syncMethod !== 'ALL' && batch.syncMethod !== syncMethod) return false;
       if (executionStatus !== 'ALL' && batch.executionStatus !== executionStatus) return false;
       if (searchBatchId.trim() && !batch.id.toLowerCase().includes(searchBatchId.trim().toLowerCase())) return false;
+      
+      // 时间范围筛选
+      if (timeRange === 'TODAY') {
+        if (!batch.startTime.startsWith('2026-08-25')) return false;
+      } else if (timeRange === 'LAST_24H') {
+        // 最近24小时：2026-08-25 全天或 2026-08-24 16点之后
+        if (!batch.startTime.startsWith('2026-08-25') && !batch.startTime.startsWith('2026-08-24 16:')) return false;
+      } else if (timeRange === 'LAST_7D') {
+        // 7天内覆盖全部演示数据
+        if (!batch.startTime.startsWith('2026-08-24') && !batch.startTime.startsWith('2026-08-25')) return false;
+      }
+
       return true;
     });
-  }, [batches, sourceSystem, objectType, syncMethod, executionStatus, searchBatchId]);
+  }, [batches, sourceSystem, objectType, syncMethod, executionStatus, timeRange, searchBatchId]);
 
   // 当前选中的批次详情
   const selectedBatch = useMemo(() => {
@@ -223,7 +237,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
 
       {/* 顶部横向筛选区 */}
       <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 items-end">
           {/* 来源系统 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">来源系统</label>
@@ -283,6 +297,21 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             </select>
           </div>
 
+          {/* 时间范围筛选 */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">时间范围</label>
+            <select
+              value={timeRange}
+              onChange={e => setTimeRange(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
+            >
+              <option value="ALL">全部时间</option>
+              <option value="TODAY">今天 (2026-08-25)</option>
+              <option value="LAST_24H">最近 24 小时</option>
+              <option value="LAST_7D">最近 7 天</option>
+            </select>
+          </div>
+
           {/* 批次编号 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">批次编号</label>
@@ -314,7 +343,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-3.5">批次编号</th>

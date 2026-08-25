@@ -31,6 +31,11 @@ interface VerificationTabProps {
   onOpenBatchDrawer: (batchId: string) => void;
   onOpenExceptionDrawer: (exceptionId: string) => void;
   onAddVerification: (newRecord: VerificationRecord) => void;
+  onUpdateVerificationResult?: (
+    verificationId: string,
+    result: VerificationStatus,
+    updates?: Partial<VerificationRecord>
+  ) => void;
   selectedVerificationId?: string | null;
   onSelectVerificationId: (id: string | null) => void;
   onShowToast: (message: string, type?: 'success' | 'warning' | 'error' | 'info') => void;
@@ -42,6 +47,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   onOpenBatchDrawer,
   onOpenExceptionDrawer,
   onAddVerification,
+  onUpdateVerificationResult,
   selectedVerificationId,
   onSelectVerificationId,
   onShowToast
@@ -51,6 +57,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   const [objectType, setObjectType] = useState<string>('ALL');
   const [method, setMethod] = useState<string>('ALL');
   const [resultStatus, setResultStatus] = useState<string>('ALL');
+  const [timeRange, setTimeRange] = useState<string>('ALL');
   const [searchBatchId, setSearchBatchId] = useState<string>('');
 
   // 抽屉内部页签
@@ -71,6 +78,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
     setObjectType('ALL');
     setMethod('ALL');
     setResultStatus('ALL');
+    setTimeRange('ALL');
     setSearchBatchId('');
   };
 
@@ -82,9 +90,19 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       if (method !== 'ALL' && item.method !== method) return false;
       if (resultStatus !== 'ALL' && item.result !== resultStatus) return false;
       if (searchBatchId.trim() && !item.linkedBatchId.toLowerCase().includes(searchBatchId.trim().toLowerCase()) && !item.id.toLowerCase().includes(searchBatchId.trim().toLowerCase())) return false;
+      
+      // 时间范围筛选
+      if (timeRange === 'TODAY') {
+        if (!item.executedAt.includes('2026-08-25') && !item.executedAt.includes('刚刚')) return false;
+      } else if (timeRange === 'LAST_24H') {
+        if (!item.executedAt.includes('2026-08-25') && !item.executedAt.includes('2026-08-24 16:') && !item.executedAt.includes('刚刚')) return false;
+      } else if (timeRange === 'LAST_7D') {
+        if (!item.executedAt.includes('2026-08-24') && !item.executedAt.includes('2026-08-25') && !item.executedAt.includes('刚刚')) return false;
+      }
+
       return true;
     });
-  }, [verifications, sourceSystem, objectType, method, resultStatus, searchBatchId]);
+  }, [verifications, sourceSystem, objectType, method, resultStatus, timeRange, searchBatchId]);
 
   // 当前选中的核验记录
   const selectedVerification = useMemo(() => {
@@ -97,6 +115,17 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   }, [batches, newBatchId]);
 
   const isBatchRunning = selectedBatchForModal?.executionStatus === 'RUNNING';
+
+  // 当选择的批次变更时，若新批次不包含当前所选的对象范围，重置为 ALL
+  const availableBatchObjects = selectedBatchForModal?.objectsSummary || [];
+
+  const handleBatchChangeInModal = (batchId: string) => {
+    setNewBatchId(batchId);
+    const target = batches.find(b => b.id === batchId);
+    if (target && newScope !== 'ALL' && !target.objectsSummary.includes(newScope)) {
+      setNewScope('ALL');
+    }
+  };
 
   const handleInitiateVerification = () => {
     if (!newBatchId) {
@@ -157,12 +186,15 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
     setIsSubmitting(false);
     onShowToast(`已成功发起核验任务 ${generatedId}，正在调度比对...`, 'info');
 
-    // 模拟2秒后核验完成更新结果
+    // 2.5秒后通过回调不可变更新核验结果状态
     setTimeout(() => {
-      tempRecord.result = 'PASSED';
-      tempRecord.integrityRate = 100;
-      tempRecord.fieldConsistencyRate = 100;
-      tempRecord.timelinessRate = 100;
+      if (onUpdateVerificationResult) {
+        onUpdateVerificationResult(generatedId, 'PASSED', {
+          integrityRate: 100,
+          fieldConsistencyRate: 100,
+          timelinessRate: 100
+        });
+      }
       onShowToast(`核验任务 ${generatedId} 比对完成：指标全部一致，结果为“通过”`, 'success');
     }, 2500);
   };
@@ -268,7 +300,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
 
       {/* 顶部横向筛选区 */}
       <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 items-end">
           {/* 来源系统 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">来源系统</label>
@@ -331,6 +363,21 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
             </select>
           </div>
 
+          {/* 时间范围筛选 */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">时间范围</label>
+            <select
+              value={timeRange}
+              onChange={e => setTimeRange(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
+            >
+              <option value="ALL">全部时间</option>
+              <option value="TODAY">今天 (2026-08-25)</option>
+              <option value="LAST_24H">最近 24 小时</option>
+              <option value="LAST_7D">最近 7 天</option>
+            </select>
+          </div>
+
           {/* 关联批次 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">关联批次 / 编号</label>
@@ -371,7 +418,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-3.5">核验编号</th>
@@ -512,7 +559,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                 </label>
                 <select
                   value={newBatchId}
-                  onChange={e => setNewBatchId(e.target.value)}
+                  onChange={e => handleBatchChangeInModal(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer font-mono"
                 >
                   {batches.map(b => (
@@ -536,18 +583,29 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                 </div>
               )}
 
-              {/* 对象范围 */}
+              {/* 对象范围 - 严格限定为所选批次包含的对象 */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">对象核验范围</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  对象核验范围 <span className="text-slate-400 font-normal">(已限制为所选批次包含对象)</span>
+                </label>
                 <select
                   value={newScope}
                   onChange={e => setNewScope(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
                 >
-                  <option value="ALL">全部对象 (继承所选批次)</option>
-                  <option value="Part">仅零部件 (Part)</option>
-                  <option value="Document">仅文档 (Document)</option>
-                  <option value="Process">仅工艺对象 (Process)</option>
+                  <option value="ALL">全部对象 (继承所选批次: {availableBatchObjects.join(', ') || '全部'})</option>
+                  {availableBatchObjects.includes('Part') && (
+                    <option value="Part">仅零部件 (Part)</option>
+                  )}
+                  {availableBatchObjects.includes('Document') && (
+                    <option value="Document">仅文档 (Document)</option>
+                  )}
+                  {availableBatchObjects.includes('Process') && (
+                    <option value="Process">仅工艺对象 (Process)</option>
+                  )}
+                  {availableBatchObjects.filter(obj => !['Part', 'Document', 'Process'].includes(obj)).map(obj => (
+                    <option key={obj} value={obj}>仅 {obj}</option>
+                  ))}
                 </select>
               </div>
 
