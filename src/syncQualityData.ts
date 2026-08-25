@@ -311,7 +311,7 @@ export const initialSyncBatches: SyncBatch[] = [
         businessReason: '高频并发版本更新引起锁冲突，Manticore 索引未能获取到最新版本 updatecount',
         traceId: 'TRC-PLM-20260824-1801',
         hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-001',
+        linkedExceptionId: 'EX-20260824-006',
         techDetail: 'OptimisticLockingFailure: Version updatecount 17 conflict with cached index version 16.'
       }
     ],
@@ -336,9 +336,8 @@ export const initialSyncBatches: SyncBatch[] = [
     endTime: '2026-08-24 23:12:05',
     durationText: '2分05秒',
     executionStatus: 'FAILED',
-    verificationStatus: 'WARNING',
-    linkedVerificationId: 'CHK-20260824-006',
-    statusNote: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权失败，全批次未完成写入。',
+    verificationStatus: 'UNCHECKED',
+    statusNote: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权失败，全批次未完成写入，未触发核验。',
     objectDetails: [
       {
         objectType: 'Part',
@@ -562,12 +561,12 @@ export const initialVerificationRecords: VerificationRecord[] = [
     objectDistributions: [
       { objectType: 'Part', softType: '机械零件', checkedCount: 2800, exceptionCount: 18, status: 'FAILED' }
     ],
-    linkedExceptionIds: ['EX-20260825-001', 'EX-20260824-009'],
+    linkedExceptionIds: ['EX-20260824-006'],
     fieldDifferences: [initialFieldDifferences[0]]
   }
 ];
 
-// 初始异常处置列表（补全断链 ID，保证全网唯一与自洽）
+// 初始异常处置列表（全网唯一、自洽且包含完整闭环状态与权限）
 export const initialSyncExceptions: SyncException[] = [
   {
     id: 'EX-20260825-001',
@@ -580,6 +579,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: 'PLM 源库已升版至 updatecount=17，但 Manticore 检索库索引当前仍保留为 updatecount=16，导致二阶段相似度计算使用的是旧版物理尺寸。',
     sourceBatchId: 'SYNC-20260825-001',
     linkedVerificationId: 'CHK-20260825-001',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'HIGH',
     status: 'PENDING',
     retryCount: 0,
@@ -608,6 +608,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: '源系统状态显示为已发布 (RELEASED)，但 Manticore 索引仍为工作阶段 (INWORK)。经排查源端存在发布审核撤回并发操作，需业务人员确认最终有效状态。',
     sourceBatchId: 'SYNC-20260825-001',
     linkedVerificationId: 'CHK-20260825-001',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'MEDIUM',
     status: 'PENDING_BUSINESS_CONFIRM',
     retryCount: 1,
@@ -653,6 +654,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: '文档正文包含 12 万字试验数据及特殊字符，抽取写入时流式解析超时，当前索引仍为第 5 版旧文本。',
     sourceBatchId: 'SYNC-20260825-001',
     linkedVerificationId: 'CHK-20260825-001',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'HIGH',
     status: 'PENDING',
     retryCount: 1,
@@ -681,6 +683,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: 'PLM 工艺库存在该主轴箱工艺主记录，但 Manticore 工艺专用索引中未查找到该实体。该对象需要工艺系统专用管理员角色进行补偿同步。',
     sourceBatchId: 'SYNC-20260825-001',
     linkedVerificationId: 'CHK-20260825-001',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'MEDIUM',
     status: 'PENDING',
     retryCount: 0,
@@ -709,6 +712,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: '图纸矢量元数据转换异常，图幅尺寸参数 "CUSTOM_A0_EXT" 未在 Manticore Schema 白名单枚举中，导致索引构建阶段被拦截。',
     sourceBatchId: 'SYNC-20260825-001',
     linkedVerificationId: 'CHK-20260825-001',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'MEDIUM',
     status: 'PENDING',
     retryCount: 0,
@@ -737,6 +741,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: '密级标签 INTERNAL_RESTRICTED 未正确映射到检索安全字典，需要数据标准管理员校准密级字典并重新下发。',
     sourceBatchId: 'SYNC-20260825-003',
     linkedVerificationId: 'CHK-20260825-003',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'HIGH',
     status: 'PENDING',
     retryCount: 0,
@@ -765,6 +770,7 @@ export const initialSyncExceptions: SyncException[] = [
     businessDescription: '该文档关联的母体零部件 PART_ID_99011 在 Manticore 检索库索引中不存在，导致关联外键约束校验拦截写入。',
     sourceBatchId: 'SYNC-20260825-003',
     linkedVerificationId: 'CHK-20260825-003',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'MEDIUM',
     status: 'PENDING',
     retryCount: 0,
@@ -783,6 +789,35 @@ export const initialSyncExceptions: SyncException[] = [
     ]
   },
   {
+    id: 'EX-20260824-006',
+    objectCode: 'P-00921',
+    objectName: '行星齿轮减速器箱体',
+    objectType: 'Part',
+    softType: '机械零件',
+    exceptionType: 'VERSION_LAG',
+    exceptionTypeLabel: '版本滞后',
+    businessDescription: '高频并发版本更新引起乐观锁冲突，Manticore 检索库中 UpdateCount 为 16，PLM 源端已递增至 17。',
+    sourceBatchId: 'SYNC-20260824-006',
+    linkedVerificationId: 'CHK-20260824-006',
+    latestReverificationStatus: 'UNCHECKED',
+    severity: 'HIGH',
+    status: 'PENDING',
+    retryCount: 0,
+    assignee: '李晓华 (数据标准管理员)',
+    lastHandledTime: '2026-08-24 18:20:00',
+    hasPermission: true,
+    timeline: [
+      {
+        id: 'TL-801',
+        node: '发现异常',
+        timestamp: '2026-08-24 18:20:00',
+        operator: '系统自动核验 (CHK-20260824-006)',
+        note: 'UpdateCount 核验发现版本落后 (PLM:17 vs Manticore:16)',
+        result: 'INFO'
+      }
+    ]
+  },
+  {
     id: 'EX-20260824-009',
     objectCode: 'P-00811',
     objectName: '主电机轴承端盖密封组件',
@@ -792,7 +827,7 @@ export const initialSyncExceptions: SyncException[] = [
     exceptionTypeLabel: '网关认证过期',
     businessDescription: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权 Token 过期，全批次未完成写入，需更新认证后重新同步。',
     sourceBatchId: 'SYNC-20260824-009',
-    linkedVerificationId: 'CHK-20260824-006',
+    latestReverificationStatus: 'UNCHECKED',
     severity: 'HIGH',
     status: 'PENDING',
     retryCount: 0,
@@ -812,48 +847,124 @@ export const initialSyncExceptions: SyncException[] = [
   }
 ];
 
-// 开发阶段轻量数据完整性自检工具
+// 统一基准演示参考时间：2026-08-25 16:30:00 (UTC+8)
+export const DEMO_NOW = new Date('2026-08-25T16:30:00+08:00');
+
+/**
+ * 统一时间区间计算工具函数
+ * @param dateStr 时间字符串，支持 "2026-08-25 02:00:15" 或 "刚刚 (2026-08-25 16:45)"
+ * @param range 'ALL' | 'TODAY' | 'LAST_24H' | 'LAST_7D'
+ */
+export const checkTimeRange = (dateStr: string, range: string): boolean => {
+  if (range === 'ALL') return true;
+  if (!dateStr || dateStr === '-') return false;
+
+  const match = dateStr.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?/);
+  if (!match) return false;
+
+  const normalizedStr = match[0].replace(' ', 'T') + (match[0].length === 16 ? ':00+08:00' : '+08:00');
+  const targetTime = new Date(normalizedStr).getTime();
+  if (isNaN(targetTime)) return false;
+
+  const demoNowTime = DEMO_NOW.getTime();
+
+  if (range === 'TODAY') {
+    const todayStart = new Date('2026-08-25T00:00:00+08:00').getTime();
+    return targetTime >= todayStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
+  }
+
+  if (range === 'LAST_24H') {
+    const last24hStart = demoNowTime - 24 * 3600 * 1000; // 2026-08-24 16:30:00
+    return targetTime >= last24hStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
+  }
+
+  if (range === 'LAST_7D') {
+    const last7dStart = demoNowTime - 7 * 24 * 3600 * 1000; // 2026-08-18 16:30:00
+    return targetTime >= last7dStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
+  }
+
+  return true;
+};
+
+// 开发阶段严密数据完整性与追溯双向自检工具
 export const validateDataIntegrity = (
   batches: SyncBatch[],
   verifications: VerificationRecord[],
   exceptions: SyncException[]
 ): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  const batchMap = new Set(batches.map(b => b.id));
-  const verMap = new Set(verifications.map(v => v.id));
-  const exMap = new Set(exceptions.map(e => e.id));
+  const batchMap = new Map(batches.map(b => [b.id, b]));
+  const verMap = new Map(verifications.map(v => [v.id, v]));
+  const exMap = new Map(exceptions.map(e => [e.id, e]));
 
-  // 1. 检查批次引用的异常和核验
+  // 1. 全局 ID 唯一性
+  const allIds = [...batches.map(b => b.id), ...verifications.map(v => v.id), ...exceptions.map(e => e.id)];
+  const duplicateIds = allIds.filter((id, index) => allIds.indexOf(id) !== index);
+  if (duplicateIds.length > 0) {
+    errors.push(`检测到全局重复 ID: ${Array.from(new Set(duplicateIds)).join(', ')}`);
+  }
+
+  // 2. 检查批次引用的异常和核验
   batches.forEach(b => {
-    if (b.linkedVerificationId && !verMap.has(b.linkedVerificationId)) {
-      errors.push(`批次 ${b.id} 引用的核验单 ${b.linkedVerificationId} 不存在`);
+    if (b.linkedVerificationId) {
+      const targetVer = verMap.get(b.linkedVerificationId);
+      if (!targetVer) {
+        errors.push(`批次 ${b.id} 引用的核验单 ${b.linkedVerificationId} 不存在`);
+      } else if (targetVer.linkedBatchId !== b.id) {
+        errors.push(`批次 ${b.id} 指向核验单 ${targetVer.id}，但核验单的 linkedBatchId 为 ${targetVer.linkedBatchId}，存在矛盾`);
+      }
     }
     b.failedRecords.forEach(fr => {
-      if (fr.hasExceptionCreated && fr.linkedExceptionId && !exMap.has(fr.linkedExceptionId)) {
-        errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 不存在`);
+      if (fr.hasExceptionCreated && fr.linkedExceptionId) {
+        const targetEx = exMap.get(fr.linkedExceptionId);
+        if (!targetEx) {
+          errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 不存在`);
+        } else if (targetEx.sourceBatchId !== b.id) {
+          errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 其 sourceBatchId 为 ${targetEx.sourceBatchId}，来源不一致`);
+        }
       }
     });
   });
 
-  // 2. 检查核验单引用的批次和异常
+  // 3. 检查核验单引用的批次和异常
   verifications.forEach(v => {
-    if (!batchMap.has(v.linkedBatchId)) {
+    const targetBatch = batchMap.get(v.linkedBatchId);
+    if (!targetBatch) {
       errors.push(`核验单 ${v.id} 引用的批次 ${v.linkedBatchId} 不存在`);
     }
     v.linkedExceptionIds.forEach(exId => {
-      if (!exMap.has(exId)) {
+      const targetEx = exMap.get(exId);
+      if (!targetEx) {
         errors.push(`核验单 ${v.id} 引用的异常单 ${exId} 不存在`);
+      } else if (targetEx.sourceBatchId !== v.linkedBatchId) {
+        errors.push(`核验单 ${v.id} 所属批次为 ${v.linkedBatchId}，但引用的异常单 ${exId} 来源批次为 ${targetEx.sourceBatchId}，违反唯一来源原则`);
       }
     });
   });
 
-  // 3. 检查异常单引用的批次和核验单
+  // 4. 检查异常单引用的批次和核验单
   exceptions.forEach(e => {
-    if (!batchMap.has(e.sourceBatchId)) {
+    const targetBatch = batchMap.get(e.sourceBatchId);
+    if (!targetBatch) {
       errors.push(`异常单 ${e.id} 引用的来源批次 ${e.sourceBatchId} 不存在`);
     }
-    if (e.linkedVerificationId && !verMap.has(e.linkedVerificationId)) {
-      errors.push(`异常单 ${e.id} 引用的核验单 ${e.linkedVerificationId} 不存在`);
+    if (e.linkedVerificationId) {
+      const targetVer = verMap.get(e.linkedVerificationId);
+      if (!targetVer) {
+        errors.push(`异常单 ${e.id} 引用的核验单 ${e.linkedVerificationId} 不存在`);
+      } else if (targetVer.linkedBatchId !== e.sourceBatchId) {
+        errors.push(`异常单 ${e.id} 来源批次为 ${e.sourceBatchId}，但引用的核验单 ${targetVer.id} 属于批次 ${targetVer.linkedBatchId}，存在跨批次错乱`);
+      }
+    }
+    // 检查已关闭异常的闭环留痕
+    if (e.status === 'CLOSED') {
+      if (!e.closeConclusion) {
+        errors.push(`已关闭异常 ${e.id} 缺少 closeConclusion 关闭结论留痕`);
+      }
+      const hasCloseNode = e.timeline.some(t => t.node === '已关闭' || t.node === '复核关闭');
+      if (!hasCloseNode) {
+        errors.push(`已关闭异常 ${e.id} 时间线缺少关闭节点`);
+      }
     }
   });
 

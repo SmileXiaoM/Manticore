@@ -24,6 +24,7 @@ import {
   SyncBatch,
   FieldDifference
 } from '../../syncQualityTypes';
+import { checkTimeRange } from '../../syncQualityData';
 
 interface VerificationTabProps {
   verifications: VerificationRecord[];
@@ -82,6 +83,29 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
     setSearchBatchId('');
   };
 
+  // 动态派生摘要指标（R4 规则：加权计算已完成核验单的完整率与一致率）
+  const summaryMetrics = useMemo(() => {
+    const completed = verifications.filter(v => v.result !== 'CHECKING');
+    const totalSample = completed.reduce((acc, v) => acc + (v.sampleSize || 0), 0);
+
+    let weightedIntegrity = 0;
+    let weightedConsistency = 0;
+
+    if (totalSample > 0) {
+      weightedIntegrity = completed.reduce((acc, v) => acc + v.integrityRate * v.sampleSize, 0) / totalSample;
+      weightedConsistency = completed.reduce((acc, v) => acc + v.fieldConsistencyRate * v.sampleSize, 0) / totalSample;
+    }
+
+    const totalExceptions = verifications.reduce((acc, v) => acc + v.exceptionCount, 0);
+
+    return {
+      totalVerifications: verifications.length,
+      integrityRateStr: totalSample > 0 ? `${weightedIntegrity.toFixed(2)}%` : '--',
+      consistencyRateStr: totalSample > 0 ? `${weightedConsistency.toFixed(2)}%` : '--',
+      totalExceptions
+    };
+  }, [verifications]);
+
   // 过滤核验列表
   const filteredVerifications = useMemo(() => {
     return verifications.filter(item => {
@@ -90,15 +114,9 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       if (method !== 'ALL' && item.method !== method) return false;
       if (resultStatus !== 'ALL' && item.result !== resultStatus) return false;
       if (searchBatchId.trim() && !item.linkedBatchId.toLowerCase().includes(searchBatchId.trim().toLowerCase()) && !item.id.toLowerCase().includes(searchBatchId.trim().toLowerCase())) return false;
-      
-      // 时间范围筛选
-      if (timeRange === 'TODAY') {
-        if (!item.executedAt.includes('2026-08-25') && !item.executedAt.includes('刚刚')) return false;
-      } else if (timeRange === 'LAST_24H') {
-        if (!item.executedAt.includes('2026-08-25') && !item.executedAt.includes('2026-08-24 16:') && !item.executedAt.includes('刚刚')) return false;
-      } else if (timeRange === 'LAST_7D') {
-        if (!item.executedAt.includes('2026-08-24') && !item.executedAt.includes('2026-08-25') && !item.executedAt.includes('刚刚')) return false;
-      }
+
+      // 统一时间范围筛选
+      if (!checkTimeRange(item.executedAt, timeRange)) return false;
 
       return true;
     });
@@ -162,12 +180,12 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       method: newMethod,
       methodLabel: methodLabels[newMethod],
       sampleSize: targetBatch?.sourceDataCount || 1000,
-      integrityRate: 100,
-      fieldConsistencyRate: 100,
-      timelinessRate: 100,
+      integrityRate: 0,
+      fieldConsistencyRate: 0,
+      timelinessRate: 0,
       exceptionCount: 0,
       result: 'CHECKING',
-      executedAt: '刚刚 (2026-08-25 16:30)',
+      executedAt: '2026-08-25 16:30:00',
       executor: '李晓华 (数据标准管理员)',
       strategyNotes: `手动发起针对批次 ${newBatchId} 的 ${methodLabels[newMethod]}，覆盖范围: ${scopeSummary.join(', ')}。`,
       objectDistributions: scopeSummary.map(obj => ({
@@ -175,7 +193,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
         softType: `${obj}标准类型`,
         checkedCount: Math.floor((targetBatch?.sourceDataCount || 1000) / scopeSummary.length),
         exceptionCount: 0,
-        status: 'PASSED'
+        status: 'CHECKING'
       })),
       linkedExceptionIds: [],
       fieldDifferences: []
@@ -192,7 +210,14 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
         onUpdateVerificationResult(generatedId, 'PASSED', {
           integrityRate: 100,
           fieldConsistencyRate: 100,
-          timelinessRate: 100
+          timelinessRate: 100,
+          objectDistributions: scopeSummary.map(obj => ({
+            objectType: obj,
+            softType: `${obj}标准类型`,
+            checkedCount: Math.floor((targetBatch?.sourceDataCount || 1000) / scopeSummary.length),
+            exceptionCount: 0,
+            status: 'PASSED'
+          }))
         });
       }
       onShowToast(`核验任务 ${generatedId} 比对完成：指标全部一致，结果为“通过”`, 'success');
@@ -256,7 +281,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">核验单总量</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              {verifications.length} <span className="text-xs font-normal text-slate-500 ml-1">个已核验批次</span>
+              {summaryMetrics.totalVerifications} <span className="text-xs font-normal text-slate-500 ml-1">个已核验批次</span>
             </div>
           </div>
         </div>
@@ -268,7 +293,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">全局数据完整率</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate font-mono">
-              99.98% <span className="text-xs font-normal text-emerald-600 ml-1">数量对齐</span>
+              {summaryMetrics.integrityRateStr} <span className="text-xs font-normal text-emerald-600 ml-1">加权数量对齐</span>
             </div>
           </div>
         </div>
@@ -280,7 +305,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">全局字段一致率</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate font-mono">
-              99.17% <span className="text-xs font-normal text-slate-500 ml-1">哈希比对</span>
+              {summaryMetrics.consistencyRateStr} <span className="text-xs font-normal text-slate-500 ml-1">加权哈希比对</span>
             </div>
           </div>
         </div>
@@ -292,7 +317,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">发现不一致异常数</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              {verifications.reduce((acc, v) => acc + v.exceptionCount, 0)} <span className="text-xs font-normal text-rose-600 ml-1">条记录</span>
+              {summaryMetrics.totalExceptions} <span className="text-xs font-normal text-rose-600 ml-1">条记录</span>
             </div>
           </div>
         </div>
@@ -910,30 +935,46 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                   </div>
                   {selectedVerification.fieldDifferences.length > 0 ? (
                     selectedVerification.fieldDifferences.map(diff => (
-                      <div key={diff.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
+                      <div key={diff.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2.5 text-xs shadow-2xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono font-bold text-slate-900">{diff.objectCode}</span>
                             <span className="text-slate-600 font-medium">{diff.objectName}</span>
                             <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
                               {diff.objectType} / {diff.softType}
                             </span>
+                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-mono font-bold text-[11px] border border-blue-100">
+                              比对字段: {diff.fieldName}
+                            </span>
                           </div>
-                          <span
-                            className={`px-2 py-0.5 rounded font-semibold text-[11px] ${
-                              diff.result === 'MISMATCH'
-                                ? 'bg-amber-100 text-amber-800'
-                                : diff.result === 'MISSING'
-                                ? 'bg-rose-100 text-rose-800'
-                                : 'bg-emerald-100 text-emerald-800'
-                            }`}
-                          >
-                            {diff.diffType}
-                          </span>
+                          <div className="flex items-center space-x-1.5">
+                            <span
+                              className={`px-2 py-0.5 rounded font-semibold text-[11px] ${
+                                diff.result === 'MISMATCH'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : diff.result === 'MISSING'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}
+                            >
+                              {diff.diffType}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded font-bold text-[11px] ${
+                                diff.result === 'MATCH'
+                                  ? 'bg-emerald-600 text-white'
+                                  : diff.result === 'MISMATCH'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-rose-600 text-white'
+                              }`}
+                            >
+                              {diff.result === 'MATCH' ? '一致' : diff.result === 'MISMATCH' ? '不一致' : '缺失'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* 三方比对网格 */}
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
                           {/* PLM 源值 */}
                           <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
                             <div className="text-[11px] font-semibold text-slate-500">IntePLM V21 源值</div>
@@ -999,19 +1040,29 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                             className={`p-2.5 rounded border space-y-1 ${
                               diff.result === 'MISSING'
                                 ? 'bg-rose-50/60 border-rose-200'
-                                : 'bg-amber-50/60 border-amber-200'
+                                : diff.result === 'MISMATCH'
+                                ? 'bg-amber-50/60 border-amber-200'
+                                : 'bg-emerald-50/50 border-emerald-200'
                             }`}
                           >
                             <div
                               className={`text-[11px] font-semibold ${
-                                diff.result === 'MISSING' ? 'text-rose-700' : 'text-amber-700'
+                                diff.result === 'MISSING'
+                                  ? 'text-rose-700'
+                                  : diff.result === 'MISMATCH'
+                                  ? 'text-amber-700'
+                                  : 'text-emerald-700'
                               }`}
                             >
                               Manticore 实际值
                             </div>
                             <div
                               className={`font-mono break-all leading-relaxed font-bold ${
-                                diff.result === 'MISSING' ? 'text-rose-800' : 'text-amber-900'
+                                diff.result === 'MISSING'
+                                  ? 'text-rose-800'
+                                  : diff.result === 'MISMATCH'
+                                  ? 'text-amber-900'
+                                  : 'text-emerald-900'
                               }`}
                             >
                               {diff.manticoreActualValue.length > 60 && !expandedDiffIds[diff.id] ? (

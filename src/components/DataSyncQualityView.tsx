@@ -203,6 +203,8 @@ export const DataSyncQualityView: React.FC = () => {
         {activeTab === 'SYNC_LOGS' && (
           <SyncLogsTab
             batches={batches}
+            verifications={verifications}
+            exceptions={exceptions}
             onOpenVerificationDrawer={handleOpenVerificationDrawer}
             onOpenExceptionDrawer={handleOpenExceptionDrawer}
             selectedBatchId={selectedBatchId}

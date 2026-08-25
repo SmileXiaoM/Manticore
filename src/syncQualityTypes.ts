@@ -164,7 +164,8 @@ export interface SyncException {
   exceptionTypeLabel: string;
   businessDescription: string;
   sourceBatchId: string;
-  linkedVerificationId: string;
+  linkedVerificationId?: string;
+  latestReverificationStatus?: 'UNCHECKED' | 'CHECKING' | 'PASSED' | 'FAILED';
   severity: ExceptionSeverity;
   status: ExceptionStatus;
   retryCount: number;

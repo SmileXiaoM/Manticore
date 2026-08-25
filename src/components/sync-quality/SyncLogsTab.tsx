@@ -20,13 +20,18 @@ import {
 } from 'lucide-react';
 import {
   SyncBatch,
+  VerificationRecord,
+  SyncException,
   SyncStatus,
   VerificationStatus,
   SyncMethod
 } from '../../syncQualityTypes';
+import { checkTimeRange } from '../../syncQualityData';
 
 interface SyncLogsTabProps {
   batches: SyncBatch[];
+  verifications: VerificationRecord[];
+  exceptions: SyncException[];
   onOpenVerificationDrawer: (verificationId: string) => void;
   onOpenExceptionDrawer: (exceptionId: string) => void;
   selectedBatchId?: string | null;
@@ -35,6 +40,8 @@ interface SyncLogsTabProps {
 
 export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   batches,
+  verifications,
+  exceptions,
   onOpenVerificationDrawer,
   onOpenExceptionDrawer,
   selectedBatchId,
@@ -62,6 +69,45 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
     setSearchBatchId('');
   };
 
+  // 动态派生摘要指标（R4 规则）
+  const metrics = useMemo(() => {
+    // 1. 最近同步时间：取 startTime 最大的批次
+    const sorted = [...batches].sort((a, b) => b.startTime.localeCompare(a.startTime));
+    const latest = sorted[0];
+
+    // 2. 今日同步批次 (按统一 TODAY 时间判断)
+    const todayBatches = batches.filter(b => checkTimeRange(b.startTime, 'TODAY'));
+    const todayFull = todayBatches.filter(b => b.syncMethod === 'FULL').length;
+    const todayInc = todayBatches.filter(b => b.syncMethod === 'INCREMENTAL').length;
+    const todayComp = todayBatches.filter(b => b.syncMethod === 'COMPENSATION').length;
+
+    // 3. 今日批次执行结果 (成功 / 部分成功 / 失败 / 运行中)
+    const todaySuccess = todayBatches.filter(b => b.executionStatus === 'SUCCESS').length;
+    const todayPartial = todayBatches.filter(b => b.executionStatus === 'PARTIAL_SUCCESS').length;
+    const todayFailed = todayBatches.filter(b => b.executionStatus === 'FAILED').length;
+    const todayRunning = todayBatches.filter(b => b.executionStatus === 'RUNNING').length;
+
+    // 4. 待处理异常数 (明确只统计 PENDING，并统计其中的高严重度)
+    const pendingExceptions = exceptions.filter(e => e.status === 'PENDING');
+    const highPending = pendingExceptions.filter(e => e.severity === 'HIGH').length;
+
+    return {
+      latestTimeText: latest ? latest.startTime.split(' ')[1]?.slice(0, 5) || latest.startTime : '--',
+      latestBatchId: latest ? latest.id : '--',
+      latestStatus: latest ? latest.executionStatus : 'SUCCESS',
+      todayCount: todayBatches.length,
+      todayFull,
+      todayInc,
+      todayComp,
+      todaySuccess,
+      todayPartial,
+      todayFailed,
+      todayRunning,
+      pendingCount: pendingExceptions.length,
+      highPendingCount: highPending
+    };
+  }, [batches, exceptions]);
+
   // 过滤数据
   const filteredBatches = useMemo(() => {
     return batches.filter(batch => {
@@ -70,17 +116,9 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       if (syncMethod !== 'ALL' && batch.syncMethod !== syncMethod) return false;
       if (executionStatus !== 'ALL' && batch.executionStatus !== executionStatus) return false;
       if (searchBatchId.trim() && !batch.id.toLowerCase().includes(searchBatchId.trim().toLowerCase())) return false;
-      
-      // 时间范围筛选
-      if (timeRange === 'TODAY') {
-        if (!batch.startTime.startsWith('2026-08-25')) return false;
-      } else if (timeRange === 'LAST_24H') {
-        // 最近24小时：2026-08-25 全天或 2026-08-24 16点之后
-        if (!batch.startTime.startsWith('2026-08-25') && !batch.startTime.startsWith('2026-08-24 16:')) return false;
-      } else if (timeRange === 'LAST_7D') {
-        // 7天内覆盖全部演示数据
-        if (!batch.startTime.startsWith('2026-08-24') && !batch.startTime.startsWith('2026-08-25')) return false;
-      }
+
+      // 统一时间范围筛选
+      if (!checkTimeRange(batch.startTime, timeRange)) return false;
 
       return true;
     });
@@ -90,6 +128,12 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   const selectedBatch = useMemo(() => {
     return batches.find(b => b.id === selectedBatchId) || null;
   }, [batches, selectedBatchId]);
+
+  // 该批次关联的所有核验记录（支持多核验与重验历史）
+  const linkedVerifications = useMemo(() => {
+    if (!selectedBatch) return [];
+    return verifications.filter(v => v.linkedBatchId === selectedBatch.id);
+  }, [verifications, selectedBatch]);
 
   // 状态渲染辅助
   const renderSyncStatusBadge = (status: SyncStatus) => {
@@ -193,7 +237,10 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">最近同步时间</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              16:20 <span className="text-xs font-normal text-blue-600 ml-1">SYNC-20260825-005 (运行中)</span>
+              {metrics.latestTimeText}{' '}
+              <span className="text-xs font-normal text-blue-600 ml-1">
+                {metrics.latestBatchId} ({metrics.latestStatus === 'RUNNING' ? '运行中' : metrics.latestStatus === 'SUCCESS' ? '成功' : metrics.latestStatus === 'PARTIAL_SUCCESS' ? '部分成功' : '失败'})
+              </span>
             </div>
           </div>
         </div>
@@ -205,7 +252,10 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">今日同步批次数</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              5 <span className="text-xs font-normal text-slate-500 ml-1">全量 1 / 增量 3 / 补偿 1</span>
+              {metrics.todayCount}{' '}
+              <span className="text-xs font-normal text-slate-500 ml-1">
+                全量 {metrics.todayFull} / 增量 {metrics.todayInc} / 补偿 {metrics.todayComp}
+              </span>
             </div>
           </div>
         </div>
@@ -215,9 +265,11 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-slate-400 font-medium text-[11px]">批次执行结果</div>
+            <div className="text-slate-400 font-medium text-[11px]">今日执行结果</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              2 / 2 / 1 <span className="text-xs font-normal text-slate-500 ml-1">成功 / 部分成功 / 失败</span>
+              {metrics.todaySuccess} / {metrics.todayPartial} / {metrics.todayFailed}
+              {metrics.todayRunning > 0 ? ` (+${metrics.todayRunning}运行中)` : ''}{' '}
+              <span className="text-xs font-normal text-slate-500 ml-1">成功 / 部分 / 失败</span>
             </div>
           </div>
         </div>
@@ -229,7 +281,8 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">待处理异常总数</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              4 <span className="text-xs font-normal text-rose-600 ml-1">高严重度 2 条</span>
+              {metrics.pendingCount}{' '}
+              <span className="text-xs font-normal text-rose-600 ml-1">高严重度 {metrics.highPendingCount} 条</span>
             </div>
           </div>
         </div>
@@ -728,27 +781,44 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
               {/* 页签 4: 关联核验 */}
               {activeDrawerTab === 'VERIFICATION' && (
                 <div className="space-y-3">
-                  {selectedBatch.linkedVerificationId ? (
-                    <div className="border border-slate-200 bg-white rounded-lg p-4 space-y-3 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono font-bold text-blue-600 text-sm">{selectedBatch.linkedVerificationId}</span>
-                          {renderVerificationStatusBadge(selectedBatch.verificationStatus)}
-                        </div>
-                        <button
-                          onClick={() => {
-                            onSelectBatchId(null);
-                            onOpenVerificationDrawer(selectedBatch.linkedVerificationId!);
-                          }}
-                          className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded font-semibold transition-colors inline-flex items-center space-x-1 cursor-pointer"
-                        >
-                          <span>进入一致性核验详情</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                  {linkedVerifications.length > 0 ? (
+                    <div className="space-y-2.5">
+                      <div className="text-xs text-slate-500">
+                        该批次关联的全部一致性核验单（包含初始核验与定向重新核验记录）：
                       </div>
-                      <p className="text-slate-600 leading-relaxed">
-                        该批次已自动挂载并完成一致性指纹核验。点击上方按钮可跳转至「一致性核验」页签查看详细的多对象分布与字段级对比数据。
-                      </p>
+                      {linkedVerifications.map(ver => (
+                        <div key={ver.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-mono font-bold text-blue-600 text-sm">{ver.id}</span>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
+                                {ver.methodLabel}
+                              </span>
+                              {renderVerificationStatusBadge(ver.result)}
+                            </div>
+                            <button
+                              onClick={() => {
+                                onSelectBatchId(null);
+                                onOpenVerificationDrawer(ver.id);
+                              }}
+                              className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded font-semibold transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                            >
+                              <span>进入核验详情</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-50 p-2 rounded border border-slate-100 text-slate-600">
+                            <div>样本量：<span className="font-mono font-semibold text-slate-800">{ver.sampleSize.toLocaleString()}</span></div>
+                            <div>字段一致率：<span className="font-mono font-semibold text-slate-800">{ver.result === 'CHECKING' ? '计算中' : `${ver.fieldConsistencyRate}%`}</span></div>
+                            <div>执行时间：<span className="font-mono text-slate-700">{ver.executedAt}</span></div>
+                          </div>
+                          {ver.strategyNotes && (
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                              {ver.strategyNotes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="py-8 text-center text-slate-400 text-xs">
