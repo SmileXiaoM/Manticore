@@ -27,6 +27,66 @@ import {
   SyncBatch
 } from '../../syncQualityTypes';
 
+// 状态机与操作权限校验规则守卫函数 (R1 & R4)
+export const canRetryException = (ex: SyncException | null): boolean => {
+  if (!ex) return false;
+  return Boolean(ex.hasPermission && ex.status === 'PENDING');
+};
+
+export const canReverifyException = (ex: SyncException | null): boolean => {
+  if (!ex) return false;
+  return Boolean(ex.hasPermission && ex.status === 'PENDING_REVIEW' && ex.latestReverificationStatus !== 'CHECKING');
+};
+
+export const canTransferToBusinessConfirm = (ex: SyncException | null): boolean => {
+  if (!ex) return false;
+  return Boolean(ex.hasPermission && ex.status === 'PENDING');
+};
+
+export const canAddExceptionNote = (ex: SyncException | null): boolean => {
+  if (!ex) return false;
+  return ex.status !== 'CLOSED' && ex.status !== 'RECOVERED';
+};
+
+export const canCloseException = (ex: SyncException | null): boolean => {
+  if (!ex) return false;
+  return Boolean(ex.hasPermission && ex.status === 'PENDING_REVIEW' && ex.latestReverificationStatus === 'PASSED');
+};
+
+export const getRetryDisabledReason = (ex: SyncException | null): string => {
+  if (!ex) return '';
+  if (!ex.hasPermission) return '无操作权限：工艺对象需工艺系统管理员（ROLE_PROCESS_ADMIN）执行';
+  if (ex.status !== 'PENDING') return `当前状态为“${ex.status}”，无需/不可发起补偿重试`;
+  return '';
+};
+
+export const getReverifyDisabledReason = (ex: SyncException | null): string => {
+  if (!ex) return '';
+  if (!ex.hasPermission) return '无操作权限：工艺对象需工艺系统管理员（ROLE_PROCESS_ADMIN）执行';
+  if (ex.status === 'PENDING') return '当前处于“待处理”状态，需先执行补偿同步入库后再发起重新核验';
+  if (ex.status === 'PENDING_BUSINESS_CONFIRM') return '当前处于“待业务确认”状态，需等待业务部门确认有效版本';
+  if (ex.status === 'CLOSED' || ex.status === 'RECOVERED') return '异常已关闭归档，无需重新核验';
+  if (ex.status === 'RETRYING') return '当前正在重试写入中，请稍候';
+  if (ex.latestReverificationStatus === 'CHECKING') return '定向核验比对正在执行中，请勿重复发起';
+  return '';
+};
+
+export const getBusinessConfirmDisabledReason = (ex: SyncException | null): string => {
+  if (!ex) return '';
+  if (!ex.hasPermission) return '无操作权限：工艺对象需工艺系统管理员（ROLE_PROCESS_ADMIN）执行';
+  if (ex.status !== 'PENDING') return '仅在“待处理”状态支持转待业务确认';
+  return '';
+};
+
+export const getCloseDisabledReason = (ex: SyncException | null): string => {
+  if (!ex) return '';
+  if (!ex.hasPermission) return '无操作权限：工艺对象需工艺系统管理员（ROLE_PROCESS_ADMIN）执行';
+  if (ex.status !== 'PENDING_REVIEW') return '仅在“待复核”状态可执行关闭';
+  if (ex.latestReverificationStatus === 'CHECKING') return '定向核验比对中，需核验通过后方可关闭';
+  if (ex.latestReverificationStatus !== 'PASSED') return '需先完成重新核验且结果为“通过”后方可关闭';
+  return '';
+};
+
 interface ExceptionDisposalTabProps {
   exceptions: SyncException[];
   batches: SyncBatch[];
@@ -214,12 +274,9 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
   // 1. 单条重新同步
   const handleExecuteSingleRetry = (targetEx: SyncException) => {
-    // 权限检查
-    if (!targetEx.hasPermission) {
-      onShowToast(
-        `无操作权限：当前登录角色（数据标准管理员）仅拥有零件与文档对象的补偿权限，工艺对象需工艺系统管理员（ROLE_PROCESS_ADMIN）执行。`,
-        'error'
-      );
+    // 状态与权限检查 (R1 & R4)
+    if (!canRetryException(targetEx)) {
+      onShowToast(getRetryDisabledReason(targetEx) || '当前状态不可发起补偿重试', 'error');
       setRetryModalEx(null);
       return;
     }
@@ -286,15 +343,16 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
             return {
               ...e,
               status: 'PENDING_REVIEW' as ExceptionStatus,
+              latestReverificationStatus: 'UNCHECKED' as const,
               timeline: [
                 ...e.timeline,
                 {
                   id: `TL-ACT-${Date.now()}-2`,
-                  node: '重新核验通过',
+                  node: '人工补偿成功',
                   timestamp: '2026-08-25 16:35:20',
-                  operator: '补偿引擎 & 核验校验器',
-                  note: '单条补偿已成功写入 Manticore 索引，指纹核验比对一致，已自动流转至待复核。',
-                  result: 'SUCCESS' as const
+                  operator: '补偿引擎',
+                  note: '单条补偿已成功写入 Manticore 索引，数据已就绪。请发起重新核验以完成闭环比对。',
+                  result: 'INFO' as const
                 }
               ]
             };
@@ -302,7 +360,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
           return e;
         });
         onUpdateExceptions(successUpdated);
-        onShowToast(`异常 ${targetEx.id} 补偿重试成功，已自动更新为“待复核”状态`, 'success');
+        onShowToast(`异常 ${targetEx.id} 补偿写入完成，已转入“待复核”阶段，请发起重新核验`, 'success');
       }
     }, 1800);
   };
@@ -312,10 +370,10 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     setShowBatchRetryModal(false);
     setIsProcessing(true);
 
-    const selectedItems = exceptions.filter(e => selectedIds.includes(e.id));
     let successCount = 0;
     let failCount = 0;
     let skipNoPermCount = 0;
+    let skipStatusCount = 0;
 
     const nowTime = '2026-08-25 16:36:00';
 
@@ -324,6 +382,11 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
       if (!e.hasPermission) {
         skipNoPermCount++;
+        return e;
+      }
+
+      if (e.status !== 'PENDING') {
+        skipStatusCount++;
         return e;
       }
 
@@ -350,6 +413,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
         return {
           ...e,
           status: 'PENDING_REVIEW' as ExceptionStatus,
+          latestReverificationStatus: 'UNCHECKED' as const,
           retryCount: e.retryCount + 1,
           lastHandledTime: nowTime,
           timeline: [
@@ -359,8 +423,8 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
               node: '批量补偿成功',
               timestamp: nowTime,
               operator: '李晓华 (数据标准管理员)',
-              note: '批量补偿触发：数据已重新入库，转入待复核。',
-              result: 'SUCCESS' as const
+              note: '批量补偿触发：数据已重新写入 Manticore 索引，请对各异常单发起定向重新核验以完成闭环。',
+              result: 'INFO' as const
             }
           ]
         };
@@ -372,8 +436,8 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       onUpdateExceptions(newExceptions);
       setSelectedIds([]);
       onShowToast(
-        `批量重试处理完成：成功 ${successCount} 条，失败 ${failCount} 条，无权限跳过 ${skipNoPermCount} 条`,
-        failCount > 0 || skipNoPermCount > 0 ? 'warning' : 'success'
+        `批量重试处理完成：成功 ${successCount} 条，失败 ${failCount} 条，状态不符跳过 ${skipStatusCount} 条，无权限跳过 ${skipNoPermCount} 条`,
+        failCount > 0 || skipNoPermCount > 0 || skipStatusCount > 0 ? 'warning' : 'success'
       );
     }, 1500);
   };
@@ -381,6 +445,11 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
   // 3. 转待业务确认
   const handleSaveBusinessConfirm = () => {
     if (!businessConfirmModalEx) return;
+    if (!canTransferToBusinessConfirm(businessConfirmModalEx)) {
+      onShowToast(getBusinessConfirmDisabledReason(businessConfirmModalEx) || '当前状态不可转待业务确认', 'error');
+      setBusinessConfirmModalEx(null);
+      return;
+    }
     if (!businessReasonInput.trim()) {
       onShowToast('请填写转交业务确认的具体原因与说明', 'warning');
       return;
@@ -455,6 +524,10 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
   // 5. 复核通过并关闭
   const handleSaveClose = () => {
     if (!closeModalEx) return;
+    if (!canCloseException(closeModalEx)) {
+      onShowToast(getCloseDisabledReason(closeModalEx) || '未通过重新核验或缺少权限，不可关闭', 'error');
+      return;
+    }
     if (!closeConclusionInput.trim()) {
       onShowToast('请填写最终复核结论说明', 'warning');
       return;
@@ -492,6 +565,12 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
   // 6. 重新核验 (生成新的核验单闭环跨页)
   const handleExecuteReverify = (targetEx: SyncException) => {
+    if (!canReverifyException(targetEx)) {
+      onShowToast(getReverifyDisabledReason(targetEx) || '当前状态不可发起重新核验', 'error');
+      setReverifyModalEx(null);
+      return;
+    }
+
     setIsProcessing(true);
     setReverifyModalEx(null);
 
@@ -505,11 +584,11 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       sourceSystem: 'IntePLM V21',
       objectsSummary: [targetEx.objectType],
       method: 'STANDARDIZED_HASH',
-      methodLabel: '标准化哈希核验 (异常定向闭环)',
+      methodLabel: '标准化哈希核验 (定向复验)',
       sampleSize: 1,
-      integrityRate: 100,
-      fieldConsistencyRate: 100,
-      timelinessRate: 100,
+      integrityRate: 0,
+      fieldConsistencyRate: 0,
+      timelinessRate: 0,
       exceptionCount: 0,
       result: 'CHECKING',
       executedAt: '刚刚 (2026-08-25 16:45)',
@@ -521,7 +600,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
           softType: targetEx.softType,
           checkedCount: 1,
           exceptionCount: 0,
-          status: 'PASSED'
+          status: 'CHECKING'
         }
       ],
       linkedExceptionIds: [targetEx.id],
@@ -532,23 +611,24 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       onAddVerification(newVerification);
     }
 
-    // 2. 更新异常记录，关联新核验单并转入待复核
+    // 2. 更新异常记录：状态保持待复核，核验中状态标记为 CHECKING
     const updated = exceptions.map(e => {
       if (e.id === targetEx.id) {
         return {
           ...e,
           status: 'PENDING_REVIEW' as ExceptionStatus,
+          latestReverificationStatus: 'CHECKING' as const,
           linkedVerificationId: newChkId,
           lastHandledTime: nowTime,
           timeline: [
             ...e.timeline,
             {
               id: `TL-REV-${Date.now()}`,
-              node: '重新核验',
+              node: '重新核验已发起',
               timestamp: nowTime,
               operator: '系统核验引擎',
-              note: `已创建定向核验单 ${newChkId}，针对批次 ${targetEx.sourceBatchId} 及对象 ${targetEx.objectCode} 完成定向比对，差异已修复，进入待复核状态。`,
-              result: 'SUCCESS' as const
+              note: `已创建定向核验单 ${newChkId}，正在对批次 ${targetEx.sourceBatchId} 中的对象 ${targetEx.objectCode} 执行标准化哈希比对...`,
+              result: 'INFO' as const
             }
           ]
         };
@@ -558,17 +638,51 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
     onUpdateExceptions(updated);
 
-    // 3. 2.5秒后更新核验单结果为 PASSED
+    // 3. 2.5秒后比对完成，更新核验单结果为 PASSED，并更新异常的 latestReverificationStatus
     setTimeout(() => {
       setIsProcessing(false);
       if (onUpdateVerificationResult) {
         onUpdateVerificationResult(newChkId, 'PASSED', {
           integrityRate: 100,
           fieldConsistencyRate: 100,
-          timelinessRate: 100
+          timelinessRate: 100,
+          objectDistributions: [
+            {
+              objectType: targetEx.objectType,
+              softType: targetEx.softType,
+              checkedCount: 1,
+              exceptionCount: 0,
+              status: 'PASSED'
+            }
+          ]
         });
       }
-      onShowToast(`对象 ${targetEx.objectCode} 重新核验通过（已生成核验单 ${newChkId}），异常已转入“待复核”`, 'success');
+
+      // 更新异常状态机至核验通过
+      onUpdateExceptions(
+        updated.map(e => {
+          if (e.id === targetEx.id) {
+            return {
+              ...e,
+              latestReverificationStatus: 'PASSED' as const,
+              timeline: [
+                ...e.timeline,
+                {
+                  id: `TL-REV-PASS-${Date.now()}`,
+                  node: '重新核验通过',
+                  timestamp: '2026-08-25 16:45:03',
+                  operator: '系统核验引擎',
+                  note: `定向核验单 ${newChkId} 比对一致，指标符合要求，现已允许复核通过并关闭。`,
+                  result: 'SUCCESS' as const
+                }
+              ]
+            };
+          }
+          return e;
+        })
+      );
+
+      onShowToast(`对象 ${targetEx.objectCode} 重新核验通过（核验单 ${newChkId}），现已允许复核关闭`, 'success');
     }, 2500);
   };
 
@@ -1050,12 +1164,23 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
                   {/* 处置操作工作台 */}
                   <div className="border border-slate-200 bg-slate-50 rounded-lg p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-slate-900">异常处置工作台</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-900">异常处置工作台</h3>
+                      <span className="text-[11px] text-slate-500">
+                        最新核验: <strong className="font-semibold text-slate-800">{selectedException.latestReverificationStatus === 'PASSED' ? '已通过' : selectedException.latestReverificationStatus === 'CHECKING' ? '比对中' : selectedException.latestReverificationStatus === 'FAILED' ? '未通过' : '未复验'}</strong>
+                      </span>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {/* 重新同步 */}
                       <button
+                        disabled={!canRetryException(selectedException)}
                         onClick={() => setRetryModalEx(selectedException)}
-                        className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                        title={getRetryDisabledReason(selectedException)}
+                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded text-xs font-semibold transition-colors ${
+                          canRetryException(selectedException)
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-2xs cursor-pointer'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        }`}
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         <span>重新同步/补偿</span>
@@ -1063,8 +1188,14 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
                       {/* 重新核验 */}
                       <button
+                        disabled={!canReverifyException(selectedException)}
                         onClick={() => setReverifyModalEx(selectedException)}
-                        className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                        title={getReverifyDisabledReason(selectedException)}
+                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded text-xs font-semibold transition-colors ${
+                          canReverifyException(selectedException)
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs cursor-pointer'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>发起重新核验</span>
@@ -1072,11 +1203,17 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
                       {/* 转待业务确认 */}
                       <button
+                        disabled={!canTransferToBusinessConfirm(selectedException)}
                         onClick={() => {
                           setBusinessReasonInput(selectedException.businessConfirmReason || '');
                           setBusinessConfirmModalEx(selectedException);
                         }}
-                        className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                        title={getBusinessConfirmDisabledReason(selectedException)}
+                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded text-xs font-semibold transition-colors ${
+                          canTransferToBusinessConfirm(selectedException)
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs cursor-pointer'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        }`}
                       >
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>转待业务确认</span>
@@ -1084,11 +1221,17 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
                       {/* 填写处理说明 */}
                       <button
+                        disabled={!canAddExceptionNote(selectedException)}
                         onClick={() => {
                           setNoteInput('');
                           setAddNoteModalEx(selectedException);
                         }}
-                        className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded text-xs font-semibold transition-colors cursor-pointer"
+                        title={!canAddExceptionNote(selectedException) ? '异常已归档关闭，不可追加说明' : ''}
+                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 border rounded text-xs font-semibold transition-colors ${
+                          canAddExceptionNote(selectedException)
+                            ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer'
+                            : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>追加处理说明</span>
@@ -1096,17 +1239,17 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
                       {/* 复核通过并关闭 */}
                       <button
-                        disabled={selectedException.status !== 'PENDING_REVIEW'}
+                        disabled={!canCloseException(selectedException)}
                         onClick={() => {
                           setCloseConclusionInput('');
                           setCloseModalEx(selectedException);
                         }}
-                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded text-xs font-semibold transition-colors cursor-pointer ${
-                          selectedException.status === 'PENDING_REVIEW'
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs'
+                        title={getCloseDisabledReason(selectedException)}
+                        className={`flex items-center justify-center space-x-1.5 px-3 py-2 rounded text-xs font-semibold transition-colors ${
+                          canCloseException(selectedException)
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                         }`}
-                        title={selectedException.status !== 'PENDING_REVIEW' ? '仅在“待复核”状态可用' : ''}
                       >
                         <CheckCheck className="w-3.5 h-3.5" />
                         <span>复核通过并关闭</span>

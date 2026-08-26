@@ -118,7 +118,7 @@ export interface VerificationObjectDistribution {
   softType: string;
   checkedCount: number;
   exceptionCount: number;
-  status: 'PASSED' | 'WARNING' | 'FAILED';
+  status: 'PASSED' | 'WARNING' | 'FAILED' | 'CHECKING';
 }
 
 // 一致性核验记录

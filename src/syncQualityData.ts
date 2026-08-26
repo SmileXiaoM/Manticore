@@ -924,6 +924,15 @@ export const validateDataIntegrity = (
         }
       }
     });
+
+    // 批次显示“通过”时不存在未关闭异常
+    if (b.verificationStatus === 'PASSED') {
+      const batchExceptions = exceptions.filter(e => e.sourceBatchId === b.id);
+      const unresolved = batchExceptions.filter(e => e.status !== 'CLOSED' && e.status !== 'RECOVERED');
+      if (unresolved.length > 0) {
+        errors.push(`批次 ${b.id} 核验状态为“通过”，但存在未关闭异常 (${unresolved.map(u => u.id).join(', ')})`);
+      }
+    }
   });
 
   // 3. 检查核验单引用的批次和异常
@@ -931,7 +940,15 @@ export const validateDataIntegrity = (
     const targetBatch = batchMap.get(v.linkedBatchId);
     if (!targetBatch) {
       errors.push(`核验单 ${v.id} 引用的批次 ${v.linkedBatchId} 不存在`);
+    } else {
+      // 核验范围与批次对象范围一致性
+      const invalidObjects = v.objectsSummary.filter(obj => !targetBatch.objectsSummary.includes(obj));
+      if (invalidObjects.length > 0) {
+        errors.push(`核验单 ${v.id} 对象范围 ${invalidObjects.join(', ')} 超出关联批次 ${targetBatch.id} 的对象范围`);
+      }
     }
+
+    // 异常定向核验只关联同批次对应异常
     v.linkedExceptionIds.forEach(exId => {
       const targetEx = exMap.get(exId);
       if (!targetEx) {
@@ -961,7 +978,7 @@ export const validateDataIntegrity = (
       if (!e.closeConclusion) {
         errors.push(`已关闭异常 ${e.id} 缺少 closeConclusion 关闭结论留痕`);
       }
-      const hasCloseNode = e.timeline.some(t => t.node === '已关闭' || t.node === '复核关闭');
+      const hasCloseNode = e.timeline.some(t => t.node === '已关闭' || t.node === '复核关闭' || t.node === '复核通过并关闭');
       if (!hasCloseNode) {
         errors.push(`已关闭异常 ${e.id} 时间线缺少关闭节点`);
       }
