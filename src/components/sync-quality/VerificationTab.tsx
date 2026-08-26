@@ -21,6 +21,7 @@ import {
   VerificationRecord,
   VerificationStatus,
   VerificationMethod,
+  VerificationObjectDistribution,
   SyncBatch,
   FieldDifference
 } from '../../syncQualityTypes';
@@ -155,8 +156,41 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       return;
     }
 
+    const targetBatch = batches.find(b => b.id === newBatchId);
+    if (!targetBatch) return;
+
     setIsSubmitting(true);
-    const generatedId = `CHK-20260825-${Math.floor(100 + Math.random() * 900)}`;
+
+    // 从所选批次的 objectDetails 派生真实的 objectDistributions (R2)
+    const targetDetails = newScope === 'ALL'
+      ? targetBatch.objectDetails
+      : targetBatch.objectDetails.filter(d => d.objectType === newScope);
+
+    const derivedDistributions: VerificationObjectDistribution[] = targetDetails.length > 0
+      ? targetDetails.map(d => ({
+          objectType: d.objectType,
+          softType: d.softType || '未细分软类型',
+          checkedCount: d.extractedCount,
+          exceptionCount: 0,
+          status: 'CHECKING' as const
+        }))
+      : (newScope === 'ALL' ? targetBatch.objectsSummary : [newScope]).map(obj => ({
+          objectType: obj,
+          softType: '未细分软类型',
+          checkedCount: targetBatch.sourceDataCount,
+          exceptionCount: 0,
+          status: 'CHECKING' as const
+        }));
+
+    const sampleSize = derivedDistributions.reduce((sum, d) => sum + d.checkedCount, 0);
+    const scopeSummary = Array.from(new Set(derivedDistributions.map(d => d.objectType)));
+
+    const isFullBatch = newScope === 'ALL' && scopeSummary.length === targetBatch.objectsSummary.length;
+    const verificationScope: 'FULL_BATCH' | 'OBJECT_SCOPE' = isFullBatch ? 'FULL_BATCH' : 'OBJECT_SCOPE';
+
+    // 集中、可验证不重复的生成器 (R2.8)
+    const nextSeq = verifications.length + 1;
+    const generatedId = `CHK-20260825-${String(nextSeq).padStart(3, '0')}-${String(Date.now()).slice(-4)}`;
 
     const methodLabels: Record<VerificationMethod, string> = {
       COUNT: '数量核验',
@@ -167,11 +201,6 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       RISK_TARGETED: '风险定向抽样'
     };
 
-    const targetBatch = batches.find(b => b.id === newBatchId);
-    const scopeSummary = newScope === 'ALL'
-      ? targetBatch?.objectsSummary || ['Part', 'Document']
-      : [newScope];
-
     const tempRecord: VerificationRecord = {
       id: generatedId,
       linkedBatchId: newBatchId,
@@ -179,22 +208,17 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       objectsSummary: scopeSummary,
       method: newMethod,
       methodLabel: methodLabels[newMethod],
-      sampleSize: targetBatch?.sourceDataCount || 1000,
+      sampleSize,
       integrityRate: 0,
       fieldConsistencyRate: 0,
       timelinessRate: 0,
       exceptionCount: 0,
       result: 'CHECKING',
-      executedAt: '2026-08-25 16:30:00',
+      executedAt: '刚刚 (2026-08-25 16:30)',
       executor: '李晓华 (数据标准管理员)',
-      strategyNotes: `手动发起针对批次 ${newBatchId} 的 ${methodLabels[newMethod]}，覆盖范围: ${scopeSummary.join(', ')}。`,
-      objectDistributions: scopeSummary.map(obj => ({
-        objectType: obj,
-        softType: `${obj}标准类型`,
-        checkedCount: Math.floor((targetBatch?.sourceDataCount || 1000) / scopeSummary.length),
-        exceptionCount: 0,
-        status: 'CHECKING'
-      })),
+      verificationScope,
+      strategyNotes: `手动发起针对批次 ${newBatchId} 的 ${methodLabels[newMethod]}，覆盖对象: ${scopeSummary.join(', ')}。`,
+      objectDistributions: derivedDistributions,
       linkedExceptionIds: [],
       fieldDifferences: []
     };
@@ -206,18 +230,17 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
 
     // 2.5秒后通过回调不可变更新核验结果状态
     setTimeout(() => {
+      const completedDistributions: VerificationObjectDistribution[] = derivedDistributions.map(d => ({
+        ...d,
+        status: 'PASSED' as const
+      }));
+
       if (onUpdateVerificationResult) {
         onUpdateVerificationResult(generatedId, 'PASSED', {
           integrityRate: 100,
           fieldConsistencyRate: 100,
           timelinessRate: 100,
-          objectDistributions: scopeSummary.map(obj => ({
-            objectType: obj,
-            softType: `${obj}标准类型`,
-            checkedCount: Math.floor((targetBatch?.sourceDataCount || 1000) / scopeSummary.length),
-            exceptionCount: 0,
-            status: 'PASSED'
-          }))
+          objectDistributions: completedDistributions
         });
       }
       onShowToast(`核验任务 ${generatedId} 比对完成：指标全部一致，结果为“通过”`, 'success');
@@ -325,7 +348,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
 
       {/* 顶部横向筛选区 */}
       <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 items-end">
           {/* 来源系统 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">来源系统</label>
@@ -419,21 +442,21 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           </div>
 
           {/* 动作区 */}
-          <div className="flex items-center space-x-2">
+          <div className="col-span-2 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-1 flex items-center space-x-2">
             <button
               onClick={handleResetFilters}
-              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold transition-colors cursor-pointer"
+              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
               <span>重置</span>
             </button>
             <button
               onClick={() => {
                 setShowInitiateModal(true);
               }}
-              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-2xs whitespace-nowrap transition-colors cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 shrink-0" />
               <span>发起核验</span>
             </button>
           </div>
@@ -506,13 +529,25 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                       {item.sampleSize.toLocaleString()}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-semibold text-slate-800">
-                      {item.integrityRate.toFixed(2)}%
+                      {item.result === 'CHECKING' ? (
+                        <span className="text-slate-400 font-normal">--</span>
+                      ) : (
+                        `${item.integrityRate.toFixed(2)}%`
+                      )}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-semibold text-slate-800">
-                      {item.fieldConsistencyRate.toFixed(2)}%
+                      {item.result === 'CHECKING' ? (
+                        <span className="text-slate-400 font-normal">--</span>
+                      ) : (
+                        `${item.fieldConsistencyRate.toFixed(2)}%`
+                      )}
                     </td>
                     <td className="py-3 px-3 text-right font-mono text-slate-600">
-                      {item.timelinessRate.toFixed(2)}%
+                      {item.result === 'CHECKING' ? (
+                        <span className="text-slate-400 font-normal">--</span>
+                      ) : (
+                        `${item.timelinessRate.toFixed(2)}%`
+                      )}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-bold">
                       {item.exceptionCount > 0 ? (
@@ -778,19 +813,19 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
                       <div className="text-[11px] text-slate-500">完整率</div>
                       <div className="text-lg font-bold text-slate-900 font-mono mt-1">
-                        {selectedVerification.integrityRate.toFixed(2)}%
+                        {selectedVerification.result === 'CHECKING' ? '--' : `${selectedVerification.integrityRate.toFixed(2)}%`}
                       </div>
                     </div>
                     <div className="bg-indigo-50/60 border border-indigo-200 p-3 rounded-lg">
                       <div className="text-[11px] text-indigo-800">字段一致率</div>
                       <div className="text-lg font-bold text-indigo-700 font-mono mt-1">
-                        {selectedVerification.fieldConsistencyRate.toFixed(2)}%
+                        {selectedVerification.result === 'CHECKING' ? '--' : `${selectedVerification.fieldConsistencyRate.toFixed(2)}%`}
                       </div>
                     </div>
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
                       <div className="text-[11px] text-slate-500">时效达标率</div>
                       <div className="text-lg font-bold text-slate-800 font-mono mt-1">
-                        {selectedVerification.timelinessRate.toFixed(2)}%
+                        {selectedVerification.result === 'CHECKING' ? '--' : `${selectedVerification.timelinessRate.toFixed(2)}%`}
                       </div>
                     </div>
                     <div className="bg-rose-50/60 border border-rose-200 p-3 rounded-lg">

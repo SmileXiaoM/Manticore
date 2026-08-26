@@ -6,6 +6,7 @@
 import {
   SyncBatch,
   VerificationRecord,
+  VerificationStatus,
   SyncException,
   FieldDifference
 } from './syncQualityTypes';
@@ -486,6 +487,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     result: 'WARNING',
     executedAt: '2026-08-25 03:00:00',
     executor: '系统调度器 (AutoCheck)',
+    verificationScope: 'FULL_BATCH',
     strategyNotes: '采用 SHA-256 标准化哈希比对全量字段指纹，核验 PLM 源库与 Manticore 检索库多对象一致性。',
     objectDistributions: [
       { objectType: 'Part', softType: '机械零件', checkedCount: 31200, exceptionCount: 1, status: 'WARNING' },
@@ -512,6 +514,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     result: 'PASSED',
     executedAt: '2026-08-25 10:18:24',
     executor: '李晓华 (数据标准管理员)',
+    verificationScope: 'FULL_BATCH',
     strategyNotes: '核对批次抽取总量与 Manticore 写入总量，主键对齐比对无任何丢失。',
     objectDistributions: [
       { objectType: 'Part', softType: '机械零件', checkedCount: 890, exceptionCount: 0, status: 'PASSED' },
@@ -535,6 +538,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     result: 'WARNING',
     executedAt: '2026-08-25 08:40:00',
     executor: '李晓华 (数据标准管理员)',
+    verificationScope: 'FULL_BATCH',
     strategyNotes: '定向针对状态变更频繁与包含长文本大字段的文档进行深度字段比对。',
     objectDistributions: [
       { objectType: 'Document', softType: '技术文档', checkedCount: 120, exceptionCount: 2, status: 'WARNING' }
@@ -557,6 +561,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     result: 'FAILED',
     executedAt: '2026-08-24 18:20:00',
     executor: '系统调度器 (AutoCheck)',
+    verificationScope: 'FULL_BATCH',
     strategyNotes: '核对零件版本 UpdateCount，发现 18 条记录存在索引落后于源库主数据的情况。',
     objectDistributions: [
       { objectType: 'Part', softType: '机械零件', checkedCount: 2800, exceptionCount: 18, status: 'FAILED' }
@@ -565,6 +570,71 @@ export const initialVerificationRecords: VerificationRecord[] = [
     fieldDifferences: [initialFieldDifferences[0]]
   }
 ];
+
+// 集中批次状态派生函数 (R1)
+export const deriveBatchVerificationStatus = (
+  batch: SyncBatch,
+  allVerifications: VerificationRecord[],
+  allExceptions: SyncException[]
+): { verificationStatus: VerificationStatus; linkedVerificationId?: string } => {
+  // 查找属于本批次的所有核验单
+  const batchVerifications = allVerifications.filter(v => v.linkedBatchId === batch.id);
+
+  // 区分整批核验与定向/部分对象核验
+  const fullBatchVerifications = batchVerifications.filter(
+    v => v.verificationScope === 'FULL_BATCH' || (!v.verificationScope && v.linkedExceptionIds.length === 0)
+  );
+
+  const latestFullVer = fullBatchVerifications[0] || null;
+  const latestOverallVer = batchVerifications[0] || null;
+
+  // 检查本批次未关闭的异常单
+  const batchExceptions = allExceptions.filter(e => e.sourceBatchId === batch.id);
+  const unresolvedExceptions = batchExceptions.filter(
+    e => e.status !== 'CLOSED' && e.status !== 'RECOVERED'
+  );
+
+  // 1. 如果该批次从未发起任何核验
+  if (batchVerifications.length === 0) {
+    return {
+      verificationStatus: batch.verificationStatus || 'UNCHECKED',
+      linkedVerificationId: batch.linkedVerificationId
+    };
+  }
+
+  // 2. 最新整批核验正在核验比对中 (CHECKING)
+  if (latestFullVer && latestFullVer.result === 'CHECKING') {
+    return {
+      verificationStatus: 'CHECKING',
+      linkedVerificationId: latestFullVer.id
+    };
+  }
+
+  // 3. 若存在任何未关闭的异常单，整批严禁显示为“通过”
+  if (unresolvedExceptions.length > 0) {
+    const baseStatus: VerificationStatus = latestFullVer?.result === 'FAILED' ? 'FAILED' : 'WARNING';
+    return {
+      verificationStatus: baseStatus,
+      // 保持主核验单/整批核验单 ID，定向核验单不覆盖批次主核验
+      linkedVerificationId: latestFullVer?.id || batch.linkedVerificationId || latestOverallVer?.id
+    };
+  }
+
+  // 4. 若不存在未关闭异常单，且存在整批核验单，使用最新整批核验单结果
+  if (latestFullVer) {
+    return {
+      verificationStatus: latestFullVer.result,
+      linkedVerificationId: latestFullVer.id
+    };
+  }
+
+  // 5. 若仅存在部分对象范围核验 (OBJECT_SCOPE) 或定向核验 (EXCEPTION_TARGET)
+  // 未覆盖整批时不得宣告整批通过
+  return {
+    verificationStatus: batch.verificationStatus === 'PASSED' ? (batchExceptions.length > 0 ? 'WARNING' : 'PASSED') : batch.verificationStatus,
+    linkedVerificationId: batch.linkedVerificationId || latestOverallVer?.id
+  };
+};
 
 // 初始异常处置列表（全网唯一、自洽且包含完整闭环状态与权限）
 export const initialSyncExceptions: SyncException[] = [

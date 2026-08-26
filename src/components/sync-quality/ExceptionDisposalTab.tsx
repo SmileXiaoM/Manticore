@@ -285,29 +285,30 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
     // 状态先变更为重试中
     const nowTime = '2026-08-25 16:35:10';
-    const updated = exceptions.map(e => {
-      if (e.id === targetEx.id) {
-        return {
-          ...e,
-          status: 'RETRYING' as ExceptionStatus,
-          retryCount: e.retryCount + 1,
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-ACT-${Date.now()}-1`,
-              node: '人工补偿',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: '已发起单条人工补偿同步，任务正在向 Manticore 推送最新切片数据...',
-              result: 'INFO' as const
-            }
-          ]
-        };
-      }
-      return e;
-    });
-    onUpdateExceptions(updated);
+    onUpdateExceptions(prev =>
+      prev.map(e => {
+        if (e.id === targetEx.id) {
+          return {
+            ...e,
+            status: 'RETRYING' as ExceptionStatus,
+            retryCount: e.retryCount + 1,
+            lastHandledTime: nowTime,
+            timeline: [
+              ...e.timeline,
+              {
+                id: `TL-ACT-${Date.now()}-1`,
+                node: '人工补偿',
+                timestamp: nowTime,
+                operator: '李晓华 (数据标准管理员)',
+                note: '已发起单条人工补偿同步，任务正在向 Manticore 推送最新切片数据...',
+                result: 'INFO' as const
+              }
+            ]
+          };
+        }
+        return e;
+      })
+    );
     setRetryModalEx(null);
 
     // 模拟重试响应
@@ -315,51 +316,53 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       setIsProcessing(false);
       // 特殊分支：EX-20260825-003 演示失败，其他演示成功
       if (targetEx.id === 'EX-20260825-003') {
-        const failedUpdated = updated.map(e => {
-          if (e.id === targetEx.id) {
-            return {
-              ...e,
-              status: 'PENDING' as ExceptionStatus,
-              timeline: [
-                ...e.timeline,
-                {
-                  id: `TL-ACT-${Date.now()}-2`,
-                  node: '人工补偿失败',
-                  timestamp: '2026-08-25 16:35:18',
-                  operator: '补偿引擎',
-                  note: '大文本流式解析校验超时 (HTTP 504 Gateway Timeout)，未能完成增量刷新，已保留待处理状态。',
-                  result: 'FAILED' as const
-                }
-              ]
-            };
-          }
-          return e;
-        });
-        onUpdateExceptions(failedUpdated);
+        onUpdateExceptions(prev =>
+          prev.map(e => {
+            if (e.id === targetEx.id) {
+              return {
+                ...e,
+                status: 'PENDING' as ExceptionStatus,
+                timeline: [
+                  ...e.timeline,
+                  {
+                    id: `TL-ACT-${Date.now()}-2`,
+                    node: '人工补偿失败',
+                    timestamp: '2026-08-25 16:35:18',
+                    operator: '补偿引擎',
+                    note: '大文本流式解析校验超时 (HTTP 504 Gateway Timeout)，未能完成增量刷新，已保留待处理状态。',
+                    result: 'FAILED' as const
+                  }
+                ]
+              };
+            }
+            return e;
+          })
+        );
         onShowToast(`异常 ${targetEx.id} 补偿重试失败：大文本流式解析超时，已回退为待处理状态`, 'error');
       } else {
-        const successUpdated = updated.map(e => {
-          if (e.id === targetEx.id) {
-            return {
-              ...e,
-              status: 'PENDING_REVIEW' as ExceptionStatus,
-              latestReverificationStatus: 'UNCHECKED' as const,
-              timeline: [
-                ...e.timeline,
-                {
-                  id: `TL-ACT-${Date.now()}-2`,
-                  node: '人工补偿成功',
-                  timestamp: '2026-08-25 16:35:20',
-                  operator: '补偿引擎',
-                  note: '单条补偿已成功写入 Manticore 索引，数据已就绪。请发起重新核验以完成闭环比对。',
-                  result: 'INFO' as const
-                }
-              ]
-            };
-          }
-          return e;
-        });
-        onUpdateExceptions(successUpdated);
+        onUpdateExceptions(prev =>
+          prev.map(e => {
+            if (e.id === targetEx.id) {
+              return {
+                ...e,
+                status: 'PENDING_REVIEW' as ExceptionStatus,
+                latestReverificationStatus: 'UNCHECKED' as const,
+                timeline: [
+                  ...e.timeline,
+                  {
+                    id: `TL-ACT-${Date.now()}-2`,
+                    node: '人工补偿成功',
+                    timestamp: '2026-08-25 16:35:20',
+                    operator: '补偿引擎',
+                    note: '单条补偿已成功写入 Manticore 索引，数据已就绪。请发起重新核验以完成闭环比对。',
+                    result: 'INFO' as const
+                  }
+                ]
+              };
+            }
+            return e;
+          })
+        );
         onShowToast(`异常 ${targetEx.id} 补偿写入完成，已转入“待复核”阶段，请发起重新核验`, 'success');
       }
     }, 1800);
@@ -377,63 +380,63 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
 
     const nowTime = '2026-08-25 16:36:00';
 
-    const newExceptions = exceptions.map(e => {
-      if (!selectedIds.includes(e.id)) return e;
-
-      if (!e.hasPermission) {
-        skipNoPermCount++;
-        return e;
-      }
-
-      if (e.status !== 'PENDING') {
-        skipStatusCount++;
-        return e;
-      }
-
-      if (e.id === 'EX-20260825-003') {
-        failCount++;
-        return {
-          ...e,
-          retryCount: e.retryCount + 1,
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-BATCH-${Date.now()}-f`,
-              node: '批量补偿重试',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: '批量补偿触发：大文本字段解析超时，重试失败。',
-              result: 'FAILED' as const
-            }
-          ]
-        };
-      } else {
-        successCount++;
-        return {
-          ...e,
-          status: 'PENDING_REVIEW' as ExceptionStatus,
-          latestReverificationStatus: 'UNCHECKED' as const,
-          retryCount: e.retryCount + 1,
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-BATCH-${Date.now()}-s`,
-              node: '批量补偿成功',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: '批量补偿触发：数据已重新写入 Manticore 索引，请对各异常单发起定向重新核验以完成闭环。',
-              result: 'INFO' as const
-            }
-          ]
-        };
-      }
-    });
-
     setTimeout(() => {
       setIsProcessing(false);
-      onUpdateExceptions(newExceptions);
+      onUpdateExceptions(prev =>
+        prev.map(e => {
+          if (!selectedIds.includes(e.id)) return e;
+
+          if (!e.hasPermission) {
+            skipNoPermCount++;
+            return e;
+          }
+
+          if (e.status !== 'PENDING') {
+            skipStatusCount++;
+            return e;
+          }
+
+          if (e.id === 'EX-20260825-003') {
+            failCount++;
+            return {
+              ...e,
+              retryCount: e.retryCount + 1,
+              lastHandledTime: nowTime,
+              timeline: [
+                ...e.timeline,
+                {
+                  id: `TL-BATCH-${Date.now()}-f`,
+                  node: '批量补偿重试',
+                  timestamp: nowTime,
+                  operator: '李晓华 (数据标准管理员)',
+                  note: '批量补偿触发：大文本字段解析超时，重试失败。',
+                  result: 'FAILED' as const
+                }
+              ]
+            };
+          } else {
+            successCount++;
+            return {
+              ...e,
+              status: 'PENDING_REVIEW' as ExceptionStatus,
+              latestReverificationStatus: 'UNCHECKED' as const,
+              retryCount: e.retryCount + 1,
+              lastHandledTime: nowTime,
+              timeline: [
+                ...e.timeline,
+                {
+                  id: `TL-BATCH-${Date.now()}-s`,
+                  node: '批量补偿成功',
+                  timestamp: nowTime,
+                  operator: '李晓华 (数据标准管理员)',
+                  note: '批量补偿触发：数据已重新写入 Manticore 索引，请对各异常单发起定向重新核验以完成闭环。',
+                  result: 'INFO' as const
+                }
+              ]
+            };
+          }
+        })
+      );
       setSelectedIds([]);
       onShowToast(
         `批量重试处理完成：成功 ${successCount} 条，失败 ${failCount} 条，状态不符跳过 ${skipStatusCount} 条，无权限跳过 ${skipNoPermCount} 条`,
@@ -456,30 +459,31 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     }
 
     const nowTime = '2026-08-25 16:38:00';
-    const updated = exceptions.map(e => {
-      if (e.id === businessConfirmModalEx.id) {
-        return {
-          ...e,
-          status: 'PENDING_BUSINESS_CONFIRM' as ExceptionStatus,
-          businessConfirmReason: businessReasonInput.trim(),
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-BC-${Date.now()}`,
-              node: '待业务确认',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: `转交业务端确认说明：${businessReasonInput.trim()}`,
-              result: 'INFO' as const
-            }
-          ]
-        };
-      }
-      return e;
-    });
+    onUpdateExceptions(prev =>
+      prev.map(e => {
+        if (e.id === businessConfirmModalEx.id) {
+          return {
+            ...e,
+            status: 'PENDING_BUSINESS_CONFIRM' as ExceptionStatus,
+            businessConfirmReason: businessReasonInput.trim(),
+            lastHandledTime: nowTime,
+            timeline: [
+              ...e.timeline,
+              {
+                id: `TL-BC-${Date.now()}`,
+                node: '待业务确认',
+                timestamp: nowTime,
+                operator: '李晓华 (数据标准管理员)',
+                note: `转交业务端确认说明：${businessReasonInput.trim()}`,
+                result: 'INFO' as const
+              }
+            ]
+          };
+        }
+        return e;
+      })
+    );
 
-    onUpdateExceptions(updated);
     setBusinessConfirmModalEx(null);
     setBusinessReasonInput('');
     onShowToast(`异常 ${businessConfirmModalEx.id} 已成功转入“待业务确认”阶段`, 'success');
@@ -494,28 +498,29 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     }
 
     const nowTime = '2026-08-25 16:40:00';
-    const updated = exceptions.map(e => {
-      if (e.id === addNoteModalEx.id) {
-        return {
-          ...e,
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-NOTE-${Date.now()}`,
-              node: '人工处理记录',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: noteInput.trim(),
-              result: 'INFO' as const
-            }
-          ]
-        };
-      }
-      return e;
-    });
+    onUpdateExceptions(prev =>
+      prev.map(e => {
+        if (e.id === addNoteModalEx.id) {
+          return {
+            ...e,
+            lastHandledTime: nowTime,
+            timeline: [
+              ...e.timeline,
+              {
+                id: `TL-NOTE-${Date.now()}`,
+                node: '人工处理记录',
+                timestamp: nowTime,
+                operator: '李晓华 (数据标准管理员)',
+                note: noteInput.trim(),
+                result: 'INFO' as const
+              }
+            ]
+          };
+        }
+        return e;
+      })
+    );
 
-    onUpdateExceptions(updated);
     setAddNoteModalEx(null);
     setNoteInput('');
     onShowToast(`已成功为 ${addNoteModalEx.id} 追加处理说明`, 'success');
@@ -534,30 +539,31 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     }
 
     const nowTime = '2026-08-25 16:42:00';
-    const updated = exceptions.map(e => {
-      if (e.id === closeModalEx.id) {
-        return {
-          ...e,
-          status: 'CLOSED' as ExceptionStatus,
-          closeConclusion: closeConclusionInput.trim(),
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-CLOSE-${Date.now()}`,
-              node: '复核通过并关闭',
-              timestamp: nowTime,
-              operator: '李晓华 (数据标准管理员)',
-              note: `复核结论：${closeConclusionInput.trim()}`,
-              result: 'SUCCESS' as const
-            }
-          ]
-        };
-      }
-      return e;
-    });
+    onUpdateExceptions(prev =>
+      prev.map(e => {
+        if (e.id === closeModalEx.id) {
+          return {
+            ...e,
+            status: 'CLOSED' as ExceptionStatus,
+            closeConclusion: closeConclusionInput.trim(),
+            lastHandledTime: nowTime,
+            timeline: [
+              ...e.timeline,
+              {
+                id: `TL-CLOSE-${Date.now()}`,
+                node: '复核通过并关闭',
+                timestamp: nowTime,
+                operator: '李晓华 (数据标准管理员)',
+                note: `复核结论：${closeConclusionInput.trim()}`,
+                result: 'SUCCESS' as const
+              }
+            ]
+          };
+        }
+        return e;
+      })
+    );
 
-    onUpdateExceptions(updated);
     setCloseModalEx(null);
     setCloseConclusionInput('');
     onShowToast(`异常 ${closeModalEx.id} 已复核通过并正式关闭留痕`, 'success');
@@ -575,9 +581,9 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     setReverifyModalEx(null);
 
     const nowTime = '2026-08-25 16:45:00';
-    const newChkId = `CHK-20260825-REV${Math.floor(100 + Math.random() * 900)}`;
+    const newChkId = `CHK-20260825-REV-${targetEx.id.replace('EX-', '')}-${String(Date.now()).slice(-4)}`;
 
-    // 1. 生成真实的核验记录
+    // 1. 生成真实的核验记录 (带有 EXCEPTION_TARGET 范围标记，不冲突覆盖全批次核验状态)
     const newVerification: VerificationRecord = {
       id: newChkId,
       linkedBatchId: targetEx.sourceBatchId,
@@ -593,6 +599,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       result: 'CHECKING',
       executedAt: '刚刚 (2026-08-25 16:45)',
       executor: '系统核验引擎 (自动闭环)',
+      verificationScope: 'EXCEPTION_TARGET',
       strategyNotes: `由异常单 ${targetEx.id} 针对对象 ${targetEx.objectCode} (${targetEx.objectName}) 发起的定向复检任务。`,
       objectDistributions: [
         {
@@ -612,31 +619,31 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
     }
 
     // 2. 更新异常记录：状态保持待复核，核验中状态标记为 CHECKING
-    const updated = exceptions.map(e => {
-      if (e.id === targetEx.id) {
-        return {
-          ...e,
-          status: 'PENDING_REVIEW' as ExceptionStatus,
-          latestReverificationStatus: 'CHECKING' as const,
-          linkedVerificationId: newChkId,
-          lastHandledTime: nowTime,
-          timeline: [
-            ...e.timeline,
-            {
-              id: `TL-REV-${Date.now()}`,
-              node: '重新核验已发起',
-              timestamp: nowTime,
-              operator: '系统核验引擎',
-              note: `已创建定向核验单 ${newChkId}，正在对批次 ${targetEx.sourceBatchId} 中的对象 ${targetEx.objectCode} 执行标准化哈希比对...`,
-              result: 'INFO' as const
-            }
-          ]
-        };
-      }
-      return e;
-    });
-
-    onUpdateExceptions(updated);
+    onUpdateExceptions(prev =>
+      prev.map(e => {
+        if (e.id === targetEx.id) {
+          return {
+            ...e,
+            status: 'PENDING_REVIEW' as ExceptionStatus,
+            latestReverificationStatus: 'CHECKING' as const,
+            linkedVerificationId: newChkId,
+            lastHandledTime: nowTime,
+            timeline: [
+              ...e.timeline,
+              {
+                id: `TL-REV-${Date.now()}`,
+                node: '重新核验已发起',
+                timestamp: nowTime,
+                operator: '系统核验引擎',
+                note: `已创建定向核验单 ${newChkId}，正在对批次 ${targetEx.sourceBatchId} 中的对象 ${targetEx.objectCode} 执行标准化哈希比对...`,
+                result: 'INFO' as const
+              }
+            ]
+          };
+        }
+        return e;
+      })
+    );
 
     // 3. 2.5秒后比对完成，更新核验单结果为 PASSED，并更新异常的 latestReverificationStatus
     setTimeout(() => {
@@ -658,9 +665,9 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
         });
       }
 
-      // 更新异常状态机至核验通过
-      onUpdateExceptions(
-        updated.map(e => {
+      // 更新异常状态机至核验通过 (使用 prev 确保不覆盖期间追加的说明)
+      onUpdateExceptions(prev =>
+        prev.map(e => {
           if (e.id === targetEx.id) {
             return {
               ...e,

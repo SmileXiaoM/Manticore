@@ -137,6 +137,7 @@ export interface VerificationRecord {
   result: VerificationStatus;
   executedAt: string;
   executor: string;
+  verificationScope?: 'FULL_BATCH' | 'OBJECT_SCOPE' | 'EXCEPTION_TARGET';
   objectDistributions: VerificationObjectDistribution[];
   linkedExceptionIds: string[];
   fieldDifferences: FieldDifference[];

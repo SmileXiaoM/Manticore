@@ -290,7 +290,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
 
       {/* 顶部横向筛选区 */}
       <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 items-end">
           {/* 来源系统 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">来源系统</label>
@@ -381,12 +381,12 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
           </div>
 
           {/* 按钮动作 */}
-          <div className="flex items-center space-x-2">
+          <div className="col-span-2 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-1 flex items-center space-x-2">
             <button
               onClick={handleResetFilters}
-              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold transition-colors cursor-pointer"
+              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
               <span>重置</span>
             </button>
           </div>

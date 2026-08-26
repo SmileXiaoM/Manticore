@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Database,
   Fingerprint,
@@ -19,7 +19,9 @@ import {
 import {
   initialSyncBatches,
   initialVerificationRecords,
-  initialSyncExceptions
+  initialSyncExceptions,
+  deriveBatchVerificationStatus,
+  validateDataIntegrity
 } from '../syncQualityData';
 import { SyncLogsTab } from './sync-quality/SyncLogsTab';
 import { VerificationTab } from './sync-quality/VerificationTab';
@@ -47,6 +49,28 @@ export const DataSyncQualityView: React.FC = () => {
 
   // Toast 消息队列
   const [toasts, setToasts] = useState<ToastState[]>([]);
+
+  // 开发环境/启动时实际执行数据完整性校验 (R1.8)
+  useEffect(() => {
+    const integrity = validateDataIntegrity(batches, verifications, exceptions);
+    if (!integrity.valid) {
+      console.error('[数据质量完整性校验失败]', integrity.errors);
+    } else {
+      console.log('[数据质量完整性校验通过] 初始数据关系完全闭环一致');
+    }
+  }, []);
+
+  // 集中派生批次状态（隔离定向核验与整批状态，避免局部通过覆盖整批预警 R1）
+  const derivedBatches = useMemo(() => {
+    return batches.map(b => {
+      const derived = deriveBatchVerificationStatus(b, verifications, exceptions);
+      return {
+        ...b,
+        verificationStatus: derived.verificationStatus,
+        linkedVerificationId: derived.linkedVerificationId || b.linkedVerificationId
+      };
+    });
+  }, [batches, verifications, exceptions]);
 
   const showToast = (message: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -82,22 +106,24 @@ export const DataSyncQualityView: React.FC = () => {
     setActiveTab('EXCEPTION_DISPOSAL');
   };
 
+  // 添加核验记录：整批核验才更新主核验 ID，定向核验不得覆盖整批
   const handleAddVerification = (newRecord: VerificationRecord) => {
     setVerifications(prev => [newRecord, ...prev]);
-    // 更新对应批次的核验状态
-    setBatches(prev =>
-      prev.map(b =>
-        b.id === newRecord.linkedBatchId
-          ? {
-              ...b,
-              verificationStatus: newRecord.result,
-              linkedVerificationId: newRecord.id
-            }
-          : b
-      )
-    );
+    if (newRecord.verificationScope === 'FULL_BATCH' || (!newRecord.verificationScope && newRecord.linkedExceptionIds.length === 0)) {
+      setBatches(prev =>
+        prev.map(b =>
+          b.id === newRecord.linkedBatchId
+            ? {
+                ...b,
+                linkedVerificationId: newRecord.id
+              }
+            : b
+        )
+      );
+    }
   };
 
+  // 更新核验结果：只更新核验单本身，批次状态由集中派生函数自动计算
   const handleUpdateVerificationResult = (
     verificationId: string,
     result: VerificationStatus,
@@ -105,18 +131,6 @@ export const DataSyncQualityView: React.FC = () => {
   ) => {
     setVerifications(prev =>
       prev.map(v => (v.id === verificationId ? { ...v, result, ...(updates || {}) } : v))
-    );
-    // 同步更新关联批次的核验状态
-    setBatches(prev =>
-      prev.map(b => {
-        if (b.linkedVerificationId === verificationId) {
-          return {
-            ...b,
-            verificationStatus: result
-          };
-        }
-        return b;
-      })
     );
   };
 
@@ -155,7 +169,7 @@ export const DataSyncQualityView: React.FC = () => {
           >
             <Database className="w-3.5 h-3.5 shrink-0" />
             <span>同步记录</span>
-            <span className="text-[11px] font-mono font-normal opacity-70">({batches.length})</span>
+            <span className="text-[11px] font-mono font-normal opacity-70">({derivedBatches.length})</span>
           </button>
 
           <button
@@ -202,7 +216,7 @@ export const DataSyncQualityView: React.FC = () => {
       <div className="transition-opacity duration-150">
         {activeTab === 'SYNC_LOGS' && (
           <SyncLogsTab
-            batches={batches}
+            batches={derivedBatches}
             verifications={verifications}
             exceptions={exceptions}
             onOpenVerificationDrawer={handleOpenVerificationDrawer}
@@ -215,7 +229,7 @@ export const DataSyncQualityView: React.FC = () => {
         {activeTab === 'VERIFICATION' && (
           <VerificationTab
             verifications={verifications}
-            batches={batches}
+            batches={derivedBatches}
             onOpenBatchDrawer={handleOpenBatchDrawer}
             onOpenExceptionDrawer={handleOpenExceptionDrawer}
             onAddVerification={handleAddVerification}
@@ -229,7 +243,7 @@ export const DataSyncQualityView: React.FC = () => {
         {activeTab === 'EXCEPTION_DISPOSAL' && (
           <ExceptionDisposalTab
             exceptions={exceptions}
-            batches={batches}
+            batches={derivedBatches}
             verifications={verifications}
             onUpdateExceptions={setExceptions}
             onAddVerification={handleAddVerification}
