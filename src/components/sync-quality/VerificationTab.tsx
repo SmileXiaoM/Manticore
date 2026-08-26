@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Search,
   RotateCcw,
@@ -71,6 +71,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   const [newScope, setNewScope] = useState<string>('ALL');
   const [newMethod, setNewMethod] = useState<VerificationMethod>('STANDARDIZED_HASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // 展开长文本状态
   const [expandedDiffIds, setExpandedDiffIds] = useState<Record<string, boolean>>({});
@@ -147,6 +148,11 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   };
 
   const handleInitiateVerification = () => {
+    // 提交防重守卫：若正在提交中则立即阻断
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+
     if (!newBatchId) {
       onShowToast('请选择关联同步批次', 'warning');
       return;
@@ -159,92 +165,106 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
     const targetBatch = batches.find(b => b.id === newBatchId);
     if (!targetBatch) return;
 
+    // 同步加锁并更新 UI 禁用态
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
-    // 从所选批次的 objectDetails 派生真实的 objectDistributions (R2)
-    const targetDetails = newScope === 'ALL'
-      ? targetBatch.objectDetails
-      : targetBatch.objectDetails.filter(d => d.objectType === newScope);
+    try {
+      // 从所选批次的 objectDetails 派生真实的 objectDistributions (R2)
+      const targetDetails = newScope === 'ALL'
+        ? targetBatch.objectDetails
+        : targetBatch.objectDetails.filter(d => d.objectType === newScope);
 
-    const derivedDistributions: VerificationObjectDistribution[] = targetDetails.length > 0
-      ? targetDetails.map(d => ({
-          objectType: d.objectType,
-          softType: d.softType || '未细分软类型',
-          checkedCount: d.extractedCount,
-          exceptionCount: 0,
-          status: 'CHECKING' as const
-        }))
-      : (newScope === 'ALL' ? targetBatch.objectsSummary : [newScope]).map(obj => ({
-          objectType: obj,
-          softType: '未细分软类型',
-          checkedCount: targetBatch.sourceDataCount,
-          exceptionCount: 0,
-          status: 'CHECKING' as const
+      const derivedDistributions: VerificationObjectDistribution[] = targetDetails.length > 0
+        ? targetDetails.map(d => ({
+            objectType: d.objectType,
+            softType: d.softType || '未细分软类型',
+            checkedCount: d.extractedCount,
+            exceptionCount: 0,
+            status: 'CHECKING' as const
+          }))
+        : (newScope === 'ALL' ? targetBatch.objectsSummary : [newScope]).map(obj => ({
+            objectType: obj,
+            softType: '未细分软类型',
+            checkedCount: targetBatch.sourceDataCount,
+            exceptionCount: 0,
+            status: 'CHECKING' as const
+          }));
+
+      const sampleSize = derivedDistributions.reduce((sum, d) => sum + d.checkedCount, 0);
+      const scopeSummary = Array.from(new Set(derivedDistributions.map(d => d.objectType)));
+
+      const isFullBatch = newScope === 'ALL' && scopeSummary.length === targetBatch.objectsSummary.length;
+      const verificationScope: 'FULL_BATCH' | 'OBJECT_SCOPE' = isFullBatch ? 'FULL_BATCH' : 'OBJECT_SCOPE';
+
+      // 集中、可验证不重复的生成器 (R2.8)
+      const nextSeq = verifications.length + 1;
+      const generatedId = `CHK-20260825-${String(nextSeq).padStart(3, '0')}-${String(Date.now()).slice(-4)}`;
+
+      const methodLabels: Record<VerificationMethod, string> = {
+        COUNT: '数量核验',
+        UNIQUE_KEY: '唯一键核验',
+        VERSION_UPDATECOUNT: '版本/updatecount 核验',
+        STANDARDIZED_HASH: '标准化哈希核验',
+        STRATIFIED_RANDOM: '分层随机抽样',
+        RISK_TARGETED: '风险定向抽样'
+      };
+
+      const tempRecord: VerificationRecord = {
+        id: generatedId,
+        linkedBatchId: newBatchId,
+        sourceSystem: 'IntePLM V21',
+        objectsSummary: scopeSummary,
+        method: newMethod,
+        methodLabel: methodLabels[newMethod],
+        sampleSize,
+        integrityRate: 0,
+        fieldConsistencyRate: 0,
+        timelinessRate: 0,
+        exceptionCount: 0,
+        result: 'CHECKING',
+        executedAt: '刚刚 (2026-08-25 16:30)',
+        executor: '李晓华 (数据标准管理员)',
+        verificationScope,
+        strategyNotes: `手动发起针对批次 ${newBatchId} 的 ${methodLabels[newMethod]}，覆盖对象: ${scopeSummary.join(', ')}。`,
+        objectDistributions: derivedDistributions,
+        linkedExceptionIds: [],
+        fieldDifferences: []
+      };
+
+      onAddVerification(tempRecord);
+      setShowInitiateModal(false);
+      onShowToast(`已成功发起核验任务 ${generatedId}，正在调度比对...`, 'info');
+
+      // 对话框关闭后安全复位防重锁
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }, 400);
+
+      // 2.5秒后通过回调不可变更新核验结果状态
+      setTimeout(() => {
+        const completedDistributions: VerificationObjectDistribution[] = derivedDistributions.map(d => ({
+          ...d,
+          status: 'PASSED' as const
         }));
 
-    const sampleSize = derivedDistributions.reduce((sum, d) => sum + d.checkedCount, 0);
-    const scopeSummary = Array.from(new Set(derivedDistributions.map(d => d.objectType)));
-
-    const isFullBatch = newScope === 'ALL' && scopeSummary.length === targetBatch.objectsSummary.length;
-    const verificationScope: 'FULL_BATCH' | 'OBJECT_SCOPE' = isFullBatch ? 'FULL_BATCH' : 'OBJECT_SCOPE';
-
-    // 集中、可验证不重复的生成器 (R2.8)
-    const nextSeq = verifications.length + 1;
-    const generatedId = `CHK-20260825-${String(nextSeq).padStart(3, '0')}-${String(Date.now()).slice(-4)}`;
-
-    const methodLabels: Record<VerificationMethod, string> = {
-      COUNT: '数量核验',
-      UNIQUE_KEY: '唯一键核验',
-      VERSION_UPDATECOUNT: '版本/updatecount 核验',
-      STANDARDIZED_HASH: '标准化哈希核验',
-      STRATIFIED_RANDOM: '分层随机抽样',
-      RISK_TARGETED: '风险定向抽样'
-    };
-
-    const tempRecord: VerificationRecord = {
-      id: generatedId,
-      linkedBatchId: newBatchId,
-      sourceSystem: 'IntePLM V21',
-      objectsSummary: scopeSummary,
-      method: newMethod,
-      methodLabel: methodLabels[newMethod],
-      sampleSize,
-      integrityRate: 0,
-      fieldConsistencyRate: 0,
-      timelinessRate: 0,
-      exceptionCount: 0,
-      result: 'CHECKING',
-      executedAt: '刚刚 (2026-08-25 16:30)',
-      executor: '李晓华 (数据标准管理员)',
-      verificationScope,
-      strategyNotes: `手动发起针对批次 ${newBatchId} 的 ${methodLabels[newMethod]}，覆盖对象: ${scopeSummary.join(', ')}。`,
-      objectDistributions: derivedDistributions,
-      linkedExceptionIds: [],
-      fieldDifferences: []
-    };
-
-    onAddVerification(tempRecord);
-    setShowInitiateModal(false);
-    setIsSubmitting(false);
-    onShowToast(`已成功发起核验任务 ${generatedId}，正在调度比对...`, 'info');
-
-    // 2.5秒后通过回调不可变更新核验结果状态
-    setTimeout(() => {
-      const completedDistributions: VerificationObjectDistribution[] = derivedDistributions.map(d => ({
-        ...d,
-        status: 'PASSED' as const
-      }));
-
-      if (onUpdateVerificationResult) {
-        onUpdateVerificationResult(generatedId, 'PASSED', {
-          integrityRate: 100,
-          fieldConsistencyRate: 100,
-          timelinessRate: 100,
-          objectDistributions: completedDistributions
-        });
-      }
-      onShowToast(`核验任务 ${generatedId} 比对完成：指标全部一致，结果为“通过”`, 'success');
-    }, 2500);
+        if (onUpdateVerificationResult) {
+          onUpdateVerificationResult(generatedId, 'PASSED', {
+            integrityRate: 100,
+            fieldConsistencyRate: 100,
+            timelinessRate: 100,
+            objectDistributions: completedDistributions
+          });
+        }
+        onShowToast(`核验任务 ${generatedId} 比对完成：指标全部一致，结果为“通过”`, 'success');
+      }, 2500);
+    } catch (err) {
+      // 发生异常时恢复可操作状态
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+      onShowToast('发起核验失败，请重试', 'error');
+    }
   };
 
   const renderVerificationStatusBadge = (status: VerificationStatus) => {
@@ -452,6 +472,8 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
             </button>
             <button
               onClick={() => {
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
                 setShowInitiateModal(true);
               }}
               className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-2xs whitespace-nowrap transition-colors cursor-pointer"
@@ -466,21 +488,21 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[1080px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-3.5">核验编号</th>
-                <th className="py-3 px-3">关联批次</th>
-                <th className="py-3 px-3">对象范围</th>
-                <th className="py-3 px-3">核验方式</th>
-                <th className="py-3 px-3 text-right">核验样本量</th>
-                <th className="py-3 px-3 text-right">完整率</th>
-                <th className="py-3 px-3 text-right">字段一致率</th>
-                <th className="py-3 px-3 text-right">时效达标率</th>
-                <th className="py-3 px-3 text-right">异常数</th>
-                <th className="py-3 px-3">核验结果</th>
-                <th className="py-3 px-3">执行时间</th>
-                <th className="py-3 px-3.5 text-center sticky-ops">操作</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">核验编号</th>
+                <th className="py-3 px-3 whitespace-nowrap">关联批次</th>
+                <th className="py-3 px-3 min-w-[100px]">对象范围</th>
+                <th className="py-3 px-3 whitespace-nowrap">核验方式</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">核验样本量</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">完整率</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">字段一致率</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">时效达标率</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">异常数</th>
+                <th className="py-3 px-3 whitespace-nowrap">核验结果</th>
+                <th className="py-3 px-3 whitespace-nowrap">执行时间</th>
+                <th className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -604,7 +626,13 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                 <h3 className="text-sm font-bold text-slate-900">发起一致性核验任务</h3>
               </div>
               <button
-                onClick={() => setShowInitiateModal(false)}
+                onClick={() => {
+                  if (!isSubmittingRef.current) {
+                    setShowInitiateModal(false);
+                    isSubmittingRef.current = false;
+                    setIsSubmitting(false);
+                  }
+                }}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded"
               >
                 <X className="w-4 h-4" />
@@ -693,27 +721,36 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
 
             <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
               <button
-                onClick={() => setShowInitiateModal(false)}
-                className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 rounded text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                disabled={isSubmitting}
+                onClick={() => {
+                  if (!isSubmittingRef.current) {
+                    setShowInitiateModal(false);
+                    isSubmittingRef.current = false;
+                    setIsSubmitting(false);
+                  }
+                }}
+                className={`px-3.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 transition-colors ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 cursor-pointer'
+                }`}
               >
                 取消
               </button>
               <button
                 disabled={isBatchRunning || isSubmitting}
                 onClick={handleInitiateVerification}
-                className={`px-4 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center space-x-1.5 cursor-pointer ${
-                  isBatchRunning
+                className={`px-4 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center space-x-1.5 ${
+                  isBatchRunning || isSubmitting
                     ? 'bg-slate-300 cursor-not-allowed text-slate-500'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
                 }`}
               >
                 {isSubmitting ? (
                   <>
-                    <Play className="w-3.5 h-3.5 animate-spin" />
-                    <span>调度中...</span>
+                    <Play className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span className="whitespace-nowrap">调度中...</span>
                   </>
                 ) : (
-                  <span>确认发起核验</span>
+                  <span className="whitespace-nowrap">确认发起核验</span>
                 )}
               </button>
             </div>

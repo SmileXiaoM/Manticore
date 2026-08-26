@@ -211,11 +211,11 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   const renderSyncMethodLabel = (method: SyncMethod) => {
     switch (method) {
       case 'FULL':
-        return <span className="text-slate-800 font-medium">全量同步</span>;
+        return <span className="text-slate-800 font-medium whitespace-nowrap">全量同步</span>;
       case 'INCREMENTAL':
-        return <span className="text-blue-700 font-medium">增量同步</span>;
+        return <span className="text-blue-700 font-medium whitespace-nowrap">增量同步</span>;
       case 'COMPENSATION':
-        return <span className="text-amber-700 font-medium">补偿同步</span>;
+        return <span className="text-amber-700 font-medium whitespace-nowrap">补偿同步</span>;
     }
   };
 
@@ -396,22 +396,22 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[1080px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-3.5">批次编号</th>
-                <th className="py-3 px-3">来源系统</th>
-                <th className="py-3 px-3">对象范围</th>
-                <th className="py-3 px-3">方式</th>
-                <th className="py-3 px-3 text-right">源数据量</th>
-                <th className="py-3 px-3 text-right">成功数</th>
-                <th className="py-3 px-3 text-right">失败数</th>
-                <th className="py-3 px-3 text-right">跳过数</th>
-                <th className="py-3 px-3">开始时间</th>
-                <th className="py-3 px-3">耗时</th>
-                <th className="py-3 px-3">执行状态</th>
-                <th className="py-3 px-3">核验状态</th>
-                <th className="py-3 px-3.5 text-center sticky-ops">操作</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">批次编号</th>
+                <th className="py-3 px-3 whitespace-nowrap">来源系统</th>
+                <th className="py-3 px-3 min-w-[100px]">对象范围</th>
+                <th className="py-3 px-3 min-w-[76px] whitespace-nowrap">方式</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">源数据量</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">成功数</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">失败数</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">跳过数</th>
+                <th className="py-3 px-3 whitespace-nowrap">开始时间</th>
+                <th className="py-3 px-3 whitespace-nowrap">耗时</th>
+                <th className="py-3 px-3 whitespace-nowrap">执行状态</th>
+                <th className="py-3 px-3 whitespace-nowrap">核验状态</th>
+                <th className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -423,7 +423,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       selectedBatchId === batch.id ? 'bg-blue-50/40' : ''
                     }`}
                   >
-                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 hover:underline cursor-pointer">
+                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectBatchId(batch.id);
@@ -434,20 +434,20 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         {batch.id}
                       </button>
                     </td>
-                    <td className="py-3 px-3 text-slate-700 font-medium">{batch.sourceSystem}</td>
+                    <td className="py-3 px-3 text-slate-700 font-medium whitespace-nowrap">{batch.sourceSystem}</td>
                     <td className="py-3 px-3">
                       <div className="flex flex-wrap gap-1">
                         {batch.objectsSummary.map(obj => (
                           <span
                             key={obj}
-                            className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-mono"
+                            className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-mono whitespace-nowrap"
                           >
                             {obj}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="py-3 px-3">{renderSyncMethodLabel(batch.syncMethod)}</td>
+                    <td className="py-3 px-3 min-w-[76px] whitespace-nowrap">{renderSyncMethodLabel(batch.syncMethod)}</td>
                     <td className="py-3 px-3 text-right font-mono font-medium text-slate-900">
                       {batch.sourceDataCount.toLocaleString()}
                     </td>
