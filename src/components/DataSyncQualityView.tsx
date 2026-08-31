@@ -21,7 +21,8 @@ import {
   initialVerificationRecords,
   initialSyncExceptions,
   deriveBatchVerificationStatus,
-  validateDataIntegrity
+  validateDataIntegrity,
+  runNegativeIntegrityAssertions
 } from '../syncQualityData';
 import { SyncLogsTab } from './sync-quality/SyncLogsTab';
 import { VerificationTab } from './sync-quality/VerificationTab';
@@ -50,13 +51,19 @@ export const DataSyncQualityView: React.FC = () => {
   // Toast 消息队列
   const [toasts, setToasts] = useState<ToastState[]>([]);
 
-  // 开发环境/启动时实际执行数据完整性校验 (R1.8)
+  // 开发环境/启动时实际执行数据完整性校验与负向断言验证 (R1.8, R3)
   useEffect(() => {
     const integrity = validateDataIntegrity(batches, verifications, exceptions);
     if (!integrity.valid) {
       console.error('[数据质量完整性校验失败]', integrity.errors);
     } else {
       console.log('[数据质量完整性校验通过] 初始数据关系完全闭环一致');
+    }
+
+    // 执行轻量负向验证断言
+    const negativeRes = runNegativeIntegrityAssertions(batches, verifications, exceptions);
+    if (negativeRes.allNegativePassed) {
+      console.log('[负向异常断言验证通过] 3 项异常场景均被精准捕获');
     }
   }, []);
 

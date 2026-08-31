@@ -814,48 +814,82 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     </h3>
                     
                     <div className="grid grid-cols-2 gap-y-3 pt-2">
-                      {selectedBatch.sourceDataCutoffAt && (
-                        <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                          <span className="text-slate-500">数据截止时间 (sourceDataCutoffAt)：</span>
-                          <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceDataCutoffAt}</span>
-                        </div>
+                      {/* 全量同步范围证据反馈 */}
+                      {selectedBatch.syncMethod === 'FULL' && (
+                        <>
+                          {selectedBatch.sourceDataCutoffAt && (
+                            <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
+                              <span className="text-slate-500">数据截止时间 (sourceDataCutoffAt)：</span>
+                              <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceDataCutoffAt}</span>
+                            </div>
+                          )}
+
+                          {selectedBatch.sourceSnapshotAt && (
+                            <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
+                              <span className="text-slate-500">源端一致性快照点 (sourceSnapshotAt)：</span>
+                              <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceSnapshotAt}</span>
+                            </div>
+                          )}
+
+                          {!selectedBatch.sourceDataCutoffAt && !selectedBatch.sourceSnapshotAt && (
+                            <div className="col-span-2 bg-amber-50/70 border border-amber-200 p-3 rounded-lg text-amber-900 space-y-1">
+                              <div className="font-bold flex items-center space-x-1.5 text-amber-800">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>范围证据缺失</span>
+                              </div>
+                              <p className="text-[11px] text-amber-700 leading-relaxed">
+                                该批次未记录数据截止时间或源端一致性快照点，无法完整确认本次全量同步的数据边界。
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
 
-                      {selectedBatch.sourceSnapshotAt && (
-                        <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                          <span className="text-slate-500">源端一致性快照点 (sourceSnapshotAt)：</span>
-                          <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceSnapshotAt}</span>
-                        </div>
-                      )}
+                      {/* 增量/补偿同步范围与水位证据反馈 */}
+                      {selectedBatch.syncMethod !== 'FULL' && (
+                        <>
+                          {selectedBatch.dataWindowStart && (
+                            <div>
+                              <span className="text-slate-500">增量窗口起始 (dataWindowStart)：</span>
+                              <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowStart}</div>
+                            </div>
+                          )}
 
-                      {selectedBatch.dataWindowStart && (
-                        <div>
-                          <span className="text-slate-500">增量窗口起始 (dataWindowStart)：</span>
-                          <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowStart}</div>
-                        </div>
-                      )}
+                          {selectedBatch.dataWindowEnd && (
+                            <div>
+                              <span className="text-slate-500">增量窗口截止 (dataWindowEnd)：</span>
+                              <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowEnd}</div>
+                            </div>
+                          )}
 
-                      {selectedBatch.dataWindowEnd && (
-                        <div>
-                          <span className="text-slate-500">增量窗口截止 (dataWindowEnd)：</span>
-                          <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowEnd}</div>
-                        </div>
-                      )}
+                          {selectedBatch.watermarkType && (
+                            <div>
+                              <span className="text-slate-500">增量水位类型 (watermarkType)：</span>
+                              <div className="font-mono font-bold text-purple-700 mt-0.5">{selectedBatch.watermarkType}</div>
+                            </div>
+                          )}
 
-                      {selectedBatch.watermarkType && (
-                        <div>
-                          <span className="text-slate-500">增量水位类型 (watermarkType)：</span>
-                          <div className="font-mono font-bold text-purple-700 mt-0.5">{selectedBatch.watermarkType}</div>
-                        </div>
-                      )}
+                          {(selectedBatch.watermarkStart || selectedBatch.watermarkEnd) && (
+                            <div>
+                              <span className="text-slate-500">起止水位区间：</span>
+                              <div className="font-mono font-bold text-blue-700 mt-0.5">
+                                {selectedBatch.watermarkStart || '-'} <span className="text-slate-400">至</span> {selectedBatch.watermarkEnd || '-'}
+                              </div>
+                            </div>
+                          )}
 
-                      {(selectedBatch.watermarkStart || selectedBatch.watermarkEnd) && (
-                        <div>
-                          <span className="text-slate-500">起止水位区间：</span>
-                          <div className="font-mono font-bold text-blue-700 mt-0.5">
-                            {selectedBatch.watermarkStart || '-'} <span className="text-slate-400">至</span> {selectedBatch.watermarkEnd || '-'}
-                          </div>
-                        </div>
+                          {(!selectedBatch.dataWindowStart || !selectedBatch.dataWindowEnd || !selectedBatch.watermarkType || (!selectedBatch.watermarkStart && !selectedBatch.watermarkEnd)) && (
+                            <div className="col-span-2 bg-amber-50/70 border border-amber-200 p-3 rounded-lg text-amber-900 space-y-1">
+                              <div className="font-bold flex items-center space-x-1.5 text-amber-800">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>增量范围证据缺失</span>
+                              </div>
+                              <p className="text-[11px] text-amber-700 leading-relaxed">
+                                该批次未记录完整的时间窗口或增量业务水位，无法追溯增量抽取范围与连续性。
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -886,39 +920,72 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         <Code2 className="w-4 h-4 text-purple-600" />
                         <span>同步执行配置快照 (不可变证据)</span>
                       </h3>
-                      <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono font-bold text-[11px] border border-purple-200">
-                        {selectedBatch.configSnapshotId}
-                      </span>
+                      {selectedBatch.configSnapshotId ? (
+                        <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono font-bold text-[11px] border border-purple-200">
+                          {selectedBatch.configSnapshotId}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[11px] border border-amber-200 flex items-center space-x-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>快照编号缺失</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200 flex flex-col justify-between">
                         <div className="text-slate-400 text-[11px]">对象映射版本</div>
-                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
-                          {selectedBatch.objectMappingVersion || 'DEFAULT-V1'}
-                        </div>
+                        {selectedBatch.objectMappingVersion ? (
+                          <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                            {selectedBatch.objectMappingVersion}
+                          </div>
+                        ) : (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              配置证据缺失
+                            </span>
+                            <p className="text-[10px] text-amber-600 mt-1 leading-tight">
+                              该批次未记录对应配置版本，无法完整追溯历史执行口径。
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
-                        <div className="text-slate-400 text-[11px]">字段映射版本</div>
-                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
-                          {selectedBatch.fieldMappingVersion || 'GLOBAL-V1'}
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
-                        <div className="text-slate-400 text-[11px]">同步引擎配置版本</div>
-                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
-                          {selectedBatch.syncConfigVersion || 'SYNC-CFG-V5'}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="bg-slate-900 text-slate-300 p-3 rounded-lg font-mono text-[11px] space-y-1">
-                      <div className="text-slate-500">// 运行时不可变配置摘要</div>
-                      <div>config_snapshot_id: "{selectedBatch.configSnapshotId}"</div>
-                      <div>source_system: "{selectedBatch.sourceSystem}"</div>
-                      <div>schema_validation_mode: "STRICT"</div>
-                      <div>stream_batch_size: 500</div>
-                      <div>dead_letter_queue_enabled: true</div>
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200 flex flex-col justify-between">
+                        <div className="text-slate-400 text-[11px]">字段映射版本</div>
+                        {selectedBatch.fieldMappingVersion ? (
+                          <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                            {selectedBatch.fieldMappingVersion}
+                          </div>
+                        ) : (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              配置证据缺失
+                            </span>
+                            <p className="text-[10px] text-amber-600 mt-1 leading-tight">
+                              该批次未记录对应配置版本，无法完整追溯历史执行口径。
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200 flex flex-col justify-between">
+                        <div className="text-slate-400 text-[11px]">同步引擎配置版本</div>
+                        {selectedBatch.syncConfigVersion ? (
+                          <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                            {selectedBatch.syncConfigVersion}
+                          </div>
+                        ) : (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              配置证据缺失
+                            </span>
+                            <p className="text-[10px] text-amber-600 mt-1 leading-tight">
+                              该批次未记录对应配置版本，无法完整追溯历史执行口径。
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

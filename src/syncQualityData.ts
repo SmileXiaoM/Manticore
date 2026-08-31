@@ -1698,3 +1698,60 @@ export const validateDataIntegrity = (
     errors
   };
 };
+
+// 轻量负向验证自检断言辅助函数 (仅用于验证 3 类人为缺失/异常数据能够被准确捕获，不污染业务状态)
+export const runNegativeIntegrityAssertions = (
+  baseBatches: SyncBatch[],
+  verifications: VerificationRecord[],
+  exceptions: SyncException[]
+): { allNegativePassed: boolean; testCases: { name: string; caught: boolean; errorSnippet?: string }[] } => {
+  const testCases: { name: string; caught: boolean; errorSnippet?: string }[] = [];
+
+  // Case 1: 全量范围字段同时缺失 (无 sourceDataCutoffAt 且无 sourceSnapshotAt)
+  const fullBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
+  const targetFull = fullBatches.find(b => b.syncMethod === 'FULL');
+  if (targetFull) {
+    delete targetFull.sourceDataCutoffAt;
+    delete targetFull.sourceSnapshotAt;
+    const res1 = validateDataIntegrity(fullBatches, verifications, exceptions);
+    const caught = res1.errors.some(e => e.includes('缺少范围证据'));
+    testCases.push({
+      name: '全量同步范围证据同时缺失',
+      caught,
+      errorSnippet: res1.errors.find(e => e.includes('缺少范围证据'))
+    });
+  }
+
+  // Case 2: 配置版本缺失 (删去 objectMappingVersion)
+  const cfgBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
+  if (cfgBatches[0]) {
+    delete (cfgBatches[0] as Partial<SyncBatch>).objectMappingVersion;
+    const res2 = validateDataIntegrity(cfgBatches, verifications, exceptions);
+    const caught = res2.errors.some(e => e.includes('缺少完整的配置快照编号或映射版本证据'));
+    testCases.push({
+      name: '配置映射版本证据缺失',
+      caught,
+      errorSnippet: res2.errors.find(e => e.includes('缺少完整的配置快照编号或映射版本证据'))
+    });
+  }
+
+  // Case 3: 运行中已处理数大于抽取数 (处理进度超限)
+  const runningBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
+  const targetRunning = runningBatches.find(b => b.executionStatus === 'RUNNING');
+  if (targetRunning) {
+    targetRunning.successCount = targetRunning.sourceDataCount + 100;
+    targetRunning.insertedCount = targetRunning.successCount;
+    const res3 = validateDataIntegrity(runningBatches, verifications, exceptions);
+    const caught = res3.errors.some(e => e.includes('已处理数量') && e.includes('超过抽取源数据总量'));
+    testCases.push({
+      name: '运行中批次已处理数大于抽取数',
+      caught,
+      errorSnippet: res3.errors.find(e => e.includes('已处理数量'))
+    });
+  }
+
+  return {
+    allNegativePassed: testCases.length > 0 && testCases.every(t => t.caught),
+    testCases
+  };
+};
