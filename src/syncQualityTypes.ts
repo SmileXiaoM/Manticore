@@ -2,6 +2,29 @@
  * 一阶段：数据同步质量 - TypeScript 类型声明
  */
 
+// 触发方式
+export type TriggerType = 'SCHEDULED' | 'MANUAL' | 'RETRY' | 'MANUAL_COMPENSATION';
+
+// 数量对账状态
+export type ReconciliationStatus = 'PENDING' | 'BALANCED' | 'MISMATCH' | 'NOT_APPLICABLE';
+
+// 数量对账结构
+export interface CountReconciliation {
+  status: ReconciliationStatus;
+  differenceCount: number;
+  explanation?: string;
+  formula?: string; // e.g. "1,320 = 1,315(成功) + 2(跳过) + 3(失败)"
+}
+
+// 重试血缘
+export interface RetryLineage {
+  rootExecutionId: string;
+  parentExecutionId?: string;
+  attemptNo: number;
+  triggeredBy: string;
+  triggerReason?: string;
+}
+
 // 同步执行状态
 export type SyncStatus = 'RUNNING' | 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
 
@@ -54,7 +77,7 @@ export interface SyncObjectDetail {
   status: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
 }
 
-// 失败单条记录（技术跟踪与异常关联）
+// 失败单条记录（技术跟踪、错误码与异常证据）
 export interface SyncFailedRecord {
   id: string;
   objectCode: string;
@@ -64,7 +87,11 @@ export interface SyncFailedRecord {
   traceId: string;
   hasExceptionCreated: boolean;
   linkedExceptionId?: string;
-  techDetail?: string;
+  errorCategory?: string; // 稳定异常分类，如 "MAPPING_ERROR" / "SCHEMA_VALIDATION"
+  errorCode?: string; // 稳定错误码，如 "SYNC_MAPPING_001"
+  retryable?: boolean; // 是否可重试
+  owner?: string; // 责任人/责任组
+  techDetail?: string; // 脱敏技术详情
 }
 
 // 同步轨迹步骤
@@ -75,19 +102,51 @@ export interface SyncTrajectoryStep {
   description: string;
 }
 
-// 同步批次
+// 同步批次 (执行证据合同模型)
 export interface SyncBatch {
-  id: string; // e.g. SYNC-20260825-001
+  id: string; // e.g. SYNC-20260825-001 (兼作为 executionId)
+  executionId?: string; // 兼容别名，与 id 保持一致
+  jobCode: string; // 稳定业务任务标识，例如 'PART_INCREMENTAL_SYNC'
+  triggerType: TriggerType; // SCHEDULED | MANUAL | RETRY | MANUAL_COMPENSATION
   sourceSystem: string; // 'IntePLM V21'
   objectsSummary: string[]; // ['Part', 'Document', 'Process']
-  syncMethod: SyncMethod;
-  sourceDataCount: number;
-  successCount: number;
+  syncMethod: SyncMethod; // FULL | INCREMENTAL | COMPENSATION
+
+  // 数据范围与增量水位合同
+  sourceSnapshotAt?: string; // 全量/快照型源数据截止时间点
+  dataWindowStart?: string; // 增量/补偿数据窗口开始
+  dataWindowEnd?: string; // 增量/补偿数据窗口结束
+  watermarkType?: 'UPDATECOUNT' | 'TIMESTAMP' | 'COMPOSITE'; // 水位类型
+  watermarkStart?: string;
+  watermarkEnd?: string;
+
+  // 配置快照合同
+  objectMappingVersion?: string; // e.g. 'PART-MAP-V12'
+  fieldMappingVersion?: string; // e.g. 'PART-FIELD-V12'
+  syncConfigVersion?: string; // e.g. 'SYNC-CFG-V5'
+  configSnapshotId: string; // e.g. 'CFG-SNAP-20260825-001'
+
+  // 时间合同
+  scheduledAt?: string; // 计划触发时间
+  startTime: string; // 实际开始时间 (startedAt)
+  endTime?: string; // 实际结束时间 (finishedAt, RUNNING 时为 undefined)
+  durationSeconds?: number; // 耗时秒数
+  durationText: string;
+
+  // 数量口径与对账合同
+  sourceDataCount: number; // 抽取数 (extractedCount)
+  insertedCount: number; // 新增数
+  updatedCount: number; // 更新数
+  deletedCount: number; // 删除数
+  successCount: number; // 成功数 = inserted + updated + deleted
   failedCount: number;
   skippedCount: number;
-  startTime: string;
-  endTime?: string;
-  durationText: string;
+  reconciliation: CountReconciliation; // 数量对账结果
+
+  // 重试血缘
+  lineage?: RetryLineage;
+
+  // 状态与关联
   executionStatus: SyncStatus;
   verificationStatus: VerificationStatus;
   linkedVerificationId?: string;

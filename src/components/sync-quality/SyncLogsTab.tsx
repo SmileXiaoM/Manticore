@@ -13,10 +13,17 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  FileCode,
   ShieldCheck,
+  Database,
+  Copy,
+  Check,
+  GitBranch,
+  FileSpreadsheet,
+  Cpu,
+  Code2,
   Calendar,
-  Database
+  Activity,
+  History
 } from 'lucide-react';
 import {
   SyncBatch,
@@ -24,7 +31,9 @@ import {
   SyncException,
   SyncStatus,
   VerificationStatus,
-  SyncMethod
+  SyncMethod,
+  TriggerType,
+  ReconciliationStatus
 } from '../../syncQualityTypes';
 import { checkTimeRange } from '../../syncQualityData';
 
@@ -37,6 +46,14 @@ interface SyncLogsTabProps {
   selectedBatchId?: string | null;
   onSelectBatchId: (id: string | null) => void;
 }
+
+type DrawerTabKey =
+  | 'OVERVIEW'
+  | 'DATA_SCOPE'
+  | 'CONFIG_SNAPSHOT'
+  | 'TRAJECTORY'
+  | 'RECONCILIATION'
+  | 'TECH_EVIDENCE';
 
 export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   batches,
@@ -52,42 +69,53 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
   const [objectType, setObjectType] = useState<string>('ALL');
   const [syncMethod, setSyncMethod] = useState<string>('ALL');
   const [executionStatus, setExecutionStatus] = useState<string>('ALL');
+  const [triggerType, setTriggerType] = useState<string>('ALL');
   const [timeRange, setTimeRange] = useState<string>('ALL');
   const [searchBatchId, setSearchBatchId] = useState<string>('');
 
-  // 详情抽屉内部页签
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'OVERVIEW' | 'OBJECTS' | 'FAILS' | 'VERIFICATION' | 'TRAJECTORY'>('OVERVIEW');
+  // 详情抽屉内部 6 个规范页签
+  const [activeDrawerTab, setActiveDrawerTab] = useState<DrawerTabKey>('OVERVIEW');
   // 折叠技术详情状态
   const [expandedTraceIds, setExpandedTraceIds] = useState<Record<string, boolean>>({});
+  // 复制 TraceId 反馈
+  const [copiedTraceId, setCopiedTraceId] = useState<string | null>(null);
 
   const handleResetFilters = () => {
     setSourceSystem('ALL');
     setObjectType('ALL');
     setSyncMethod('ALL');
     setExecutionStatus('ALL');
+    setTriggerType('ALL');
     setTimeRange('ALL');
     setSearchBatchId('');
   };
 
-  // 动态派生摘要指标（R4 规则）
+  // 复制 TraceID
+  const handleCopyTraceId = (traceId: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(traceId).catch(() => {});
+    }
+    setCopiedTraceId(traceId);
+    setTimeout(() => {
+      setCopiedTraceId(prev => (prev === traceId ? null : prev));
+    }, 2000);
+  };
+
+  // 动态派生摘要指标
   const metrics = useMemo(() => {
-    // 1. 最近同步时间：取 startTime 最大的批次
     const sorted = [...batches].sort((a, b) => b.startTime.localeCompare(a.startTime));
     const latest = sorted[0];
 
-    // 2. 今日同步批次 (按统一 TODAY 时间判断)
     const todayBatches = batches.filter(b => checkTimeRange(b.startTime, 'TODAY'));
     const todayFull = todayBatches.filter(b => b.syncMethod === 'FULL').length;
     const todayInc = todayBatches.filter(b => b.syncMethod === 'INCREMENTAL').length;
     const todayComp = todayBatches.filter(b => b.syncMethod === 'COMPENSATION').length;
 
-    // 3. 今日批次执行结果 (成功 / 部分成功 / 失败 / 运行中)
     const todaySuccess = todayBatches.filter(b => b.executionStatus === 'SUCCESS').length;
     const todayPartial = todayBatches.filter(b => b.executionStatus === 'PARTIAL_SUCCESS').length;
     const todayFailed = todayBatches.filter(b => b.executionStatus === 'FAILED').length;
     const todayRunning = todayBatches.filter(b => b.executionStatus === 'RUNNING').length;
 
-    // 4. 待处理异常数 (明确只统计 PENDING，并统计其中的高严重度)
     const pendingExceptions = exceptions.filter(e => e.status === 'PENDING');
     const highPending = pendingExceptions.filter(e => e.severity === 'HIGH').length;
 
@@ -115,25 +143,38 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       if (objectType !== 'ALL' && !batch.objectsSummary.includes(objectType)) return false;
       if (syncMethod !== 'ALL' && batch.syncMethod !== syncMethod) return false;
       if (executionStatus !== 'ALL' && batch.executionStatus !== executionStatus) return false;
-      if (searchBatchId.trim() && !batch.id.toLowerCase().includes(searchBatchId.trim().toLowerCase())) return false;
-
-      // 统一时间范围筛选
+      if (triggerType !== 'ALL' && batch.triggerType !== triggerType) return false;
+      if (searchBatchId.trim()) {
+        const q = searchBatchId.trim().toLowerCase();
+        const matchId = batch.id.toLowerCase().includes(q);
+        const matchJob = batch.jobCode?.toLowerCase().includes(q);
+        if (!matchId && !matchJob) return false;
+      }
       if (!checkTimeRange(batch.startTime, timeRange)) return false;
-
       return true;
     });
-  }, [batches, sourceSystem, objectType, syncMethod, executionStatus, timeRange, searchBatchId]);
+  }, [batches, sourceSystem, objectType, syncMethod, executionStatus, triggerType, timeRange, searchBatchId]);
 
   // 当前选中的批次详情
   const selectedBatch = useMemo(() => {
     return batches.find(b => b.id === selectedBatchId) || null;
   }, [batches, selectedBatchId]);
 
-  // 该批次关联的所有核验记录（支持多核验与重验历史）
+  // 该批次关联的所有核验记录
   const linkedVerifications = useMemo(() => {
     if (!selectedBatch) return [];
     return verifications.filter(v => v.linkedBatchId === selectedBatch.id);
   }, [verifications, selectedBatch]);
+
+  // 查找与当前批次相关的重试子批次或父批次
+  const lineageBatches = useMemo(() => {
+    if (!selectedBatch) return { parent: null, children: [] as SyncBatch[] };
+    const parent = selectedBatch.lineage?.parentExecutionId
+      ? batches.find(b => b.id === selectedBatch.lineage?.parentExecutionId) || null
+      : null;
+    const children = batches.filter(b => b.lineage?.parentExecutionId === selectedBatch.id);
+    return { parent, children };
+  }, [batches, selectedBatch]);
 
   // 状态渲染辅助
   const renderSyncStatusBadge = (status: SyncStatus) => {
@@ -203,6 +244,54 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
             未核验
+          </span>
+        );
+    }
+  };
+
+  const renderTriggerTypeBadge = (type: TriggerType) => {
+    switch (type) {
+      case 'SCHEDULED':
+        return <span className="text-slate-600 text-[11px] font-medium">定时调度</span>;
+      case 'MANUAL':
+        return <span className="text-blue-700 text-[11px] font-medium">手动触发</span>;
+      case 'RETRY':
+        return <span className="text-purple-700 text-[11px] font-semibold bg-purple-50 px-1 py-0.2 rounded border border-purple-200">重试执行</span>;
+      case 'MANUAL_COMPENSATION':
+        return <span className="text-amber-700 text-[11px] font-semibold bg-amber-50 px-1 py-0.2 rounded border border-amber-200">人工补偿</span>;
+    }
+  };
+
+  const renderReconciliationBadge = (reconciliation?: { status: ReconciliationStatus; differenceCount: number }) => {
+    if (!reconciliation) {
+      return <span className="text-slate-400 text-xs">-</span>;
+    }
+    switch (reconciliation.status) {
+      case 'BALANCED':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            已平衡
+          </span>
+        );
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+            <Clock className="w-3 h-3 text-blue-600 animate-pulse" />
+            计算中
+          </span>
+        );
+      case 'MISMATCH':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
+            <AlertTriangle className="w-3 h-3 text-rose-600" />
+            差额 ({reconciliation.differenceCount})
+          </span>
+        );
+      case 'NOT_APPLICABLE':
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
+            不适用
           </span>
         );
     }
@@ -290,7 +379,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
 
       {/* 顶部横向筛选区 */}
       <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 items-end">
           {/* 来源系统 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">来源系统</label>
@@ -334,6 +423,22 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             </select>
           </div>
 
+          {/* 触发方式 */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">触发方式</label>
+            <select
+              value={triggerType}
+              onChange={e => setTriggerType(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
+            >
+              <option value="ALL">全部触发方式</option>
+              <option value="SCHEDULED">定时调度</option>
+              <option value="MANUAL">手动触发</option>
+              <option value="RETRY">重试执行</option>
+              <option value="MANUAL_COMPENSATION">人工补偿</option>
+            </select>
+          </div>
+
           {/* 执行状态 */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">执行状态</label>
@@ -365,29 +470,24 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             </select>
           </div>
 
-          {/* 批次编号 */}
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">批次编号</label>
-            <div className="relative">
+          {/* 搜索与重置 */}
+          <div className="flex items-center space-x-1.5">
+            <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="搜索 SYNC-..."
+                placeholder="搜索批次/任务..."
                 value={searchBatchId}
                 onChange={e => setSearchBatchId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded pl-7 pr-2.5 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all"
+                className="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded pl-7 pr-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all"
               />
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" />
             </div>
-          </div>
-
-          {/* 按钮动作 */}
-          <div className="col-span-2 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-1 flex items-center space-x-2">
             <button
               onClick={handleResetFilters}
-              className="flex-1 flex items-center justify-center space-x-1 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+              title="重置筛选条件"
+              className="p-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded transition-colors cursor-pointer shrink-0"
             >
-              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-              <span>重置</span>
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -396,20 +496,21 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1080px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[1140px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-3.5 whitespace-nowrap">批次编号</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">批次/执行编号</th>
+                <th className="py-3 px-3 whitespace-nowrap">任务 / 触发方式</th>
                 <th className="py-3 px-3 whitespace-nowrap">来源系统</th>
-                <th className="py-3 px-3 min-w-[100px]">对象范围</th>
+                <th className="py-3 px-3 min-w-[90px]">对象范围</th>
                 <th className="py-3 px-3 min-w-[76px] whitespace-nowrap">方式</th>
                 <th className="py-3 px-3 text-right whitespace-nowrap">源数据量</th>
                 <th className="py-3 px-3 text-right whitespace-nowrap">成功数</th>
                 <th className="py-3 px-3 text-right whitespace-nowrap">失败数</th>
                 <th className="py-3 px-3 text-right whitespace-nowrap">跳过数</th>
-                <th className="py-3 px-3 whitespace-nowrap">开始时间</th>
-                <th className="py-3 px-3 whitespace-nowrap">耗时</th>
+                <th className="py-3 px-3 whitespace-nowrap">开始时间 / 耗时</th>
                 <th className="py-3 px-3 whitespace-nowrap">执行状态</th>
+                <th className="py-3 px-3 whitespace-nowrap">对账状态</th>
                 <th className="py-3 px-3 whitespace-nowrap">核验状态</th>
                 <th className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">操作</th>
               </tr>
@@ -423,16 +524,25 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       selectedBatchId === batch.id ? 'bg-blue-50/40' : ''
                     }`}
                   >
-                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
+                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectBatchId(batch.id);
                           setActiveDrawerTab('OVERVIEW');
                         }}
-                        className="text-left font-mono font-bold"
+                        className="text-left font-mono font-bold hover:underline cursor-pointer flex items-center space-x-1"
                       >
-                        {batch.id}
+                        <span>{batch.id}</span>
+                        {batch.lineage?.parentExecutionId && (
+                          <span className="px-1 py-0.2 rounded bg-purple-100 text-purple-800 text-[10px] font-sans font-semibold">
+                            R{batch.lineage.attemptNo - 1}
+                          </span>
+                        )}
                       </button>
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <div className="font-mono text-[11px] font-semibold text-slate-800">{batch.jobCode}</div>
+                      <div>{renderTriggerTypeBadge(batch.triggerType)}</div>
                     </td>
                     <td className="py-3 px-3 text-slate-700 font-medium whitespace-nowrap">{batch.sourceSystem}</td>
                     <td className="py-3 px-3">
@@ -468,15 +578,12 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         <span>0</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{batch.startTime}</td>
-                    <td className="py-3 px-3 text-slate-600 font-mono whitespace-nowrap">
-                      {batch.executionStatus === 'RUNNING' ? (
-                        <span className="text-blue-600 font-semibold">{batch.durationText}</span>
-                      ) : (
-                        batch.durationText
-                      )}
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <div className="text-slate-700">{batch.startTime}</div>
+                      <div className="text-slate-400 font-mono text-[11px]">{batch.durationText}</div>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">{renderSyncStatusBadge(batch.executionStatus)}</td>
+                    <td className="py-3 px-3 whitespace-nowrap">{renderReconciliationBadge(batch.reconciliation)}</td>
                     <td className="py-3 px-3 whitespace-nowrap">{renderVerificationStatusBadge(batch.verificationStatus)}</td>
                     <td className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">
                       <button
@@ -486,14 +593,14 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         }}
                         className="px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
                       >
-                        查看详情
+                        证据详情
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-slate-400">
+                  <td colSpan={14} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Database className="w-8 h-8 text-slate-300" />
                       <p className="text-xs font-medium text-slate-500">未找到符合当前筛选条件的同步批次记录</p>
@@ -512,10 +619,10 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
         </div>
       </div>
 
-      {/* 批次详情右侧抽屉 */}
+      {/* 批次详情右侧抽屉 (重构为 6 个规范页签) */}
       {selectedBatch && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-2xs animate-in fade-in duration-150">
-          <div className="bg-white w-full max-w-[760px] h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200">
+          <div className="bg-white w-full max-w-[800px] h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200">
             {/* 抽屉头部 */}
             <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <div className="flex items-center space-x-3">
@@ -523,12 +630,15 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                   <Database className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-wrap">
                     <h2 className="text-sm font-bold text-slate-900 font-mono">{selectedBatch.id}</h2>
                     {renderSyncStatusBadge(selectedBatch.executionStatus)}
+                    {renderReconciliationBadge(selectedBatch.reconciliation)}
                     {renderVerificationStatusBadge(selectedBatch.verificationStatus)}
                   </div>
-                  <p className="text-xs text-slate-500">来源: {selectedBatch.sourceSystem} · 方式: {selectedBatch.syncMethod}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    任务: <span className="font-mono font-medium text-slate-700">{selectedBatch.jobCode}</span> · 来源: {selectedBatch.sourceSystem} · 方式: {selectedBatch.syncMethod}
+                  </p>
                 </div>
               </div>
               <button
@@ -539,8 +649,8 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
               </button>
             </div>
 
-            {/* 抽屉页签导航 */}
-            <div className="px-5 border-b border-slate-200 flex space-x-4 bg-white shrink-0 overflow-x-auto">
+            {/* 抽屉 6 个规范页签导航 */}
+            <div className="px-5 border-b border-slate-200 flex space-x-3 bg-white shrink-0 overflow-x-auto">
               <button
                 onClick={() => setActiveDrawerTab('OVERVIEW')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
@@ -549,37 +659,27 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                批次概览
+                1. 基本信息
               </button>
               <button
-                onClick={() => setActiveDrawerTab('OBJECTS')}
+                onClick={() => setActiveDrawerTab('DATA_SCOPE')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'OBJECTS'
+                  activeDrawerTab === 'DATA_SCOPE'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                对象明细 ({selectedBatch.objectDetails.length})
+                2. 数据范围与水位
               </button>
               <button
-                onClick={() => setActiveDrawerTab('FAILS')}
+                onClick={() => setActiveDrawerTab('CONFIG_SNAPSHOT')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'FAILS'
+                  activeDrawerTab === 'CONFIG_SNAPSHOT'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                失败记录 ({selectedBatch.failedRecords.length})
-              </button>
-              <button
-                onClick={() => setActiveDrawerTab('VERIFICATION')}
-                className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'VERIFICATION'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                关联核验
+                3. 配置快照
               </button>
               <button
                 onClick={() => setActiveDrawerTab('TRAJECTORY')}
@@ -589,19 +689,39 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                执行轨迹
+                4. 执行轨迹与血缘
+              </button>
+              <button
+                onClick={() => setActiveDrawerTab('RECONCILIATION')}
+                className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
+                  activeDrawerTab === 'RECONCILIATION'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                5. 数量对账 ({selectedBatch.objectDetails.length})
+              </button>
+              <button
+                onClick={() => setActiveDrawerTab('TECH_EVIDENCE')}
+                className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
+                  activeDrawerTab === 'TECH_EVIDENCE'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                6. 技术证据与错误 ({selectedBatch.failedRecords.length})
               </button>
             </div>
 
             {/* 抽屉内容区 */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {/* 页签 1: 批次概览 */}
+              {/* 页签 1: 基本信息 */}
               {activeDrawerTab === 'OVERVIEW' && (
                 <div className="space-y-4">
                   {/* 数据指标 4 列网格 */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                      <div className="text-[11px] text-slate-500">源数据抽取总量</div>
+                      <div className="text-[11px] text-slate-500">源数据抽取数</div>
                       <div className="text-lg font-bold text-slate-900 font-mono mt-1">
                         {selectedBatch.sourceDataCount.toLocaleString()}
                       </div>
@@ -628,23 +748,31 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
 
                   {/* 详细元信息 */}
                   <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-slate-900">执行元信息</h3>
+                    <h3 className="text-xs font-bold text-slate-900">执行身份与环境元信息</h3>
                     <div className="grid grid-cols-2 gap-y-2.5 text-xs">
+                      <div>
+                        <span className="text-slate-500">任务编码 (jobCode)：</span>
+                        <span className="font-mono font-semibold text-slate-800 ml-1">{selectedBatch.jobCode}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">执行编号 (executionId)：</span>
+                        <span className="font-mono font-semibold text-blue-600 ml-1">{selectedBatch.id}</span>
+                      </div>
                       <div>
                         <span className="text-slate-500">来源系统：</span>
                         <span className="font-medium text-slate-800 ml-1">{selectedBatch.sourceSystem}</span>
                       </div>
                       <div>
+                        <span className="text-slate-500">触发方式：</span>
+                        <span className="ml-1">{renderTriggerTypeBadge(selectedBatch.triggerType)}</span>
+                      </div>
+                      <div>
                         <span className="text-slate-500">同步方式：</span>
-                        <span className="font-medium text-slate-800 ml-1">{selectedBatch.syncMethod}</span>
+                        <span className="font-medium text-slate-800 ml-1">{renderSyncMethodLabel(selectedBatch.syncMethod)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500">开始时间：</span>
-                        <span className="font-mono text-slate-800 ml-1">{selectedBatch.startTime}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">结束时间：</span>
-                        <span className="font-mono text-slate-800 ml-1">{selectedBatch.endTime || '正在运行中...'}</span>
+                        <span className="text-slate-500">对账状态：</span>
+                        <span className="ml-1">{renderReconciliationBadge(selectedBatch.reconciliation)}</span>
                       </div>
                       <div>
                         <span className="text-slate-500">执行状态：</span>
@@ -653,6 +781,12 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       <div>
                         <span className="text-slate-500">核验状态：</span>
                         <span className="ml-1">{renderVerificationStatusBadge(selectedBatch.verificationStatus)}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500">对象范围：</span>
+                        <span className="font-mono text-slate-800 ml-1">
+                          {selectedBatch.objectsSummary.join(', ')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -670,21 +804,305 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                 </div>
               )}
 
-              {/* 页签 2: 对象明细 */}
-              {activeDrawerTab === 'OBJECTS' && (
-                <div className="space-y-3">
-                  <div className="text-xs text-slate-500">
-                    同一个同步批次内可包含多个根对象与软类型。下表真实体现对象级抽取与写入状态：
+              {/* 页签 2: 数据范围与水位 */}
+              {activeDrawerTab === 'DATA_SCOPE' && (
+                <div className="space-y-4">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+                    <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span>数据抽取窗口与增量水位合同</span>
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-y-3 pt-2">
+                      {selectedBatch.sourceSnapshotAt && (
+                        <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
+                          <span className="text-slate-500">全量数据快照截止点 (sourceSnapshotAt)：</span>
+                          <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceSnapshotAt}</span>
+                        </div>
+                      )}
+
+                      {selectedBatch.dataWindowStart && (
+                        <div>
+                          <span className="text-slate-500">增量窗口起始 (dataWindowStart)：</span>
+                          <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowStart}</div>
+                        </div>
+                      )}
+
+                      {selectedBatch.dataWindowEnd && (
+                        <div>
+                          <span className="text-slate-500">增量窗口截止 (dataWindowEnd)：</span>
+                          <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowEnd}</div>
+                        </div>
+                      )}
+
+                      {selectedBatch.watermarkType && (
+                        <div>
+                          <span className="text-slate-500">增量水位类型 (watermarkType)：</span>
+                          <div className="font-mono font-bold text-purple-700 mt-0.5">{selectedBatch.watermarkType}</div>
+                        </div>
+                      )}
+
+                      {(selectedBatch.watermarkStart || selectedBatch.watermarkEnd) && (
+                        <div>
+                          <span className="text-slate-500">起止水位区间：</span>
+                          <div className="font-mono font-bold text-blue-700 mt-0.5">
+                            {selectedBatch.watermarkStart || '-'} <span className="text-slate-400">至</span> {selectedBatch.watermarkEnd || '-'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-xs">
+                    <h4 className="font-bold text-slate-800">涉及根对象与软类型范围：</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {selectedBatch.objectDetails.map((od, i) => (
+                        <div key={i} className="bg-white p-2.5 rounded border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <span className="font-semibold text-slate-900">{od.objectType}</span>
+                            <span className="text-slate-500 ml-1.5">({od.softType})</span>
+                          </div>
+                          <span className="font-mono text-slate-600 text-[11px]">{od.extractedCount.toLocaleString()} 条</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 页签 3: 配置快照 */}
+              {activeDrawerTab === 'CONFIG_SNAPSHOT' && (
+                <div className="space-y-4">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
+                        <Code2 className="w-4 h-4 text-purple-600" />
+                        <span>同步执行配置快照 (不可变证据)</span>
+                      </h3>
+                      <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono font-bold text-[11px] border border-purple-200">
+                        {selectedBatch.configSnapshotId}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                        <div className="text-slate-400 text-[11px]">对象映射版本</div>
+                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                          {selectedBatch.objectMappingVersion || 'DEFAULT-V1'}
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                        <div className="text-slate-400 text-[11px]">字段映射版本</div>
+                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                          {selectedBatch.fieldMappingVersion || 'GLOBAL-V1'}
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                        <div className="text-slate-400 text-[11px]">同步引擎配置版本</div>
+                        <div className="font-mono font-bold text-slate-800 text-sm mt-1">
+                          {selectedBatch.syncConfigVersion || 'SYNC-CFG-V5'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 text-slate-300 p-3 rounded-lg font-mono text-[11px] space-y-1">
+                      <div className="text-slate-500">// 运行时不可变配置摘要</div>
+                      <div>config_snapshot_id: "{selectedBatch.configSnapshotId}"</div>
+                      <div>source_system: "{selectedBatch.sourceSystem}"</div>
+                      <div>schema_validation_mode: "STRICT"</div>
+                      <div>stream_batch_size: 500</div>
+                      <div>dead_letter_queue_enabled: true</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 页签 4: 执行轨迹与血缘 */}
+              {activeDrawerTab === 'TRAJECTORY' && (
+                <div className="space-y-4">
+                  {/* 时间指标 */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 text-xs space-y-2">
+                    <h3 className="font-bold text-slate-900 flex items-center space-x-1.5">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span>执行时间与耗时合同</span>
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      <div>
+                        <span className="text-slate-400">计划调度时间：</span>
+                        <div className="font-mono font-medium text-slate-800">{selectedBatch.scheduledAt || '-'}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">实际开始时间：</span>
+                        <div className="font-mono font-medium text-slate-800">{selectedBatch.startTime}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">实际结束时间：</span>
+                        <div className="font-mono font-medium text-slate-800">{selectedBatch.endTime || '运行中...'}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">累计执行耗时：</span>
+                        <div className="font-mono font-bold text-blue-700">{selectedBatch.durationText}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 重试血缘卡片 */}
+                  {selectedBatch.lineage && (
+                    <div className="bg-purple-50/50 border border-purple-200 rounded-lg p-4 text-xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-purple-900 flex items-center space-x-1.5">
+                          <GitBranch className="w-4 h-4 text-purple-700" />
+                          <span>重试执行血缘 (RetryLineage)</span>
+                        </h4>
+                        <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-semibold text-[11px]">
+                          第 {selectedBatch.lineage.attemptNo} 次执行
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-purple-950">
+                        <div>
+                          <span className="text-purple-700">根执行编号 (rootExecutionId)：</span>
+                          <span className="font-mono font-bold ml-1">{selectedBatch.lineage.rootExecutionId}</span>
+                        </div>
+                        <div>
+                          <span className="text-purple-700">触发操作人：</span>
+                          <span className="font-medium ml-1">{selectedBatch.lineage.triggeredBy}</span>
+                        </div>
+                        {selectedBatch.lineage.parentExecutionId && (
+                          <div className="col-span-2 flex items-center space-x-2 pt-1 border-t border-purple-200/60">
+                            <span className="text-purple-700">来源父执行：</span>
+                            <button
+                              onClick={() => {
+                                onSelectBatchId(selectedBatch.lineage!.parentExecutionId!);
+                                setActiveDrawerTab('TRAJECTORY');
+                              }}
+                              className="font-mono font-bold text-blue-600 hover:underline cursor-pointer inline-flex items-center space-x-1"
+                            >
+                              <span>{selectedBatch.lineage.parentExecutionId}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                            {selectedBatch.lineage.triggerReason && (
+                              <span className="text-slate-600 ml-2">({selectedBatch.lineage.triggerReason})</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 如果是父批次且有重试子批次 */}
+                  {lineageBatches.children.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs space-y-2">
+                      <div className="font-bold text-slate-800 flex items-center space-x-1">
+                        <History className="w-3.5 h-3.5 text-purple-600" />
+                        <span>已衍生重试子执行 ({lineageBatches.children.length})：</span>
+                      </div>
+                      {lineageBatches.children.map(child => (
+                        <div key={child.id} className="bg-white p-2.5 rounded border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <span className="font-mono font-bold text-purple-700">{child.id}</span>
+                            <span className="text-slate-500 text-[11px] ml-2">第 {child.lineage?.attemptNo} 次执行 · {child.startTime}</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              onSelectBatchId(child.id);
+                              setActiveDrawerTab('OVERVIEW');
+                            }}
+                            className="text-blue-600 hover:underline font-semibold cursor-pointer"
+                          >
+                            查看子执行 &rarr;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 轨迹时间线 */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+                    <h4 className="font-bold text-slate-900">执行阶段时间线</h4>
+                    <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                      {selectedBatch.timeline.map((step, idx) => (
+                        <div key={idx} className="relative text-xs">
+                          <div
+                            className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              step.status === 'DONE'
+                                ? 'bg-emerald-600 text-white'
+                                : step.status === 'CURRENT'
+                                ? 'bg-blue-600 text-white animate-pulse'
+                                : step.status === 'ERROR'
+                                ? 'bg-rose-600 text-white'
+                                : 'bg-slate-200 text-slate-500'
+                            }`}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900">{step.step}</span>
+                            <span className="font-mono text-slate-400 text-[11px]">{step.timestamp}</span>
+                          </div>
+                          <p className="text-slate-600 mt-0.5 leading-relaxed">{step.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 页签 5: 数量对账 */}
+              {activeDrawerTab === 'RECONCILIATION' && (
+                <div className="space-y-4">
+                  {/* 对账汇总卡片 */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        <span>批次数量对账结论</span>
+                      </h3>
+                      {renderReconciliationBadge(selectedBatch.reconciliation)}
+                    </div>
+
+                    {selectedBatch.reconciliation?.formula && (
+                      <div className="bg-emerald-50/70 border border-emerald-200 p-3 rounded-lg text-emerald-950 font-mono text-xs">
+                        <span className="font-bold">对账平衡公式：</span>
+                        <div className="mt-1 font-semibold text-emerald-800">{selectedBatch.reconciliation.formula}</div>
+                      </div>
+                    )}
+
+                    {selectedBatch.reconciliation?.explanation && (
+                      <div className="bg-blue-50/70 border border-blue-200 p-3 rounded-lg text-blue-950 text-xs">
+                        <span className="font-bold">对账说明：</span>
+                        <div className="mt-1 text-blue-800">{selectedBatch.reconciliation.explanation}</div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                      <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                        <div className="text-[11px] text-slate-500">新增 (Inserted)</div>
+                        <div className="font-mono font-bold text-emerald-700 mt-0.5">{selectedBatch.insertedCount.toLocaleString()}</div>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                        <div className="text-[11px] text-slate-500">更新/替换 (Updated)</div>
+                        <div className="font-mono font-bold text-blue-700 mt-0.5">{selectedBatch.updatedCount.toLocaleString()}</div>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                        <div className="text-[11px] text-slate-500">删除 (Deleted)</div>
+                        <div className="font-mono font-bold text-slate-600 mt-0.5">{selectedBatch.deletedCount.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 对象级明细表格 */}
+                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                    <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-800">
+                      对象与软类型级数量分布
+                    </div>
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                      <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold">
                         <tr>
                           <th className="py-2.5 px-3">对象类型</th>
                           <th className="py-2.5 px-3">软类型</th>
                           <th className="py-2.5 px-3 text-right">抽取数</th>
                           <th className="py-2.5 px-3 text-right">新增</th>
-                          <th className="py-2.5 px-3 text-right">更新/替换</th>
+                          <th className="py-2.5 px-3 text-right">更新</th>
                           <th className="py-2.5 px-3 text-right">删除</th>
                           <th className="py-2.5 px-3 text-right">失败</th>
                           <th className="py-2.5 px-3 text-right">跳过</th>
@@ -714,21 +1132,61 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       </tbody>
                     </table>
                   </div>
+
+                  {/* 关联核验卡片 */}
+                  {linkedVerifications.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-2 text-xs">
+                      <div className="font-bold text-slate-800 flex items-center space-x-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-600" />
+                        <span>挂载的一致性核验单 ({linkedVerifications.length})：</span>
+                      </div>
+                      {linkedVerifications.map(ver => (
+                        <div key={ver.id} className="bg-slate-50 p-2.5 rounded border border-slate-200 flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono font-bold text-blue-600">{ver.id}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-white text-slate-700 text-[11px] border border-slate-200">
+                              {ver.methodLabel}
+                            </span>
+                            {renderVerificationStatusBadge(ver.result)}
+                          </div>
+                          <button
+                            onClick={() => {
+                              onSelectBatchId(null);
+                              onOpenVerificationDrawer(ver.id);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer inline-flex items-center space-x-1"
+                          >
+                            <span>查看核验 &rarr;</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 页签 3: 失败记录 */}
-              {activeDrawerTab === 'FAILS' && (
+              {/* 页签 6: 技术证据与错误 */}
+              {activeDrawerTab === 'TECH_EVIDENCE' && (
                 <div className="space-y-3">
                   {selectedBatch.failedRecords.length > 0 ? (
                     selectedBatch.failedRecords.map(rec => (
-                      <div key={rec.id} className="border border-rose-200 bg-rose-50/30 rounded-lg p-3.5 space-y-2 text-xs">
+                      <div key={rec.id} className="border border-rose-200 bg-rose-50/30 rounded-lg p-4 space-y-2.5 text-xs">
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-mono font-bold text-rose-700">{rec.objectCode}</span>
+                          <div className="flex items-center space-x-2 flex-wrap">
+                            <span className="font-mono font-bold text-rose-700 text-sm">{rec.objectCode}</span>
                             <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
                               {rec.objectType} / {rec.softType}
                             </span>
+                            {rec.errorCode && (
+                              <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold text-[11px]">
+                                {rec.errorCode}
+                              </span>
+                            )}
+                            {rec.retryable !== undefined && (
+                              <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${rec.retryable ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                {rec.retryable ? '可重试' : '不可自动重试'}
+                              </span>
+                            )}
                           </div>
                           {rec.linkedExceptionId && (
                             <button
@@ -738,134 +1196,79 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                               }}
                               className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
                             >
-                              <span>查看异常 ({rec.linkedExceptionId})</span>
+                              <span>跳转异常单 ({rec.linkedExceptionId})</span>
                               <ExternalLink className="w-3 h-3" />
                             </button>
                           )}
                         </div>
 
                         <div className="text-slate-800 font-medium leading-relaxed">
-                          <span className="text-rose-700 font-semibold">失败原因：</span>
+                          <span className="text-rose-700 font-semibold">业务失败原因：</span>
                           {rec.businessReason}
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-rose-100">
-                          <span>跟踪编号 (Trace ID): <code className="font-mono text-slate-700">{rec.traceId}</code></span>
+                        {rec.owner && (
+                          <div className="text-slate-600 text-[11px]">
+                            <span className="text-slate-400">责任人/责任组：</span>
+                            <span className="font-medium text-slate-800 ml-1">{rec.owner}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-rose-100">
+                          <div className="flex items-center space-x-2">
+                            <span>Trace ID:</span>
+                            <code className="font-mono text-slate-800 font-semibold bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                              {rec.traceId}
+                            </code>
+                            <button
+                              onClick={() => handleCopyTraceId(rec.traceId)}
+                              title="复制 Trace ID"
+                              className="p-1 hover:bg-slate-200/70 rounded transition-colors text-slate-600 cursor-pointer"
+                            >
+                              {copiedTraceId === rec.traceId ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            {copiedTraceId === rec.traceId && (
+                              <span className="text-emerald-600 text-[10px] font-semibold">已复制</span>
+                            )}
+                          </div>
+
                           {rec.techDetail && (
                             <button
                               onClick={() => toggleTraceExpand(rec.traceId)}
-                              className="text-slate-600 hover:text-slate-900 inline-flex items-center space-x-0.5 cursor-pointer"
+                              className="text-slate-600 hover:text-slate-900 inline-flex items-center space-x-0.5 cursor-pointer font-medium"
                             >
-                              <span>{expandedTraceIds[rec.traceId] ? '收起技术详情' : '展开技术详情'}</span>
+                              <span>{expandedTraceIds[rec.traceId] ? '收起脱敏技术证据' : '展开脱敏技术证据'}</span>
                               {expandedTraceIds[rec.traceId] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </button>
                           )}
                         </div>
 
                         {rec.techDetail && expandedTraceIds[rec.traceId] && (
-                          <div className="mt-2 bg-slate-900 text-slate-200 p-2.5 rounded font-mono text-[11px] overflow-x-auto">
+                          <div className="mt-2 bg-slate-900 text-slate-200 p-3 rounded font-mono text-[11px] overflow-x-auto shadow-inner">
                             <pre className="whitespace-pre-wrap">{rec.techDetail}</pre>
                           </div>
                         )}
                       </div>
                     ))
                   ) : (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-                      该批次无写入失败记录
+                    <div className="py-12 text-center text-slate-400 text-xs">
+                      <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto mb-1.5" />
+                      该批次执行无任何失败或异常记录，全部顺利入库
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* 页签 4: 关联核验 */}
-              {activeDrawerTab === 'VERIFICATION' && (
-                <div className="space-y-3">
-                  {linkedVerifications.length > 0 ? (
-                    <div className="space-y-2.5">
-                      <div className="text-xs text-slate-500">
-                        该批次关联的全部一致性核验单（包含初始核验与定向重新核验记录）：
-                      </div>
-                      {linkedVerifications.map(ver => (
-                        <div key={ver.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono font-bold text-blue-600 text-sm">{ver.id}</span>
-                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
-                                {ver.methodLabel}
-                              </span>
-                              {renderVerificationStatusBadge(ver.result)}
-                            </div>
-                            <button
-                              onClick={() => {
-                                onSelectBatchId(null);
-                                onOpenVerificationDrawer(ver.id);
-                              }}
-                              className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded font-semibold transition-colors inline-flex items-center space-x-1 cursor-pointer"
-                            >
-                              <span>进入核验详情</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-50 p-2 rounded border border-slate-100 text-slate-600">
-                            <div>样本量：<span className="font-mono font-semibold text-slate-800">{ver.sampleSize.toLocaleString()}</span></div>
-                            <div>字段一致率：<span className="font-mono font-semibold text-slate-800">{ver.result === 'CHECKING' ? '计算中' : `${ver.fieldConsistencyRate}%`}</span></div>
-                            <div>执行时间：<span className="font-mono text-slate-700">{ver.executedAt}</span></div>
-                          </div>
-                          {ver.strategyNotes && (
-                            <p className="text-[11px] text-slate-500 leading-relaxed">
-                              {ver.strategyNotes}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      <p>当前批次尚未生成关联的一致性核验单。</p>
-                      {selectedBatch.executionStatus === 'RUNNING' ? (
-                        <p className="text-blue-600 mt-1">批次正在运行中，待执行完毕后可发起核验。</p>
-                      ) : (
-                        <p className="text-slate-500 mt-1">您可在「一致性核验」页签中点击“发起核验”对该批次进行比对。</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 页签 5: 执行轨迹 */}
-              {activeDrawerTab === 'TRAJECTORY' && (
-                <div className="space-y-4">
-                  <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                    {selectedBatch.timeline.map((step, idx) => (
-                      <div key={idx} className="relative text-xs">
-                        <div
-                          className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                            step.status === 'DONE'
-                              ? 'bg-emerald-600 text-white'
-                              : step.status === 'CURRENT'
-                              ? 'bg-blue-600 text-white animate-pulse'
-                              : step.status === 'ERROR'
-                              ? 'bg-rose-600 text-white'
-                              : 'bg-slate-200 text-slate-500'
-                          }`}
-                        >
-                          {idx + 1}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900">{step.step}</span>
-                          <span className="font-mono text-slate-400 text-[11px]">{step.timestamp}</span>
-                        </div>
-                        <p className="text-slate-600 mt-0.5 leading-relaxed">{step.description}</p>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
 
             {/* 抽屉底部操作 */}
-            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end space-x-3 shrink-0">
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <div className="text-xs text-slate-500">
+                不可变配置快照：<span className="font-mono text-slate-700">{selectedBatch.configSnapshotId}</span>
+              </div>
               <button
                 onClick={() => onSelectBatchId(null)}
                 className="px-4 py-1.5 border border-slate-300 hover:bg-slate-100 rounded text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
