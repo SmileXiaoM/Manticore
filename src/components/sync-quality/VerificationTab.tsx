@@ -208,7 +208,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       const methodLabels: Record<VerificationMethod, string> = {
         COUNT: '数量核验',
         UNIQUE_KEY: '唯一键核验',
-        VERSION_UPDATECOUNT: '版本/updatecount 核验',
+        VERSION_UPDATECOUNT: '版本一致性核验',
         STANDARDIZED_HASH: '标准化哈希核验',
         STRATIFIED_RANDOM: '分层随机抽样',
         RISK_TARGETED: '风险定向抽样'
@@ -412,7 +412,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
               <option value="ALL">全部核验方式</option>
               <option value="COUNT">数量核验</option>
               <option value="UNIQUE_KEY">唯一键核验</option>
-              <option value="VERSION_UPDATECOUNT">版本/updatecount 核验</option>
+              <option value="VERSION_UPDATECOUNT">版本一致性核验</option>
               <option value="STANDARDIZED_HASH">标准化哈希核验</option>
               <option value="STRATIFIED_RANDOM">分层随机抽样</option>
               <option value="RISK_TARGETED">风险定向抽样</option>
@@ -711,7 +711,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                 >
                   <option value="STANDARDIZED_HASH">标准化哈希核验 (全字段指纹深度比对)</option>
                   <option value="COUNT">数量核验 (主键总数对齐)</option>
-                  <option value="VERSION_UPDATECOUNT">版本/updatecount 核验 (版本号增量对齐)</option>
+                  <option value="VERSION_UPDATECOUNT">版本一致性核验 (版本号增量对齐)</option>
                   <option value="RISK_TARGETED">风险定向抽样 (状态频繁变更/大文本对象)</option>
                   <option value="STRATIFIED_RANDOM">分层随机抽样 (按软类型比例抽样)</option>
                   <option value="UNIQUE_KEY">唯一键核验 (全局唯一约束核验)</option>
@@ -810,7 +810,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                差异明细 ({selectedVerification.exceptionCount + selectedVerification.fieldDifferences.length})
+                差异明细
               </button>
               <button
                 onClick={() => setActiveDrawerTab('SCOPE')}

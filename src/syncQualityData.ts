@@ -982,7 +982,7 @@ export const initialVerificationRecords: VerificationRecord[] = [
     sourceSystem: 'IntePLM V21',
     objectsSummary: ['Part'],
     method: 'VERSION_UPDATECOUNT',
-    methodLabel: '版本/updatecount 核验',
+    methodLabel: '版本一致性核验',
     sampleSize: 2800,
     integrityRate: 100,
     fieldConsistencyRate: 97.40,

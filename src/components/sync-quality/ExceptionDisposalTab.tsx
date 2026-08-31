@@ -590,7 +590,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
       sourceSystem: 'IntePLM V21',
       objectsSummary: [targetEx.objectType],
       method: 'STANDARDIZED_HASH',
-      methodLabel: '标准化哈希核验 (定向复验)',
+      methodLabel: '标准化字段定向核验',
       sampleSize: 1,
       integrityRate: 0,
       fieldConsistencyRate: 0,
@@ -635,7 +635,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
                 node: '重新核验已发起',
                 timestamp: nowTime,
                 operator: '系统核验引擎',
-                note: `已创建定向核验单 ${newChkId}，正在对批次 ${targetEx.sourceBatchId} 中的对象 ${targetEx.objectCode} 执行标准化哈希比对...`,
+                note: `已创建定向核验单 ${newChkId}，正在对批次 ${targetEx.sourceBatchId} 中的对象 ${targetEx.objectCode} 执行标准化字段定向核验...`,
                 result: 'INFO' as const
               }
             ]
@@ -1582,7 +1582,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
               <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
                 <div>对象：<span className="font-mono text-slate-900">{reverifyModalEx.objectCode}</span> ({reverifyModalEx.objectName})</div>
                 <div>来源批次：<span className="font-mono text-slate-900">{reverifyModalEx.sourceBatchId}</span></div>
-                <div>核验方式：<span className="font-semibold text-indigo-700">标准化哈希定向比对</span></div>
+                <div>核验方式：<span className="font-semibold text-indigo-700">标准化字段定向核验</span></div>
               </div>
             </div>
 
