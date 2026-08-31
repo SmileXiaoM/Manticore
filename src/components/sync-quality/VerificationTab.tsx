@@ -62,8 +62,12 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
   const [timeRange, setTimeRange] = useState<string>('ALL');
   const [searchBatchId, setSearchBatchId] = useState<string>('');
 
-  // 抽屉内部页签
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'OVERVIEW' | 'DISTRIBUTION' | 'EXCEPTIONS' | 'DIFFS' | 'STRATEGY'>('OVERVIEW');
+  // 抽屉内部页签 (严格 3 个一级页签)
+  const [activeDrawerTab, setActiveDrawerTab] = useState<'OVERVIEW' | 'DIFFERENCES' | 'SCOPE'>('OVERVIEW');
+  // 差异明细页签内部的分段控件 (异常记录 / 字段对比)
+  const [differenceView, setDifferenceView] = useState<'EXCEPTIONS' | 'FIELDS'>('EXCEPTIONS');
+  // 范围与口径中的高级技术信息折叠状态
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
 
   // 发起核验对话框
   const [showInitiateModal, setShowInitiateModal] = useState(false);
@@ -348,7 +352,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
           <div className="min-w-0 flex-1">
             <div className="text-slate-400 font-medium text-[11px]">全局字段一致率</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate font-mono">
-              {summaryMetrics.consistencyRateStr} <span className="text-xs font-normal text-slate-500 ml-1">加权哈希比对</span>
+              {summaryMetrics.consistencyRateStr}
             </div>
           </div>
         </div>
@@ -786,8 +790,8 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
               </button>
             </div>
 
-            {/* 抽屉页签导航 */}
-            <div className="px-5 border-b border-slate-200 flex space-x-4 bg-white shrink-0 overflow-x-auto">
+            {/* 抽屉页签导航 (严格 3 个一级页签：核验概览 / 差异明细 / 范围与口径) */}
+            <div className="px-5 border-b border-slate-200 flex space-x-6 bg-white shrink-0 overflow-x-auto">
               <button
                 onClick={() => setActiveDrawerTab('OVERVIEW')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
@@ -796,53 +800,33 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                结果概览
+                核验概览
               </button>
               <button
-                onClick={() => setActiveDrawerTab('DISTRIBUTION')}
+                onClick={() => setActiveDrawerTab('DIFFERENCES')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'DISTRIBUTION'
+                  activeDrawerTab === 'DIFFERENCES'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                对象分布 ({selectedVerification.objectDistributions.length})
+                差异明细 ({selectedVerification.exceptionCount + selectedVerification.fieldDifferences.length})
               </button>
               <button
-                onClick={() => setActiveDrawerTab('EXCEPTIONS')}
+                onClick={() => setActiveDrawerTab('SCOPE')}
                 className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'EXCEPTIONS'
+                  activeDrawerTab === 'SCOPE'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                异常记录 ({selectedVerification.linkedExceptionIds.length})
-              </button>
-              <button
-                onClick={() => setActiveDrawerTab('DIFFS')}
-                className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'DIFFS'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                字段对比 ({selectedVerification.fieldDifferences.length})
-              </button>
-              <button
-                onClick={() => setActiveDrawerTab('STRATEGY')}
-                className={`py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
-                  activeDrawerTab === 'STRATEGY'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                核验范围与策略
+                范围与口径
               </button>
             </div>
 
             {/* 抽屉内容区 */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {/* 页签 1: 结果概览 */}
+              {/* 一级页签 1: 核验概览 (合并核心指标、基础信息与对象分布) */}
               {activeDrawerTab === 'OVERVIEW' && (
                 <div className="space-y-4">
                   {/* 4 列指标 */}
@@ -866,7 +850,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                       </div>
                     </div>
                     <div className="bg-rose-50/60 border border-rose-200 p-3 rounded-lg">
-                      <div className="text-[11px] text-rose-800">发现异常数</div>
+                      <div className="text-[11px] text-rose-800">发现差异数</div>
                       <div className="text-lg font-bold text-rose-600 font-mono mt-1">
                         {selectedVerification.exceptionCount}
                       </div>
@@ -913,272 +897,295 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                     </div>
                   </div>
 
-                  {/* 策略说明 */}
-                  <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-lg text-xs space-y-1">
-                    <div className="font-bold text-slate-800 flex items-center space-x-1.5">
-                      <Info className="w-3.5 h-3.5 text-blue-600" />
-                      <span>核验策略说明</span>
+                  {/* 对象分布区块 (原对象分布内容收敛于此) */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-900">对象核验分布</h3>
+                      <span className="text-[11px] text-slate-500">
+                        共 {selectedVerification.objectDistributions.length} 个业务对象细类
+                      </span>
                     </div>
-                    <p className="text-slate-600 leading-relaxed">{selectedVerification.strategyNotes}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* 页签 2: 对象分布 */}
-              {activeDrawerTab === 'DISTRIBUTION' && (
-                <div className="space-y-3">
-                  <div className="text-xs text-slate-500">
-                    按根对象/软类型展示核验样本数量与异常数量，定位异常集中分布的业务对象：
-                  </div>
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                        <tr>
-                          <th className="py-2.5 px-3">对象类型</th>
-                          <th className="py-2.5 px-3">软类型</th>
-                          <th className="py-2.5 px-3 text-right">核验样本量</th>
-                          <th className="py-2.5 px-3 text-right">异常记录数</th>
-                          <th className="py-2.5 px-3">状态</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {selectedVerification.objectDistributions.map((dist, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/60">
-                            <td className="py-2.5 px-3 font-medium text-slate-800">{dist.objectType}</td>
-                            <td className="py-2.5 px-3 text-slate-600">{dist.softType}</td>
-                            <td className="py-2.5 px-3 text-right font-mono">{dist.checkedCount.toLocaleString()}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold">
-                              {dist.exceptionCount > 0 ? (
-                                <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">{dist.exceptionCount}</span>
-                              ) : (
-                                <span className="text-slate-400 font-normal">0</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3">{renderVerificationStatusBadge(dist.status)}</td>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                          <tr>
+                            <th className="py-2 px-3">对象类型</th>
+                            <th className="py-2 px-3">软类型</th>
+                            <th className="py-2 px-3 text-right">核验样本量</th>
+                            <th className="py-2 px-3 text-right">异常记录数</th>
+                            <th className="py-2 px-3">状态</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedVerification.objectDistributions.map((dist, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/60">
+                              <td className="py-2 px-3 font-medium text-slate-800">{dist.objectType}</td>
+                              <td className="py-2 px-3 text-slate-600">{dist.softType}</td>
+                              <td className="py-2 px-3 text-right font-mono">{dist.checkedCount.toLocaleString()}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold">
+                                {dist.exceptionCount > 0 ? (
+                                  <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">{dist.exceptionCount}</span>
+                                ) : (
+                                  <span className="text-slate-400 font-normal">0</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3">{renderVerificationStatusBadge(dist.status)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* 页签 3: 异常记录 */}
-              {activeDrawerTab === 'EXCEPTIONS' && (
-                <div className="space-y-3">
-                  {selectedVerification.linkedExceptionIds.length > 0 ? (
-                    selectedVerification.linkedExceptionIds.map(exId => (
-                      <div key={exId} className="border border-slate-200 bg-white rounded-lg p-3.5 flex items-center justify-between text-xs hover:border-blue-300 transition-colors">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-mono font-bold text-slate-900 text-sm">{exId}</span>
-                            <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold text-[11px]">
-                              不一致异常单
-                            </span>
+              {/* 一级页签 2: 差异明细 (内部包含“异常记录”与“字段对比”分段控件) */}
+              {activeDrawerTab === 'DIFFERENCES' && (
+                <div className="space-y-4">
+                  {/* 分段控制器 */}
+                  <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg w-fit">
+                    <button
+                      type="button"
+                      onClick={() => setDifferenceView('EXCEPTIONS')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        differenceView === 'EXCEPTIONS'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      异常记录 ({selectedVerification.linkedExceptionIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDifferenceView('FIELDS')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        differenceView === 'FIELDS'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      字段对比 ({selectedVerification.fieldDifferences.length})
+                    </button>
+                  </div>
+
+                  {/* 分段 1: 异常记录 */}
+                  {differenceView === 'EXCEPTIONS' && (
+                    <div className="space-y-3">
+                      {selectedVerification.linkedExceptionIds.length > 0 ? (
+                        selectedVerification.linkedExceptionIds.map(exId => (
+                          <div key={exId} className="border border-slate-200 bg-white rounded-lg p-3.5 flex items-center justify-between text-xs hover:border-blue-300 transition-colors">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono font-bold text-slate-900 text-sm">{exId}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold text-[11px]">
+                                  不一致异常单
+                                </span>
+                              </div>
+                              <p className="text-slate-500">已自动注册入库，可在异常处置中心进行重试、人工补偿与复核关闭。</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                onSelectVerificationId(null);
+                                onOpenExceptionDrawer(exId);
+                              }}
+                              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded font-semibold transition-colors inline-flex items-center space-x-1 cursor-pointer shrink-0 ml-3"
+                            >
+                              <span>去处置</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <p className="text-slate-500">已自动注册入库，可在异常处置中心进行重试、人工补偿与复核关闭。</p>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center text-slate-400 text-xs">
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
+                          该核验记录未发现任何字段级或数量级异常
                         </div>
-                        <button
-                          onClick={() => {
-                            onSelectVerificationId(null);
-                            onOpenExceptionDrawer(exId);
-                          }}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded font-semibold transition-colors inline-flex items-center space-x-1 cursor-pointer shrink-0 ml-3"
-                        >
-                          <span>去处置</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 分段 2: 字段对比 */}
+                  {differenceView === 'FIELDS' && (
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate-500">
+                        核验引擎比对源系统值、映射预期值与检索库实际值的字段明细：
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-                      该核验记录未发现任何字段级或数量级异常
+                      {selectedVerification.fieldDifferences.length > 0 ? (
+                        selectedVerification.fieldDifferences.map(diff => (
+                          <div key={diff.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2.5 text-xs shadow-2xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-bold text-slate-900">{diff.objectCode}</span>
+                                <span className="text-slate-600 font-medium">{diff.objectName}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
+                                  {diff.objectType} / {diff.softType}
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-mono font-bold text-[11px] border border-blue-100">
+                                  比对字段: {diff.fieldName}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1.5">
+                                <span
+                                  className={`px-2 py-0.5 rounded font-semibold text-[11px] ${
+                                    diff.result === 'MISMATCH'
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                      : diff.result === 'MISSING'
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  }`}
+                                >
+                                  {diff.diffType}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded font-bold text-[11px] ${
+                                    diff.result === 'MATCH'
+                                      ? 'bg-emerald-600 text-white'
+                                      : diff.result === 'MISMATCH'
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-rose-600 text-white'
+                                  }`}
+                                >
+                                  {diff.result === 'MATCH' ? '一致' : diff.result === 'MISMATCH' ? '不一致' : '缺失'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 三方比对网格 */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                              {/* PLM 源值 */}
+                              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                                <div className="text-[11px] font-semibold text-slate-500">源系统原始值</div>
+                                <div className="font-mono text-slate-900 break-all leading-relaxed">
+                                  {diff.plmSourceValue.length > 60 && !expandedDiffIds[diff.id] ? (
+                                    <>
+                                      {diff.plmSourceValue.slice(0, 60)}...
+                                      <button
+                                        onClick={() => toggleDiffExpand(diff.id)}
+                                        className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                      >
+                                        展开
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {diff.plmSourceValue}
+                                      {diff.plmSourceValue.length > 60 && (
+                                        <button
+                                          onClick={() => toggleDiffExpand(diff.id)}
+                                          className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                        >
+                                          收起
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 映射后预期值 */}
+                              <div className="bg-blue-50/40 p-2.5 rounded border border-blue-100 space-y-1">
+                                <div className="text-[11px] font-semibold text-blue-700">映射后预期值</div>
+                                <div className="font-mono text-blue-900 break-all leading-relaxed">
+                                  {diff.mappedExpectedValue.length > 60 && !expandedDiffIds[diff.id] ? (
+                                    <>
+                                      {diff.mappedExpectedValue.slice(0, 60)}...
+                                      <button
+                                        onClick={() => toggleDiffExpand(diff.id)}
+                                        className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                      >
+                                        展开
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {diff.mappedExpectedValue}
+                                      {diff.mappedExpectedValue.length > 60 && (
+                                        <button
+                                          onClick={() => toggleDiffExpand(diff.id)}
+                                          className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                        >
+                                          收起
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 检索库实际值 */}
+                              <div
+                                className={`p-2.5 rounded border space-y-1 ${
+                                  diff.result === 'MISSING'
+                                    ? 'bg-rose-50/60 border-rose-200'
+                                    : diff.result === 'MISMATCH'
+                                    ? 'bg-amber-50/60 border-amber-200'
+                                    : 'bg-emerald-50/50 border-emerald-200'
+                                }`}
+                              >
+                                <div
+                                  className={`text-[11px] font-semibold ${
+                                    diff.result === 'MISSING'
+                                      ? 'text-rose-700'
+                                      : diff.result === 'MISMATCH'
+                                      ? 'text-amber-700'
+                                      : 'text-emerald-700'
+                                  }`}
+                                >
+                                  检索库实际值
+                                </div>
+                                <div
+                                  className={`font-mono break-all leading-relaxed font-bold ${
+                                    diff.result === 'MISSING'
+                                      ? 'text-rose-800'
+                                      : diff.result === 'MISMATCH'
+                                      ? 'text-amber-900'
+                                      : 'text-emerald-900'
+                                  }`}
+                                >
+                                  {diff.manticoreActualValue.length > 60 && !expandedDiffIds[diff.id] ? (
+                                    <>
+                                      {diff.manticoreActualValue.slice(0, 60)}...
+                                      <button
+                                        onClick={() => toggleDiffExpand(diff.id)}
+                                        className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                      >
+                                        展开
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {diff.manticoreActualValue}
+                                      {diff.manticoreActualValue.length > 60 && (
+                                        <button
+                                          onClick={() => toggleDiffExpand(diff.id)}
+                                          className="text-blue-600 ml-1 hover:underline cursor-pointer"
+                                        >
+                                          收起
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center text-slate-400 text-xs">
+                          该核验无字段差异记录
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* 页签 4: 字段对比 */}
-              {activeDrawerTab === 'DIFFS' && (
-                <div className="space-y-3">
-                  <div className="text-xs text-slate-500">
-                    核验引擎比对 PLM 源库值、一阶段映射预期值与 Manticore 检索库实际值的字段明细：
-                  </div>
-                  {selectedVerification.fieldDifferences.length > 0 ? (
-                    selectedVerification.fieldDifferences.map(diff => (
-                      <div key={diff.id} className="border border-slate-200 bg-white rounded-lg p-3.5 space-y-2.5 text-xs shadow-2xs">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono font-bold text-slate-900">{diff.objectCode}</span>
-                            <span className="text-slate-600 font-medium">{diff.objectName}</span>
-                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
-                              {diff.objectType} / {diff.softType}
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-mono font-bold text-[11px] border border-blue-100">
-                              比对字段: {diff.fieldName}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1.5">
-                            <span
-                              className={`px-2 py-0.5 rounded font-semibold text-[11px] ${
-                                diff.result === 'MISMATCH'
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : diff.result === 'MISSING'
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              }`}
-                            >
-                              {diff.diffType}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded font-bold text-[11px] ${
-                                diff.result === 'MATCH'
-                                  ? 'bg-emerald-600 text-white'
-                                  : diff.result === 'MISMATCH'
-                                  ? 'bg-amber-600 text-white'
-                                  : 'bg-rose-600 text-white'
-                              }`}
-                            >
-                              {diff.result === 'MATCH' ? '一致' : diff.result === 'MISMATCH' ? '不一致' : '缺失'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 三方比对网格 */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-                          {/* PLM 源值 */}
-                          <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
-                            <div className="text-[11px] font-semibold text-slate-500">IntePLM V21 源值</div>
-                            <div className="font-mono text-slate-900 break-all leading-relaxed">
-                              {diff.plmSourceValue.length > 60 && !expandedDiffIds[diff.id] ? (
-                                <>
-                                  {diff.plmSourceValue.slice(0, 60)}...
-                                  <button
-                                    onClick={() => toggleDiffExpand(diff.id)}
-                                    className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                  >
-                                    展开
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  {diff.plmSourceValue}
-                                  {diff.plmSourceValue.length > 60 && (
-                                    <button
-                                      onClick={() => toggleDiffExpand(diff.id)}
-                                      className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                    >
-                                      收起
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* 映射后预期值 */}
-                          <div className="bg-blue-50/40 p-2.5 rounded border border-blue-100 space-y-1">
-                            <div className="text-[11px] font-semibold text-blue-700">映射后预期值</div>
-                            <div className="font-mono text-blue-900 break-all leading-relaxed">
-                              {diff.mappedExpectedValue.length > 60 && !expandedDiffIds[diff.id] ? (
-                                <>
-                                  {diff.mappedExpectedValue.slice(0, 60)}...
-                                  <button
-                                    onClick={() => toggleDiffExpand(diff.id)}
-                                    className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                  >
-                                    展开
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  {diff.mappedExpectedValue}
-                                  {diff.mappedExpectedValue.length > 60 && (
-                                    <button
-                                      onClick={() => toggleDiffExpand(diff.id)}
-                                      className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                    >
-                                      收起
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Manticore 检索库实际值 */}
-                          <div
-                            className={`p-2.5 rounded border space-y-1 ${
-                              diff.result === 'MISSING'
-                                ? 'bg-rose-50/60 border-rose-200'
-                                : diff.result === 'MISMATCH'
-                                ? 'bg-amber-50/60 border-amber-200'
-                                : 'bg-emerald-50/50 border-emerald-200'
-                            }`}
-                          >
-                            <div
-                              className={`text-[11px] font-semibold ${
-                                diff.result === 'MISSING'
-                                  ? 'text-rose-700'
-                                  : diff.result === 'MISMATCH'
-                                  ? 'text-amber-700'
-                                  : 'text-emerald-700'
-                              }`}
-                            >
-                              Manticore 实际值
-                            </div>
-                            <div
-                              className={`font-mono break-all leading-relaxed font-bold ${
-                                diff.result === 'MISSING'
-                                  ? 'text-rose-800'
-                                  : diff.result === 'MISMATCH'
-                                  ? 'text-amber-900'
-                                  : 'text-emerald-900'
-                              }`}
-                            >
-                              {diff.manticoreActualValue.length > 60 && !expandedDiffIds[diff.id] ? (
-                                <>
-                                  {diff.manticoreActualValue.slice(0, 60)}...
-                                  <button
-                                    onClick={() => toggleDiffExpand(diff.id)}
-                                    className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                  >
-                                    展开
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  {diff.manticoreActualValue}
-                                  {diff.manticoreActualValue.length > 60 && (
-                                    <button
-                                      onClick={() => toggleDiffExpand(diff.id)}
-                                      className="text-blue-600 ml-1 hover:underline cursor-pointer"
-                                    >
-                                      收起
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      该核验无字段差异记录
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 页签 5: 核验范围和策略 */}
-              {activeDrawerTab === 'STRATEGY' && (
+              {/* 一级页签 3: 范围与口径 (合并范围、业务口径说明与折叠的高级技术信息) */}
+              {activeDrawerTab === 'SCOPE' && (
                 <div className="space-y-4 text-xs">
                   <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-slate-900">核验范围定义</h3>
-                    <div className="grid grid-cols-2 gap-y-2">
+                    <h3 className="text-xs font-bold text-slate-900">核验范围与口径定义</h3>
+                    <div className="grid grid-cols-2 gap-y-2.5">
                       <div>
                         <span className="text-slate-500">来源系统：</span>
                         <span className="font-medium text-slate-800 ml-1">{selectedVerification.sourceSystem}</span>
@@ -1192,15 +1199,80 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                         <span className="font-medium text-slate-800 ml-1">{selectedVerification.objectsSummary.join(', ')}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500">核验算法：</span>
+                        <span className="text-slate-500">核验方式：</span>
                         <span className="font-medium text-slate-800 ml-1">{selectedVerification.methodLabel}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">样本量/范围：</span>
+                        <span className="font-mono text-slate-800 ml-1">
+                          {selectedVerification.verificationScope === 'FULL_BATCH' ? '全量范围' : '定向抽样'} ({selectedVerification.sampleSize.toLocaleString()} 条)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">执行人员：</span>
+                        <span className="text-slate-800 ml-1">{selectedVerification.executor}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-2">
-                    <h3 className="text-xs font-bold text-slate-900">执行策略说明 (只读)</h3>
-                    <p className="text-slate-600 leading-relaxed">{selectedVerification.strategyNotes}</p>
+                    <h3 className="text-xs font-bold text-slate-900">执行策略说明</h3>
+                    <p className="text-slate-600 leading-relaxed">
+                      {selectedVerification.method === 'STANDARDIZED_HASH'
+                        ? '按标准化后的字段值核验源系统与检索库数据是否一致。'
+                        : selectedVerification.strategyNotes}
+                    </p>
+                  </div>
+
+                  {/* 研发追溯折叠面板：高级技术信息 (按需展开，默认收起) */}
+                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/70">
+                    <button
+                      type="button"
+                      onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                      className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Info className="w-3.5 h-3.5 text-slate-500" />
+                        <span>高级技术信息 (研发追溯)</span>
+                      </div>
+                      {showTechnicalDetails ? (
+                        <ChevronUp className="w-4 h-4 text-slate-500" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-slate-500" />
+                      )}
+                    </button>
+
+                    {showTechnicalDetails && (
+                      <div className="px-4 py-3 border-t border-slate-200 bg-white space-y-2.5 text-xs">
+                        <div className="grid grid-cols-2 gap-y-2 font-mono text-[11px]">
+                          <div>
+                            <span className="text-slate-400 font-sans">核验类型标识：</span>
+                            <span className="text-slate-800 font-semibold">{selectedVerification.method}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">算法实现特征：</span>
+                            <span className="text-slate-800">
+                              {selectedVerification.method === 'STANDARDIZED_HASH' ? 'SHA-256 (Canonical Field Fingerprint)' : selectedVerification.method}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">版本增量控制：</span>
+                            <span className="text-slate-800">updatecount / version sequence align</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">核验范围标记：</span>
+                            <span className="text-slate-800">{selectedVerification.verificationScope}</span>
+                          </div>
+                        </div>
+
+                        {selectedVerification.strategyNotes && (
+                          <div className="pt-2 border-t border-slate-100 text-[11px]">
+                            <span className="text-slate-400 block mb-0.5">底层策略注解：</span>
+                            <span className="text-slate-700 font-mono break-all">{selectedVerification.strategyNotes}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

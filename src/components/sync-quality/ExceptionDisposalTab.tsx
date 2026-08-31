@@ -702,7 +702,7 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
             <Clock className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-slate-400 font-medium text-[11px]">待处理异常</div>
+            <div className="text-slate-400 font-medium text-[11px]">待处理异常单</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
               {exceptions.filter(e => e.status === 'PENDING').length} <span className="text-xs font-normal text-rose-600 ml-1">需人工干预</span>
             </div>
@@ -714,9 +714,9 @@ export const ExceptionDisposalTab: React.FC<ExceptionDisposalTabProps> = ({
             <UserCheck className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-slate-400 font-medium text-[11px]">待业务确认</div>
+            <div className="text-slate-400 font-medium text-[11px]">待业务确认异常单</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              {exceptions.filter(e => e.status === 'PENDING_BUSINESS_CONFIRM').length} <span className="text-xs font-normal text-amber-600 ml-1">条记录</span>
+              {exceptions.filter(e => e.status === 'PENDING_BUSINESS_CONFIRM').length} <span className="text-xs font-normal text-amber-600 ml-1">单待核实</span>
             </div>
           </div>
         </div>

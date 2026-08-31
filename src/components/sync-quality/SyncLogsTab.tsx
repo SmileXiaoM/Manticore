@@ -366,10 +366,10 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-slate-400 font-medium text-[11px]">待处理异常总数</div>
+            <div className="text-slate-400 font-medium text-[11px]">待处理异常单</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
               {metrics.pendingCount}{' '}
-              <span className="text-xs font-normal text-rose-600 ml-1">高严重度 {metrics.highPendingCount} 条</span>
+              <span className="text-xs font-normal text-rose-600 ml-1">高严重度 {metrics.highPendingCount} 单</span>
             </div>
           </div>
         </div>
