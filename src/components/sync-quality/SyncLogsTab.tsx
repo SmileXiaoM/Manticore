@@ -494,18 +494,18 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+          <table className="w-full text-left text-xs border-collapse min-w-full lg:min-w-[960px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-3.5 whitespace-nowrap">批次/执行编号</th>
-                <th className="py-3 px-3 whitespace-nowrap">任务 / 来源系统</th>
-                <th className="py-3 px-3 min-w-[120px]">对象范围</th>
-                <th className="py-3 px-3 min-w-[76px] whitespace-nowrap">同步方式</th>
-                <th className="py-3 px-3 min-w-[160px]">处理结果</th>
-                <th className="py-3 px-3 whitespace-nowrap">开始时间 / 耗时</th>
-                <th className="py-3 px-3 whitespace-nowrap">执行状态</th>
-                <th className="py-3 px-3 whitespace-nowrap">核验状态</th>
-                <th className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">操作</th>
+                <th className="py-2.5 px-2.5 sm:px-3 whitespace-nowrap">批次/执行编号</th>
+                <th className="py-2.5 px-2.5 whitespace-nowrap">任务 / 来源系统</th>
+                <th className="py-2.5 px-2.5 min-w-[100px]">对象范围</th>
+                <th className="py-2.5 px-2 min-w-[68px] whitespace-nowrap">同步方式</th>
+                <th className="py-2.5 px-2.5 min-w-[140px]">处理结果</th>
+                <th className="py-2.5 px-2.5 whitespace-nowrap">开始时间 / 耗时</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">执行状态</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">核验状态</th>
+                <th className="py-2.5 px-3 text-center sticky-ops whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -517,7 +517,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       selectedBatchId === batch.id ? 'bg-blue-50/40' : ''
                     }`}
                   >
-                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 sm:px-3 font-mono font-semibold text-blue-600 whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectBatchId(batch.id);
@@ -533,7 +533,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         )}
                       </button>
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
                       <div className="font-mono text-[11px] font-semibold text-slate-800">{batch.jobCode}</div>
                       <div className="flex items-center space-x-1.5 mt-0.5">
                         <span className="text-slate-600 text-[11px]">{batch.sourceSystem}</span>
@@ -541,7 +541,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         {renderTriggerTypeBadge(batch.triggerType)}
                       </div>
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-2.5 px-2.5">
                       <div className="flex flex-wrap gap-1">
                         {batch.objectsSummary.map(obj => (
                           <span
@@ -553,8 +553,8 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         ))}
                       </div>
                     </td>
-                    <td className="py-3 px-3 min-w-[76px] whitespace-nowrap">{renderSyncMethodLabel(batch.syncMethod)}</td>
-                    <td className="py-3 px-3">
+                    <td className="py-2.5 px-2 min-w-[68px] whitespace-nowrap">{renderSyncMethodLabel(batch.syncMethod)}</td>
+                    <td className="py-2.5 px-2.5">
                       <div className="space-y-0.5">
                         <div className="flex items-center space-x-1 text-slate-700">
                           <span className="text-slate-400 text-[11px]">源:</span>
@@ -578,13 +578,13 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
                       <div className="text-slate-700">{batch.startTime}</div>
                       <div className="text-slate-400 font-mono text-[11px]">{batch.durationText}</div>
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap">{renderSyncStatusBadge(batch.executionStatus)}</td>
-                    <td className="py-3 px-3 whitespace-nowrap">{renderVerificationStatusBadge(batch.verificationStatus)}</td>
-                    <td className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">
+                    <td className="py-2.5 px-2 whitespace-nowrap">{renderSyncStatusBadge(batch.executionStatus)}</td>
+                    <td className="py-2.5 px-2 whitespace-nowrap">{renderVerificationStatusBadge(batch.verificationStatus)}</td>
+                    <td className="py-2.5 px-3 text-center sticky-ops whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectBatchId(batch.id);
@@ -732,14 +732,14 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
 
                   {/* 详细元信息 */}
                   <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-slate-900">执行身份与环境元信息</h3>
+                    <h3 className="text-xs font-bold text-slate-900">执行信息</h3>
                     <div className="grid grid-cols-2 gap-y-2.5 text-xs">
                       <div>
-                        <span className="text-slate-500">任务编码 (jobCode)：</span>
+                        <span className="text-slate-500">任务编码：</span>
                         <span className="font-mono font-semibold text-slate-800 ml-1">{selectedBatch.jobCode}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500">执行编号 (executionId)：</span>
+                        <span className="text-slate-500">执行编号：</span>
                         <span className="font-mono font-semibold text-blue-600 ml-1">{selectedBatch.id}</span>
                       </div>
                       <div>
@@ -780,11 +780,67 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     <div className="bg-blue-50/80 border border-blue-200 p-3.5 rounded-lg text-xs text-blue-900 flex items-start space-x-2">
                       <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold">状态独立判断声明：</span>
+                        <span className="font-bold">状态说明：</span>
                         <p className="mt-0.5 text-blue-800 leading-relaxed">{selectedBatch.statusNote}</p>
                       </div>
                     </div>
                   )}
+
+                  {/* 高级技术信息 (默认折叠) */}
+                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/60">
+                    <button
+                      onClick={() => toggleTraceExpand('ADVANCED_TECH_' + selectedBatch.id)}
+                      className="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center space-x-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-slate-500" />
+                        <span>高级技术信息 (研发追溯)</span>
+                      </span>
+                      <span className="text-slate-400 text-[11px] flex items-center space-x-1">
+                        <span>{expandedTraceIds['ADVANCED_TECH_' + selectedBatch.id] ? '收起' : '展开'}</span>
+                        {expandedTraceIds['ADVANCED_TECH_' + selectedBatch.id] ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    </button>
+                    {expandedTraceIds['ADVANCED_TECH_' + selectedBatch.id] && (
+                      <div className="p-3.5 bg-white border-t border-slate-200 text-xs space-y-2 font-mono text-slate-700">
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div>
+                            <span className="text-slate-400 font-sans">jobCode:</span> {selectedBatch.jobCode}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">executionId:</span> {selectedBatch.id}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">syncMethod:</span> {selectedBatch.syncMethod}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">sourceDataCutoffAt:</span>{' '}
+                            {selectedBatch.sourceDataCutoffAt || 'null'}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">sourceSnapshotAt:</span>{' '}
+                            {selectedBatch.sourceSnapshotAt || 'null'}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">watermarkType:</span>{' '}
+                            {selectedBatch.watermarkType || 'null'}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">watermarkStart:</span>{' '}
+                            {selectedBatch.watermarkStart || 'null'}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-sans">watermarkEnd:</span>{' '}
+                            {selectedBatch.watermarkEnd || 'null'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -795,7 +851,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                   <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
                     <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                       <Calendar className="w-4 h-4 text-blue-600" />
-                      <span>同步数据范围与业务水位合同</span>
+                      <span>同步范围与水位</span>
                     </h3>
                     
                     <div className="grid grid-cols-2 gap-y-3 pt-1">
@@ -804,14 +860,14 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         <>
                           {selectedBatch.sourceDataCutoffAt && (
                             <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                              <span className="text-slate-500">数据截止时间 (sourceDataCutoffAt)：</span>
+                              <span className="text-slate-500">数据截止时间：</span>
                               <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceDataCutoffAt}</span>
                             </div>
                           )}
 
                           {selectedBatch.sourceSnapshotAt && (
                             <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                              <span className="text-slate-500">源端一致性快照点 (sourceSnapshotAt)：</span>
+                              <span className="text-slate-500">源端快照时间：</span>
                               <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceSnapshotAt}</span>
                             </div>
                           )}
@@ -833,44 +889,83 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                       {/* 增量/补偿同步范围与水位证据反馈 */}
                       {selectedBatch.syncMethod !== 'FULL' && (
                         <>
-                          {selectedBatch.dataWindowStart && (
+                          {selectedBatch.dataWindowStart ? (
                             <div>
-                              <span className="text-slate-500">增量窗口起始 (dataWindowStart)：</span>
+                              <span className="text-slate-500">增量范围起始：</span>
                               <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowStart}</div>
                             </div>
+                          ) : (
+                            <div>
+                              <span className="text-slate-500">增量范围起始：</span>
+                              <div className="font-mono text-rose-600 font-semibold mt-0.5">未记录窗口起始</div>
+                            </div>
                           )}
 
-                          {selectedBatch.dataWindowEnd && (
+                          {selectedBatch.dataWindowEnd ? (
                             <div>
-                              <span className="text-slate-500">增量窗口截止 (dataWindowEnd)：</span>
+                              <span className="text-slate-500">增量范围截止：</span>
                               <div className="font-mono font-semibold text-slate-800 mt-0.5">{selectedBatch.dataWindowEnd}</div>
                             </div>
+                          ) : (
+                            <div>
+                              <span className="text-slate-500">增量范围截止：</span>
+                              <div className="font-mono text-rose-600 font-semibold mt-0.5">未记录窗口截止</div>
+                            </div>
                           )}
 
-                          {selectedBatch.watermarkType && (
+                          {selectedBatch.watermarkType ? (
                             <div>
-                              <span className="text-slate-500">增量水位类型 (watermarkType)：</span>
+                              <span className="text-slate-500">水位类型：</span>
                               <div className="font-mono font-bold text-purple-700 mt-0.5">{selectedBatch.watermarkType}</div>
                             </div>
-                          )}
-
-                          {(selectedBatch.watermarkStart || selectedBatch.watermarkEnd) && (
+                          ) : (
                             <div>
-                              <span className="text-slate-500">起止水位区间：</span>
-                              <div className="font-mono font-bold text-blue-700 mt-0.5">
-                                {selectedBatch.watermarkStart || '-'} <span className="text-slate-400">至</span> {selectedBatch.watermarkEnd || '-'}
-                              </div>
+                              <span className="text-slate-500">水位类型：</span>
+                              <div className="font-mono text-rose-600 font-semibold mt-0.5">未记录水位类型</div>
                             </div>
                           )}
 
-                          {(!selectedBatch.dataWindowStart || !selectedBatch.dataWindowEnd || !selectedBatch.watermarkType || (!selectedBatch.watermarkStart && !selectedBatch.watermarkEnd)) && (
+                          <div>
+                            <span className="text-slate-500">起止水位区间：</span>
+                            <div className="font-mono font-bold text-blue-700 mt-0.5 flex items-center space-x-1">
+                              {selectedBatch.watermarkStart ? (
+                                <span>{selectedBatch.watermarkStart}</span>
+                              ) : (
+                                <span className="text-rose-600 font-normal bg-rose-50 px-1 py-0.2 rounded border border-rose-200 text-[11px]">
+                                  起始水位缺失
+                                </span>
+                              )}
+                              <span className="text-slate-400 font-normal">至</span>
+                              {selectedBatch.watermarkEnd ? (
+                                <span>{selectedBatch.watermarkEnd}</span>
+                              ) : (
+                                <span className="text-rose-600 font-normal bg-rose-50 px-1 py-0.2 rounded border border-rose-200 text-[11px]">
+                                  结束水位缺失
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 增量/补偿同步数据完整性校验：任一项缺失即提示，与 validateDataIntegrity 完全一致 */}
+                          {(!selectedBatch.dataWindowStart ||
+                            !selectedBatch.dataWindowEnd ||
+                            !selectedBatch.watermarkType ||
+                            !selectedBatch.watermarkStart ||
+                            !selectedBatch.watermarkEnd) && (
                             <div className="col-span-2 bg-amber-50/70 border border-amber-200 p-3 rounded-lg text-amber-900 space-y-1">
                               <div className="font-bold flex items-center space-x-1.5 text-amber-800">
                                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span>增量范围证据缺失</span>
+                                <span>同步范围信息不完整</span>
                               </div>
                               <p className="text-[11px] text-amber-700 leading-relaxed">
-                                该批次未记录完整的时间窗口或增量业务水位，无法追溯增量抽取范围与连续性。
+                                该批次未记录完整的时间范围（起始/截止）或增量业务水位（起始水位/结束水位/水位类型），无法追溯增量抽取范围与连续性。
+                                {!selectedBatch.watermarkStart && !selectedBatch.watermarkEnd
+                                  ? '（双端水位均缺失）'
+                                  : !selectedBatch.watermarkStart
+                                  ? '（起始水位缺失）'
+                                  : !selectedBatch.watermarkEnd
+                                  ? '（结束水位缺失）'
+                                  : ''}
                               </p>
                             </div>
                           )}
@@ -925,7 +1020,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         <div className="flex items-center justify-between">
                           <h4 className="font-bold text-purple-900 flex items-center space-x-1.5">
                             <GitBranch className="w-3.5 h-3.5 text-purple-700" />
-                            <span>重试执行血缘 (RetryLineage)</span>
+                            <span>重试执行血缘</span>
                           </h4>
                           <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-semibold text-[11px]">
                             第 {selectedBatch.lineage.attemptNo} 次执行
@@ -933,7 +1028,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-purple-950">
                           <div>
-                            <span className="text-purple-700">根执行编号 (rootExecutionId)：</span>
+                            <span className="text-purple-700">根执行编号：</span>
                             <span className="font-mono font-bold ml-1">{selectedBatch.lineage.rootExecutionId}</span>
                           </div>
                           <div>
@@ -1024,7 +1119,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                         <Code2 className="w-4 h-4 text-purple-600" />
-                        <span>同步执行配置快照 (不可变证据)</span>
+                        <span>同步配置版本</span>
                       </h3>
                       {selectedBatch.configSnapshotId ? (
                         <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono font-bold text-[11px] border border-purple-200">
@@ -1317,7 +1412,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
             {/* 抽屉底部操作 */}
             <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
               <div className="text-xs text-slate-500">
-                不可变配置快照：<span className="font-mono text-slate-700">{selectedBatch.configSnapshotId || '未记录'}</span>
+                配置快照编号：<span className="font-mono text-slate-700">{selectedBatch.configSnapshotId || '未记录'}</span>
               </div>
               <button
                 onClick={() => onSelectBatchId(null)}

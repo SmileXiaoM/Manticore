@@ -358,9 +358,9 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-slate-400 font-medium text-[11px]">发现不一致异常数</div>
+            <div className="text-slate-400 font-medium text-[11px]">发现不一致记录</div>
             <div className="text-slate-900 font-bold text-sm tracking-tight truncate">
-              {summaryMetrics.totalExceptions} <span className="text-xs font-normal text-rose-600 ml-1">条记录</span>
+              {summaryMetrics.totalExceptions} <span className="text-xs font-normal text-rose-600 ml-1">条字段/对象差异</span>
             </div>
           </div>
         </div>
@@ -488,21 +488,21 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
       {/* 主表格容器 */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1080px]">
+          <table className="w-full text-left text-xs border-collapse min-w-full lg:min-w-[1000px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-3.5 whitespace-nowrap">核验编号</th>
-                <th className="py-3 px-3 whitespace-nowrap">关联批次</th>
-                <th className="py-3 px-3 min-w-[100px]">对象范围</th>
-                <th className="py-3 px-3 whitespace-nowrap">核验方式</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap">核验样本量</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap">完整率</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap">字段一致率</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap">时效达标率</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap">异常数</th>
-                <th className="py-3 px-3 whitespace-nowrap">核验结果</th>
-                <th className="py-3 px-3 whitespace-nowrap">执行时间</th>
-                <th className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">操作</th>
+                <th className="py-2.5 px-2.5 sm:px-3 whitespace-nowrap">核验编号</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">关联批次</th>
+                <th className="py-2.5 px-2 min-w-[90px]">对象范围</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">核验方式</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">样本量</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">完整率</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">一致率</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">时效达标</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">异常数</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">核验结果</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">执行时间</th>
+                <th className="py-2.5 px-3 text-center sticky-ops whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -514,7 +514,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                       selectedVerificationId === item.id ? 'bg-blue-50/40' : ''
                     }`}
                   >
-                    <td className="py-3 px-3.5 font-mono font-semibold text-blue-600 hover:underline cursor-pointer">
+                    <td className="py-2.5 px-2.5 sm:px-3 font-mono font-semibold text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectVerificationId(item.id);
@@ -525,7 +525,7 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                         {item.id}
                       </button>
                     </td>
-                    <td className="py-3 px-3 font-mono">
+                    <td className="py-2.5 px-2 font-mono whitespace-nowrap">
                       <button
                         onClick={() => onOpenBatchDrawer(item.linkedBatchId)}
                         className="text-slate-700 hover:text-blue-600 hover:underline flex items-center space-x-1"
@@ -534,53 +534,53 @@ export const VerificationTab: React.FC<VerificationTabProps> = ({
                         <ExternalLink className="w-3 h-3 text-slate-400" />
                       </button>
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-2.5 px-2">
                       <div className="flex flex-wrap gap-1">
                         {item.objectsSummary.map(obj => (
                           <span
                             key={obj}
-                            className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-mono"
+                            className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-mono whitespace-nowrap"
                           >
                             {obj}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-slate-800 font-medium">{item.methodLabel}</td>
-                    <td className="py-3 px-3 text-right font-mono font-medium text-slate-900">
+                    <td className="py-2.5 px-2 text-slate-800 font-medium whitespace-nowrap">{item.methodLabel}</td>
+                    <td className="py-2.5 px-2 text-right font-mono font-medium text-slate-900 whitespace-nowrap">
                       {item.sampleSize.toLocaleString()}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-semibold text-slate-800">
+                    <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800 whitespace-nowrap">
                       {item.result === 'CHECKING' ? (
                         <span className="text-slate-400 font-normal">--</span>
                       ) : (
                         `${item.integrityRate.toFixed(2)}%`
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-semibold text-slate-800">
+                    <td className="py-2.5 px-2 text-right font-mono font-semibold text-slate-800 whitespace-nowrap">
                       {item.result === 'CHECKING' ? (
                         <span className="text-slate-400 font-normal">--</span>
                       ) : (
                         `${item.fieldConsistencyRate.toFixed(2)}%`
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono text-slate-600">
+                    <td className="py-2.5 px-2 text-right font-mono text-slate-600 whitespace-nowrap">
                       {item.result === 'CHECKING' ? (
                         <span className="text-slate-400 font-normal">--</span>
                       ) : (
                         `${item.timelinessRate.toFixed(2)}%`
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold">
+                    <td className="py-2.5 px-2 text-right font-mono font-bold whitespace-nowrap">
                       {item.exceptionCount > 0 ? (
                         <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">{item.exceptionCount}</span>
                       ) : (
                         <span className="text-slate-400 font-normal">0</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap">{renderVerificationStatusBadge(item.result)}</td>
-                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{item.executedAt}</td>
-                    <td className="py-3 px-3.5 text-center sticky-ops whitespace-nowrap">
+                    <td className="py-2.5 px-2 whitespace-nowrap">{renderVerificationStatusBadge(item.result)}</td>
+                    <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap">{item.executedAt}</td>
+                    <td className="py-2.5 px-3 text-center sticky-ops whitespace-nowrap">
                       <button
                         onClick={() => {
                           onSelectVerificationId(item.id);
