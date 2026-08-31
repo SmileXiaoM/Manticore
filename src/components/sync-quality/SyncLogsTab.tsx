@@ -814,9 +814,16 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     </h3>
                     
                     <div className="grid grid-cols-2 gap-y-3 pt-2">
+                      {selectedBatch.sourceDataCutoffAt && (
+                        <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
+                          <span className="text-slate-500">数据截止时间 (sourceDataCutoffAt)：</span>
+                          <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceDataCutoffAt}</span>
+                        </div>
+                      )}
+
                       {selectedBatch.sourceSnapshotAt && (
                         <div className="col-span-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                          <span className="text-slate-500">全量数据快照截止点 (sourceSnapshotAt)：</span>
+                          <span className="text-slate-500">源端一致性快照点 (sourceSnapshotAt)：</span>
                           <span className="font-mono font-semibold text-slate-900 ml-1">{selectedBatch.sourceSnapshotAt}</span>
                         </div>
                       )}

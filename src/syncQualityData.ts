@@ -130,7 +130,7 @@ export const initialSyncBatches: SyncBatch[] = [
     sourceSystem: 'IntePLM V21',
     objectsSummary: ['Part', 'Document', 'Process'],
     syncMethod: 'FULL',
-    sourceSnapshotAt: '2026-08-25 02:00:00',
+    sourceDataCutoffAt: '2026-08-25 02:00:00',
     objectMappingVersion: 'ALL-MAP-V21',
     fieldMappingVersion: 'GLOBAL-FIELD-V21',
     syncConfigVersion: 'SYNC-CFG-V5',
@@ -141,8 +141,8 @@ export const initialSyncBatches: SyncBatch[] = [
     durationSeconds: 2897,
     durationText: '48分17秒',
     sourceDataCount: 68450,
-    insertedCount: 1000,
-    updatedCount: 67379,
+    insertedCount: 930,
+    updatedCount: 67449,
     deletedCount: 44,
     successCount: 68423,
     failedCount: 3,
@@ -291,7 +291,7 @@ export const initialSyncBatches: SyncBatch[] = [
     objectMappingVersion: 'PART-MAP-V12',
     fieldMappingVersion: 'PART-FIELD-V12',
     syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-001',
+    configSnapshotId: 'CFG-SNAP-20260825-002',
     scheduledAt: '2026-08-25 02:00:00',
     startTime: '2026-08-25 02:00:15',
     endTime: '2026-08-25 02:48:32',
@@ -385,7 +385,7 @@ export const initialSyncBatches: SyncBatch[] = [
     objectMappingVersion: 'PART-MAP-V12',
     fieldMappingVersion: 'PART-FIELD-V12',
     syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-001',
+    configSnapshotId: 'CFG-SNAP-20260825-002',
     scheduledAt: '2026-08-25 03:15:00',
     startTime: '2026-08-25 03:15:10',
     endTime: '2026-08-25 03:16:25',
@@ -453,7 +453,7 @@ export const initialSyncBatches: SyncBatch[] = [
     objectMappingVersion: 'PART-DOC-MAP-V11',
     fieldMappingVersion: 'GLOBAL-FIELD-V21',
     syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-002',
+    configSnapshotId: 'CFG-SNAP-20260825-003',
     scheduledAt: '2026-08-25 10:15:00',
     startTime: '2026-08-25 10:15:00',
     endTime: '2026-08-25 10:18:24',
@@ -530,7 +530,7 @@ export const initialSyncBatches: SyncBatch[] = [
     objectMappingVersion: 'PROCESS-MAP-V08',
     fieldMappingVersion: 'PROCESS-FIELD-V08',
     syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-003',
+    configSnapshotId: 'CFG-SNAP-20260825-004',
     scheduledAt: '2026-08-25 16:20:00',
     startTime: '2026-08-25 16:20:00',
     durationText: '已运行 8分15秒',
@@ -544,7 +544,7 @@ export const initialSyncBatches: SyncBatch[] = [
     reconciliation: {
       status: 'PENDING',
       differenceCount: 0,
-      explanation: '批次正在分片写入中 (当前 524/860)，待写入完毕后自动执行对账'
+      explanation: '批次正在分片写入中 (当前进度 524/860，待处理 336 条)，待写入完成后自动执行对账'
     },
     lineage: {
       rootExecutionId: 'SYNC-20260825-005',
@@ -564,7 +564,7 @@ export const initialSyncBatches: SyncBatch[] = [
         deletedCount: 0,
         failedCount: 0,
         skippedCount: 0,
-        status: 'SUCCESS'
+        status: 'RUNNING'
       }
     ],
     failedRecords: [],
@@ -594,7 +594,7 @@ export const initialSyncBatches: SyncBatch[] = [
     objectMappingVersion: 'DOC-MAP-V10',
     fieldMappingVersion: 'GLOBAL-FIELD-V21',
     syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-001',
+    configSnapshotId: 'CFG-SNAP-20260825-005',
     scheduledAt: '2026-08-25 08:30:00',
     startTime: '2026-08-25 08:30:00',
     endTime: '2026-08-25 08:34:10',
@@ -1432,6 +1432,7 @@ export const checkTimeRange = (dateStr: string, range: string): boolean => {
 };
 
 // 严密数据完整性、日志证据合同与追溯双向自检工具 (R8 增补)
+// 完整性自洽性校验函数 (Pure Function，无副作用，满足 R6 合同断言)
 export const validateDataIntegrity = (
   batches: SyncBatch[],
   verifications: VerificationRecord[],
@@ -1449,17 +1450,31 @@ export const validateDataIntegrity = (
     errors.push(`检测到全局重复 ID: ${Array.from(new Set(duplicateIds)).join(', ')}`);
   }
 
+  // 用于校验配置快照编号与配置三元组的严格一一映射 (R4)
+  const configSnapshotTupleMap = new Map<string, string>();
+
   // 2. 检查批次日志证据合同与数量对账
   batches.forEach(b => {
     if (b.executionId && b.executionId !== b.id) {
       errors.push(`批次 ${b.id} 的 executionId (${b.executionId}) 与 id 不一致`);
     }
 
-    if (!b.configSnapshotId) {
-      errors.push(`批次 ${b.id} 缺少不可变配置快照编号 configSnapshotId`);
+    // 配置快照证据完整性与唯一性 (R4, R5)
+    if (!b.configSnapshotId || !b.objectMappingVersion || !b.fieldMappingVersion || !b.syncConfigVersion) {
+      errors.push(`批次 ${b.id} 缺少完整的配置快照编号或映射版本证据 (configSnapshotId / objectMappingVersion / fieldMappingVersion / syncConfigVersion)`);
+    } else {
+      const tupleKey = `${b.objectMappingVersion}::${b.fieldMappingVersion}::${b.syncConfigVersion}`;
+      if (configSnapshotTupleMap.has(b.configSnapshotId)) {
+        const existingTuple = configSnapshotTupleMap.get(b.configSnapshotId);
+        if (existingTuple !== tupleKey) {
+          errors.push(`配置快照编号 ${b.configSnapshotId} 映射到了多个不一致的配置组合 (${existingTuple} vs ${tupleKey})`);
+        }
+      } else {
+        configSnapshotTupleMap.set(b.configSnapshotId, tupleKey);
+      }
     }
 
-    // 时间合同校验
+    // 时间合同与耗时计算 (R6)
     if (b.executionStatus === 'RUNNING') {
       if (b.endTime) {
         errors.push(`运行中批次 ${b.id} 不得包含结束时间 endTime`);
@@ -1467,41 +1482,132 @@ export const validateDataIntegrity = (
     } else {
       if (!b.endTime) {
         errors.push(`结束态批次 ${b.id} 必须包含结束时间 endTime`);
+      } else if (b.startTime && b.durationSeconds !== undefined) {
+        const startMs = new Date(b.startTime).getTime();
+        const endMs = new Date(b.endTime).getTime();
+        if (!isNaN(startMs) && !isNaN(endMs)) {
+          const calcSec = Math.round((endMs - startMs) / 1000);
+          if (Math.abs(calcSec - b.durationSeconds) > 3) {
+            errors.push(`批次 ${b.id} 耗时秒数 (${b.durationSeconds}s) 与起止时间计算值 (${calcSec}s) 误差超限`);
+          }
+        }
       }
     }
 
-    // 数量对账公式校验: extractedCount = successCount + skippedCount + failedCount
-    const calculatedExtracted = b.successCount + b.skippedCount + b.failedCount;
-    if (b.sourceDataCount !== calculatedExtracted) {
-      errors.push(`批次 ${b.id} 数量对账不成立: 抽取数 ${b.sourceDataCount} != 成功数 ${b.successCount} + 跳过数 ${b.skippedCount} + 失败数 ${b.failedCount}`);
-    }
-
-    // successCount = inserted + updated + deleted
-    const calculatedSuccess = b.insertedCount + b.updatedCount + b.deletedCount;
-    if (b.successCount !== calculatedSuccess) {
-      errors.push(`批次 ${b.id} 成功数对账不成立: 成功数 ${b.successCount} != 新增 ${b.insertedCount} + 更新 ${b.updatedCount} + 删除 ${b.deletedCount}`);
-    }
-
-    // 对象级数量明细对账校验
-    b.objectDetails.forEach(od => {
-      const odSuccess = od.insertedCount + od.updatedCount + od.deletedCount;
-      if (od.extractedCount !== odSuccess + od.skippedCount + od.failedCount) {
-        errors.push(`批次 ${b.id} 对象明细 (${od.objectType}/${od.softType}) 数量不自洽: 抽取 ${od.extractedCount} != (成功 ${odSuccess} + 跳过 ${od.skippedCount} + 失败 ${od.failedCount})`);
+    // 范围证据合同 (R2)
+    if (b.syncMethod === 'FULL') {
+      if (!b.sourceDataCutoffAt && !b.sourceSnapshotAt) {
+        errors.push(`全量同步批次 ${b.id} 缺少范围证据 (需提供 sourceDataCutoffAt 或 sourceSnapshotAt)`);
       }
-    });
+    } else if (b.syncMethod === 'INCREMENTAL' || b.syncMethod === 'COMPENSATION') {
+      if (!b.dataWindowStart || !b.dataWindowEnd || !b.watermarkType || (!b.watermarkStart && !b.watermarkEnd)) {
+        errors.push(`增量/补偿批次 ${b.id} 缺少时间窗口 (dataWindowStart/End) 或水位证据 (watermarkType/Start/End)`);
+      }
+      if (b.dataWindowStart && b.dataWindowEnd && b.dataWindowStart > b.dataWindowEnd) {
+        errors.push(`增量/补偿批次 ${b.id} 窗口起始时间 (${b.dataWindowStart}) 晚于截止时间 (${b.dataWindowEnd})`);
+      }
+    }
 
-    // 重试血缘校验
+    // 对象明细总和与批次头汇总严格相等
+    const sumInserted = b.objectDetails.reduce((acc, od) => acc + od.insertedCount, 0);
+    const sumUpdated = b.objectDetails.reduce((acc, od) => acc + od.updatedCount, 0);
+    const sumDeleted = b.objectDetails.reduce((acc, od) => acc + od.deletedCount, 0);
+    const sumFailed = b.objectDetails.reduce((acc, od) => acc + od.failedCount, 0);
+    const sumSkipped = b.objectDetails.reduce((acc, od) => acc + od.skippedCount, 0);
+    const sumExtracted = b.objectDetails.reduce((acc, od) => acc + od.extractedCount, 0);
+
+    if (sumInserted !== b.insertedCount) {
+      errors.push(`批次 ${b.id} 对象明细新增总和 (${sumInserted}) 与批次新增数 (${b.insertedCount}) 不一致`);
+    }
+    if (sumUpdated !== b.updatedCount) {
+      errors.push(`批次 ${b.id} 对象明细更新总和 (${sumUpdated}) 与批次更新数 (${b.updatedCount}) 不一致`);
+    }
+    if (sumDeleted !== b.deletedCount) {
+      errors.push(`批次 ${b.id} 对象明细删除总和 (${sumDeleted}) 与批次删除数 (${b.deletedCount}) 不一致`);
+    }
+    if (sumFailed !== b.failedCount) {
+      errors.push(`批次 ${b.id} 对象明细失败总和 (${sumFailed}) 与批次失败数 (${b.failedCount}) 不一致`);
+    }
+    if (sumSkipped !== b.skippedCount) {
+      errors.push(`批次 ${b.id} 对象明细跳过总和 (${sumSkipped}) 与批次跳过数 (${b.skippedCount}) 不一致`);
+    }
+    if (sumExtracted !== b.sourceDataCount) {
+      errors.push(`批次 ${b.id} 对象明细抽取总和 (${sumExtracted}) 与批次源数据量 (${b.sourceDataCount}) 不一致`);
+    }
+
+    // 区分生命周期校验数量对账 (R3)
+    if (b.executionStatus === 'RUNNING') {
+      if (b.reconciliation?.status !== 'PENDING') {
+        errors.push(`运行中批次 ${b.id} 对账状态必须为 PENDING`);
+      }
+      const processedCount = b.successCount + b.skippedCount + b.failedCount;
+      if (processedCount > b.sourceDataCount) {
+        errors.push(`运行中批次 ${b.id} 已处理数量 (${processedCount}) 超过抽取源数据总量 (${b.sourceDataCount})`);
+      }
+      const calcSuccess = b.insertedCount + b.updatedCount + b.deletedCount;
+      if (b.successCount !== calcSuccess) {
+        errors.push(`运行中批次 ${b.id} 成功数对账不成立: 成功数 ${b.successCount} != 新增 ${b.insertedCount} + 更新 ${b.updatedCount} + 删除 ${b.deletedCount}`);
+      }
+      b.objectDetails.forEach(od => {
+        const odProcessed = od.insertedCount + od.updatedCount + od.deletedCount + od.skippedCount + od.failedCount;
+        if (odProcessed > od.extractedCount) {
+          errors.push(`运行中批次 ${b.id} 对象明细 (${od.objectType}/${od.softType}) 处理量 (${odProcessed}) 超过抽取量 (${od.extractedCount})`);
+        }
+      });
+    } else {
+      // 结束态批次对账公式校验
+      const calculatedExtracted = b.successCount + b.skippedCount + b.failedCount;
+      if (b.sourceDataCount !== calculatedExtracted) {
+        errors.push(`批次 ${b.id} 数量对账不成立: 抽取数 ${b.sourceDataCount} != 成功数 ${b.successCount} + 跳过数 ${b.skippedCount} + 失败数 ${b.failedCount}`);
+      }
+      const calculatedSuccess = b.insertedCount + b.updatedCount + b.deletedCount;
+      if (b.successCount !== calculatedSuccess) {
+        errors.push(`批次 ${b.id} 成功数对账不成立: 成功数 ${b.successCount} != 新增 ${b.insertedCount} + 更新 ${b.updatedCount} + 删除 ${b.deletedCount}`);
+      }
+      b.objectDetails.forEach(od => {
+        const odSuccess = od.insertedCount + od.updatedCount + od.deletedCount;
+        if (od.extractedCount !== odSuccess + od.skippedCount + od.failedCount) {
+          errors.push(`批次 ${b.id} 对象明细 (${od.objectType}/${od.softType}) 数量不自洽: 抽取 ${od.extractedCount} != (成功 ${odSuccess} + 跳过 ${od.skippedCount} + 失败 ${od.failedCount})`);
+        }
+      });
+      if (b.reconciliation?.status === 'BALANCED' && b.reconciliation.differenceCount !== 0) {
+        errors.push(`批次 ${b.id} 对账状态为 BALANCED 但差异数不为 0 (${b.reconciliation.differenceCount})`);
+      }
+      if (b.reconciliation?.status === 'MISMATCH' && b.reconciliation.differenceCount === 0) {
+        errors.push(`批次 ${b.id} 对账状态为 MISMATCH 但差异数为 0`);
+      }
+    }
+
+    // 重试血缘与闭环校验
+    if (b.lineage?.rootExecutionId && !batchMap.has(b.lineage.rootExecutionId)) {
+      errors.push(`批次 ${b.id} 的根执行编号 ${b.lineage.rootExecutionId} 在批次列表中不存在`);
+    }
     if (b.lineage?.parentExecutionId) {
+      if (b.lineage.parentExecutionId === b.id) {
+        errors.push(`批次 ${b.id} 的重试父批次不能指向自身`);
+      }
       const parentBatch = batchMap.get(b.lineage.parentExecutionId);
       if (!parentBatch) {
         errors.push(`批次 ${b.id} 的重试父批次 ${b.lineage.parentExecutionId} 不存在`);
+      } else if (b.lineage.attemptNo <= (parentBatch.lineage?.attemptNo || 1)) {
+        errors.push(`批次 ${b.id} 存在父批次，但 attemptNo (${b.lineage.attemptNo}) 未比父批次递增`);
       }
-      if (b.lineage.attemptNo <= 1) {
-        errors.push(`批次 ${b.id} 存在父批次，但 attemptNo (${b.lineage.attemptNo}) 未递增`);
+
+      // 祖先链无环检测
+      let currParent: string | undefined = b.lineage.parentExecutionId;
+      const visited = new Set<string>([b.id]);
+      while (currParent) {
+        if (visited.has(currParent)) {
+          errors.push(`批次 ${b.id} 的重试血缘存在循环引用 (${currParent})`);
+          break;
+        }
+        visited.add(currParent);
+        const pNode = batchMap.get(currParent);
+        currParent = pNode?.lineage?.parentExecutionId;
       }
     }
 
-    // 核验关联与失败记录
+    // 核验关联校验
     if (b.linkedVerificationId) {
       const targetVer = verMap.get(b.linkedVerificationId);
       if (!targetVer) {
@@ -1511,7 +1617,11 @@ export const validateDataIntegrity = (
       }
     }
 
+    // 失败记录证据合同校验
     b.failedRecords.forEach(fr => {
+      if (!fr.errorCode || !fr.errorCategory || typeof fr.retryable !== 'boolean' || !fr.traceId || !fr.owner) {
+        errors.push(`批次 ${b.id} 失败记录 ${fr.id} 缺少必要的字段证据 (errorCode / errorCategory / retryable / traceId / owner)`);
+      }
       if (fr.hasExceptionCreated && fr.linkedExceptionId) {
         const targetEx = exMap.get(fr.linkedExceptionId);
         if (!targetEx) {
@@ -1520,7 +1630,7 @@ export const validateDataIntegrity = (
           errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 其 sourceBatchId 为 ${targetEx.sourceBatchId}，来源不一致`);
         }
       }
-      // 脱敏与凭据检查
+      // 脱敏与凭据泄露检查
       if (fr.techDetail && /bearer|password|secret|token.*=|\/\/.*:.*@/i.test(fr.techDetail)) {
         errors.push(`批次 ${b.id} 失败记录 ${fr.id} 的技术详情疑似包含敏感凭据信息`);
       }

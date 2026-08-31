@@ -74,7 +74,7 @@ export interface SyncObjectDetail {
   deletedCount: number;
   failedCount: number;
   skippedCount: number;
-  status: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
+  status: 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED' | 'RUNNING';
 }
 
 // 失败单条记录（技术跟踪、错误码与异常证据）
@@ -112,8 +112,9 @@ export interface SyncBatch {
   objectsSummary: string[]; // ['Part', 'Document', 'Process']
   syncMethod: SyncMethod; // FULL | INCREMENTAL | COMPENSATION
 
-  // 数据范围与增量水位合同
-  sourceSnapshotAt?: string; // 全量/快照型源数据截止时间点
+  // 数据范围与增量水位合同 (R2 明确拆分普通全量截止时点与真实快照)
+  sourceDataCutoffAt?: string; // 普通全量抽取的数据截止时间
+  sourceSnapshotAt?: string; // 仅在源系统确实提供一致性快照时使用
   dataWindowStart?: string; // 增量/补偿数据窗口开始
   dataWindowEnd?: string; // 增量/补偿数据窗口结束
   watermarkType?: 'UPDATECOUNT' | 'TIMESTAMP' | 'COMPOSITE'; // 水位类型
