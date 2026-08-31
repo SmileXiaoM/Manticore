@@ -1500,8 +1500,8 @@ export const validateDataIntegrity = (
         errors.push(`全量同步批次 ${b.id} 缺少范围证据 (需提供 sourceDataCutoffAt 或 sourceSnapshotAt)`);
       }
     } else if (b.syncMethod === 'INCREMENTAL' || b.syncMethod === 'COMPENSATION') {
-      if (!b.dataWindowStart || !b.dataWindowEnd || !b.watermarkType || (!b.watermarkStart && !b.watermarkEnd)) {
-        errors.push(`增量/补偿批次 ${b.id} 缺少时间窗口 (dataWindowStart/End) 或水位证据 (watermarkType/Start/End)`);
+      if (!b.dataWindowStart || !b.dataWindowEnd || !b.watermarkType || !b.watermarkStart || !b.watermarkEnd) {
+        errors.push(`增量/补偿批次 ${b.id} 缺少时间窗口 (dataWindowStart/End) 或完整水位证据 (watermarkType/watermarkStart/watermarkEnd)`);
       }
       if (b.dataWindowStart && b.dataWindowEnd && b.dataWindowStart > b.dataWindowEnd) {
         errors.push(`增量/补偿批次 ${b.id} 窗口起始时间 (${b.dataWindowStart}) 晚于截止时间 (${b.dataWindowEnd})`);
@@ -1699,7 +1699,7 @@ export const validateDataIntegrity = (
   };
 };
 
-// 轻量负向验证自检断言辅助函数 (仅用于验证 3 类人为缺失/异常数据能够被准确捕获，不污染业务状态)
+// 轻量负向验证自检断言辅助函数 (仅用于开发期验证 5 类人为缺失/异常数据能够被准确捕获，不污染业务状态)
 export const runNegativeIntegrityAssertions = (
   baseBatches: SyncBatch[],
   verifications: VerificationRecord[],
@@ -1750,8 +1750,36 @@ export const runNegativeIntegrityAssertions = (
     });
   }
 
+  // Case 4: 增量批次仅缺起始水位 (watermarkStart 缺失)
+  const incBatches1 = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
+  const targetInc1 = incBatches1.find(b => b.syncMethod === 'INCREMENTAL');
+  if (targetInc1) {
+    delete targetInc1.watermarkStart;
+    const res4 = validateDataIntegrity(incBatches1, verifications, exceptions);
+    const caught = res4.errors.some(e => e.includes('缺少时间窗口') && e.includes('完整水位证据'));
+    testCases.push({
+      name: '增量批次仅缺起始水位',
+      caught,
+      errorSnippet: res4.errors.find(e => e.includes('缺少时间窗口'))
+    });
+  }
+
+  // Case 5: 增量批次仅缺结束水位 (watermarkEnd 缺失)
+  const incBatches2 = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
+  const targetInc2 = incBatches2.find(b => b.syncMethod === 'INCREMENTAL');
+  if (targetInc2) {
+    delete targetInc2.watermarkEnd;
+    const res5 = validateDataIntegrity(incBatches2, verifications, exceptions);
+    const caught = res5.errors.some(e => e.includes('缺少时间窗口') && e.includes('完整水位证据'));
+    testCases.push({
+      name: '增量批次仅缺结束水位',
+      caught,
+      errorSnippet: res5.errors.find(e => e.includes('缺少时间窗口'))
+    });
+  }
+
   return {
-    allNegativePassed: testCases.length > 0 && testCases.every(t => t.caught),
+    allNegativePassed: testCases.length === 5 && testCases.every(t => t.caught),
     testCases
   };
 };

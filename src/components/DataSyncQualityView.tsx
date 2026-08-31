@@ -56,14 +56,18 @@ export const DataSyncQualityView: React.FC = () => {
     const integrity = validateDataIntegrity(batches, verifications, exceptions);
     if (!integrity.valid) {
       console.error('[数据质量完整性校验失败]', integrity.errors);
-    } else {
+    } else if (import.meta.env.DEV) {
       console.log('[数据质量完整性校验通过] 初始数据关系完全闭环一致');
     }
 
-    // 执行轻量负向验证断言
-    const negativeRes = runNegativeIntegrityAssertions(batches, verifications, exceptions);
-    if (negativeRes.allNegativePassed) {
-      console.log('[负向异常断言验证通过] 3 项异常场景均被精准捕获');
+    // 开发期轻量负向断言自检 (验证 5 类人为缺失/异常数据均能被准确捕获)
+    if (import.meta.env.DEV) {
+      const negativeRes = runNegativeIntegrityAssertions(batches, verifications, exceptions);
+      if (negativeRes.allNegativePassed) {
+        console.log('[负向异常断言验证通过] 5 项异常场景均被精准捕获');
+      } else {
+        console.error('[负向异常断言验证未完全通过]', negativeRes.testCases);
+      }
     }
   }, []);
 
