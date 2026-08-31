@@ -648,7 +648,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
               </button>
             </div>
 
-            {/* 抽屉 4 个规范页签导航 */}
+            {/* 抽屉 4 个规范页签导航 (无数字编号) */}
             <div className="px-5 border-b border-slate-200 flex space-x-4 bg-white shrink-0 overflow-x-auto">
               <button
                 onClick={() => setActiveDrawerTab('OVERVIEW')}
@@ -658,7 +658,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                1. 执行概览
+                执行概览
               </button>
               <button
                 onClick={() => setActiveDrawerTab('SCOPE_EXECUTION')}
@@ -668,7 +668,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                2. 范围与执行
+                范围与执行
               </button>
               <button
                 onClick={() => setActiveDrawerTab('RECONCILIATION_VERIFICATION')}
@@ -678,7 +678,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                3. 对账与核验 ({selectedBatch.objectDetails.length})
+                对账与核验 ({selectedBatch.objectDetails.length})
               </button>
               <button
                 onClick={() => setActiveDrawerTab('EXCEPTIONS_EVIDENCE')}
@@ -688,7 +688,7 @@ export const SyncLogsTab: React.FC<SyncLogsTabProps> = ({
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>4. 异常与证据</span>
+                <span>异常与证据</span>
                 {selectedBatch.failedRecords.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
                     {selectedBatch.failedRecords.length}

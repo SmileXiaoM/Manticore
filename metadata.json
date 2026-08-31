@@ -2,7 +2,5 @@
   "name": "PLM Manticore 相似度搜索配置",
   "description": "企业级 PLM Manticore 二阶段非 AI 属性相似度搜索配置原型，支持根类型与软类型上下文配置、字段不匹配记0分与排除候选门槛处理、已有件与表单基准查找相似件、沙盒查询预览与应用端业务检索。",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }
