@@ -23,7 +23,8 @@ import {
   MappingSoftType,
   FieldMappingItem,
   ManticoreFieldType,
-  HyperlinkConfig
+  HyperlinkConfig,
+  checkIsDataImpactingChange
 } from '../../stage1MappingTypes';
 
 interface SingleFieldEditModalProps {
@@ -315,14 +316,19 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     }
 
     // 判断是否为数据影响变更 (改变了字段类型、Manticore字段名、主键或全文/标量查询底座)
-    const isDataImpacting =
-      !isEditingExisting ||
-      (editingField &&
-        (editingField.manticoreField !== manticoreField ||
-          editingField.manticoreType !== manticoreType ||
-          editingField.sourceDataType !== meta.sourceDataType ||
-          editingField.isUniqueKey !== isUniqueKey ||
-          editingField.isFulltextSearch !== isFulltextSearch));
+    const isDataImpacting = checkIsDataImpactingChange(
+      isEditingExisting && isEditingActive ? editingField : null,
+      {
+        manticoreField,
+        manticoreType,
+        sourceDataType: meta.sourceDataType,
+        isQueryCondition,
+        isFulltextSearch,
+        queryCapability: derivedQueryCapability,
+        isUniqueKey,
+        sourceFieldKey: meta.sourceFieldKey
+      }
+    );
 
     if (isEditingExisting && isEditingActive && editingField) {
       // 对已生效字段保存草稿修改

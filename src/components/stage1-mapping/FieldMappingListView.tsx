@@ -138,9 +138,14 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
               <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
               已生效
             </span>
-            <div className="text-[10px] text-amber-600 font-semibold flex items-center">
-              <Clock className="w-2.5 h-2.5 mr-0.5" />
-              有草稿修改
+            <div className="text-[10px] text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-semibold flex items-center">
+              <Clock className="w-2.5 h-2.5 mr-0.5 text-amber-600 shrink-0" />
+              <span>草稿待发布</span>
+              {field.isDataImpactingChange && (
+                <span className="ml-1 text-[9px] text-amber-900 bg-amber-200/80 px-1 rounded font-normal">
+                  含数据影响
+                </span>
+              )}
             </div>
           </div>
         );
@@ -153,16 +158,27 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-        <Clock className="w-3 h-3 mr-1 text-amber-600" />
-        草稿
-      </span>
+      <div className="space-y-0.5">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          <Clock className="w-3 h-3 mr-1 text-amber-600" />
+          草稿
+        </span>
+        {field.isDataImpactingChange && (
+          <div className="text-[9px] text-amber-800 bg-amber-100/70 px-1 py-0.5 rounded font-medium">
+            发布后需同步
+          </div>
+        )}
+      </div>
     );
   };
 
   const renderDataStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'DRAFT') {
-      return <span className="text-slate-400 text-[11px]">-</span>;
+      return (
+        <span className="text-slate-400 text-[11px] italic" title="草稿阶段不参与数据同步">
+          -
+        </span>
+      );
     }
     if (!field.isDataImpactingChange && field.dataStatus !== 'PENDING_SYNC') {
       return <span className="text-slate-400 text-[11px]">无需同步</span>;
@@ -170,29 +186,29 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     switch (field.dataStatus) {
       case 'SYNC_SUCCESS':
         return (
-          <span className="inline-flex items-center text-[11px] font-medium text-emerald-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span>
+          <span className="inline-flex items-center text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 shrink-0"></span>
             已同步
           </span>
         );
       case 'PENDING_SYNC':
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock className="w-3 h-3 mr-1 text-amber-600" />
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+            <AlertTriangle className="w-3 h-3 mr-1 text-amber-700 shrink-0" />
             待同步
           </span>
         );
       case 'SYNCING':
         return (
-          <span className="inline-flex items-center text-[11px] font-medium text-blue-700 animate-pulse">
-            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+          <span className="inline-flex items-center text-[11px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 animate-pulse">
+            <RefreshCw className="w-3 h-3 mr-1 animate-spin text-blue-600 shrink-0" />
             同步中
           </span>
         );
       case 'SYNC_FAILED':
         return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
-            <AlertTriangle className="w-3 h-3 mr-1 text-rose-600" />
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-300">
+            <AlertTriangle className="w-3 h-3 mr-1 text-rose-600 shrink-0" />
             同步失败
           </span>
         );

@@ -134,8 +134,89 @@ export interface FieldMappingItem {
   isDataImpactingChange: boolean; // 是否为数据影响变更 (字段名/类型/查询能力改动)，若纯展示变更则为 false
   
   lastConfigVersion: string; // 配置版本
+  queryVersionBelonging?: string; // 归属的正式查询版本 (例如 'v1.2.0')
   updatedAt: string;
   updatedBy: string;
+}
+
+// 查询版本快照模型 (用于真正保留上一成功查询版本底座)
+export interface QueryVersionSnapshot {
+  rootTypeId: string;
+  softTypeId: string;
+  version: string;
+  fields: FieldMappingItem[];
+  syncedAt?: string;
+  batchId?: string;
+}
+
+// 统一数据影响判定函数：对比生效基准与草稿修改/新建值
+export function checkIsDataImpactingChange(
+  baseField: FieldMappingItem | null,
+  draftOrNew: {
+    manticoreField?: string;
+    manticoreType?: ManticoreFieldType;
+    sourceDataType?: string;
+    isQueryCondition?: boolean;
+    isFulltextSearch?: boolean;
+    queryCapability?: 'QUERY_CONDITION' | 'FULLTEXT_SEARCH' | 'BOTH' | 'NONE';
+    isUniqueKey?: boolean;
+    sourceFieldKey?: string;
+  }
+): boolean {
+  // 1. 新增字段草稿：默认为数据影响变更 (需要索引构建或全量/增量回填)
+  if (!baseField) {
+    return true;
+  }
+
+  // 2. Manticore 物理字段名变更
+  if (draftOrNew.manticoreField && draftOrNew.manticoreField !== baseField.manticoreField) {
+    return true;
+  }
+
+  // 3. Manticore 存储类型变更
+  if (draftOrNew.manticoreType && draftOrNew.manticoreType !== baseField.manticoreType) {
+    return true;
+  }
+
+  // 4. PLM 来源数据类型变更
+  if (draftOrNew.sourceDataType && draftOrNew.sourceDataType !== baseField.sourceDataType) {
+    return true;
+  }
+
+  // 5. 条件查询能力变更 (isQueryCondition)
+  if (
+    draftOrNew.isQueryCondition !== undefined &&
+    draftOrNew.isQueryCondition !== baseField.isQueryCondition
+  ) {
+    return true;
+  }
+
+  // 6. 全文检索能力变更 (isFulltextSearch)
+  if (
+    draftOrNew.isFulltextSearch !== undefined &&
+    draftOrNew.isFulltextSearch !== baseField.isFulltextSearch
+  ) {
+    return true;
+  }
+
+  // 7. 派生综合查询能力变更 (queryCapability)
+  if (
+    draftOrNew.queryCapability !== undefined &&
+    draftOrNew.queryCapability !== baseField.queryCapability
+  ) {
+    return true;
+  }
+
+  // 8. 唯一键或主键变更 (isUniqueKey)
+  if (
+    draftOrNew.isUniqueKey !== undefined &&
+    draftOrNew.isUniqueKey !== baseField.isUniqueKey
+  ) {
+    return true;
+  }
+
+  // 其余如 displayTitle, defaultColumnWidth, defaultDisplayOrder, displayType(非fulltext), hyperlinkConfig 等纯展示属性变更返回 false
+  return false;
 }
 
 // 批量从 PLM 导入元数据的冲突类型

@@ -30,6 +30,7 @@ import {
   BatchImportConflictType,
   ManticoreFieldType
 } from '../../stage1MappingTypes';
+import { initialSourceFieldBaselines } from '../../stage1MappingData';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -96,8 +97,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       let resolutionHint: string | undefined = undefined;
       let isSelectable = true;
 
+      // 查找当前软类型基线中记录的源字段元数据
+      const baselineField = initialSourceFieldBaselines[currentSoftType.id]?.[meta.sourceFieldKey];
+
       // 检查 PLM 来源发生变更示例 (SOURCE_CHANGED)
-      if (meta.sourceFieldKey === 'iba_surface_treatment' && meta.sourceDisplayName.includes('PLM升级')) {
+      if (baselineField && (baselineField.sourceDataType !== meta.sourceDataType || baselineField.sourceDisplayName !== meta.sourceDisplayName)) {
+        conflictType = 'SOURCE_CHANGED';
+        conflictReason = `PLM 源属性发生变更：类型 (${baselineField.sourceDataTypeLabel} → ${meta.sourceDataTypeLabel})`;
+        resolutionHint = '建议导入以更新映射及展示渲染规则（将生成草稿）';
+        isSelectable = true; // 允许作为草稿更新导入
+      } else if (meta.sourceFieldKey === 'iba_surface_treatment' && meta.sourceDisplayName.includes('PLM升级')) {
         conflictType = 'SOURCE_CHANGED';
         conflictReason = 'PLM 端属性由自由文本升级为受控枚举字典 (ENUM)';
         resolutionHint = '建议选择导入以同步更新为 ENUM_BADGE 展示标签';
