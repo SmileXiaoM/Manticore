@@ -2,5 +2,5 @@
   "name": "PLM Manticore 相似度搜索配置",
   "description": "企业级 PLM Manticore 相似度搜索与元数据映射配置管理台，支持一阶段来源系统字段映射、生命周期与数据同步质量，二阶段非 AI 属性相似度规则、沙盒查询预览与应用端查重。",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

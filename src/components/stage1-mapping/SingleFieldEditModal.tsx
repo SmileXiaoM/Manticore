@@ -5,33 +5,30 @@ import {
   ArrowRight,
   HelpCircle,
   AlertCircle,
-  ExternalLink,
   Sliders,
   CheckCircle2,
   FileSpreadsheet,
   Layers,
-  Sparkles,
   Link,
-  Search,
   Shield,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import {
   SourceFieldMeta,
   MappingObjectType,
-  MappingSoftType,
   FieldMappingItem,
   ManticoreFieldType,
   HyperlinkConfig,
-  checkIsDataImpactingChange
+  checkIsDataImpactingChange,
+  resolveSourceDisplayName
 } from '../../stage1MappingTypes';
 
 interface SingleFieldEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentRootType: MappingObjectType;
-  currentSoftType: MappingSoftType;
   availablePlmFields: SourceFieldMeta[];
   editingField: FieldMappingItem | null;
   onSaveDraft: (savedField: FieldMappingItem) => void;
@@ -42,15 +39,13 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   isOpen,
   onClose,
   currentRootType,
-  currentSoftType,
   availablePlmFields,
   editingField,
   onSaveDraft,
   hasPermission = true
 }) => {
-  // 1. 表单状态定义 (所有 Hooks 必须在最顶部无条件声明)
   const isEditingExisting = !!editingField;
-  const isEditingActive = editingField?.configStatus === 'ACTIVE';
+  const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
 
   const [selectedSourceKey, setSelectedSourceKey] = useState<string>('');
   const [displayTitle, setDisplayTitle] = useState<string>('');
@@ -59,39 +54,47 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   const [displayType, setDisplayType] = useState<FieldMappingItem['displayType']>('CONDITION_QUERY');
   const [queryCapability, setQueryCapability] = useState<FieldMappingItem['queryCapability']>('QUERY_CONDITION');
 
-  // 5 项关键能力控制
+  // 5 项关键能力
   const [isQueryCondition, setIsQueryCondition] = useState<boolean>(true);
   const [isSortable, setIsSortable] = useState<boolean>(false);
   const [isDisplayInResult, setIsDisplayInResult] = useState<boolean>(true);
   const [isFulltextSearch, setIsFulltextSearch] = useState<boolean>(false);
   const [isUniqueKey, setIsUniqueKey] = useState<boolean>(false);
 
-  // 展示与布局属性
+  // 列宽与排序
   const [defaultColumnWidth, setDefaultColumnWidth] = useState<number>(150);
   const [defaultDisplayOrder, setDefaultDisplayOrder] = useState<number>(10);
 
-  // 超链接配置
-  const [urlTemplate, setUrlTemplate] = useState<string>('https://plm.internal.corp/app/part-view?oid={oid}&type={otype}');
+  // 超链接参数
+  const [urlTemplate, setUrlTemplate] = useState<string>('https://plm.internal.corp/app/view?oid={oid}&type={otype}');
   const [oidSourceField, setOidSourceField] = useState<string>('master_oid');
   const [otypeSourceField, setOtypeSourceField] = useState<string>('object_type_code');
-  const [displayTextSource, setDisplayTextSource] = useState<'FIELD_VALUE' | 'STATIC_LABEL'>('FIELD_VALUE');
+  const [displayTextSource, setDisplayTextSource] = useState<'FIELD_VALUE' | 'STATIC_TEXT' | 'CUSTOM_TEMPLATE'>('FIELD_VALUE');
   const [staticLabel, setStaticLabel] = useState<string>('查看源数据');
   const [openTarget, setOpenTarget] = useState<'_blank' | '_self'>('_blank');
-  const [onMissingParam, setOnMissingParam] = useState<'HIDE_LINK_SHOW_TEXT' | 'DISABLE_LINK' | 'FALLBACK_URL'>('HIDE_LINK_SHOW_TEXT');
+  const [onMissingParam, setOnMissingParam] = useState<'HIDE_LINK_SHOW_TEXT' | 'HIDE_ENTIRE_COLUMN' | 'SHOW_DISABLED_LINK'>('HIDE_LINK_SHOW_TEXT');
 
   // 校验与未保存放弃确认
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState<boolean>(false);
-
-  // 记录初始表单状态快照用于判断 dirty
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
 
-  // 查找当前选中的 PLM 源字段元数据
+  // 选中的来源元数据
   const currentSelectedMeta = useMemo(() => {
     return availablePlmFields.find(f => f.sourceFieldKey === selectedSourceKey) || null;
   }, [availablePlmFields, selectedSourceKey]);
 
-  // 当弹窗打开或编辑对象变化时，回填表单
+  // 显示名缺失判定
+  const displayNameResolved = useMemo(() => {
+    if (!currentSelectedMeta) return { resolvedName: '', isMissing: false };
+    return resolveSourceDisplayName(
+      currentSelectedMeta.sourceDisplayName,
+      currentSelectedMeta.sourceFieldName,
+      currentSelectedMeta.sourceFieldKey
+    );
+  }, [currentSelectedMeta]);
+
+  // 弹窗打开或切换编辑项时回填
   useEffect(() => {
     if (!isOpen) {
       setShowUnsavedConfirm(false);
@@ -100,7 +103,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     }
 
     if (editingField) {
-      // 优先从草稿微调 draftData 中回填，避免覆盖未发布的草稿修改！
       const draft = editingField.hasDraftModification && editingField.draftData ? editingField.draftData : null;
 
       setSelectedSourceKey(editingField.sourceFieldKey);
@@ -110,10 +112,10 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       setDisplayType(draft?.displayType ?? editingField.displayType);
       setQueryCapability(draft?.queryCapability ?? editingField.queryCapability);
 
-      setIsQueryCondition(draft?.isQueryCondition ?? editingField.isQueryCondition ?? (editingField.queryCapability === 'QUERY_CONDITION' || editingField.queryCapability === 'BOTH'));
+      setIsQueryCondition(draft?.isQueryCondition ?? editingField.isQueryCondition ?? true);
       setIsSortable(draft?.isSortable ?? editingField.isSortable ?? false);
       setIsDisplayInResult(draft?.isDisplayInResult ?? editingField.isDisplayInResult ?? true);
-      setIsFulltextSearch(draft?.isFulltextSearch ?? editingField.isFulltextSearch ?? (editingField.queryCapability === 'FULLTEXT_SEARCH' || editingField.queryCapability === 'BOTH'));
+      setIsFulltextSearch(draft?.isFulltextSearch ?? editingField.isFulltextSearch ?? false);
       setIsUniqueKey(draft?.isUniqueKey ?? editingField.isUniqueKey ?? false);
 
       setDefaultColumnWidth(draft?.defaultColumnWidth ?? editingField.defaultColumnWidth ?? 150);
@@ -143,11 +145,14 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       });
       setInitialSnapshot(snapshot);
     } else {
-      // 新建模式：默认选中第一个未映射字段
       const firstAvailable = availablePlmFields[0];
       const defaultKey = firstAvailable ? firstAvailable.sourceFieldKey : '';
       setSelectedSourceKey(defaultKey);
-      setDisplayTitle(firstAvailable ? firstAvailable.sourceDisplayName : '');
+
+      const resolved = firstAvailable
+        ? resolveSourceDisplayName(firstAvailable.sourceDisplayName, firstAvailable.sourceFieldName, firstAvailable.sourceFieldKey).resolvedName
+        : '';
+      setDisplayTitle(resolved);
 
       const defaultManticore = firstAvailable
         ? firstAvailable.sourceFieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
@@ -166,7 +171,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
       const snapshot = JSON.stringify({
         selectedSourceKey: defaultKey,
-        displayTitle: firstAvailable ? firstAvailable.sourceDisplayName : '',
+        displayTitle: resolved,
         manticoreField: defaultManticore,
         manticoreType: firstAvailable?.sourceDataType === 'NUMERIC' ? 'FLOAT' : 'STRING',
         displayType: 'CONDITION_QUERY',
@@ -180,7 +185,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     }
   }, [isOpen, editingField, availablePlmFields]);
 
-  // 判断当前是否有未保存修改
+  // 判断表单脏状态
   const isDirty = useMemo(() => {
     const currentSnapshot = JSON.stringify({
       selectedSourceKey,
@@ -209,7 +214,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     isUniqueKey
   ]);
 
-  // 尝试关闭前检测 dirty
   const handleRequestClose = () => {
     if (isDirty) {
       setShowUnsavedConfirm(true);
@@ -225,7 +229,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     if (!meta) return;
 
     if (!isEditingExisting) {
-      setDisplayTitle(meta.sourceDisplayName);
+      const { resolvedName } = resolveSourceDisplayName(meta.sourceDisplayName, meta.sourceFieldName, meta.sourceFieldKey);
+      setDisplayTitle(resolvedName);
       const suggestedName = meta.sourceFieldName
         .replace(/([A-Z])/g, '_$1')
         .toLowerCase()
@@ -255,7 +260,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     }
   };
 
-  // 同步 queryCapability
   const derivedQueryCapability = useMemo<FieldMappingItem['queryCapability']>(() => {
     if (isQueryCondition && isFulltextSearch) return 'BOTH';
     if (isFulltextSearch) return 'FULLTEXT_SEARCH';
@@ -263,7 +267,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     return 'NONE';
   }, [isQueryCondition, isFulltextSearch]);
 
-  // 表单保存校验
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -272,7 +275,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     }
 
     if (!displayTitle.trim()) {
-      newErrors.displayTitle = '显示名称不能为空';
+      newErrors.displayTitle = '前台显示名称为必填项，不可为空';
     }
 
     if (!manticoreField.trim()) {
@@ -291,16 +294,22 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // 执行保存为草稿
   const handleSave = () => {
     if (!validate()) return;
     const meta = currentSelectedMeta || {
       sourceFieldKey: selectedSourceKey,
       sourceFieldName: selectedSourceKey,
       sourceDisplayName: displayTitle,
-      sourceDataType: 'TEXT',
-      sourceDataTypeLabel: '文本'
+      sourceDataType: 'TEXT' as const,
+      sourceDataTypeLabel: '文本',
+      isRequired: false
     };
+
+    const { resolvedName: finalSourceDisplayName, isMissing } = resolveSourceDisplayName(
+      editingField && editingField.sourceDisplayName.trim().length > 0 ? editingField.sourceDisplayName : meta.sourceDisplayName,
+      meta.sourceFieldName,
+      meta.sourceFieldKey
+    );
 
     let hyperlink: HyperlinkConfig | undefined = undefined;
     if (displayType === 'LINK') {
@@ -309,15 +318,14 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         oidSourceField,
         otypeSourceField,
         displayTextSource,
-        staticLabel: displayTextSource === 'STATIC_LABEL' ? staticLabel : undefined,
+        staticLabel: displayTextSource === 'STATIC_TEXT' ? staticLabel : undefined,
         openTarget,
         onMissingParam
       };
     }
 
-    // 判断是否为数据影响变更 (改变了字段类型、Manticore字段名、主键或全文/标量查询底座)
     const isDataImpacting = checkIsDataImpactingChange(
-      isEditingExisting && isEditingActive ? editingField : null,
+      isEditingExisting && isEditingConfigured ? editingField : null,
       {
         manticoreField,
         manticoreType,
@@ -330,13 +338,13 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       }
     );
 
-    if (isEditingExisting && isEditingActive && editingField) {
-      // 对已生效字段保存草稿修改
+    if (isEditingExisting && isEditingConfigured && editingField) {
+      // 已配置字段保存草稿修改
       const updatedField: FieldMappingItem = {
         ...editingField,
         hasDraftModification: true,
         draftData: {
-          displayTitle,
+          displayTitle: displayTitle.trim(),
           displayType,
           queryCapability: derivedQueryCapability,
           isQueryCondition,
@@ -345,30 +353,31 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           isFulltextSearch,
           isUniqueKey,
           defaultColumnWidth,
-          hyperlinkConfig: hyperlink
+          hyperlinkConfig: hyperlink,
+          isDataImpactingChange: isDataImpacting
         },
-        // 如果改动了核心数据字段，本次草稿修改具有数据影响
         isDataImpactingChange: isDataImpacting,
-        updatedAt: '刚刚 (草稿保存)',
+        updatedAt: '刚刚 (草稿修改)',
         updatedBy: '当前用户'
       };
       onSaveDraft(updatedField);
     } else {
-      // 纯草稿新建或纯草稿编辑
+      // 纯草稿新建或编辑
       const updatedField: FieldMappingItem = {
         id: editingField ? editingField.id : `MAP-${Date.now()}`,
         rootTypeId: currentRootType.id,
-        softTypeId: currentSoftType.id,
+        sourceSystemId: currentRootType.sourceSystemId,
         sourceFieldKey: meta.sourceFieldKey,
         sourceFieldName: meta.sourceFieldName,
-        sourceDisplayName: meta.sourceDisplayName,
+        sourceDisplayName: finalSourceDisplayName,
+        isDisplayNameMissing: isMissing,
         sourceDataType: meta.sourceDataType,
         sourceDataTypeLabel: meta.sourceDataTypeLabel,
         unitFamily: meta.unitFamily,
         defaultUnit: meta.defaultUnit,
         manticoreField,
         manticoreType,
-        displayTitle,
+        displayTitle: displayTitle.trim(),
         displayType,
         queryCapability: derivedQueryCapability,
         isQueryCondition,
@@ -381,9 +390,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         hyperlinkConfig: hyperlink,
         configStatus: 'DRAFT',
         hasDraftModification: false,
-        dataStatus: 'NO_SYNC_NEEDED', // 草稿不参与数据同步
         isDataImpactingChange: isDataImpacting,
-        lastConfigVersion: `${currentSoftType.activeConfigVersion || 'v1.0.0'}-draft`,
+        isInFormalQueryBase: false,
         updatedAt: '刚刚 (草稿新建)',
         updatedBy: '当前用户'
       };
@@ -393,38 +401,33 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     onClose();
   };
 
-  // 在所有 Hooks 之后做打开状态判断
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
-        {/* 1. 顶部 Header (固定吸顶) */}
+        {/* Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center space-x-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center">
                 <Sliders className="w-4 h-4 mr-1.5 text-blue-600" />
                 {isEditingExisting ? (
-                  isEditingActive ? '修改已生效字段映射 (生成草稿微调)' : '编辑草稿字段映射'
+                  isEditingConfigured ? '修改已配置字段映射 (生成草稿)' : '编辑草稿字段映射'
                 ) : (
                   '新建单个字段映射 (生成草稿)'
                 )}
               </h3>
               <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded bg-blue-100 text-blue-800">
-                {currentRootType.name} / {currentSoftType.name}
+                根类型: {currentRootType.name}
               </span>
-              {isEditingActive && (
-                <span className="px-2 py-0.5 text-[11px] font-semibold rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  当前生效版本: {editingField?.lastConfigVersion}
-                </span>
-              )}
             </div>
             <p className="text-xs text-slate-500">
-              按三段式清晰配置 PLM 来源元数据、业务展示映射与 Manticore 检索底层属性。
+              单字段直接归属根类型，三段式配置 PLM 来源元数据、业务展示与 Manticore 底层检索属性。
             </p>
           </div>
           <button
+            type="button"
             onClick={handleRequestClose}
             className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded hover:bg-slate-200 transition-colors"
           >
@@ -432,11 +435,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           </button>
         </div>
 
-        {/* 2. 主体三段式表单区域 (820px 下单列纵向堆叠，桌面 3 列网格) */}
+        {/* Form Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             
-            {/* ==================== Section 1: PLM 来源元数据 ==================== */}
+            {/* 1. PLM 来源元数据 */}
             <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
@@ -462,18 +465,38 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   } ${isEditingExisting ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
                 >
                   <option value="">-- 请选择来源字段 --</option>
-                  {availablePlmFields.map(meta => (
-                    <option key={meta.sourceFieldKey} value={meta.sourceFieldKey}>
-                      {meta.sourceDisplayName} ({meta.sourceFieldName}) - {meta.sourceDataTypeLabel}
-                    </option>
-                  ))}
+                  {availablePlmFields.map(meta => {
+                    const { resolvedName, isMissing } = resolveSourceDisplayName(
+                      meta.sourceDisplayName,
+                      meta.sourceFieldName,
+                      meta.sourceFieldKey
+                    );
+                    return (
+                      <option key={meta.sourceFieldKey} value={meta.sourceFieldKey}>
+                        {resolvedName} ({meta.sourceFieldName}){isMissing ? ' [显示名未获取]' : ''} - {meta.sourceDataTypeLabel}
+                      </option>
+                    );
+                  })}
                 </select>
                 {errors.sourceField && (
                   <p className="text-[11px] text-rose-500">{errors.sourceField}</p>
                 )}
               </div>
 
-              {/* PLM 元数据只读卡片 */}
+              {/* PLM 显示名缺失告警提示 */}
+              {displayNameResolved.isMissing && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-2.5 text-xs text-amber-800 space-y-1">
+                  <div className="flex items-center space-x-1 font-semibold">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>PLM 未返回显示名 (元数据告警)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700 leading-normal">
+                    已自动按字段名 <span className="font-mono font-bold">{displayNameResolved.resolvedName}</span> 兜底。请在右侧“前台显示名称”确认或补充标准名称。
+                  </p>
+                </div>
+              )}
+
+              {/* PLM 元数据详情 */}
               {currentSelectedMeta && (
                 <div className="bg-white border border-slate-200 rounded p-3 text-xs space-y-2 flex-1">
                   <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -504,15 +527,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     </div>
                   )}
 
-                  {currentSelectedMeta.categoryTreeRoot && (
-                    <div className="text-[11px]">
-                      <span className="text-slate-400">挂载分类树根:</span>
-                      <div className="font-medium text-indigo-700">
-                        {currentSelectedMeta.categoryTreeRoot}
-                      </div>
-                    </div>
-                  )}
-
                   {currentSelectedMeta.enumOptions && (
                     <div className="text-[11px]">
                       <span className="text-slate-400">受控枚举选项 ({currentSelectedMeta.enumOptions.length}):</span>
@@ -528,17 +542,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                       </div>
                     </div>
                   )}
-
-                  {currentSelectedMeta.description && (
-                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                      {currentSelectedMeta.description}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* ==================== Section 2: 映射与业务展示 ==================== */}
+            {/* 2. 映射与业务展示 */}
             <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
@@ -550,10 +558,10 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 </div>
               </div>
 
-              {/* 统一显示名称 */}
+              {/* 前台显示名称 */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-700">
-                  前台显示名称 <span className="text-rose-500">*</span>
+                  前台显示名称 <span className="text-rose-500">* (必填)</span>
                 </label>
                 <input
                   type="text"
@@ -586,7 +594,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 </select>
               </div>
 
-              {/* 超链接高级参数配置 (当选择 LINK 时展开) */}
+              {/* 超链接配置 */}
               {displayType === 'LINK' && (
                 <div className="bg-white border border-blue-200 rounded p-3 space-y-2.5 text-xs animate-in fade-in">
                   <div className="flex items-center text-blue-800 font-semibold text-[11px]">
@@ -600,7 +608,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                       type="text"
                       value={urlTemplate}
                       onChange={e => setUrlTemplate(e.target.value)}
-                      placeholder="https://plm.corp/part?oid={oid}&type={otype}"
+                      placeholder="https://plm.corp/view?oid={oid}&type={otype}"
                       className="w-full px-2 py-1 bg-slate-50 border border-slate-300 rounded text-[11px] font-mono text-slate-800"
                     />
                   </div>
@@ -625,18 +633,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                       />
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] pt-1">
-                    <span className="text-slate-500">打开方式:</span>
-                    <select
-                      value={openTarget}
-                      onChange={e => setOpenTarget(e.target.value as any)}
-                      className="px-2 py-0.5 bg-slate-50 border border-slate-300 rounded text-[11px]"
-                    >
-                      <option value="_blank">新标签页打开 (_blank)</option>
-                      <option value="_self">当前页跳转 (_self)</option>
-                    </select>
-                  </div>
                 </div>
               )}
 
@@ -658,7 +654,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               </div>
             </div>
 
-            {/* ==================== Section 3: Manticore 配置与检索能力 ==================== */}
+            {/* 3. Manticore 底层配置 */}
             <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
@@ -670,7 +666,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 </div>
               </div>
 
-              {/* Manticore 字段名 (snake_case) */}
+              {/* Manticore 物理字段名 */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-700">
                   Manticore 物理字段名 <span className="text-rose-500">*</span>
@@ -679,21 +675,21 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   type="text"
                   value={manticoreField}
                   onChange={e => setManticoreField(e.target.value.toLowerCase())}
-                  disabled={isEditingActive}
+                  disabled={isEditingConfigured}
                   placeholder="例如：part_number"
                   className={`w-full px-2.5 py-1.5 bg-white border rounded text-xs font-mono text-blue-700 font-semibold focus:outline-hidden focus:border-blue-500 ${
                     errors.manticoreField ? 'border-rose-400' : 'border-slate-300'
-                  } ${isEditingActive ? 'bg-slate-100 cursor-not-allowed opacity-80' : ''}`}
+                  } ${isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : ''}`}
                 />
                 {errors.manticoreField && (
                   <p className="text-[11px] text-rose-500">{errors.manticoreField}</p>
                 )}
-                {isEditingActive && (
-                  <p className="text-[10px] text-slate-400">已生效字段的物理名称不可更改</p>
+                {isEditingConfigured && (
+                  <p className="text-[10px] text-slate-400">已配置字段的物理名称不可更改</p>
                 )}
               </div>
 
-              {/* Manticore 数据类型 */}
+              {/* Manticore 存储类型 */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-700">
                   Manticore 存储类型
@@ -701,9 +697,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 <select
                   value={manticoreType}
                   onChange={e => setManticoreType(e.target.value as ManticoreFieldType)}
-                  disabled={isEditingActive}
+                  disabled={isEditingConfigured}
                   className={`w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
-                    isEditingActive ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'
+                    isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'
                   }`}
                 >
                   <option value="STRING">STRING (标量字符串)</option>
@@ -711,12 +707,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   <option value="FLOAT">FLOAT (浮点数/度量)</option>
                   <option value="INTEGER">INTEGER (整型)</option>
                   <option value="TIMESTAMP">TIMESTAMP (时间戳)</option>
-                  <option value="MULTI_INT">MULTI_INT (整型数组)</option>
                   <option value="JSON">JSON (扩展属性树)</option>
                 </select>
               </div>
 
-              {/* 5 项检索与能力开关卡片 */}
+              {/* 5 项检索与展示能力配置 */}
               <div className="bg-white border border-slate-200 rounded p-3 space-y-2 flex-1">
                 <div className="text-[11px] font-semibold text-slate-700 mb-1 flex items-center">
                   <Shield className="w-3.5 h-3.5 mr-1 text-purple-600" />
@@ -783,7 +778,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           </div>
         </div>
 
-        {/* 3. 底部操作栏 (固定吸底) */}
+        {/* 底部操作栏 */}
         <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 text-xs text-slate-500">
             {isDirty && (
@@ -793,18 +788,20 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               </span>
             )}
             <span className="text-[11px] text-slate-400">
-              * 保存后将作为草稿写入，需发布后方能生效
+              * 保存后将作为草稿写入，需生效配置后方能进入正式环境
             </span>
           </div>
 
           <div className="flex items-center space-x-2.5">
             <button
+              type="button"
               onClick={handleRequestClose}
               className="px-4 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-white cursor-pointer transition-colors"
             >
               取消
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={!hasPermission}
               className={`px-4 py-1.5 rounded text-xs font-semibold shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
@@ -815,13 +812,13 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>
-                {isEditingExisting && isEditingActive ? '保存草稿修改' : '保存为草稿'}
+                {isEditingExisting && isEditingConfigured ? '保存草稿修改' : '保存为草稿'}
               </span>
             </button>
           </div>
         </div>
 
-        {/* 4. 未保存修改放弃确认弹窗 */}
+        {/* 未保存修改确认弹窗 */}
         {showUnsavedConfirm && (
           <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
@@ -839,12 +836,14 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
               <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                 <button
+                  type="button"
                   onClick={() => setShowUnsavedConfirm(false)}
                   className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold cursor-pointer"
                 >
                   继续编辑
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowUnsavedConfirm(false);
                     onClose();
