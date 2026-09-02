@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 
 // Views
+import { Stage1MappingConfigView } from './components/Stage1MappingConfigView';
 import { FieldSimilarityView } from './components/FieldSimilarityView';
 import { PublishRecordView } from './components/PublishRecordView';
 import { QueryPreviewView } from './components/QueryPreviewView';
@@ -170,6 +171,14 @@ export default function App() {
 
           {/* Dynamic View Dispatcher */}
           <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-slate-100/60">
+            {currentView === 'stage1-mapping-config' && (
+              <Stage1MappingConfigView
+                onNavigateToSyncQuality={(batchId) => {
+                  handleNavigate('data-sync-quality');
+                }}
+              />
+            )}
+
             {currentView === 'data-sync-quality' && (
               <DataSyncQualityView />
             )}

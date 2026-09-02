@@ -33,6 +33,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <span className="px-3 text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-2">一阶段：检索底座</span>
           <div className="space-y-1">
             <button
+              onClick={() => onNavigate('stage1-mapping-config')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs font-medium transition-colors text-left cursor-pointer ${
+                currentView === 'stage1-mapping-config'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5 text-blue-400" />
+              <span>接入配置</span>
+              {currentView === 'stage1-mapping-config' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+            </button>
+
+            <button
               onClick={() => onNavigate('data-sync-quality')}
               className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-sync-quality'
