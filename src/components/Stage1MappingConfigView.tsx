@@ -6,6 +6,7 @@ import {
   SourceFieldMeta
 } from '../stage1MappingTypes';
 import {
+  initialSourceSystems,
   initialMappingObjects,
   initialFieldMappings,
   mockPlmSourceMetadataPool,
@@ -18,7 +19,8 @@ import { BatchImportModal } from './stage1-mapping/BatchImportModal';
 import {
   PublishConfigModal,
   TriggerSyncModal,
-  Stage1QueryPreviewModal
+  Stage1QueryPreviewModal,
+  FieldDetailModal
 } from './stage1-mapping/Stage1Modals';
 
 interface Stage1MappingConfigViewProps {
@@ -31,6 +33,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   hasPermission = true
 }) => {
   // 1. 核心数据状态
+  const [sourceSystems] = useState(initialSourceSystems);
   const [mappingObjects, setMappingObjects] = useState<MappingObjectType[]>(initialMappingObjects);
   const [fieldMappings, setFieldMappings] = useState<FieldMappingItem[]>(initialFieldMappings);
 
@@ -42,6 +45,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   // 3. 模态框控制状态
   const [isSingleEditOpen, setIsSingleEditOpen] = useState(false);
   const [editingTargetField, setEditingTargetField] = useState<FieldMappingItem | null>(null);
+
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailTargetField, setDetailTargetField] = useState<FieldMappingItem | null>(null);
 
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
@@ -83,39 +89,50 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsSingleEditOpen(true);
   };
 
-  // 打开字段详情 (复用编辑或查看)
+  // 查看字段详情
   const handleViewFieldDetail = (field: FieldMappingItem) => {
-    setEditingTargetField(field);
-    setIsSingleEditOpen(true);
+    setDetailTargetField(field);
+    setIsDetailModalOpen(true);
   };
 
   // 保存单个草稿 (包括对已生效字段的草稿微调)
   const handleSaveDraft = (savedField: FieldMappingItem) => {
+    let nextMappings: FieldMappingItem[] = [];
     setFieldMappings(prev => {
       const existsIndex = prev.findIndex(f => f.id === savedField.id);
       if (existsIndex >= 0) {
-        const next = [...prev];
-        next[existsIndex] = savedField;
-        return next;
+        nextMappings = [...prev];
+        nextMappings[existsIndex] = savedField;
       } else {
-        return [...prev, savedField];
+        nextMappings = [...prev, savedField];
       }
+      return nextMappings;
     });
 
     // 重新计算并更新软类型的草稿数与生效数统计
-    updateSoftTypeStats(savedField.rootTypeId, savedField.softTypeId);
+    updateSoftTypeStats(savedField.rootTypeId, savedField.softTypeId, nextMappings);
   };
 
   // 批量生成草稿
   const handleSaveBatchDrafts = (newDrafts: FieldMappingItem[]) => {
-    setFieldMappings(prev => [...prev, ...newDrafts]);
+    let nextMappings: FieldMappingItem[] = [];
+    setFieldMappings(prev => {
+      nextMappings = [...prev, ...newDrafts];
+      return nextMappings;
+    });
+
     if (newDrafts.length > 0) {
-      updateSoftTypeStats(newDrafts[0].rootTypeId, newDrafts[0].softTypeId);
+      updateSoftTypeStats(newDrafts[0].rootTypeId, newDrafts[0].softTypeId, nextMappings);
     }
   };
 
   // 辅助更新软类型统计数据
-  const updateSoftTypeStats = (rootId: string, softId: string) => {
+  const updateSoftTypeStats = (
+    rootId: string,
+    softId: string,
+    sourceFields?: FieldMappingItem[]
+  ) => {
+    const list = sourceFields || fieldMappings;
     setMappingObjects(prev =>
       prev.map(root => {
         if (root.id !== rootId) return root;
@@ -123,17 +140,21 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           ...root,
           softTypes: root.softTypes.map(soft => {
             if (soft.id !== softId) return soft;
-            // 重新统计
-            const softFields = fieldMappings.filter(
+            const softFields = list.filter(
               f => f.rootTypeId === rootId && f.softTypeId === softId
             );
             const activeCount = softFields.filter(f => f.configStatus === 'ACTIVE').length;
             const draftCount = softFields.filter(
               f => f.configStatus === 'DRAFT' || (f.configStatus === 'ACTIVE' && f.hasDraftModification)
             ).length;
+            const queryableCount = softFields.filter(
+              f => f.configStatus === 'ACTIVE' && f.dataStatus === 'SYNC_SUCCESS' && f.isDisplayInResult
+            ).length;
+
             return {
               ...soft,
               activeFieldCount: activeCount,
+              queryableFieldCount: queryableCount,
               draftFieldCount: draftCount,
               configStatus: activeCount > 0 ? 'ACTIVE' : draftCount > 0 ? 'DRAFT_ONLY' : 'UNCONFIGURED'
             };
@@ -150,6 +171,8 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     const nextVer = `v${majorMinor[0]}.${Number(majorMinor[1] || 0) + 1}.0`;
     const nowTime = '2026-09-02 10:30:00';
 
+    let hasDataImpacting = false;
+
     // 1. 更新当前软类型下的字段状态
     setFieldMappings(prev =>
       prev.map(f => {
@@ -157,6 +180,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
         // 如果是纯草稿
         if (f.configStatus === 'DRAFT') {
+          if (f.isDataImpactingChange) hasDataImpacting = true;
           return {
             ...f,
             configStatus: 'ACTIVE',
@@ -170,6 +194,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
         // 如果是已生效字段且存在草稿修改
         if (f.configStatus === 'ACTIVE' && f.hasDraftModification && f.draftData) {
+          if (f.isDataImpactingChange) hasDataImpacting = true;
           return {
             ...f,
             ...f.draftData,
@@ -204,8 +229,8 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
               draftFieldCount: 0,
               activeFieldCount: updatedActiveCount,
               configStatus: 'ACTIVE',
-              syncStatus: 'PENDING_SYNC', // 数据状态变更为待同步
-              hasPendingSyncFields: true
+              syncStatus: hasDataImpacting ? 'PENDING_SYNC' : soft.syncStatus,
+              hasPendingSyncFields: hasDataImpacting
             };
           })
         };
@@ -216,7 +241,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   };
 
   // 执行手工数据同步 (严格按照 2.2 口径：按对象/软类型整体发起，同步成功后原子切换最新可查询版本)
-  const handleConfirmDataSync = () => {
+  const handleConfirmDataSync = (syncScope: 'INCREMENTAL' | 'FULL') => {
     setIsTriggerSyncModalOpen(false);
 
     // 模拟同步中状态
@@ -236,7 +261,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
       })
     );
 
-    // 1.5 秒后同步完成，原子切换 activeQueryVersion 为当前 activeConfigVersion
+    // 1.2 秒后同步完成，原子切换 activeQueryVersion 为当前 activeConfigVersion
     setTimeout(() => {
       const targetVersion = currentSoftType.activeConfigVersion;
       const nowTime = '2026-09-02 10:35:00';
@@ -259,13 +284,18 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             ...root,
             softTypes: root.softTypes.map(soft => {
               if (soft.id !== currentSoftType.id) return soft;
+              const syncedFields = fieldMappings.filter(
+                f => f.rootTypeId === root.id && f.softTypeId === soft.id && f.configStatus === 'ACTIVE'
+              );
               return {
                 ...soft,
                 syncStatus: 'SYNC_SUCCESS',
                 lastSyncedAt: nowTime,
                 lastSyncBatchId: batchId,
                 activeQueryVersion: targetVersion, // 原子切换最新成功查询版本！
-                hasPendingSyncFields: false
+                queryableFieldCount: syncedFields.length,
+                hasPendingSyncFields: false,
+                lastSyncErrorMsg: undefined
               };
             })
           };
@@ -279,6 +309,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
       {/* 视图分发：总入口 vs 字段列表 */}
       {currentLevel === 'OVERVIEW' ? (
         <ObjectTypeListView
+          sourceSystems={sourceSystems}
           mappingObjects={mappingObjects}
           onSelectSoftType={handleSelectSoftType}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
@@ -359,6 +390,13 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           mockStage1PreviewData['PART_MECHANICAL'] ||
           []
         }
+      />
+
+      {/* 模态框 6：字段详情查看 */}
+      <FieldDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        field={detailTargetField}
       />
     </div>
   );

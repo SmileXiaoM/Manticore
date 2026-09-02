@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -20,13 +20,14 @@ import {
   ArrowRight,
   Database,
   SlidersHorizontal,
-  Info
+  Info,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import {
   FieldMappingItem,
   MappingObjectType,
-  MappingSoftType,
-  PublishImpactSummary
+  MappingSoftType
 } from '../../stage1MappingTypes';
 
 interface FieldMappingListViewProps {
@@ -71,43 +72,61 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const pageSize = 10;
 
   // 过滤当前软类型的字段列表
-  const softTypeFields = fields.filter(
-    f => f.rootTypeId === currentRootType.id && f.softTypeId === currentSoftType.id
-  );
+  const softTypeFields = useMemo(() => {
+    return fields.filter(
+      f => f.rootTypeId === currentRootType.id && f.softTypeId === currentSoftType.id
+    );
+  }, [fields, currentRootType.id, currentSoftType.id]);
 
-  const filteredFields = softTypeFields.filter(f => {
-    // 状态过滤 (严格按照 全部 / 生效 / 草稿)
-    if (statusFilter === 'ACTIVE' && f.configStatus !== 'ACTIVE') return false;
-    if (statusFilter === 'DRAFT' && f.configStatus !== 'DRAFT') return false;
+  // 统计数值 (纯草稿 vs 生效字段存在草稿修改)
+  const draftOnlyCount = useMemo(() => {
+    return softTypeFields.filter(f => f.configStatus === 'DRAFT').length;
+  }, [softTypeFields]);
 
-    // 搜索覆盖：源字段、显示名称、Manticore 字段
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      const matchSource =
-        f.sourceFieldName.toLowerCase().includes(term) ||
-        f.sourceFieldKey.toLowerCase().includes(term) ||
-        f.sourceDisplayName.toLowerCase().includes(term);
-      const matchDisplay = f.displayTitle.toLowerCase().includes(term);
-      const matchManticore = f.manticoreField.toLowerCase().includes(term);
-      if (!matchSource && !matchDisplay && !matchManticore) return false;
-    }
-    return true;
-  });
+  const modifiedDraftCount = useMemo(() => {
+    return softTypeFields.filter(f => f.configStatus === 'ACTIVE' && f.hasDraftModification).length;
+  }, [softTypeFields]);
+
+  const totalDraftWorkItemCount = draftOnlyCount + modifiedDraftCount;
+  const activeCount = softTypeFields.filter(f => f.configStatus === 'ACTIVE').length;
+
+  // 列表筛选过滤 (草稿 tab 必须严格包含纯草稿与存在草稿修改的生效字段)
+  const filteredFields = useMemo(() => {
+    return softTypeFields.filter(f => {
+      if (statusFilter === 'ACTIVE') {
+        if (f.configStatus !== 'ACTIVE') return false;
+      } else if (statusFilter === 'DRAFT') {
+        const isDraftWorkItem = f.configStatus === 'DRAFT' || (f.configStatus === 'ACTIVE' && f.hasDraftModification);
+        if (!isDraftWorkItem) return false;
+      }
+
+      // 搜索覆盖：源字段、显示名称、Manticore 字段
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matchSource =
+          f.sourceFieldName.toLowerCase().includes(term) ||
+          f.sourceFieldKey.toLowerCase().includes(term) ||
+          f.sourceDisplayName.toLowerCase().includes(term);
+        const matchDisplay = f.displayTitle.toLowerCase().includes(term) || (f.draftData?.displayTitle && f.draftData.displayTitle.toLowerCase().includes(term));
+        const matchManticore = f.manticoreField.toLowerCase().includes(term);
+        if (!matchSource && !matchDisplay && !matchManticore) return false;
+      }
+      return true;
+    });
+  }, [softTypeFields, statusFilter, searchTerm]);
 
   const totalPages = Math.ceil(filteredFields.length / pageSize) || 1;
-  const paginatedFields = filteredFields.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const paginatedFields = useMemo(() => {
+    return filteredFields.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [filteredFields, currentPage, pageSize]);
 
-  // 统计可发布草稿数量
-  const draftOnlyCount = softTypeFields.filter(f => f.configStatus === 'DRAFT').length;
-  const modifiedDraftCount = softTypeFields.filter(
-    f => f.configStatus === 'ACTIVE' && f.hasDraftModification
-  ).length;
-  const totalPublishableCount = draftOnlyCount + modifiedDraftCount;
+  // 数据同步按钮启用条件 (只要存在生效配置且不处于同步中即可手工触发增量或全量同步；失败时直接重试)
+  const canTriggerSync =
+    currentSoftType.configStatus === 'ACTIVE' &&
+    hasPermission &&
+    currentSoftType.syncStatus !== 'SYNCING';
 
-  // 是否有待同步的数据
+  const isSyncFailed = currentSoftType.syncStatus === 'SYNC_FAILED';
   const hasPendingSync = currentSoftType.syncStatus === 'PENDING_SYNC' || currentSoftType.hasPendingSyncFields;
 
   const renderConfigStatusBadge = (field: FieldMappingItem) => {
@@ -115,11 +134,14 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       if (field.hasDraftModification) {
         return (
           <div className="space-y-0.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
               已生效
             </span>
-            <div className="text-[10px] text-amber-600 font-medium">存在草稿修改</div>
+            <div className="text-[10px] text-amber-600 font-semibold flex items-center">
+              <Clock className="w-2.5 h-2.5 mr-0.5" />
+              有草稿修改
+            </div>
           </div>
         );
       }
@@ -215,7 +237,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   return (
     <div className="space-y-4">
       {/* 顶部面包屑与返回导航 */}
-      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-2.5 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-2.5 shadow-2xs gap-2">
         <div className="flex items-center space-x-2 text-xs">
           <button
             onClick={onBackToOverview}
@@ -245,12 +267,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         </div>
       </div>
 
-      {/* 页面主标题与提示区 */}
+      {/* 页面主标题与操作区 */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <h2 className="text-sm font-bold text-slate-900 flex items-center">
-              {currentSoftType.name} - 字段配置列表
+              {currentSoftType.name} - 字段配置明细
             </h2>
             <div className="relative">
               <button
@@ -264,28 +286,28 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 <HelpCircle className="w-3.5 h-3.5" />
               </button>
 
-              {/* 问号浮层说明 (唯一权威口径) */}
+              {/* 问号浮层说明 (权威口径) */}
               {showTooltip && (
                 <div className="absolute left-0 top-6 z-30 w-80 p-3 bg-slate-900 text-white rounded-lg shadow-xl text-xs leading-relaxed space-y-1.5">
                   <div className="font-bold flex items-center text-amber-400">
                     <Info className="w-3.5 h-3.5 mr-1" />
-                    配置与数据生命周期说明
+                    配置与数据生命周期权威说明
                   </div>
                   <p className="text-slate-300">
-                    草稿字段不参与正式查询和数据同步。发布后配置生效；数据影响变更仍需单独执行数据同步，成功前正式查询继续使用上一成功版本。
+                    草稿字段不参与正式查询和数据同步。发布后配置生效；包含数据影响的变更仍需单独执行数据同步，成功前正式查询继续读取上一成功版本。
                   </p>
                 </div>
               )}
             </div>
           </div>
           <p className="text-xs text-slate-500">
-            管理当前软类型在 Manticore 检索库中的字段结构。支持单个新增、PLM 批量发现、配置发布生效与对象级数据同步。
+            已生效 <span className="font-mono font-semibold text-slate-800">{currentSoftType.activeFieldCount}</span> 个 | 可查询 <span className="font-mono font-semibold text-blue-700">{currentSoftType.queryableFieldCount}</span> 个 | 草稿工作项 <span className="font-mono font-semibold text-amber-700">{totalDraftWorkItemCount}</span> 项
           </p>
         </div>
 
         {/* 顶部快捷操作工具栏 */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 查询预览 (按 5.2 规则：只读当前成功版本，不因草稿弹确认) */}
+          {/* 查询预览 (只读当前成功版本，不因草稿弹确认) */}
           <button
             onClick={onOpenQueryPreview}
             className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
@@ -294,46 +316,58 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <span>查询预览</span>
           </button>
 
-          {/* 数据同步 (仅按当前对象或软类型整体发起) */}
+          {/* 数据同步 (只要有生效配置即可触发增量/全量同步；失败时直接重试) */}
           <button
             onClick={onTriggerDataSync}
-            disabled={!hasPendingSync || !hasPermission}
+            disabled={!canTriggerSync}
             className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer ${
-              hasPendingSync && hasPermission
+              isSyncFailed
+                ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'
+                : hasPendingSync
                 ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+                : canTriggerSync
+                ? 'bg-slate-800 hover:bg-slate-900 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
             }`}
             title={
-              !hasPendingSync
-                ? '当前生效配置无需同步或已全部同步完成'
-                : '按当前软类型发起全量或增量数据同步'
+              !canTriggerSync
+                ? '当前软类型无生效配置或正处于同步中'
+                : isSyncFailed
+                ? '上一同步批次失败，点击直接重试'
+                : hasPendingSync
+                ? '存在已发布但待同步的数据影响变更'
+                : '按当前生效配置执行增量同步或全量重建'
             }
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>数据同步</span>
+            {isSyncFailed ? (
+              <RotateCcw className="w-3.5 h-3.5" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+            <span>{isSyncFailed ? '重试数据同步' : '数据同步'}</span>
             {hasPendingSync && <span className="w-1.5 h-1.5 rounded-full bg-white ml-0.5"></span>}
           </button>
 
           {/* 发布配置 */}
           <button
             onClick={onPublishConfig}
-            disabled={totalPublishableCount === 0 || !hasPermission}
+            disabled={totalDraftWorkItemCount === 0 || !hasPermission}
             className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer ${
-              totalPublishableCount > 0 && hasPermission
+              totalDraftWorkItemCount > 0 && hasPermission
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
             }`}
             title={
-              totalPublishableCount === 0
+              totalDraftWorkItemCount === 0
                 ? '当前没有待发布的草稿修改'
-                : `发布 ${totalPublishableCount} 项草稿配置`
+                : `发布 ${totalDraftWorkItemCount} 项草稿配置`
             }
           >
             <Send className="w-3.5 h-3.5" />
             <span>发布配置</span>
-            {totalPublishableCount > 0 && (
+            {totalDraftWorkItemCount > 0 && (
               <span className="bg-emerald-800 text-emerald-100 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
-                {totalPublishableCount}
+                {totalDraftWorkItemCount}
               </span>
             )}
           </button>
@@ -382,10 +416,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         </div>
       </div>
 
-      {/* 筛选与搜索工具条 (横向区域，状态筛选仅为 全部 / 生效 / 草稿) */}
+      {/* 筛选与搜索工具条 */}
       <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* 状态筛选 Tabs */}
+          {/* 状态筛选 Tabs (草稿 Tab 严格涵盖纯草稿与有草稿修改项) */}
           <div className="flex items-center bg-slate-100 p-0.5 rounded text-xs font-medium">
             <button
               onClick={() => {
@@ -411,7 +445,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              生效 ({softTypeFields.filter(f => f.configStatus === 'ACTIVE').length})
+              生效 ({activeCount})
             </button>
             <button
               onClick={() => {
@@ -420,11 +454,11 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
               }}
               className={`px-3 py-1 rounded transition-colors cursor-pointer ${
                 statusFilter === 'DRAFT'
-                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  ? 'bg-white text-amber-800 shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              草稿 ({softTypeFields.filter(f => f.configStatus === 'DRAFT').length})
+              草稿工作项 ({totalDraftWorkItemCount})
             </button>
           </div>
 
@@ -444,48 +478,57 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           </div>
         </div>
 
-        {/* 提示信息 */}
+        {/* 数量与断言信息 */}
         <div className="text-xs text-slate-500">
-          显示 <span className="font-semibold text-slate-800">{filteredFields.length}</span> 个配置项
+          显示 <span className="font-semibold text-slate-800">{filteredFields.length}</span> 条映射记录
         </div>
       </div>
 
-      {/* 字段配置主表格 */}
+      {/* 字段配置主表格 (来源字段与 Manticore 字段相邻排列) */}
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
               <tr>
-                <th className="py-2.5 px-3 min-w-[140px]">源字段</th>
+                {/* 核心映射关系相邻列 */}
+                <th className="py-2.5 px-3 min-w-[150px]">PLM 来源字段</th>
+                <th className="py-2.5 px-3 min-w-[150px]">Manticore 检索字段</th>
                 <th className="py-2.5 px-3 min-w-[130px]">显示名称</th>
-                <th className="py-2.5 px-3 min-w-[110px]">业务类型</th>
-                <th className="py-2.5 px-3 min-w-[130px]">Manticore 字段</th>
-                <th className="py-2.5 px-3 min-w-[100px]">Manticore 类型</th>
-                <th className="py-2.5 px-3 min-w-[90px]">展示类型</th>
+                <th className="py-2.5 px-3 min-w-[100px]">PLM 业务类型</th>
+                <th className="py-2.5 px-3 min-w-[90px]">底层类型</th>
+                <th className="py-2.5 px-3 min-w-[90px]">展示方式</th>
                 <th className="py-2.5 px-3 min-w-[90px]">查询能力</th>
                 <th className="py-2.5 px-2.5 text-center">排序</th>
-                <th className="py-2.5 px-2.5 text-center">展示</th>
+                <th className="py-2.5 px-2.5 text-center">结果展示</th>
                 <th className="py-2.5 px-3">配置状态</th>
                 <th className="py-2.5 px-3">数据状态</th>
-                <th className="py-2.5 px-3 text-center min-w-[100px] sticky right-0 bg-slate-50">操作</th>
+                <th className="py-2.5 px-3 text-center min-w-[110px] sticky right-0 bg-slate-50">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {paginatedFields.length > 0 ? (
                 paginatedFields.map(field => (
                   <tr key={field.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* 源字段 */}
+                    {/* 1. PLM 来源字段 */}
                     <td className="py-2.5 px-3">
                       <div className="font-mono font-bold text-slate-900">{field.sourceFieldName}</div>
                       <div className="text-[11px] text-slate-400">{field.sourceDisplayName}</div>
                     </td>
 
-                    {/* 显示名称 */}
+                    {/* 2. Manticore 字段 (紧邻源字段) */}
+                    <td className="py-2.5 px-3 font-mono font-semibold text-blue-700">
+                      <div className="flex items-center space-x-1">
+                        <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
+                        <span>{field.manticoreField}</span>
+                      </div>
+                    </td>
+
+                    {/* 3. 显示名称 (清晰展示草稿微调) */}
                     <td className="py-2.5 px-3 font-medium text-slate-900">
                       {field.hasDraftModification && field.draftData?.displayTitle ? (
                         <div>
                           <span className="text-slate-800">{field.displayTitle}</span>
-                          <div className="text-[10px] text-amber-600 font-normal">
+                          <div className="text-[10px] text-amber-600 font-semibold flex items-center">
                             草稿: {field.draftData.displayTitle}
                           </div>
                         </div>
@@ -494,7 +537,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* 业务类型 */}
+                    {/* 4. PLM 业务类型 */}
                     <td className="py-2.5 px-3 text-slate-600">
                       <span>{field.sourceDataTypeLabel}</span>
                       {field.defaultUnit && (
@@ -502,56 +545,63 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* Manticore 字段 */}
-                    <td className="py-2.5 px-3 font-mono font-medium text-blue-700">
-                      {field.manticoreField}
-                    </td>
-
-                    {/* Manticore 类型 */}
+                    {/* 5. Manticore 底层存储类型 */}
                     <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
                       {field.manticoreType}
                     </td>
 
-                    {/* 展示类型 */}
+                    {/* 6. 展示渲染方式 */}
                     <td className="py-2.5 px-3">
-                      {renderDisplayTypeBadge(field.displayType)}
+                      {renderDisplayTypeBadge(
+                        field.hasDraftModification && field.draftData?.displayType
+                          ? field.draftData.displayType
+                          : field.displayType
+                      )}
                     </td>
 
-                    {/* 查询能力 */}
+                    {/* 7. 查询能力 */}
                     <td className="py-2.5 px-3">
-                      {renderQueryCapabilityBadge(field.queryCapability)}
+                      {renderQueryCapabilityBadge(
+                        field.hasDraftModification && field.draftData?.queryCapability
+                          ? field.draftData.queryCapability
+                          : field.queryCapability
+                      )}
                     </td>
 
-                    {/* 允许排序 */}
+                    {/* 8. 允许排序 */}
                     <td className="py-2.5 px-2.5 text-center">
-                      {field.isSortable ? (
+                      {(field.hasDraftModification && field.draftData?.isSortable !== undefined
+                        ? field.draftData.isSortable
+                        : field.isSortable) ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
                     </td>
 
-                    {/* 结果展示 */}
+                    {/* 9. 结果展示 */}
                     <td className="py-2.5 px-2.5 text-center">
-                      {field.isDisplayInResult ? (
+                      {(field.hasDraftModification && field.draftData?.isDisplayInResult !== undefined
+                        ? field.draftData.isDisplayInResult
+                        : field.isDisplayInResult) ? (
                         <span className="text-emerald-700 font-semibold text-[11px]">是</span>
                       ) : (
                         <span className="text-slate-400 text-[11px]">否</span>
                       )}
                     </td>
 
-                    {/* 配置状态 */}
+                    {/* 10. 配置状态 */}
                     <td className="py-2.5 px-3">
                       {renderConfigStatusBadge(field)}
                     </td>
 
-                    {/* 数据状态 */}
+                    {/* 11. 数据状态 */}
                     <td className="py-2.5 px-3">
                       {renderDataStatusBadge(field)}
                     </td>
 
-                    {/* 操作列 (粘性吸附) */}
-                    <td className="py-2.5 px-3 text-center sticky right-0 bg-white group-hover:bg-slate-50">
+                    {/* 12. 操作列 (粘性吸附) */}
+                    <td className="py-2.5 px-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-xs">
                       <div className="flex items-center justify-center space-x-1.5">
                         <button
                           onClick={() => onViewFieldDetail(field)}
@@ -587,7 +637,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         </div>
 
         {/* 分页控制栏 */}
-        <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+        <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2">
           <div>
             共 <span className="font-semibold text-slate-900">{filteredFields.length}</span> 条映射记录，每页 {pageSize} 条
           </div>

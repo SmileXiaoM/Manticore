@@ -32,7 +32,9 @@ export const mockSourceSystems: SourceSystemInfo[] = [
   }
 ];
 
-// 2. 根对象与软类型层级定义
+export const initialSourceSystems = mockSourceSystems;
+
+// 2. 根对象与软类型层级定义 (严格保持与字段明细 100% 派生一致)
 export const initialMappingObjects: MappingObjectType[] = [
   {
     id: 'PART',
@@ -48,8 +50,9 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'MechanicalPart',
         name: '机械零件',
         description: '自制与外购机械结构件、机加件、钣金冲压件',
-        activeFieldCount: 5,
-        draftFieldCount: 2,
+        activeFieldCount: 5, // 5 个已生效字段 (MAP-001 ~ MAP-005)
+        queryableFieldCount: 5, // 全部已同步成功，可查询字段为 5
+        draftFieldCount: 3, // 2 个纯草稿 (MAP-006, MAP-007) + 1 个生效字段存在草稿微调 (MAP-003) = 3
         configStatus: 'ACTIVE',
         syncStatus: 'SYNC_SUCCESS',
         activeConfigVersion: 'v1.2.0',
@@ -65,8 +68,9 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'ElectricalPart',
         name: '电子电气零件',
         description: '贴片元器件、继电器、传感器与接插件',
-        activeFieldCount: 4,
-        draftFieldCount: 1,
+        activeFieldCount: 4, // 4 个已生效字段 (MAP-101 ~ MAP-104)
+        queryableFieldCount: 2, // 仅 2 个已同步成功 (MAP-101, MAP-102)，另外 2 个待同步，故可查询为 2
+        draftFieldCount: 0,
         configStatus: 'ACTIVE',
         syncStatus: 'PENDING_SYNC',
         activeConfigVersion: 'v1.1.0',
@@ -82,7 +86,8 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'FastenerPart',
         name: '标准紧固件',
         description: '螺栓、螺母、垫圈与销轴标准件',
-        activeFieldCount: 3,
+        activeFieldCount: 3, // 3 个已生效字段 (MAP-201 ~ MAP-203)
+        queryableFieldCount: 3,
         draftFieldCount: 0,
         configStatus: 'ACTIVE',
         syncStatus: 'SYNC_FAILED',
@@ -90,8 +95,8 @@ export const initialMappingObjects: MappingObjectType[] = [
         lastPublishedAt: '2026-08-24 10:00:00',
         lastSyncedAt: '2026-08-24 10:45:00',
         lastSyncBatchId: 'BATCH-20260824-006',
-        lastSyncErrorMsg: 'PLM 元数据同步超时 (HTTP 504)，索引锁冲突未完成',
-        activeQueryVersion: 'v0.9.0',
+        lastSyncErrorMsg: 'PLM 连接池超时 (HTTP 504)，索引锁冲突未完成',
+        activeQueryVersion: 'v0.9.0', // 上一成功查询版本保持不变
         hasPendingSyncFields: false
       }
     ]
@@ -110,8 +115,9 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'SpecDocument',
         name: '技术规范与说明书',
         description: '产品技术设计说明书与试验标准文档',
-        activeFieldCount: 3,
-        draftFieldCount: 1,
+        activeFieldCount: 3, // 3 个已生效 (MAP-301 ~ MAP-303)
+        queryableFieldCount: 3,
+        draftFieldCount: 1, // 1 个纯草稿 (MAP-304)
         configStatus: 'ACTIVE',
         syncStatus: 'SYNC_SUCCESS',
         activeConfigVersion: 'v1.0.0',
@@ -127,7 +133,8 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'DrawingDocument',
         name: '装配工程图纸',
         description: 'CAD 二维图纸、工程图及图幅尺寸元数据',
-        activeFieldCount: 2,
+        activeFieldCount: 2, // 2 个已生效 (MAP-401 ~ MAP-402)
+        queryableFieldCount: 2,
         draftFieldCount: 0,
         configStatus: 'ACTIVE',
         syncStatus: 'NO_SYNC_NEEDED',
@@ -154,11 +161,12 @@ export const initialMappingObjects: MappingObjectType[] = [
         code: 'MachiningRoute',
         name: '机加工艺路线',
         description: '铸造、粗铣、精密研磨等工艺路线定义',
-        activeFieldCount: 2,
-        draftFieldCount: 2,
+        activeFieldCount: 0, // 尚未发布任何生效版本
+        queryableFieldCount: 0,
+        draftFieldCount: 2, // 2 个草稿字段 (MAP-501, MAP-502)
         configStatus: 'DRAFT_ONLY',
         syncStatus: 'NO_SYNC_NEEDED',
-        activeConfigVersion: 'v0.1.0',
+        activeConfigVersion: 'v0.1.0-draft',
         lastPublishedAt: undefined,
         lastSyncedAt: undefined,
         activeQueryVersion: 'NONE',
@@ -168,7 +176,7 @@ export const initialMappingObjects: MappingObjectType[] = [
   }
 ];
 
-// 3. PLM 来源系统可读取的元数据字段池 (用于单个新建选择或批量选择)
+// 3. PLM 来源系统可读取的元数据字段池 (用于单个新建选择或批量选择发现)
 export const mockPlmSourceMetadataPool: Record<string, SourceFieldMeta[]> = {
   PART_MECHANICAL: [
     // 已经映射生效的
@@ -285,6 +293,22 @@ export const mockPlmSourceMetadataPool: Record<string, SourceFieldMeta[]> = {
       isRequired: false,
       description: '供应商目录分类树'
     },
+    // 来源发生变化示例 (SOURCE_CHANGED: PLM 端近期由单值改为枚举)
+    {
+      sourceFieldKey: 'iba_surface_treatment',
+      sourceFieldName: 'surfaceTreatment',
+      sourceDisplayName: '表面处理工艺 (PLM升级)',
+      sourceDataType: 'ENUM',
+      sourceDataTypeLabel: '枚举 (原TEXT已升级为ENUM)',
+      enumOptions: [
+        { code: 'BLACKENING', label: '发黑处理' },
+        { code: 'ANODIZING', label: '阳极氧化' },
+        { code: 'CHROME_PLATING', label: '镀硬铬' },
+        { code: 'NITRIDING', label: '渗氮处理' }
+      ],
+      isRequired: false,
+      description: 'PLM 属性字典于 2026-08-30 升级为受控枚举'
+    },
     // 冲突或不兼容示例
     {
       sourceFieldKey: 'iba_cad_binary_stream',
@@ -342,6 +366,41 @@ export const mockPlmSourceMetadataPool: Record<string, SourceFieldMeta[]> = {
       unitFamily: '电容 (Capacitance)',
       defaultUnit: 'uF',
       isRequired: false
+    },
+    {
+      sourceFieldKey: 'iba_pin_count',
+      sourceFieldName: 'pinCount',
+      sourceDisplayName: '引脚数量',
+      sourceDataType: 'NUMERIC',
+      sourceDataTypeLabel: '浮点数',
+      isRequired: false
+    }
+  ],
+  PART_FASTENER: [
+    {
+      sourceFieldKey: 'iba_fastener_code',
+      sourceFieldName: 'fastenerCode',
+      sourceDisplayName: '标准件编码',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true,
+      isPrimaryKey: true
+    },
+    {
+      sourceFieldKey: 'iba_fastener_standard',
+      sourceFieldName: 'standardSpec',
+      sourceDisplayName: '执行标准号',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true
+    },
+    {
+      sourceFieldKey: 'iba_thread_spec',
+      sourceFieldName: 'threadSpec',
+      sourceDisplayName: '螺纹规格',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: false
     }
   ],
   DOC_SPEC: [
@@ -363,19 +422,68 @@ export const mockPlmSourceMetadataPool: Record<string, SourceFieldMeta[]> = {
       isRequired: true
     },
     {
+      sourceFieldKey: 'iba_doc_version',
+      sourceFieldName: 'docVersion',
+      sourceDisplayName: '文档版本',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true
+    },
+    {
       sourceFieldKey: 'iba_doc_content',
       sourceFieldName: 'documentContent',
-      sourceDisplayName: '文档正文',
+      sourceDisplayName: '文档正文内容',
       sourceDataType: 'LONG_TEXT',
       sourceDataTypeLabel: '长文本',
       isRequired: false
     }
+  ],
+  DOC_DRAWING: [
+    {
+      sourceFieldKey: 'iba_drawing_no',
+      sourceFieldName: 'drawingNo',
+      sourceDisplayName: '工程图纸编号',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true,
+      isPrimaryKey: true
+    },
+    {
+      sourceFieldKey: 'iba_sheet_size',
+      sourceFieldName: 'sheetSize',
+      sourceDisplayName: '图幅尺寸 (A0-A4)',
+      sourceDataType: 'ENUM',
+      sourceDataTypeLabel: '枚举',
+      isRequired: false
+    }
+  ],
+  PROCESS_ROUTE: [
+    {
+      sourceFieldKey: 'iba_route_code',
+      sourceFieldName: 'routeCode',
+      sourceDisplayName: '工艺路线编码',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true,
+      isPrimaryKey: true
+    },
+    {
+      sourceFieldKey: 'iba_work_center',
+      sourceFieldName: 'workCenter',
+      sourceDisplayName: '负责工作中心',
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: true
+    }
   ]
 };
 
-// 4. 初始字段映射数据 (按软类型组织)
+// 4. 初始字段映射数据 (按软类型完整组织，所有软类型均有真实明细)
 export const initialFieldMappings: FieldMappingItem[] = [
-  // 机械零件 (PART_MECHANICAL) 的已有生效与草稿字段
+  // -------------------------------------------------------------
+  // A. 机械零件 (PART_MECHANICAL)
+  // 生效 5 + 纯草稿 2 + 生效草稿微调 1 = 总 7 行
+  // -------------------------------------------------------------
   {
     id: 'MAP-001',
     rootTypeId: 'PART',
@@ -390,8 +498,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '物料编码',
     displayType: 'LINK',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
     defaultColumnWidth: 160,
     defaultDisplayOrder: 1,
     hyperlinkConfig: {
@@ -424,8 +535,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '零件名称',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'BOTH',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: true,
+    isUniqueKey: false,
     defaultColumnWidth: 200,
     defaultDisplayOrder: 2,
     configStatus: 'ACTIVE',
@@ -450,15 +564,25 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '主要材质',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: false,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 140,
     defaultDisplayOrder: 3,
     configStatus: 'ACTIVE',
-    // 存在草稿修改示例 (修改了显示名称与列宽)
+    // 存在草稿修改示例 (修改了显示名称与列宽，纯展示变更)
     hasDraftModification: true,
     draftData: {
       displayTitle: '主体材质牌号 (草稿微调)',
+      displayType: 'CONDITION_QUERY',
+      queryCapability: 'QUERY_CONDITION',
+      isQueryCondition: true,
+      isSortable: false,
+      isDisplayInResult: true,
+      isFulltextSearch: false,
+      isUniqueKey: false,
       defaultColumnWidth: 160
     },
     dataStatus: 'SYNC_SUCCESS',
@@ -483,8 +607,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '公称直径 (mm)',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 130,
     defaultDisplayOrder: 4,
     configStatus: 'ACTIVE',
@@ -509,8 +636,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '物料分类树路径',
     displayType: 'CATEGORY_PATH',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: false,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 220,
     defaultDisplayOrder: 5,
     configStatus: 'ACTIVE',
@@ -521,7 +651,7 @@ export const initialFieldMappings: FieldMappingItem[] = [
     updatedAt: '2026-08-28 14:20:00',
     updatedBy: '李晓华 (数据标准管理员)'
   },
-  // 机械零件新增草稿字段 1 (纯草稿，未发布)
+  // 机械零件纯草稿 1 (未发布)
   {
     id: 'MAP-006',
     rootTypeId: 'PART',
@@ -536,19 +666,22 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '指定制造商',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 150,
     defaultDisplayOrder: 6,
     configStatus: 'DRAFT',
     hasDraftModification: false,
-    dataStatus: 'NO_SYNC_NEEDED', // 未发布草稿不参与同步
+    dataStatus: 'NO_SYNC_NEEDED',
     isDataImpactingChange: true,
     lastConfigVersion: 'v1.3.0-draft',
     updatedAt: '2026-09-01 10:30:00',
     updatedBy: '王明 (机械工程师)'
   },
-  // 机械零件新增草稿字段 2 (长文本全文检索)
+  // 机械零件纯草稿 2 (长文本全文检索，未发布)
   {
     id: 'MAP-007',
     rootTypeId: 'PART',
@@ -563,8 +696,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '技术规格全文索引',
     displayType: 'FULLTEXT',
     queryCapability: 'FULLTEXT_SEARCH',
+    isQueryCondition: false,
     isSortable: false,
-    isDisplayInResult: false, // 仅用于全文搜索，不作为默认表格列
+    isDisplayInResult: false,
+    isFulltextSearch: true,
+    isUniqueKey: false,
     configStatus: 'DRAFT',
     hasDraftModification: false,
     dataStatus: 'NO_SYNC_NEEDED',
@@ -574,7 +710,10 @@ export const initialFieldMappings: FieldMappingItem[] = [
     updatedBy: '王明 (机械工程师)'
   },
 
-  // 电子电气零件 (PART_ELECTRICAL) - 覆盖待同步对象状态
+  // -------------------------------------------------------------
+  // B. 电子电气零件 (PART_ELECTRICAL)
+  // 生效 4 (2个已同步，2个待同步)
+  // -------------------------------------------------------------
   {
     id: 'MAP-101',
     rootTypeId: 'PART',
@@ -589,8 +728,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '元器件编码',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
     defaultColumnWidth: 160,
     configStatus: 'ACTIVE',
     hasDraftModification: false,
@@ -614,8 +756,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '元器件名称',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'BOTH',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: true,
+    isUniqueKey: false,
     defaultColumnWidth: 180,
     configStatus: 'ACTIVE',
     hasDraftModification: false,
@@ -641,8 +786,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '额定工作电压 (V)',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 140,
     configStatus: 'ACTIVE',
     hasDraftModification: false,
@@ -668,8 +816,11 @@ export const initialFieldMappings: FieldMappingItem[] = [
     displayTitle: '标称静电容量 (uF)',
     displayType: 'CONDITION_QUERY',
     queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
     isSortable: true,
     isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
     defaultColumnWidth: 140,
     configStatus: 'ACTIVE',
     hasDraftModification: false,
@@ -678,10 +829,337 @@ export const initialFieldMappings: FieldMappingItem[] = [
     lastConfigVersion: 'v1.1.0',
     updatedAt: '2026-08-30 09:15:00',
     updatedBy: '赵丽 (电气工程师)'
+  },
+
+  // -------------------------------------------------------------
+  // C. 标准紧固件 (PART_FASTENER)
+  // 生效 3
+  // -------------------------------------------------------------
+  {
+    id: 'MAP-201',
+    rootTypeId: 'PART',
+    softTypeId: 'PART_FASTENER',
+    sourceFieldKey: 'iba_fastener_code',
+    sourceFieldName: 'fastenerCode',
+    sourceDisplayName: '标准件编码',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'fastener_code',
+    manticoreType: 'STRING',
+    displayTitle: '紧固件编码',
+    displayType: 'LINK',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
+    defaultColumnWidth: 150,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_FAILED',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-24 10:00:00',
+    updatedBy: '张强 (标准件工程师)'
+  },
+  {
+    id: 'MAP-202',
+    rootTypeId: 'PART',
+    softTypeId: 'PART_FASTENER',
+    sourceFieldKey: 'iba_fastener_standard',
+    sourceFieldName: 'standardSpec',
+    sourceDisplayName: '执行标准号',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'standard_spec',
+    manticoreType: 'STRING',
+    displayTitle: '执行标准号 (GB/ISO)',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 180,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_FAILED',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-24 10:00:00',
+    updatedBy: '张强 (标准件工程师)'
+  },
+  {
+    id: 'MAP-203',
+    rootTypeId: 'PART',
+    softTypeId: 'PART_FASTENER',
+    sourceFieldKey: 'iba_thread_spec',
+    sourceFieldName: 'threadSpec',
+    sourceDisplayName: '螺纹规格',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'thread_spec',
+    manticoreType: 'STRING',
+    displayTitle: '公称螺纹规格',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 140,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_FAILED',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-24 10:00:00',
+    updatedBy: '张强 (标准件工程师)'
+  },
+
+  // -------------------------------------------------------------
+  // D. 技术规范与说明书 (DOC_SPEC)
+  // 生效 3 + 纯草稿 1
+  // -------------------------------------------------------------
+  {
+    id: 'MAP-301',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_SPEC',
+    sourceFieldKey: 'iba_doc_number',
+    sourceFieldName: 'docNumber',
+    sourceDisplayName: '文档编号',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'doc_number',
+    manticoreType: 'STRING',
+    displayTitle: '文档编号',
+    displayType: 'LINK',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
+    defaultColumnWidth: 160,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_SUCCESS',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-22 11:00:00',
+    updatedBy: '陈琳 (文档管理员)'
+  },
+  {
+    id: 'MAP-302',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_SPEC',
+    sourceFieldKey: 'iba_doc_title',
+    sourceFieldName: 'docTitle',
+    sourceDisplayName: '文档标题',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'doc_title',
+    manticoreType: 'STRING',
+    displayTitle: '文档中文标题',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'BOTH',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: true,
+    isUniqueKey: false,
+    defaultColumnWidth: 240,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_SUCCESS',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-22 11:00:00',
+    updatedBy: '陈琳 (文档管理员)'
+  },
+  {
+    id: 'MAP-303',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_SPEC',
+    sourceFieldKey: 'iba_doc_version',
+    sourceFieldName: 'docVersion',
+    sourceDisplayName: '文档版本',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'doc_version',
+    manticoreType: 'STRING',
+    displayTitle: '文档大版本',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 100,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_SUCCESS',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-22 11:00:00',
+    updatedBy: '陈琳 (文档管理员)'
+  },
+  {
+    id: 'MAP-304',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_SPEC',
+    sourceFieldKey: 'iba_doc_content',
+    sourceFieldName: 'documentContent',
+    sourceDisplayName: '文档正文内容',
+    sourceDataType: 'LONG_TEXT',
+    sourceDataTypeLabel: '长文本',
+    manticoreField: 'doc_fulltext_body',
+    manticoreType: 'TEXT',
+    displayTitle: '文档正文全文检索',
+    displayType: 'FULLTEXT',
+    queryCapability: 'FULLTEXT_SEARCH',
+    isQueryCondition: false,
+    isSortable: false,
+    isDisplayInResult: false,
+    isFulltextSearch: true,
+    isUniqueKey: false,
+    configStatus: 'DRAFT',
+    hasDraftModification: false,
+    dataStatus: 'NO_SYNC_NEEDED',
+    isDataImpactingChange: true,
+    lastConfigVersion: 'v1.1.0-draft',
+    updatedAt: '2026-09-01 15:00:00',
+    updatedBy: '陈琳 (文档管理员)'
+  },
+
+  // -------------------------------------------------------------
+  // E. 装配工程图纸 (DOC_DRAWING)
+  // 生效 2
+  // -------------------------------------------------------------
+  {
+    id: 'MAP-401',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_DRAWING',
+    sourceFieldKey: 'iba_drawing_no',
+    sourceFieldName: 'drawingNo',
+    sourceDisplayName: '工程图纸编号',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'drawing_no',
+    manticoreType: 'STRING',
+    displayTitle: '图纸图号',
+    displayType: 'LINK',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
+    defaultColumnWidth: 180,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_SUCCESS',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-20 16:00:00',
+    updatedBy: '刘洋 (制图组长)'
+  },
+  {
+    id: 'MAP-402',
+    rootTypeId: 'DOCUMENT',
+    softTypeId: 'DOC_DRAWING',
+    sourceFieldKey: 'iba_sheet_size',
+    sourceFieldName: 'sheetSize',
+    sourceDisplayName: '图幅尺寸 (A0-A4)',
+    sourceDataType: 'ENUM',
+    sourceDataTypeLabel: '枚举',
+    manticoreField: 'sheet_size',
+    manticoreType: 'STRING',
+    displayTitle: '图幅幅面',
+    displayType: 'ENUM_BADGE',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: false,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 120,
+    configStatus: 'ACTIVE',
+    hasDraftModification: false,
+    dataStatus: 'SYNC_SUCCESS',
+    isDataImpactingChange: false,
+    lastConfigVersion: 'v1.0.0',
+    updatedAt: '2026-08-20 16:00:00',
+    updatedBy: '刘洋 (制图组长)'
+  },
+
+  // -------------------------------------------------------------
+  // F. 机加工艺路线 (PROCESS_ROUTE)
+  // 仅草稿 2
+  // -------------------------------------------------------------
+  {
+    id: 'MAP-501',
+    rootTypeId: 'PROCESS',
+    softTypeId: 'PROCESS_ROUTE',
+    sourceFieldKey: 'iba_route_code',
+    sourceFieldName: 'routeCode',
+    sourceDisplayName: '工艺路线编码',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'route_code',
+    manticoreType: 'STRING',
+    displayTitle: '路线编码',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: true,
+    defaultColumnWidth: 160,
+    configStatus: 'DRAFT',
+    hasDraftModification: false,
+    dataStatus: 'NO_SYNC_NEEDED',
+    isDataImpactingChange: true,
+    lastConfigVersion: 'v0.1.0-draft',
+    updatedAt: '2026-08-29 09:00:00',
+    updatedBy: '孙工 (工艺主管)'
+  },
+  {
+    id: 'MAP-502',
+    rootTypeId: 'PROCESS',
+    softTypeId: 'PROCESS_ROUTE',
+    sourceFieldKey: 'iba_work_center',
+    sourceFieldName: 'workCenter',
+    sourceDisplayName: '负责工作中心',
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    manticoreField: 'work_center',
+    manticoreType: 'STRING',
+    displayTitle: '主责工作中心',
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: true,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 180,
+    configStatus: 'DRAFT',
+    hasDraftModification: false,
+    dataStatus: 'NO_SYNC_NEEDED',
+    isDataImpactingChange: true,
+    lastConfigVersion: 'v0.1.0-draft',
+    updatedAt: '2026-08-29 09:30:00',
+    updatedBy: '孙工 (工艺主管)'
   }
 ];
 
-// 5. 一阶段正式查询预览模拟数据集 (仅包含已成功同步生效的数据)
+// 5. 一阶段正式查询预览模拟数据集 (覆盖全部已配置软类型)
 export const mockStage1PreviewData: Record<string, Stage1PreviewRecord[]> = {
   PART_MECHANICAL: [
     {
@@ -758,5 +1236,46 @@ export const mockStage1PreviewData: Record<string, Stage1PreviewRecord[]> = {
       lifecycleState: '已发布',
       updateCount: 5
     }
-  ]
+  ],
+  PART_FASTENER: [
+    {
+      id: 'REC-F01',
+      fastenerCode: 'GB-HEX-M12-50',
+      standardSpec: 'GB/T 5782-2016',
+      threadSpec: 'M12×1.75'
+    },
+    {
+      id: 'REC-F02',
+      fastenerCode: 'ISO-NUT-M10',
+      standardSpec: 'ISO 4032-2012',
+      threadSpec: 'M10×1.5'
+    }
+  ],
+  DOC_SPEC: [
+    {
+      id: 'REC-D01',
+      docNumber: 'TS-2026-001',
+      docTitle: '主轴高速动态平衡测试设计规范',
+      docVersion: 'A.2'
+    },
+    {
+      id: 'REC-D02',
+      docNumber: 'TS-2026-002',
+      docTitle: '高精度滑动轴承温升与润滑检验标准',
+      docVersion: 'B.0'
+    }
+  ],
+  DOC_DRAWING: [
+    {
+      id: 'REC-DW01',
+      drawingNo: 'DWG-0029-A',
+      sheetSize: 'A1'
+    },
+    {
+      id: 'REC-DW02',
+      drawingNo: 'DWG-0030-B',
+      sheetSize: 'A2'
+    }
+  ],
+  PROCESS_ROUTE: []
 };

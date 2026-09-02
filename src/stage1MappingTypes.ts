@@ -31,9 +31,10 @@ export interface MappingSoftType {
   code: string; // 'MechanicalPart'
   name: string; // '机械零件'
   description: string;
-  // 状态统计
+  // 状态统计 (生效字段数 vs 正式可查询字段数 vs 草稿工作项数)
   activeFieldCount: number; // 已生效字段数
-  draftFieldCount: number; // 草稿字段数
+  queryableFieldCount: number; // 正式可查询字段数 (已成功同步并在 Manticore 中可检索的字段数)
+  draftFieldCount: number; // 草稿工作项数 (纯草稿 + 生效字段存在草稿修改)
   configStatus: 'ACTIVE' | 'DRAFT_ONLY' | 'UNCONFIGURED'; // 配置状态
   syncStatus: 'NO_SYNC_NEEDED' | 'PENDING_SYNC' | 'SYNCING' | 'SYNC_SUCCESS' | 'SYNC_FAILED'; // 数据状态
   activeConfigVersion: string; // 当前生效配置版本 e.g. 'v1.2.0'
@@ -85,6 +86,7 @@ export interface HyperlinkConfig {
   otypeSourceField: string; // e.g. 'object_type_code'
   displayTextSource: 'FIELD_VALUE' | 'STATIC_TEXT' | 'CUSTOM_TEMPLATE';
   staticDisplayText?: string;
+  staticLabel?: string;
   customTemplate?: string;
   openTarget: '_blank' | '_self';
   onMissingParam: 'HIDE_LINK_SHOW_TEXT' | 'HIDE_ENTIRE_COLUMN' | 'SHOW_DISABLED_LINK';
@@ -172,8 +174,8 @@ export interface PublishImpactSummary {
 // 一阶段正式查询预览模拟样本数据
 export interface Stage1PreviewRecord {
   id: string;
-  partNumber: string;
-  partName: string;
+  partNumber?: string;
+  partName?: string;
   material?: string;
   categoryPath?: string;
   ratedVoltage?: string;
@@ -184,5 +186,13 @@ export interface Stage1PreviewRecord {
   manufacturerName?: string;
   technicalDescription?: string;
   updateCount?: number;
+  fastenerCode?: string;
+  standardSpec?: string;
+  threadSpec?: string;
+  docNumber?: string;
+  docTitle?: string;
+  docVersion?: string;
+  drawingNo?: string;
+  sheetSize?: string;
   [key: string]: any;
 }
