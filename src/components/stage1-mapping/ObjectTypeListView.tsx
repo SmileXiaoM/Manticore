@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Search,
   Settings2,
@@ -65,6 +65,115 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       return true;
     });
   }, [mappingObjects, selectedSystemId, searchTerm]);
+
+  // 容器尺寸观察器：用于区分 1280px 及以下紧凑图标模式与 1440px 及以上展开文字模式
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      // 视口宽度减去侧边栏(256px)与内容区内边距(48px)预估初始值
+      return Math.max(320, window.innerWidth - 304);
+    }
+    return 1134;
+  });
+
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0) {
+        setContainerWidth(rect.width);
+      }
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        if (width > 0) {
+          setContainerWidth(width);
+        }
+      }
+    });
+
+    observer.observe(el);
+    window.addEventListener('resize', updateWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
+
+  // 宽屏模式（内容区 >= 1100px）：对应 1440px(约1134px)与1920px(约1616px)视口，操作列展开文字（锁定240px）
+  // 紧凑模式（内容区 < 1100px）：对应 1280px(约974px)与820px(约516px)视口，操作列为纯图标（锁定116px），彻底消除对状态列的遮挡
+  const isExpandedActions = containerWidth >= 1100;
+
+  // 动态列宽分配策略：基于 W3C table-fixed 与 colgroup 规范
+  // 保证操作列在 1440px 与 1920px 下均稳定在 240px（不超过260px，更绝不拉伸至300px以上）
+  // 1920px 下多余空间定向分配给：根类型 (35%)、来源系统 (20%)、数据状态 (45%)
+  const colWidths = useMemo(() => {
+    if (!isExpandedActions) {
+      // 紧凑模式：基础宽度 968px <= 1280px 视口下的 974px 内容区，默认无横向滚动，全列完整可见
+      return {
+        rootType: 136,
+        sourceSystem: 86,
+        configuredFields: 50,
+        queryableFields: 60,
+        draftFields: 46,
+        baseVersion: 94,
+        configStatus: 114,
+        dataStatus: 168,
+        lastSyncTime: 98,
+        actions: 116,
+        tableMinWidth: 968
+      };
+    }
+
+    // 宽屏模式：基准总宽 1130px <= 1440px 视口下的 1134px 内容区
+    const baseTotal = 1130;
+    const surplus = Math.max(0, containerWidth - baseTotal);
+    const rootTypeAdd = Math.round(surplus * 0.35);
+    const sourceSystemAdd = Math.round(surplus * 0.20);
+    const dataStatusAdd = surplus - rootTypeAdd - sourceSystemAdd;
+
+    return {
+      rootType: 140 + rootTypeAdd,
+      sourceSystem: 92 + sourceSystemAdd,
+      configuredFields: 55,
+      queryableFields: 65,
+      draftFields: 50,
+      baseVersion: 98,
+      configStatus: 118,
+      dataStatus: 170 + dataStatusAdd,
+      lastSyncTime: 102,
+      actions: 240, // 严格锁定 240px，1920px 下也绝不拉伸
+      tableMinWidth: 1130
+    };
+  }, [isExpandedActions, containerWidth]);
+
+  // 最近同步时间渲染：日期与时间分两行居中展示，杜绝常规桌面被截断为“2026-08-”或被操作列遮挡
+  const renderSyncedAt = (timestamp?: string) => {
+    if (!timestamp) {
+      return <span className="text-slate-300 font-sans">-</span>;
+    }
+    const parts = timestamp.trim().split(' ');
+    if (parts.length === 2) {
+      return (
+        <div className="font-mono leading-tight text-center whitespace-nowrap" title={timestamp}>
+          <div className="text-[11px] text-slate-600 font-medium">{parts[0]}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{parts[1]}</div>
+        </div>
+      );
+    }
+    return (
+      <span className="font-mono text-[11px] text-slate-500 whitespace-nowrap" title={timestamp}>
+        {timestamp}
+      </span>
+    );
+  };
 
   // 全局汇总统计
   const totalRootCount = mappingObjects.length;
@@ -308,42 +417,122 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       </div>
 
       {/* 4. 根类型配置总表 (每个根类型一行) */}
-      <div className="bg-white border border-slate-200 rounded-[8px] overflow-hidden shadow-2xs">
+      <div
+        ref={tableContainerRef}
+        className="bg-white border border-slate-200 rounded-[8px] overflow-hidden shadow-2xs"
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[990px] lg:min-w-[1130px]">
+          <table
+            className="w-full table-fixed text-left text-xs"
+            style={{ minWidth: colWidths.tableMinWidth }}
+          >
+            <colgroup>
+              <col style={{ width: colWidths.rootType }} />
+              <col style={{ width: colWidths.sourceSystem }} />
+              <col style={{ width: colWidths.configuredFields }} />
+              <col style={{ width: colWidths.queryableFields }} />
+              <col style={{ width: colWidths.draftFields }} />
+              <col style={{ width: colWidths.baseVersion }} />
+              <col style={{ width: colWidths.configStatus }} />
+              <col style={{ width: colWidths.dataStatus }} />
+              <col style={{ width: colWidths.lastSyncTime }} />
+              <col style={{ width: colWidths.actions }} />
+            </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
               <tr>
-                <th className="py-2.5 px-2.5 w-[119px] min-w-[119px] max-w-[128px] whitespace-nowrap">根类型 (Root Type)</th>
-                <th className="py-2.5 px-2 text-center w-[92px] min-w-[92px] max-w-[100px] whitespace-nowrap">来源系统</th>
-                <th className="py-2.5 px-1 text-center w-[62px] min-w-[62px] max-w-[68px] whitespace-nowrap">已配置字段</th>
-                <th className="py-2.5 px-1 text-center w-[70px] min-w-[70px] max-w-[76px] whitespace-nowrap">正式可查字段</th>
-                <th className="py-2.5 px-1 text-center w-[50px] min-w-[50px] max-w-[56px] whitespace-nowrap">草稿字段</th>
-                <th className="py-2.5 px-1.5 text-center w-[97px] min-w-[97px] max-w-[105px] whitespace-nowrap">正式查询底座版本</th>
-                <th className="py-2.5 px-2 w-[116px] min-w-[116px] max-w-[124px] whitespace-nowrap">配置状态</th>
-                <th className="py-2.5 px-2 w-[176px] min-w-[176px] max-w-[184px] whitespace-nowrap">数据状态</th>
-                <th className="py-2.5 px-1.5 text-center w-[104px] min-w-[104px] max-w-[112px] whitespace-nowrap">最近同步时间</th>
-                <th className="py-2.5 px-1.5 text-center w-[116px] min-w-[116px] max-w-[116px] lg:w-[248px] lg:min-w-[248px] lg:max-w-[248px] sticky right-0 bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap">操作</th>
+                <th
+                  style={{ width: colWidths.rootType }}
+                  className="py-2.5 px-2.5 whitespace-nowrap"
+                >
+                  根类型 (Root Type)
+                </th>
+                <th
+                  style={{ width: colWidths.sourceSystem }}
+                  className="py-2.5 px-1.5 text-center whitespace-nowrap"
+                >
+                  来源系统
+                </th>
+                <th
+                  style={{ width: colWidths.configuredFields }}
+                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                >
+                  已配置字段
+                </th>
+                <th
+                  style={{ width: colWidths.queryableFields }}
+                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                >
+                  正式可查字段
+                </th>
+                <th
+                  style={{ width: colWidths.draftFields }}
+                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                >
+                  草稿字段
+                </th>
+                <th
+                  style={{ width: colWidths.baseVersion }}
+                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                >
+                  正式查询底座版本
+                </th>
+                <th
+                  style={{ width: colWidths.configStatus }}
+                  className="py-2.5 px-2 whitespace-nowrap"
+                >
+                  配置状态
+                </th>
+                <th
+                  style={{ width: colWidths.dataStatus }}
+                  className="py-2.5 px-2 whitespace-nowrap"
+                >
+                  数据状态
+                </th>
+                <th
+                  style={{ width: colWidths.lastSyncTime }}
+                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                >
+                  最近同步时间
+                </th>
+                <th
+                  style={{
+                    width: colWidths.actions,
+                    minWidth: colWidths.actions,
+                    maxWidth: colWidths.actions
+                  }}
+                  className="py-2.5 px-1 text-center sticky right-0 bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap"
+                >
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredRootTypes.length > 0 ? (
                 filteredRootTypes.map(root => (
                   <tr key={root.id} className="hover:bg-slate-50/70 transition-colors group">
-                    {/* 根类型 */}
-                    <td className="py-2.5 px-2.5 font-medium text-slate-900 w-[119px] min-w-[119px] max-w-[128px]">
-                      <div className="flex items-center space-x-1.5">
+                    {/* 根类型 (单行完整展示中文+英文Code，编码只出现一次，彻底解决截断与重复问题) */}
+                    <td
+                      style={{ width: colWidths.rootType }}
+                      className="py-2.5 px-2.5 font-medium text-slate-900"
+                    >
+                      <div className="flex items-center space-x-1.5 whitespace-nowrap">
                         <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="font-semibold text-xs text-slate-900 truncate" title={formatRootTypeDisplayName(root.name, root.code)}>
+                        <span
+                          className="font-semibold text-xs text-slate-900 whitespace-nowrap"
+                          title={formatRootTypeDisplayName(root.name, root.code)}
+                        >
                           {formatRootTypeDisplayName(root.name, root.code)}
                         </span>
                       </div>
-                      <div className="text-[11px] font-mono text-slate-500 pl-5 truncate" title={root.code}>{root.code}</div>
                     </td>
 
                     {/* 来源系统 */}
-                    <td className="py-2.5 px-2 text-center text-slate-600 w-[92px] min-w-[92px] max-w-[100px]">
+                    <td
+                      style={{ width: colWidths.sourceSystem }}
+                      className="py-2.5 px-1.5 text-center text-slate-600"
+                    >
                       <span
-                        className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-[4px] text-[10.5px] border border-slate-200 truncate inline-block max-w-full"
+                        className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-[4px] text-[10.5px] border border-slate-200 whitespace-nowrap inline-block"
                         title={root.sourceSystemName}
                       >
                         {root.sourceSystemName}
@@ -351,17 +540,26 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     </td>
 
                     {/* 已配置字段 */}
-                    <td className="py-2.5 px-1 text-center font-mono font-bold text-slate-800 w-[62px] min-w-[62px] max-w-[68px]">
+                    <td
+                      style={{ width: colWidths.configuredFields }}
+                      className="py-2.5 px-1 text-center font-mono font-bold text-slate-800"
+                    >
                       {root.configuredFieldCount}
                     </td>
 
                     {/* 正式可查字段 */}
-                    <td className="py-2.5 px-1 text-center font-mono font-bold text-blue-700 w-[70px] min-w-[70px] max-w-[76px]">
+                    <td
+                      style={{ width: colWidths.queryableFields }}
+                      className="py-2.5 px-1 text-center font-mono font-bold text-blue-700"
+                    >
                       {root.formalQueryableFieldCount}
                     </td>
 
                     {/* 草稿字段 */}
-                    <td className="py-2.5 px-1 text-center font-mono w-[50px] min-w-[50px] max-w-[56px]">
+                    <td
+                      style={{ width: colWidths.draftFields }}
+                      className="py-2.5 px-1 text-center font-mono"
+                    >
                       {root.draftFieldCount > 0 ? (
                         <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-200 text-xs">
                           {root.draftFieldCount}
@@ -372,50 +570,73 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     </td>
 
                     {/* 正式查询底座版本 */}
-                    <td className="py-2.5 px-1.5 text-center w-[97px] min-w-[97px] max-w-[105px]">
+                    <td
+                      style={{ width: colWidths.baseVersion }}
+                      className="py-2.5 px-1 text-center"
+                    >
                       <span className="font-mono text-[11px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 inline-block whitespace-nowrap">
                         {root.formalQueryBaseVersion}
                       </span>
                     </td>
 
                     {/* 配置状态 */}
-                    <td className="py-2.5 px-2 w-[116px] min-w-[116px] max-w-[124px] whitespace-nowrap">
+                    <td
+                      style={{ width: colWidths.configStatus }}
+                      className="py-2.5 px-2 whitespace-nowrap"
+                    >
                       {renderConfigStatusBadge(root.configStatus)}
                     </td>
 
                     {/* 数据状态 */}
-                    <td className="py-2.5 px-2 w-[176px] min-w-[176px] max-w-[184px] whitespace-nowrap">
+                    <td
+                      style={{ width: colWidths.dataStatus }}
+                      className="py-2.5 px-2 whitespace-nowrap"
+                    >
                       {renderSyncStatusBadge(root)}
                     </td>
 
-                    {/* 最近同步时间 */}
-                    <td className="py-2.5 px-1.5 text-center font-mono text-[10.5px] text-slate-500 w-[104px] min-w-[104px] max-w-[112px] whitespace-nowrap">
-                      {root.lastSyncedAt || <span className="text-slate-300 font-sans">-</span>}
+                    {/* 最近同步时间 (两行显示，完整日期+时间，不截断) */}
+                    <td
+                      style={{ width: colWidths.lastSyncTime }}
+                      className="py-2.5 px-1 text-center"
+                    >
+                      {renderSyncedAt(root.lastSyncedAt)}
                     </td>
 
-                    {/* 操作列 */}
-                    <td className="py-2.5 px-1.5 text-center sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 w-[116px] min-w-[116px] max-w-[116px] lg:w-[248px] lg:min-w-[248px] lg:max-w-[248px] whitespace-nowrap">
+                    {/* 操作列 (1440/1920px 展开文字且严格锁宽 240px；1280/820px 纯图标且锁定 116px) */}
+                    <td
+                      style={{
+                        width: colWidths.actions,
+                        minWidth: colWidths.actions,
+                        maxWidth: colWidths.actions
+                      }}
+                      className="py-2.5 px-1 text-center sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap"
+                    >
                       <div className="flex items-center justify-center space-x-1 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => onSelectRootType(root.id)}
-                          className="h-7.5 px-2 lg:px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-[5px] font-medium text-xs border border-blue-200/60 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-[5px] font-medium text-xs border border-blue-200/60 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="配置字段 (配置该根类型的字段映射)"
                           aria-label="配置字段"
                         >
                           <Settings2 className="w-3.5 h-3.5 shrink-0" />
-                          <span className="hidden lg:inline whitespace-nowrap">配置字段</span>
+                          {isExpandedActions && (
+                            <span className="whitespace-nowrap">配置字段</span>
+                          )}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => onOpenQueryPreview(root.id)}
-                          className="h-7.5 px-2 lg:px-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-[5px] font-medium text-xs border border-slate-300 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-white hover:bg-slate-50 text-slate-700 rounded-[5px] font-medium text-xs border border-slate-300 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="查询预览 (查看当前正式查询底座快照)"
                           aria-label="查询预览"
                         >
                           <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span className="hidden lg:inline whitespace-nowrap">查询预览</span>
+                          {isExpandedActions && (
+                            <span className="whitespace-nowrap">查询预览</span>
+                          )}
                         </button>
 
                         {/* 数据同步触发与调试操作 */}
@@ -423,7 +644,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           type="button"
                           onClick={() => onTriggerSync(root.id, 'NORMAL')}
                           disabled={root.syncStatus === 'RUNNING'}
-                          className={`h-7.5 px-2 lg:px-1.5 rounded-[5px] font-medium text-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-[5px] font-medium text-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                             root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
                               ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
                               : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300'
@@ -436,9 +657,11 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           aria-label={root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试数据同步' : '数据同步'}
                         >
                           <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${root.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
-                          <span className="hidden lg:inline whitespace-nowrap">
-                            {root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试同步' : '同步'}
-                          </span>
+                          {isExpandedActions && (
+                            <span className="whitespace-nowrap">
+                              {root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试同步' : '同步'}
+                            </span>
+                          )}
                         </button>
                       </div>
                     </td>
