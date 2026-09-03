@@ -404,9 +404,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
+        {/* Header (固定顶部) */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center space-x-2">
@@ -418,7 +418,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   '新建单个字段映射 (生成草稿)'
                 )}
               </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded bg-blue-100 text-blue-800">
+              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
                 根类型: {currentRootType.name}
               </span>
             </div>
@@ -429,18 +429,18 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           <button
             type="button"
             onClick={handleRequestClose}
-            className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded hover:bg-slate-200 transition-colors"
+            className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Form Body */}
+        {/* Form Body (可滚动区域，大屏三列，窄屏820px自适应单列) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             
             {/* 1. PLM 来源元数据 */}
-            <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
+            <div className="bg-slate-50/80 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
                   1
@@ -460,7 +460,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   value={selectedSourceKey}
                   onChange={e => handleSourceFieldSelect(e.target.value)}
                   disabled={isEditingExisting}
-                  className={`w-full px-2.5 py-1.5 bg-white border rounded text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 ${
+                  className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 ${
                     errors.sourceField ? 'border-rose-400' : 'border-slate-300'
                   } ${isEditingExisting ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
                 >
@@ -485,7 +485,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
               {/* PLM 显示名缺失告警提示 */}
               {displayNameResolved.isMissing && (
-                <div className="bg-amber-50 border border-amber-200 rounded p-2.5 text-xs text-amber-800 space-y-1">
+                <div className="bg-amber-50 border border-amber-200 rounded-[6px] p-2.5 text-xs text-amber-800 space-y-1">
                   <div className="flex items-center space-x-1 font-semibold">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>PLM 未返回显示名 (元数据告警)</span>
@@ -498,8 +498,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
               {/* PLM 元数据详情 */}
               {currentSelectedMeta && (
-                <div className="bg-white border border-slate-200 rounded p-3 text-xs space-y-2 flex-1">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="bg-white border border-slate-200 rounded-[6px] p-3 text-xs space-y-2 flex-1">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     PLM 元数据详情
                   </div>
 
@@ -547,7 +547,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             </div>
 
             {/* 2. 映射与业务展示 */}
-            <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
+            <div className="bg-slate-50/80 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
                   2
@@ -568,7 +568,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   value={displayTitle}
                   onChange={e => setDisplayTitle(e.target.value)}
                   placeholder="例如：物料编码 / 额定工作电压"
-                  className={`w-full px-2.5 py-1.5 bg-white border rounded text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 ${
+                  className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 ${
                     errors.displayTitle ? 'border-rose-400' : 'border-slate-300'
                   }`}
                 />
@@ -583,7 +583,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 <select
                   value={displayType}
                   onChange={e => setDisplayType(e.target.value as any)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  className="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 cursor-pointer"
                 >
                   <option value="CONDITION_QUERY">标准条件 / 文本数值</option>
                   <option value="LINK">超链接跳转 (PLM/外部系统)</option>
@@ -596,7 +596,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
               {/* 超链接配置 */}
               {displayType === 'LINK' && (
-                <div className="bg-white border border-blue-200 rounded p-3 space-y-2.5 text-xs animate-in fade-in">
+                <div className="bg-white border border-blue-200 rounded-[6px] p-3 space-y-2.5 text-xs animate-in fade-in">
                   <div className="flex items-center text-blue-800 font-semibold text-[11px]">
                     <Link className="w-3.5 h-3.5 mr-1 text-blue-600" />
                     超链接跳转参数映射
@@ -609,7 +609,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                       value={urlTemplate}
                       onChange={e => setUrlTemplate(e.target.value)}
                       placeholder="https://plm.corp/view?oid={oid}&type={otype}"
-                      className="w-full px-2 py-1 bg-slate-50 border border-slate-300 rounded text-[11px] font-mono text-slate-800"
+                      className="w-full h-7 px-2 bg-slate-50 border border-slate-300 rounded-[4px] text-[11px] font-mono text-slate-800"
                     />
                   </div>
 
@@ -620,7 +620,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                         type="text"
                         value={oidSourceField}
                         onChange={e => setOidSourceField(e.target.value)}
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono text-slate-800 mt-0.5"
+                        className="w-full h-7 px-2 bg-slate-50 border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5"
                       />
                     </div>
                     <div>
@@ -629,7 +629,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                         type="text"
                         value={otypeSourceField}
                         onChange={e => setOtypeSourceField(e.target.value)}
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-300 rounded font-mono text-slate-800 mt-0.5"
+                        className="w-full h-7 px-2 bg-slate-50 border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5"
                       />
                     </div>
                   </div>
@@ -655,7 +655,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             </div>
 
             {/* 3. Manticore 底层配置 */}
-            <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-4 space-y-3.5 flex flex-col">
+            <div className="bg-slate-50/80 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
               <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
                 <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
                   3
@@ -677,7 +677,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   onChange={e => setManticoreField(e.target.value.toLowerCase())}
                   disabled={isEditingConfigured}
                   placeholder="例如：part_number"
-                  className={`w-full px-2.5 py-1.5 bg-white border rounded text-xs font-mono text-blue-700 font-semibold focus:outline-hidden focus:border-blue-500 ${
+                  className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs font-mono text-blue-700 font-semibold focus:outline-hidden focus:border-blue-500 ${
                     errors.manticoreField ? 'border-rose-400' : 'border-slate-300'
                   } ${isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : ''}`}
                 />
@@ -698,7 +698,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   value={manticoreType}
                   onChange={e => setManticoreType(e.target.value as ManticoreFieldType)}
                   disabled={isEditingConfigured}
-                  className={`w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
+                  className={`w-full h-8 px-2.5 bg-white border border-slate-300 rounded-[6px] text-xs font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
                     isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'
                   }`}
                 >
@@ -712,14 +712,14 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               </div>
 
               {/* 5 项检索与展示能力配置 */}
-              <div className="bg-white border border-slate-200 rounded p-3 space-y-2 flex-1">
+              <div className="bg-white border border-slate-200 rounded-[6px] p-3 space-y-2 flex-1">
                 <div className="text-[11px] font-semibold text-slate-700 mb-1 flex items-center">
                   <Shield className="w-3.5 h-3.5 mr-1 text-purple-600" />
                   5 项检索与展示能力配置
                 </div>
 
                 <div className="space-y-1.5 text-xs">
-                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
                     <input
                       type="checkbox"
                       checked={isQueryCondition}
@@ -729,7 +729,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     <span className="text-slate-800">允许作为精确/范围查询条件</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
                     <input
                       type="checkbox"
                       checked={isSortable}
@@ -742,7 +742,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     </span>
                   </label>
 
-                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
                     <input
                       type="checkbox"
                       checked={isDisplayInResult}
@@ -752,7 +752,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     <span className="text-slate-800">在正式查询表格结果列展示</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
                     <input
                       type="checkbox"
                       checked={isFulltextSearch}
@@ -762,7 +762,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     <span className="text-slate-800">加入全局全文分词检索</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
                     <input
                       type="checkbox"
                       checked={isUniqueKey}
@@ -778,11 +778,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           </div>
         </div>
 
-        {/* 底部操作栏 */}
+        {/* 底部固定操作栏 (统一 32px 按钮高度) */}
         <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 text-xs text-slate-500">
             {isDirty && (
-              <span className="inline-flex items-center text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              <span className="inline-flex items-center text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200">
                 <Clock className="w-3 h-3 mr-1 text-amber-600" />
                 表单存在未保存修改
               </span>
@@ -796,7 +796,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             <button
               type="button"
               onClick={handleRequestClose}
-              className="px-4 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-white cursor-pointer transition-colors"
+              className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-white bg-white cursor-pointer transition-colors shadow-2xs"
             >
               取消
             </button>
@@ -804,7 +804,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!hasPermission}
-              className={`px-4 py-1.5 rounded text-xs font-semibold shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
+              className={`h-8 px-4 rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
                 hasPermission
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -821,7 +821,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         {/* 未保存修改确认弹窗 */}
         {showUnsavedConfirm && (
           <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
+            <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
               <div className="flex items-start space-x-3">
                 <div className="p-2 bg-amber-100 text-amber-700 rounded-full shrink-0">
                   <AlertTriangle className="w-5 h-5" />
@@ -838,7 +838,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowUnsavedConfirm(false)}
-                  className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold cursor-pointer"
+                  className="h-8 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-[6px] text-xs font-medium cursor-pointer"
                 >
                   继续编辑
                 </button>
@@ -848,7 +848,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     setShowUnsavedConfirm(false);
                     onClose();
                   }}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold cursor-pointer"
+                  className="h-8 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-[6px] text-xs font-medium cursor-pointer"
                 >
                   放弃修改并退出
                 </button>

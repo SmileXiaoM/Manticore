@@ -56,12 +56,12 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center space-x-2">
-            <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
-              <Send className="w-5 h-5" />
+          <div className="flex items-center space-x-2.5">
+            <div className="bg-emerald-50 p-2 rounded-[6px] text-emerald-600 border border-emerald-200">
+              <Send className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">生效配置确认</h3>
@@ -70,13 +70,13 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 影响摘要卡片 */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5 text-xs">
+        <div className="bg-slate-50 border border-slate-200 rounded-[6px] p-3.5 space-y-2.5 text-xs">
           <div className="flex justify-between items-center text-slate-600">
             <span>目标根类型：</span>
             <span className="font-bold text-slate-900">
@@ -100,13 +100,13 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </div>
 
           <div className="border-t border-slate-200 pt-2 grid grid-cols-2 gap-2 text-[11px]">
-            <div className="bg-amber-50 p-2.5 rounded border border-amber-200 text-amber-900">
+            <div className="bg-amber-50 p-2.5 rounded-[6px] border border-amber-200 text-amber-900">
               <div className="font-bold text-amber-800">数据影响变更: {dataImpactingCount} 项</div>
               <div className="text-[10px] text-amber-700 mt-0.5">
                 {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
               </div>
             </div>
-            <div className="bg-emerald-50 p-2.5 rounded border border-emerald-200 text-emerald-900">
+            <div className="bg-emerald-50 p-2.5 rounded-[6px] border border-emerald-200 text-emerald-900">
               <div className="font-bold text-emerald-800">纯展示变更: {displayOnlyCount} 项</div>
               <div className="text-[10px] text-emerald-700 mt-0.5">即刻生效，无需同步</div>
             </div>
@@ -114,7 +114,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
         </div>
 
         {/* 权威生命周期说明 */}
-        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800 flex items-start space-x-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-[6px] p-3 text-xs text-blue-800 flex items-start space-x-2">
           <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-semibold">生效操作不生成配置版本，不会自动触发数据同步</p>
@@ -130,14 +130,14 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-50 bg-white cursor-pointer transition-colors shadow-2xs"
           >
             取消
           </button>
           <button
             type="button"
             onClick={onConfirmPublish}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-xs flex items-center space-x-1.5 cursor-pointer"
+            className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
             <span>确认生效配置 ({totalDraftCount} 项)</span>
@@ -171,12 +171,12 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
   const isFailedRetry = currentRootType.syncStatus === 'FAILED' || currentRootType.syncStatus === 'COMPLETED_WITH_ERRORS';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center space-x-2">
-            <div className={`p-2 rounded-lg ${isFailedRetry ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-              {isFailedRetry ? <RotateCcw className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
+          <div className="flex items-center space-x-2.5">
+            <div className={`p-2 rounded-[6px] border ${isFailedRetry ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+              {isFailedRetry ? <RotateCcw className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">
@@ -187,19 +187,19 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 异常提示 (如果处于异常或失败状态) */}
         {isFailedRetry && currentRootType.syncErrorRecords && currentRootType.syncErrorRecords.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-900 space-y-1.5">
+          <div className="bg-amber-50 border border-amber-200 rounded-[6px] p-3 text-xs text-amber-900 space-y-1.5">
             <div className="font-bold flex items-center">
               <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-700" />
               上一批次同步有 {currentRootType.syncErrorRecords.length} 条异常记录 (未中断整体任务):
             </div>
-            <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] font-mono text-amber-800 bg-white/80 p-1.5 rounded border border-amber-200">
+            <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] font-mono text-amber-800 bg-white/80 p-1.5 rounded-[4px] border border-amber-200">
               {currentRootType.syncErrorRecords.map(err => (
                 <div key={err.id}>• [{err.recordBusinessKey}] {err.fieldDisplayName || err.fieldKey}: {err.errorMessage}</div>
               ))}
@@ -208,7 +208,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         )}
 
         {/* 作用域与配置信息卡片 */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5 text-xs">
+        <div className="bg-slate-50 border border-slate-200 rounded-[6px] p-3.5 space-y-2.5 text-xs">
           <div className="flex justify-between items-center text-slate-600">
             <span>同步目标根类型：</span>
             <span className="font-bold text-slate-900">
@@ -231,7 +231,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <div className="border-t border-slate-200 pt-2 space-y-2">
             <label className="block text-slate-700 font-semibold">选择同步策略：</label>
             <div className="space-y-2">
-              <label className="flex items-start space-x-2 p-2 rounded border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-[6px] border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
@@ -241,13 +241,13 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
                 />
                 <div>
                   <div className="font-semibold text-slate-800">增量同步 (基于水位戳)</div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-slate-500">
                     同步最近变更及待生效字段数据，单条数据异常不中止任务
                   </div>
                 </div>
               </label>
 
-              <label className="flex items-start space-x-2 p-2 rounded border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-[6px] border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
@@ -257,7 +257,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
                 />
                 <div>
                   <div className="font-semibold text-slate-800">全量重建索引 (深度刷新快照)</div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-slate-500">
                     对当前根类型历史数据全量重建 Manticore 底座快照并原子切换版本
                   </div>
                 </div>
@@ -270,14 +270,14 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-50 bg-white cursor-pointer transition-colors shadow-2xs"
           >
             取消
           </button>
           <button
             type="button"
             onClick={() => onConfirmSync(syncScope)}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-xs flex items-center space-x-1.5 cursor-pointer"
+            className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>{isFailedRetry ? '重试发起同步' : '确认发起同步'}</span>
@@ -345,8 +345,8 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-6xl w-full flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="space-y-0.5">
@@ -355,10 +355,10 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 <Eye className="w-4 h-4 mr-1.5 text-blue-600" />
                 正式查询底座快照预览
               </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded bg-blue-100 text-blue-800">
+              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
                 {currentRootType.name}
               </span>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-emerald-100 text-emerald-800">
+              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
                 底座快照版本: {currentRootType.formalQueryBaseVersion}
               </span>
             </div>
@@ -366,7 +366,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
               只读当前已成功同步的正式查询底座数据。草稿及已生效但待同步的字段不进入本次正式查询条件与结果列。
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded hover:bg-slate-200">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -381,7 +381,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           </div>
 
           {(pendingSyncFields.length > 0 || draftFields.length > 0) && (
-            <div className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            <div className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200">
               {pendingSyncFields.length > 0 && (
                 <span>
                   有 {pendingSyncFields.length} 个字段待进入正式底座（
@@ -395,7 +395,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           )}
         </div>
 
-        {/* 模拟查询条件工具条 */}
+        {/* 模拟查询条件工具条 (32px 高度) */}
         <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center space-x-2 text-xs flex-1 max-w-md">
             <div className="relative w-full">
@@ -405,7 +405,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 placeholder="模拟全文检索或编码/名称关键词..."
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
-                className="w-full pl-7 pr-3 py-1 bg-slate-50 border border-slate-300 rounded text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:border-blue-500"
+                className="w-full h-8 pl-7 pr-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:border-blue-500"
               />
             </div>
           </div>
@@ -478,7 +478,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                               href={`https://plm.internal.corp/view?part=${cellVal}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="font-mono font-bold text-blue-600 hover:underline inline-flex items-center"
+                              className="font-mono font-semibold text-blue-600 hover:underline inline-flex items-center"
                             >
                               <span>{cellVal}</span>
                               <Link className="w-2.5 h-2.5 ml-1 text-blue-400" />
@@ -510,7 +510,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold shadow-xs cursor-pointer"
+            className="h-8 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-[6px] text-xs font-medium shadow-2xs cursor-pointer transition-colors"
           >
             关闭预览
           </button>
@@ -535,22 +535,22 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
   if (!isOpen || !field) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900">字段映射详细定义</h3>
             <p className="text-xs font-mono text-blue-700">{field.manticoreField} ({field.displayTitle})</p>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-3 text-xs">
           {/* PLM 来源 */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-1.5">
-            <div className="font-bold text-slate-700">1. PLM 来源元数据</div>
+          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
+            <div className="font-semibold text-slate-700">1. PLM 来源元数据</div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div><span className="text-slate-400">源字段 Key:</span> <span className="font-mono font-medium">{field.sourceFieldKey}</span></div>
               <div><span className="text-slate-400">源字段名称:</span> <span className="font-mono font-medium">{field.sourceFieldName}</span></div>
@@ -558,7 +558,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
                 <span className="text-slate-400">来源显示名:</span>{' '}
                 <span className="font-medium">{field.sourceDisplayName}</span>
                 {field.isDisplayNameMissing && (
-                  <span className="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1 rounded">已兜底</span>
+                  <span className="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1 rounded-[4px]">已兜底</span>
                 )}
               </div>
               <div><span className="text-slate-400">业务类型:</span> <span className="font-medium">{field.sourceDataTypeLabel}</span></div>
@@ -567,24 +567,24 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           </div>
 
           {/* Manticore 底层 */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-1.5">
-            <div className="font-bold text-slate-700">2. Manticore 底层配置</div>
+          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
+            <div className="font-semibold text-slate-700">2. Manticore 底层配置</div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-400">物理字段:</span> <span className="font-mono font-bold text-blue-700">{field.manticoreField}</span></div>
-              <div><span className="text-slate-400">数据类型:</span> <span className="font-mono font-bold">{field.manticoreType}</span></div>
+              <div><span className="text-slate-400">物理字段:</span> <span className="font-mono font-semibold text-blue-700">{field.manticoreField}</span></div>
+              <div><span className="text-slate-400">数据类型:</span> <span className="font-mono font-semibold">{field.manticoreType}</span></div>
               <div><span className="text-slate-400">唯一主键:</span> <span>{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-slate-400">排序支持:</span> <span>{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>
           </div>
 
           {/* 状态与生命周期 */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-1.5">
-            <div className="font-bold text-slate-700">3. 配置与底座归属</div>
+          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
+            <div className="font-semibold text-slate-700">3. 配置与底座归属</div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-400">配置状态:</span> <span className="font-semibold">{field.configStatus}</span></div>
+              <div><span className="text-slate-400">配置状态:</span> <span className="font-medium">{field.configStatus}</span></div>
               <div>
                 <span className="text-slate-400">正式底座归属:</span>{' '}
-                <span className={field.isInFormalQueryBase ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>
+                <span className={field.isInFormalQueryBase ? 'text-emerald-700 font-medium' : 'text-amber-700 font-medium'}>
                   {field.isInFormalQueryBase ? '已在正式底座' : '待进入正式底座'}
                 </span>
               </div>
@@ -598,7 +598,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold cursor-pointer"
+            className="h-8 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-[6px] text-xs font-medium cursor-pointer transition-colors shadow-2xs"
           >
             关闭
           </button>
