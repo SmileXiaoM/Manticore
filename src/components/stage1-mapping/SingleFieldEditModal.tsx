@@ -22,7 +22,8 @@ import {
   ManticoreFieldType,
   HyperlinkConfig,
   checkIsDataImpactingChange,
-  resolveSourceDisplayName
+  resolveSourceDisplayName,
+  formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
 
 interface SingleFieldEditModalProps {
@@ -419,7 +420,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 )}
               </h3>
               <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
-                根类型: {currentRootType.name}
+                根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
             <p className="text-xs text-slate-500">

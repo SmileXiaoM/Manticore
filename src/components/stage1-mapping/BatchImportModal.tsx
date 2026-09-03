@@ -28,7 +28,8 @@ import {
   BatchImportCandidate,
   BatchImportConflictType,
   ManticoreFieldType,
-  resolveSourceDisplayName
+  resolveSourceDisplayName,
+  formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
 
 interface BatchImportModalProps {
@@ -373,7 +374,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 从 PLM 批量发现并导入字段 (生成草稿)
               </h3>
               <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
-                根类型: {currentRootType.name} ({currentRootType.code})
+                根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
             <p className="text-xs text-slate-500">
@@ -403,7 +404,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               <Layers className="w-3.5 h-3.5 text-purple-600" />
               <span className="font-semibold">根类型对象:</span>
               <span className="font-mono bg-white px-2 py-0.5 rounded-[4px] border border-slate-200 font-bold">
-                {currentRootType.name} ({currentRootType.code})
+                {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
           </div>

@@ -20,7 +20,8 @@ import {
 import {
   FieldMappingItem,
   MappingObjectType,
-  Stage1PreviewRecord
+  Stage1PreviewRecord,
+  formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
 
 // ==================== 1. 生效配置影响确认弹窗 (无配置版本，草稿生效) ====================
@@ -80,7 +81,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           <div className="flex justify-between items-center text-slate-600">
             <span>目标根类型：</span>
             <span className="font-bold text-slate-900">
-              {currentRootType.name} ({currentRootType.code})
+              {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
             </span>
           </div>
 
@@ -212,7 +213,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <div className="flex justify-between items-center text-slate-600">
             <span>同步目标根类型：</span>
             <span className="font-bold text-slate-900">
-              {currentRootType.name} ({currentRootType.code})
+              {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
@@ -356,7 +357,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 正式查询底座快照预览
               </h3>
               <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
-                {currentRootType.name}
+                {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
               <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
                 底座快照版本: {currentRootType.formalQueryBaseVersion}

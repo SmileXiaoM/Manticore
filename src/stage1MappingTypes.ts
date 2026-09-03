@@ -273,6 +273,25 @@ export function deriveRootTypeConfigStatus(
   return 'CONFIGURED_WITH_DRAFT';
 }
 
+// 根类型统一显示名称格式化函数 (防止出现 "零部件 (Part) (Part)" 重复)
+export function formatRootTypeDisplayName(name?: string, code?: string): string {
+  if (!name && !code) return '';
+  if (!name) return code || '';
+  if (!code) return name;
+  const trimmedName = name.trim();
+  const trimmedCode = code.trim();
+  // 若名称中已包含 (code) 或 （code），则不再重复追加
+  if (
+    trimmedName.includes(`(${trimmedCode})`) ||
+    trimmedName.includes(`（${trimmedCode}）`) ||
+    trimmedName.toLowerCase().endsWith(`(${trimmedCode.toLowerCase()})`) ||
+    trimmedName.toLowerCase().endsWith(`（${trimmedCode.toLowerCase()}）`)
+  ) {
+    return trimmedName;
+  }
+  return `${trimmedName} (${trimmedCode})`;
+}
+
 // 批量导入元数据冲突类型
 export type BatchImportConflictType =
   | 'UNMAPPED' // 未映射，可正常批量勾选生成草稿
