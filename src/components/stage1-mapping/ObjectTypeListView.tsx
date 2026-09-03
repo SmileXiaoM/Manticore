@@ -20,7 +20,8 @@ import {
 import {
   MappingObjectType,
   SourceSystemInfo,
-  SyncErrorRecord
+  SyncErrorRecord,
+  formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
 
 interface ObjectTypeListViewProps {
@@ -76,21 +77,21 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     switch (status) {
       case 'CONFIGURED':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
             已配置
           </span>
         );
       case 'CONFIGURED_WITH_DRAFT':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200">
             <Clock className="w-3 h-3 mr-1 text-blue-600 shrink-0" />
             已配置（有草稿）
           </span>
         );
       case 'DRAFTING':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200">
             <Clock className="w-3 h-3 mr-1 text-amber-600 shrink-0" />
             草稿中
           </span>
@@ -98,7 +99,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_CONFIGURED':
       default:
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200">
             未配置
           </span>
         );
@@ -111,7 +112,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 shrink-0"></span>
               已同步
             </span>
@@ -125,7 +126,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED_WITH_ERRORS':
         return (
           <div className="space-y-1">
-            <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-300">
+            <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-300">
               <AlertTriangle className="w-3 h-3 mr-1 text-amber-600 shrink-0" />
               同步完成（有异常）
             </span>
@@ -146,7 +147,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'PENDING':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-200">
+            <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-200">
               <Clock className="w-3 h-3 mr-1 text-amber-600 shrink-0" />
               待同步
             </span>
@@ -157,7 +158,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         );
       case 'RUNNING':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200">
             <RefreshCw className="w-3 h-3 mr-1.5 animate-spin text-blue-600 shrink-0" />
             同步执行中...
           </span>
@@ -166,14 +167,14 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         return (
           <div className="space-y-0.5">
             <span
-              className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-rose-50 text-rose-800 border border-rose-300"
+              className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10.5px] font-medium whitespace-nowrap bg-rose-50 text-rose-800 border border-rose-300"
               title={root.lastSyncErrorMsg}
             >
               <AlertOctagon className="w-3 h-3 mr-1 text-rose-600 shrink-0" />
               同步失败（任务级致命错误）
             </span>
             {root.lastSyncErrorMsg && (
-              <div className="text-[10px] text-rose-600 truncate max-w-[190px] whitespace-nowrap" title={root.lastSyncErrorMsg}>
+              <div className="text-[10px] text-rose-600 truncate max-w-[170px] whitespace-nowrap" title={root.lastSyncErrorMsg}>
                 {root.lastSyncErrorMsg}
               </div>
             )}
@@ -185,7 +186,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_SYNCED':
       default:
         return (
-          <span className="min-h-[24px] inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200">
+          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200">
             未同步
           </span>
         );
@@ -309,19 +310,19 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       {/* 4. 根类型配置总表 (每个根类型一行) */}
       <div className="bg-white border border-slate-200 rounded-[8px] overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[990px] lg:min-w-[1130px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
               <tr>
-                <th className="py-2.5 px-3.5 min-w-[150px] whitespace-nowrap">根类型 (Root Type)</th>
-                <th className="py-2.5 px-3.5 min-w-[120px] whitespace-nowrap">来源系统</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[80px] whitespace-nowrap">已配置字段</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[90px] whitespace-nowrap">正式可查字段</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[80px] whitespace-nowrap">草稿字段</th>
-                <th className="py-2.5 px-3.5 min-w-[130px] whitespace-nowrap">正式查询底座版本</th>
-                <th className="py-2.5 px-3.5 min-w-[140px] whitespace-nowrap">配置状态</th>
-                <th className="py-2.5 px-3.5 min-w-[190px] whitespace-nowrap">数据状态</th>
-                <th className="py-2.5 px-3.5 min-w-[130px] whitespace-nowrap">最近同步时间</th>
-                <th className="py-2.5 px-3.5 text-center min-w-[260px] sticky right-0 bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap">操作</th>
+                <th className="py-2.5 px-2.5 w-[119px] min-w-[119px] max-w-[128px] whitespace-nowrap">根类型 (Root Type)</th>
+                <th className="py-2.5 px-2 text-center w-[92px] min-w-[92px] max-w-[100px] whitespace-nowrap">来源系统</th>
+                <th className="py-2.5 px-1 text-center w-[62px] min-w-[62px] max-w-[68px] whitespace-nowrap">已配置字段</th>
+                <th className="py-2.5 px-1 text-center w-[70px] min-w-[70px] max-w-[76px] whitespace-nowrap">正式可查字段</th>
+                <th className="py-2.5 px-1 text-center w-[50px] min-w-[50px] max-w-[56px] whitespace-nowrap">草稿字段</th>
+                <th className="py-2.5 px-1.5 text-center w-[97px] min-w-[97px] max-w-[105px] whitespace-nowrap">正式查询底座版本</th>
+                <th className="py-2.5 px-2 w-[116px] min-w-[116px] max-w-[124px] whitespace-nowrap">配置状态</th>
+                <th className="py-2.5 px-2 w-[176px] min-w-[176px] max-w-[184px] whitespace-nowrap">数据状态</th>
+                <th className="py-2.5 px-1.5 text-center w-[104px] min-w-[104px] max-w-[112px] whitespace-nowrap">最近同步时间</th>
+                <th className="py-2.5 px-1.5 text-center w-[116px] min-w-[116px] max-w-[116px] lg:w-[248px] lg:min-w-[248px] lg:max-w-[248px] sticky right-0 bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -329,35 +330,40 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                 filteredRootTypes.map(root => (
                   <tr key={root.id} className="hover:bg-slate-50/70 transition-colors group">
                     {/* 根类型 */}
-                    <td className="py-3 px-3.5 font-medium text-slate-900">
+                    <td className="py-2.5 px-2.5 font-medium text-slate-900 w-[119px] min-w-[119px] max-w-[128px]">
                       <div className="flex items-center space-x-1.5">
-                        <Layers className="w-4 h-4 text-blue-600 shrink-0" />
-                        <span className="font-semibold text-xs text-slate-900">{root.name}</span>
+                        <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="font-semibold text-xs text-slate-900 truncate" title={formatRootTypeDisplayName(root.name, root.code)}>
+                          {formatRootTypeDisplayName(root.name, root.code)}
+                        </span>
                       </div>
-                      <div className="text-[11px] font-mono text-slate-500 pl-5.5">{root.code}</div>
+                      <div className="text-[11px] font-mono text-slate-500 pl-5 truncate" title={root.code}>{root.code}</div>
                     </td>
 
                     {/* 来源系统 */}
-                    <td className="py-3 px-3.5 text-slate-600">
-                      <span className="font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-[4px] text-[11px] border border-slate-200">
+                    <td className="py-2.5 px-2 text-center text-slate-600 w-[92px] min-w-[92px] max-w-[100px]">
+                      <span
+                        className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-[4px] text-[10.5px] border border-slate-200 truncate inline-block max-w-full"
+                        title={root.sourceSystemName}
+                      >
                         {root.sourceSystemName}
                       </span>
                     </td>
 
                     {/* 已配置字段 */}
-                    <td className="py-3 px-2.5 text-center font-mono font-bold text-slate-800">
+                    <td className="py-2.5 px-1 text-center font-mono font-bold text-slate-800 w-[62px] min-w-[62px] max-w-[68px]">
                       {root.configuredFieldCount}
                     </td>
 
                     {/* 正式可查字段 */}
-                    <td className="py-3 px-2.5 text-center font-mono font-bold text-blue-700">
+                    <td className="py-2.5 px-1 text-center font-mono font-bold text-blue-700 w-[70px] min-w-[70px] max-w-[76px]">
                       {root.formalQueryableFieldCount}
                     </td>
 
                     {/* 草稿字段 */}
-                    <td className="py-3 px-2.5 text-center font-mono">
+                    <td className="py-2.5 px-1 text-center font-mono w-[50px] min-w-[50px] max-w-[56px]">
                       {root.draftFieldCount > 0 ? (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-200">
+                        <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-200 text-xs">
                           {root.draftFieldCount}
                         </span>
                       ) : (
@@ -366,48 +372,50 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     </td>
 
                     {/* 正式查询底座版本 */}
-                    <td className="py-3 px-3.5">
-                      <span className="font-mono text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block">
+                    <td className="py-2.5 px-1.5 text-center w-[97px] min-w-[97px] max-w-[105px]">
+                      <span className="font-mono text-[11px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 inline-block whitespace-nowrap">
                         {root.formalQueryBaseVersion}
                       </span>
                     </td>
 
                     {/* 配置状态 */}
-                    <td className="py-3 px-3.5">
+                    <td className="py-2.5 px-2 w-[116px] min-w-[116px] max-w-[124px] whitespace-nowrap">
                       {renderConfigStatusBadge(root.configStatus)}
                     </td>
 
                     {/* 数据状态 */}
-                    <td className="py-3 px-3.5">
+                    <td className="py-2.5 px-2 w-[176px] min-w-[176px] max-w-[184px] whitespace-nowrap">
                       {renderSyncStatusBadge(root)}
                     </td>
 
                     {/* 最近同步时间 */}
-                    <td className="py-3 px-3.5 font-mono text-[11px] text-slate-500">
+                    <td className="py-2.5 px-1.5 text-center font-mono text-[10.5px] text-slate-500 w-[104px] min-w-[104px] max-w-[112px] whitespace-nowrap">
                       {root.lastSyncedAt || <span className="text-slate-300 font-sans">-</span>}
                     </td>
 
                     {/* 操作列 */}
-                    <td className="py-3 px-3.5 text-center sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 min-w-[260px] whitespace-nowrap">
-                      <div className="flex items-center justify-center space-x-1.5 whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 text-center sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 w-[116px] min-w-[116px] max-w-[116px] lg:w-[248px] lg:min-w-[248px] lg:max-w-[248px] whitespace-nowrap">
+                      <div className="flex items-center justify-center space-x-1 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => onSelectRootType(root.id)}
-                          className="h-8 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-[6px] font-medium text-xs border border-blue-200/60 transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
-                          title="配置该根类型的字段映射"
+                          className="h-7.5 px-2 lg:px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-[5px] font-medium text-xs border border-blue-200/60 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                          title="配置字段 (配置该根类型的字段映射)"
+                          aria-label="配置字段"
                         >
                           <Settings2 className="w-3.5 h-3.5 shrink-0" />
-                          <span className="whitespace-nowrap">配置字段</span>
+                          <span className="hidden lg:inline whitespace-nowrap">配置字段</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => onOpenQueryPreview(root.id)}
-                          className="h-8 px-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-[6px] font-medium text-xs border border-slate-300 transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
-                          title="查看当前正式查询底座快照"
+                          className="h-7.5 px-2 lg:px-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-[5px] font-medium text-xs border border-slate-300 transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                          title="查询预览 (查看当前正式查询底座快照)"
+                          aria-label="查询预览"
                         >
                           <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span className="whitespace-nowrap">查询预览</span>
+                          <span className="hidden lg:inline whitespace-nowrap">查询预览</span>
                         </button>
 
                         {/* 数据同步触发与调试操作 */}
@@ -415,15 +423,22 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           type="button"
                           onClick={() => onTriggerSync(root.id, 'NORMAL')}
                           disabled={root.syncStatus === 'RUNNING'}
-                          className={`h-8 px-2.5 rounded-[6px] font-medium text-xs transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                          className={`h-7.5 px-2 lg:px-1.5 rounded-[5px] font-medium text-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                             root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
                               ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
                               : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300'
                           }`}
-                          title="触发根类型全量/增量数据同步至 Manticore"
+                          title={
+                            root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS'
+                              ? '重试同步 (重试数据同步至 Manticore)'
+                              : '数据同步 (触发根类型数据同步至 Manticore)'
+                          }
+                          aria-label={root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试数据同步' : '数据同步'}
                         >
                           <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${root.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
-                          <span className="whitespace-nowrap">{root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试同步' : '同步'}</span>
+                          <span className="hidden lg:inline whitespace-nowrap">
+                            {root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试同步' : '同步'}
+                          </span>
                         </button>
                       </div>
                     </td>
@@ -450,7 +465,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <div className="flex items-center space-x-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <h3 className="font-semibold text-slate-900 text-sm">
-                  {viewingErrorsRootType.name} - 数据同步异常记录明细 (共 {viewingErrorsRootType.lastSyncErrorRecords?.length ?? 0} 条)
+                  {formatRootTypeDisplayName(viewingErrorsRootType.name, viewingErrorsRootType.code)} - 数据同步异常记录明细 (共 {viewingErrorsRootType.lastSyncErrorRecords?.length ?? 0} 条)
                 </h3>
               </div>
               <button
