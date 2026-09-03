@@ -116,41 +116,42 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   // 1920px 下多余空间定向分配给：根类型 (35%)、来源系统 (20%)、数据状态 (45%)
   const colWidths = useMemo(() => {
     if (!isExpandedActions) {
-      // 紧凑模式：基础宽度 968px <= 1280px 视口下的 974px 内容区，默认无横向滚动，全列完整可见
+      // 紧凑模式：为各业务列留出充足文字与内边距宽度，表头与单元格严格不重叠、不越界
+      // 允许表格内部横向平滑滚动（tableMinWidth: 1098px），操作列严格锁定 116px 图标模式
       return {
-        rootType: 136,
-        sourceSystem: 86,
-        configuredFields: 50,
-        queryableFields: 60,
-        draftFields: 46,
-        baseVersion: 94,
-        configStatus: 114,
-        dataStatus: 168,
+        rootType: 146,
+        sourceSystem: 98,
+        configuredFields: 72,
+        queryableFields: 86,
+        draftFields: 62,
+        baseVersion: 112,
+        configStatus: 128,
+        dataStatus: 180,
         lastSyncTime: 98,
         actions: 116,
-        tableMinWidth: 968
+        tableMinWidth: 1098
       };
     }
 
-    // 宽屏模式：基准总宽 1130px <= 1440px 视口下的 1134px 内容区
-    const baseTotal = 1130;
+    // 宽屏模式：基准总宽 1154px <= 1440px 视口下的 1136px 内容区
+    const baseTotal = 1154;
     const surplus = Math.max(0, containerWidth - baseTotal);
     const rootTypeAdd = Math.round(surplus * 0.35);
     const sourceSystemAdd = Math.round(surplus * 0.20);
     const dataStatusAdd = surplus - rootTypeAdd - sourceSystemAdd;
 
     return {
-      rootType: 140 + rootTypeAdd,
-      sourceSystem: 92 + sourceSystemAdd,
-      configuredFields: 55,
-      queryableFields: 65,
-      draftFields: 50,
-      baseVersion: 98,
-      configStatus: 118,
-      dataStatus: 170 + dataStatusAdd,
+      rootType: 150 + rootTypeAdd,
+      sourceSystem: 104 + sourceSystemAdd,
+      configuredFields: 76,
+      queryableFields: 90,
+      draftFields: 64,
+      baseVersion: 116,
+      configStatus: 132,
+      dataStatus: 180 + dataStatusAdd,
       lastSyncTime: 102,
       actions: 240, // 严格锁定 240px，1920px 下也绝不拉伸
-      tableMinWidth: 1130
+      tableMinWidth: 1154
     };
   }, [isExpandedActions, containerWidth]);
 
@@ -186,21 +187,21 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     switch (status) {
       case 'CONFIGURED':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
             <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
             已配置
           </span>
         );
       case 'CONFIGURED_WITH_DRAFT':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200">
-            <Clock className="w-3 h-3 mr-1 text-blue-600 shrink-0" />
+          <span className="min-h-[22px] inline-flex items-center px-1 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+            <Clock className="w-3 h-3 mr-0.5 text-blue-600 shrink-0" />
             已配置（有草稿）
           </span>
         );
       case 'DRAFTING':
         return (
-          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
             <Clock className="w-3 h-3 mr-1 text-amber-600 shrink-0" />
             草稿中
           </span>
@@ -208,7 +209,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_CONFIGURED':
       default:
         return (
-          <span className="min-h-[24px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium whitespace-nowrap bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
             未配置
           </span>
         );
@@ -442,55 +443,55 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <tr>
                 <th
                   style={{ width: colWidths.rootType }}
-                  className="py-2.5 px-2.5 whitespace-nowrap"
+                  className="py-2.5 px-2 text-left whitespace-nowrap overflow-hidden"
                 >
                   根类型 (Root Type)
                 </th>
                 <th
                   style={{ width: colWidths.sourceSystem }}
-                  className="py-2.5 px-1.5 text-center whitespace-nowrap"
+                  className="py-2.5 px-1.5 text-center whitespace-nowrap overflow-hidden"
                 >
                   来源系统
                 </th>
                 <th
                   style={{ width: colWidths.configuredFields }}
-                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                  className="py-2.5 px-1 text-center whitespace-nowrap overflow-hidden"
                 >
                   已配置字段
                 </th>
                 <th
                   style={{ width: colWidths.queryableFields }}
-                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                  className="py-2.5 px-1 text-center whitespace-nowrap overflow-hidden"
                 >
                   正式可查字段
                 </th>
                 <th
                   style={{ width: colWidths.draftFields }}
-                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                  className="py-2.5 px-1 text-center whitespace-nowrap overflow-hidden"
                 >
                   草稿字段
                 </th>
                 <th
                   style={{ width: colWidths.baseVersion }}
-                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                  className="py-2.5 px-1 text-center whitespace-nowrap overflow-hidden"
                 >
                   正式查询底座版本
                 </th>
                 <th
                   style={{ width: colWidths.configStatus }}
-                  className="py-2.5 px-2 whitespace-nowrap"
+                  className="py-2.5 px-1 text-left whitespace-nowrap overflow-hidden"
                 >
                   配置状态
                 </th>
                 <th
                   style={{ width: colWidths.dataStatus }}
-                  className="py-2.5 px-2 whitespace-nowrap"
+                  className="py-2.5 px-1.5 text-left whitespace-nowrap overflow-hidden"
                 >
                   数据状态
                 </th>
                 <th
                   style={{ width: colWidths.lastSyncTime }}
-                  className="py-2.5 px-1 text-center whitespace-nowrap"
+                  className="py-2.5 px-1 text-center whitespace-nowrap overflow-hidden"
                 >
                   最近同步时间
                 </th>
@@ -513,12 +514,12 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     {/* 根类型 (单行完整展示中文+英文Code，编码只出现一次，彻底解决截断与重复问题) */}
                     <td
                       style={{ width: colWidths.rootType }}
-                      className="py-2.5 px-2.5 font-medium text-slate-900"
+                      className="py-2.5 px-2 font-medium text-slate-900 overflow-hidden"
                     >
-                      <div className="flex items-center space-x-1.5 whitespace-nowrap">
+                      <div className="flex items-center space-x-1.5 whitespace-nowrap overflow-hidden">
                         <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span
-                          className="font-semibold text-xs text-slate-900 whitespace-nowrap"
+                          className="font-semibold text-xs text-slate-900 truncate"
                           title={formatRootTypeDisplayName(root.name, root.code)}
                         >
                           {formatRootTypeDisplayName(root.name, root.code)}
@@ -526,23 +527,25 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       </div>
                     </td>
 
-                    {/* 来源系统 */}
+                    {/* 来源系统 (紧凑模式下省略号截断且完整title，绝不跨列溢出) */}
                     <td
                       style={{ width: colWidths.sourceSystem }}
-                      className="py-2.5 px-1.5 text-center text-slate-600"
+                      className="py-2.5 px-1.5 text-center text-slate-600 overflow-hidden"
                     >
-                      <span
-                        className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-[4px] text-[10.5px] border border-slate-200 whitespace-nowrap inline-block"
-                        title={root.sourceSystemName}
-                      >
-                        {root.sourceSystemName}
-                      </span>
+                      <div className="flex items-center justify-center w-full overflow-hidden">
+                        <span
+                          className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-[4px] text-[10.5px] border border-slate-200 truncate inline-block max-w-full"
+                          title={root.sourceSystemName}
+                        >
+                          {root.sourceSystemName}
+                        </span>
+                      </div>
                     </td>
 
                     {/* 已配置字段 */}
                     <td
                       style={{ width: colWidths.configuredFields }}
-                      className="py-2.5 px-1 text-center font-mono font-bold text-slate-800"
+                      className="py-2.5 px-1 text-center font-mono font-bold text-slate-800 overflow-hidden"
                     >
                       {root.configuredFieldCount}
                     </td>
@@ -550,7 +553,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     {/* 正式可查字段 */}
                     <td
                       style={{ width: colWidths.queryableFields }}
-                      className="py-2.5 px-1 text-center font-mono font-bold text-blue-700"
+                      className="py-2.5 px-1 text-center font-mono font-bold text-blue-700 overflow-hidden"
                     >
                       {root.formalQueryableFieldCount}
                     </td>
@@ -558,7 +561,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     {/* 草稿字段 */}
                     <td
                       style={{ width: colWidths.draftFields }}
-                      className="py-2.5 px-1 text-center font-mono"
+                      className="py-2.5 px-1 text-center font-mono overflow-hidden"
                     >
                       {root.draftFieldCount > 0 ? (
                         <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-200 text-xs">
@@ -572,25 +575,27 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     {/* 正式查询底座版本 */}
                     <td
                       style={{ width: colWidths.baseVersion }}
-                      className="py-2.5 px-1 text-center"
+                      className="py-2.5 px-1 text-center overflow-hidden"
                     >
                       <span className="font-mono text-[11px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 inline-block whitespace-nowrap">
                         {root.formalQueryBaseVersion}
                       </span>
                     </td>
 
-                    {/* 配置状态 */}
+                    {/* 配置状态 (严格位于单元格内部，不越界、不侵入数据状态列) */}
                     <td
                       style={{ width: colWidths.configStatus }}
-                      className="py-2.5 px-2 whitespace-nowrap"
+                      className="py-2.5 px-1 whitespace-nowrap overflow-hidden text-left"
                     >
-                      {renderConfigStatusBadge(root.configStatus)}
+                      <div className="flex items-center w-full overflow-hidden">
+                        {renderConfigStatusBadge(root.configStatus)}
+                      </div>
                     </td>
 
                     {/* 数据状态 */}
                     <td
                       style={{ width: colWidths.dataStatus }}
-                      className="py-2.5 px-2 whitespace-nowrap"
+                      className="py-2.5 px-1.5 whitespace-nowrap overflow-hidden text-left"
                     >
                       {renderSyncStatusBadge(root)}
                     </td>
@@ -598,7 +603,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     {/* 最近同步时间 (两行显示，完整日期+时间，不截断) */}
                     <td
                       style={{ width: colWidths.lastSyncTime }}
-                      className="py-2.5 px-1 text-center"
+                      className="py-2.5 px-1 text-center overflow-hidden"
                     >
                       {renderSyncedAt(root.lastSyncedAt)}
                     </td>
