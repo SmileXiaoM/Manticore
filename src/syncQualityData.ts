@@ -95,7 +95,7 @@ export const initialSyncBatches: SyncBatch[] = [
     failedCount: 3,
     skippedCount: 2, // 满足：1320 = 1315 + 3 + 2
     executionStatus: 'PARTIAL_SUCCESS',
-    statusNote: '零部件增量同步已完成；检测到 3 条引脚阵列枚举参数未通过字段验证，主任务继续完成其余 1,315 条数据写入。',
+    statusNote: '零部件增量同步已完成；检测到 3 条引脚阵列与规格参数异常，主任务已继续完成其余 1,315 条数据写入。',
     failedRecords: [
       {
         id: 'FAIL-010',
@@ -146,12 +146,13 @@ export const initialSyncBatches: SyncBatch[] = [
     handlingNotes: []
   },
 
-  // 3. 失败重试子批次（对 P-00339, P-00412 等执行重试，成功完成）
+  // 3. 失败重试子批次（对前序批次中失败记录执行重试，成功完成并留痕）
   {
     id: 'SYNC-20260825-010-R1',
-    jobName: '零部件失败数据专项重试',
+    jobName: '零部件常规增量同步任务 - 失败重试',
+    parentBatchId: 'SYNC-20260825-010',
     rootTypes: ['Part'],
-    syncMethod: 'INCREMENTAL',
+    syncMethod: 'COMPENSATION',
     triggerType: 'RETRY',
     startTime: '2026-08-25 03:15:10',
     endTime: '2026-08-25 03:16:25',
@@ -161,12 +162,12 @@ export const initialSyncBatches: SyncBatch[] = [
     failedCount: 0,
     skippedCount: 0, // 满足：2 = 2 + 0 + 0
     executionStatus: 'SUCCESS',
-    statusNote: '重试批次对前序批次中 2 条可重试失败记录重新执行清洗与同步，全部写入成功。',
+    statusNote: '重试批次对原批次 SYNC-20260825-010 中 2 条可重试失败记录重新执行清洗与同步，全部写入成功。',
     failedRecords: [],
     handlingNotes: [
       {
         id: 'NOTE-002',
-        content: '校准引脚阵列 Schema 枚举后发起定向重试，已成功写入索引。',
+        content: '校准引脚阵列 Schema 枚举后发起定向重试，2条记录均已成功写入索引。',
         operator: '李晓华 (数据管理员)',
         createdAt: '2026-08-25 03:18:00'
       }
@@ -263,7 +264,7 @@ export const initialSyncBatches: SyncBatch[] = [
     handlingNotes: []
   },
 
-  // 7. 历史零件增量批次（单条并发锁冲突导致 18 条更新异常）
+  // 7. 历史零件增量批次（包含全部 18 条失败明细，数量完全自洽无样例缩略歧义）
   {
     id: 'SYNC-20260824-006',
     jobName: '零部件傍晚增量同步',
@@ -278,7 +279,7 @@ export const initialSyncBatches: SyncBatch[] = [
     failedCount: 18,
     skippedCount: 0, // 满足：2800 = 2782 + 18 + 0
     executionStatus: 'PARTIAL_SUCCESS',
-    statusNote: '增量批次完成 2,782 条写入；高频并发更新引起 18 条记录乐观锁冲突。',
+    statusNote: '增量批次完成 2,782 条写入；高频并发更新引起 18 条记录乐观锁版本冲突。',
     failedRecords: [
       {
         id: 'FAIL-007',
@@ -297,6 +298,51 @@ export const initialSyncBatches: SyncBatch[] = [
       },
       {
         id: 'FAIL-008',
+        recordKey: 'P-00922',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:24',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1802',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00922.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-009',
+        recordKey: 'P-00923',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:26',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1803',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00923.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-04',
+        recordKey: 'P-00924',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:28',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1804',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00924.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-05',
         recordKey: 'P-00925',
         rootType: 'Part',
         failedField: 'updatecount',
@@ -311,8 +357,83 @@ export const initialSyncBatches: SyncBatch[] = [
         owner: '李晓华 (数据管理员)'
       },
       {
-        id: 'FAIL-009',
+        id: 'FAIL-010-06',
+        recordKey: 'P-00926',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:32',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1806',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00926.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-07',
+        recordKey: 'P-00927',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:34',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1807',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00927.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-08',
+        recordKey: 'P-00928',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:36',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1808',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00928.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-09',
+        recordKey: 'P-00929',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:38',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1809',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00929.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-10',
         recordKey: 'P-00930',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:40',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1810',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00930.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-11',
+        recordKey: 'P-00931',
         rootType: 'Part',
         failedField: 'updatecount',
         failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
@@ -320,16 +441,121 @@ export const initialSyncBatches: SyncBatch[] = [
         retryable: true,
         latestRetryResult: 'NONE',
         errorCode: 'SYNC_LOCK_001',
-        traceId: 'TRC-PLM-20260824-1809',
+        traceId: 'TRC-PLM-20260824-1811',
         errorCategory: 'LOCK_CONFLICT',
-        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00930.',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00931.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-12',
+        recordKey: 'P-00932',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:44',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1812',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00932.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-13',
+        recordKey: 'P-00933',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:46',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1813',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00933.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-14',
+        recordKey: 'P-00934',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:48',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1814',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00934.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-15',
+        recordKey: 'P-00935',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:50',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1815',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00935.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-16',
+        recordKey: 'P-00936',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:52',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1816',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00936.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-17',
+        recordKey: 'P-00937',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:54',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1817',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00937.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-010-18',
+        recordKey: 'P-00938',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:56',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1818',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00938.',
         owner: '李晓华 (数据管理员)'
       }
     ],
     handlingNotes: []
   },
 
-  // 8. 任务级错误失败批次（FAILED：无法连接源系统，整个任务无法继续执行）
+  // 8. 任务级错误失败批次（FAILED：任务级不可继续执行，单独展示任务失败原因，不伪装成单条业务数据异常）
   {
     id: 'SYNC-20260824-009',
     jobName: '夜间零部件补偿同步',
@@ -345,23 +571,16 @@ export const initialSyncBatches: SyncBatch[] = [
     skippedCount: 0, // 满足：12 = 0 + 12 + 0
     executionStatus: 'FAILED',
     statusNote: '任务级错误：PLM 网关接口认证凭证已过期 (HTTP 401 Unauthorized)，无法建立连接，全批次未能读取和写入数据。',
-    failedRecords: [
-      {
-        id: 'FAIL-006',
-        recordKey: 'P-00811',
-        rootType: 'Part',
-        failedField: '全量连接通道',
-        failureReason: '任务级网络/鉴权中断：PLM 源数据通道认证凭证已过期 (HTTP 401 Unauthorized)，导致批次无法读取数据',
-        occurredAt: '2026-08-24 23:11:15',
-        retryable: true,
-        latestRetryResult: 'NONE',
-        errorCode: 'SYNC_AUTH_401',
-        traceId: 'TRC-PLM-20260824-0019',
-        errorCategory: 'AUTH_EXPIRED',
-        techDetail: 'AuthenticationFailedException: IntePLM Gateway Token expired at 2026-08-24 23:00:00. Connection refused.',
-        owner: '网关运维组'
-      }
-    ],
+    failedRecords: [], // 任务级失败无单条数据明细，使用 taskFailureDetail
+    taskFailureDetail: {
+      failureReason: 'PLM 源数据快照通道认证凭证已过期 (HTTP 401 Unauthorized)，无法连接源系统，导致同步任务无法继续执行',
+      failureStage: '源数据分片抽取阶段',
+      errorCode: 'SYNC_AUTH_401',
+      traceId: 'TRC-PLM-20260824-0019',
+      errorCategory: 'AUTH_EXPIRED',
+      techDetail: 'AuthenticationFailedException: IntePLM Gateway Token expired at 2026-08-24 23:00:00. Connection refused.',
+      owner: '网关运维组'
+    },
     handlingNotes: [
       {
         id: 'NOTE-003',

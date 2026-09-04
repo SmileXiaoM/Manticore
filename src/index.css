@@ -1,9 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+:root {
+  /* IntePLM 语义色彩 Token 规范 */
+  --ty-font-main-color: #010d23;
+  --ty-font-main-light-color: #2b384e;
+  --ty-font-sub-color: #71757f;
+  --ty-font-placeholder-color: #b5b7bc;
+  --ty-border-color: #d9dbde;
+  --ty-border-light-color: #ebecee;
+  --ty-fill-color: #f2f3f4;
+  --ty-fill-light-color: #f8fafc;
+  --ty-fill-white-color: #ffffff;
+  --ty-blue-color: #1664ff;
+  --ty-blue-light-color: #e8f3ff;
+  --ty-green-color: #00b42a;
+  --ty-green-light-color: #e8ffea;
+  --ty-orange-color: #ff7d00;
+  --ty-orange-light-color: #fff7e8;
+  --ty-red-color: #f53f3f;
+  --ty-red-light-color: #ffece8;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-inte-bg: var(--ty-fill-color);
+  --color-inte-card: var(--ty-fill-white-color);
+  --color-inte-border: var(--ty-border-color);
+  --color-inte-border-light: var(--ty-border-light-color);
+  --color-inte-text-main: var(--ty-font-main-color);
+  --color-inte-text-sub: var(--ty-font-sub-color);
+  --color-inte-primary: var(--ty-blue-color);
+  --color-inte-success: var(--ty-green-color);
+  --color-inte-warning: var(--ty-orange-color);
+  --color-inte-danger: var(--ty-red-color);
 }
 
 body {

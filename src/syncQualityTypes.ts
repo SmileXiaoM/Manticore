@@ -37,6 +37,17 @@ export interface SyncFailedRecord {
   owner?: string; // 处理责任人或责任组
 }
 
+// 任务级失败专属技术排查信息（任务无法继续，不伪装成单条数据异常）
+export interface TaskFailureDetail {
+  failureReason: string; // 任务级中断原因
+  failureStage?: string; // 中断发生环节（如：源数据分片抽取）
+  errorCode?: string; // 任务错误码，如 SYNC_AUTH_401
+  traceId?: string; // 全链路追踪ID
+  errorCategory?: string; // 错误分类，如 AUTH_EXPIRED
+  techDetail?: string; // 脱敏技术说明
+  owner?: string; // 处理责任人或运维组
+}
+
 // 人工处理说明记录（仅用于记录人工处理情况，不改变同步状态，不自动关闭异常）
 export interface HandlingNote {
   id: string;
@@ -49,6 +60,7 @@ export interface HandlingNote {
 export interface SyncBatch {
   id: string; // 批次编号，如 SYNC-20260825-010
   jobName: string; // 任务名称，如 零件增量同步任务
+  parentBatchId?: string; // 关联原批次编号（用于重试留痕，如原批次 SYNC-20260825-010）
   rootTypes: SyncRootType[]; // 涉及的根类型列表
   syncMethod: SyncMethod; // 同步方式
   triggerType: TriggerType; // 触发方式
@@ -63,7 +75,8 @@ export interface SyncBatch {
   skippedCount: number; // 跳过数量（跳过 N 条，不计为同步异常）
 
   executionStatus: SyncStatus; // 统一同步状态
-  failedRecords: SyncFailedRecord[]; // 失败数据明细
+  failedRecords: SyncFailedRecord[]; // 失败数据明细（仅用于数据级异常）
+  taskFailureDetail?: TaskFailureDetail; // 任务级失败根因详情（仅用于任务级失败 FAILED）
   handlingNotes?: HandlingNote[]; // 人工处理说明历史
   statusNote?: string; // 批次执行情况简要说明
 }
@@ -160,4 +173,3 @@ export function getTriggerTypeLabel(trigger: TriggerType): string {
       return trigger;
   }
 }
-
