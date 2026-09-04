@@ -412,32 +412,32 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Header (固定顶部) */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+        <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center">
-                <Sliders className="w-4 h-4 mr-1.5 text-blue-600" />
+              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
+                <Sliders className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
                 {isEditingExisting ? (
                   isEditingConfigured ? '修改已配置字段映射 (生成草稿)' : '编辑草稿字段映射'
                 ) : (
                   '新建单个字段映射 (生成草稿)'
                 )}
               </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                 根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
               单字段直接归属根类型，配置 PLM 来源元数据、业务展示、顺序号及 Manticore 底层检索属性。
             </p>
           </div>
           <button
             type="button"
             onClick={handleRequestClose}
-            className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors"
+            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -445,16 +445,16 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
         {/* 来源字段下拉选择器 (仅新建时允许切换属性) */}
         {!isEditingExisting && (
-          <div className="px-5 py-2.5 bg-blue-50/40 border-b border-slate-200 flex items-center gap-3 shrink-0">
-            <label className="text-xs font-semibold text-slate-700 whitespace-nowrap">
+          <div className="px-5 py-2.5 bg-[var(--ty-primary-lighter-color)]/30 border-b border-[var(--ty-border-color)] flex items-center gap-3 shrink-0">
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">
               选择 PLM 来源属性:
             </label>
             <div className="flex-1 max-w-md">
               <select
                 value={formData.selectedSourceKey}
                 onChange={e => handleSourceFieldSelect(e.target.value)}
-                className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 cursor-pointer ${
-                  errors.sourceField ? 'border-rose-400' : 'border-slate-300'
+                className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer ${
+                  errors.sourceField ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
                 }`}
               >
                 <option value="">-- 请选择来源字段 --</option>
@@ -473,7 +473,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               </select>
             </div>
             {errors.sourceField && (
-              <span className="text-xs text-rose-500">{errors.sourceField}</span>
+              <span className="text-ty-xs text-[var(--ty-red-color)]">{errors.sourceField}</span>
             )}
           </div>
         )}
@@ -492,15 +492,15 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         </div>
 
         {/* 底部固定操作栏 */}
-        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2 text-xs text-slate-500">
+        <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-2 text-ty-xs text-[var(--ty-font-sub-color)]">
             {isDirty && (
-              <span className="inline-flex items-center text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200">
-                <Clock className="w-3 h-3 mr-1 text-amber-600" />
+              <span className="inline-flex items-center text-[var(--ty-orange-color)] font-medium bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[4px] border border-[var(--ty-orange-color)]/30">
+                <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)]" />
                 表单存在未保存修改
               </span>
             )}
-            <span className="text-[11px] text-slate-400">
+            <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
               * 保存后将作为草稿写入，需生效配置后方能进入正式环境
             </span>
           </div>
@@ -509,7 +509,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             <button
               type="button"
               onClick={handleRequestClose}
-              className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-white bg-white cursor-pointer transition-colors shadow-2xs"
+              className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
             >
               取消
             </button>
@@ -517,10 +517,10 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!hasPermission}
-              className={`h-8 px-4 rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
+              className={`h-8 px-4 rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
                 hasPermission
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  ? 'bg-[var(--ty-primary-color)] hover:opacity-90 text-white'
+                  : 'bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed'
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -533,25 +533,25 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
         {/* 未保存修改确认弹窗 */}
         {showUnsavedConfirm && (
-          <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
+          <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
               <div className="flex items-start space-x-3">
-                <div className="p-2 bg-amber-100 text-amber-700 rounded-full shrink-0">
+                <div className="p-2 bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] rounded-full shrink-0">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">未保存修改确认</h4>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">未保存修改确认</h4>
+                  <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 leading-relaxed">
                     当前表单有尚未保存的配置更改。如果退出，所做的修改将会丢失。确定要退出吗？
                   </p>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-[var(--ty-border-light-color)]">
                 <button
                   type="button"
                   onClick={() => setShowUnsavedConfirm(false)}
-                  className="h-8 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-[6px] text-xs font-medium cursor-pointer"
+                  className="h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] text-ty-xs font-medium cursor-pointer"
                 >
                   继续编辑
                 </button>
@@ -561,7 +561,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     setShowUnsavedConfirm(false);
                     onClose();
                   }}
-                  className="h-8 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-[6px] text-xs font-medium cursor-pointer"
+                  className="h-8 px-3 bg-[var(--ty-red-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium cursor-pointer"
                 >
                   放弃修改并退出
                 </button>

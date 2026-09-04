@@ -1,60 +1,115 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* IntePLM 语义色彩 Token 规范 (唯一规范源: frontend-style-guide.md) */
+  /* 1. 字号 Token */
+  --ty-font-2xs-size: 10px;
+  --ty-font-xs-size: 12px;
+  --ty-font-ss-size: 13px;
+  --ty-font-sm-size: 14px;
+  --ty-font-base-size: 16px;
+  --ty-font-lg-size: 18px;
+  --ty-font-xl-size: 20px;
+  --ty-font-2xl-size: 24px;
+
+  /* 2. 文字与图标 Token */
   --ty-font-main-color: #010d23;
   --ty-font-main-light-color: #343d4f;
   --ty-font-sub-color: #676e7b;
   --ty-font-sub-light-color: #999ea7;
   --ty-font-placeholder-color: #b2b6bd;
+  --ty-font-white-color: #ffffff;
+  --ty-icon-main-color: #010d23;
+  --ty-icon-color: #676e7b;
+  --ty-icon-light-color: #999ea7;
+  --ty-icon-lighter-color: #b2b6bd;
+  --ty-icon-white-color: #ffffff;
+
+  /* 3. 边框和填充 Token */
   --ty-border-color: #d9dbde;
+  --ty-border-dark-color: #cccfd3;
   --ty-border-light-color: #e5e6e9;
-  --ty-fill-color: #f2f3f4;
-  --ty-fill-light-color: #f8fafc;
+  --ty-border-white-color: #ffffff;
   --ty-fill-white-color: #ffffff;
+  --ty-fill-color: #f2f3f4;
+  --ty-fill-weak-dark-color: #ebecee;
+  --ty-fill-gray-light-color: #d9dbde;
+  --ty-fill-gray-color: #cccfd3;
+  --ty-fill-dark-color: #e5e6e9;
+  --ty-fill-darkest-color: #343d4f;
+
+  /* 4. 品牌与状态 Token */
   --ty-primary-color: #0955eb;
   --ty-primary-hover-color: #278dff;
   --ty-primary-active-color: #0f45be;
-  --ty-blue-color: #0955eb;
-  --ty-blue-light-color: #e8f3ff;
+  --ty-primary-light-color: #b8dfff;
+  --ty-primary-lighter-color: #d7ecff;
+  --ty-primary-lightest-color: #edf7ff;
+  --ty-primary-link-color: #0955eb;
+
+  /* 成功 */
   --ty-green-color: #2bbd68;
-  --ty-green-light-color: #e8ffea;
+  --ty-green-light-color: #bef4d4;
+  --ty-green-lightest-color: #f1fcf5;
+
+  /* 警告 */
   --ty-orange-color: #fc7b1e;
-  --ty-orange-light-color: #fff7e8;
+  --ty-orange-light-color: #ffd8a9;
+  --ty-orange-lightest-color: #fff7ed;
+
+  /* 错误 */
   --ty-red-color: #f73c4b;
-  --ty-red-light-color: #ffece8;
+  --ty-red-light-color: #ffc8cc;
+  --ty-red-lightest-color: #fff1f2;
+
+  /* 信息 */
+  --ty-blue-color: #0955eb;
+  --ty-blue-light-color: #d7ecff;
+  --ty-blue-lightest-color: #edf7ff;
+
+  /* 5. 圆角与阴影 Token */
+  --ty-radius-xs: 2px;
+  --ty-radius-sm: 4px;
+  --ty-radius-md: 8px;
+
+  --ty-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --ty-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --ty-shadow-xl: 0 -4px 16px rgba(0, 0, 0, 0.06);
 }
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-inte-bg: var(--ty-fill-color);
-  --color-inte-card: var(--ty-fill-white-color);
-  --color-inte-border: var(--ty-border-color);
-  --color-inte-border-light: var(--ty-border-light-color);
-  --color-inte-text-main: var(--ty-font-main-color);
-  --color-inte-text-main-light: var(--ty-font-main-light-color);
-  --color-inte-text-sub: var(--ty-font-sub-color);
-  --color-inte-text-sub-light: var(--ty-font-sub-light-color);
-  --color-inte-text-placeholder: var(--ty-font-placeholder-color);
-  --color-inte-primary: var(--ty-primary-color);
-  --color-inte-primary-hover: var(--ty-primary-hover-color);
-  --color-inte-primary-active: var(--ty-primary-active-color);
-  --color-inte-blue: var(--ty-blue-color);
-  --color-inte-blue-light: var(--ty-blue-light-color);
-  --color-inte-success: var(--ty-green-color);
-  --color-inte-success-light: var(--ty-green-light-color);
-  --color-inte-warning: var(--ty-orange-color);
-  --color-inte-warning-light: var(--ty-orange-light-color);
-  --color-inte-danger: var(--ty-red-color);
-  --color-inte-danger-light: var(--ty-red-light-color);
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* 规范字号阶梯辅助类 */
+.text-ty-2xs { font-size: var(--ty-font-2xs-size); line-height: 1.2; }
+.text-ty-xs { font-size: var(--ty-font-xs-size); line-height: 1.4; }
+.text-ty-ss { font-size: var(--ty-font-ss-size); line-height: 1.4; }
+.text-ty-sm { font-size: var(--ty-font-sm-size); line-height: 1.5; }
+.text-ty-base { font-size: var(--ty-font-base-size); line-height: 1.5; }
+.text-ty-lg { font-size: var(--ty-font-lg-size); line-height: 1.4; }
+.text-ty-xl { font-size: var(--ty-font-xl-size); line-height: 1.3; }
+.text-ty-2xl { font-size: var(--ty-font-2xl-size); line-height: 1.2; }
+
+/* 规范圆角辅助类 */
+.rounded-ty-xs { border-radius: var(--ty-radius-xs); }
+.rounded-ty-sm { border-radius: var(--ty-radius-sm); }
+.rounded-ty-md { border-radius: var(--ty-radius-md); }
+
+/* 规范阴影辅助类 */
+.shadow-ty-md { box-shadow: var(--ty-shadow-md); }
+.shadow-ty-lg { box-shadow: var(--ty-shadow-lg); }
+.shadow-ty-xl { box-shadow: var(--ty-shadow-xl); }
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--ty-fill-color);
+  color: var(--ty-font-main-color);
 }
 
 /* Custom scrollbars for high-density tables */
@@ -63,14 +118,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--ty-fill-weak-dark-color);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: var(--ty-border-color);
+  border-radius: var(--ty-radius-xs);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--ty-font-sub-light-color);
 }
 
 /* Table responsive column hiding rules for Manticore */
@@ -94,11 +149,11 @@ body {
     position: sticky !important;
     right: 0 !important;
     z-index: 20 !important;
-    background-color: white !important;
-    box-shadow: -4px 0 4px -2px rgba(0, 0, 0, 0.08) !important;
+    background-color: var(--ty-fill-white-color) !important;
+    box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
   }
   th.sticky-ops {
-    background-color: #f1f5f9 !important; /* matches bg-slate-100 */
+    background-color: var(--ty-fill-weak-dark-color) !important;
   }
 }
 

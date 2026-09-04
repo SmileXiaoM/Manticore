@@ -86,42 +86,42 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* 1. PLM 来源元数据 (只读展示) */}
-      <div className="bg-slate-50/90 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
-          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[8px] p-4 space-y-3.5 flex flex-col">
+        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
+          <div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">
             1
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">PLM 来源元数据</h4>
-            <p className="text-[11px] text-slate-500">源系统与对象属性定义 (只读)</p>
+            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">PLM 来源元数据</h4>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">源系统与对象属性定义 (只读)</p>
           </div>
         </div>
 
         {sourceMeta ? (
-          <div className="bg-white border border-slate-200 rounded-[6px] p-3 text-xs space-y-2.5 flex-1">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 text-ty-xs space-y-2.5 flex-1">
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              <span className="text-ty-2xs font-semibold text-[var(--ty-font-sub-color)] uppercase tracking-wider block">
                 PLM 属性标识与编码
               </span>
-              <div className="font-mono text-xs font-bold text-slate-900 bg-slate-50 p-2 rounded border border-slate-200 break-all">
+              <div className="font-mono text-ty-xs font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-weak-dark-color)] p-2 rounded-[4px] border border-[var(--ty-border-color)] break-all">
                 {sourceMeta.sourceFieldName}
               </div>
-              <div className="text-[11px] text-slate-400 font-mono">
+              <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">
                 Key: {sourceMeta.sourceFieldKey}
               </div>
             </div>
 
             {/* PLM 显示名状态 */}
-            <div className="space-y-1 pt-1 border-t border-slate-100">
-              <span className="text-slate-500 text-[11px] block">PLM 原始显示名:</span>
+            <div className="space-y-1 pt-1 border-t border-[var(--ty-border-light-color)]">
+              <span className="text-[var(--ty-font-sub-color)] text-ty-2xs block">PLM 原始显示名:</span>
               <div className="flex items-center space-x-1.5">
-                <span className="font-medium text-slate-800">
+                <span className="font-medium text-[var(--ty-font-main-color)]">
                   {sourceMeta.sourceDisplayName && sourceMeta.sourceDisplayName.trim().length > 0
                     ? sourceMeta.sourceDisplayName
                     : '(未定义)'}
                 </span>
                 {displayNameResolved.isMissing && (
-                  <span className="px-1.5 py-0.5 rounded-[4px] bg-amber-100 text-amber-800 text-[10px] font-medium border border-amber-200">
+                  <span className="px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] text-ty-2xs font-medium">
                     已按字段名兜底
                   </span>
                 )}
@@ -129,49 +129,49 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             </div>
 
             {displayNameResolved.isMissing && (
-              <div className="bg-amber-50 border border-amber-200 rounded-[6px] p-2 text-[11px] text-amber-800 space-y-0.5">
+              <div className="bg-[var(--ty-orange-light-color)] border border-[var(--ty-orange-color)]/30 rounded-[4px] p-2 text-ty-2xs text-[var(--ty-orange-color)] space-y-0.5">
                 <div className="flex items-center space-x-1 font-semibold">
-                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                  <AlertTriangle className="w-3 h-3 text-[var(--ty-orange-color)] shrink-0" />
                   <span>元数据未提供显示名</span>
                 </div>
-                <p className="text-amber-700 leading-tight">
+                <p className="text-[var(--ty-orange-color)] leading-tight">
                   系统已按字段编码自动兜底，请在右侧“前台显示名称”确认或补充标准业务名称。
                 </p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
+            <div className="grid grid-cols-2 gap-2 text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
               <div>
-                <span className="text-slate-400 block">PLM 业务类型:</span>
-                <span className="font-medium text-slate-800">
+                <span className="text-[var(--ty-font-sub-light-color)] block">PLM 业务类型:</span>
+                <span className="font-medium text-[var(--ty-font-main-color)]">
                   {sourceMeta.sourceDataTypeLabel}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block">必填校验:</span>
-                <span className={sourceMeta.isRequired ? 'text-rose-600 font-semibold' : 'text-slate-600'}>
+                <span className="text-[var(--ty-font-sub-light-color)] block">必填校验:</span>
+                <span className={sourceMeta.isRequired ? 'text-[var(--ty-red-color)] font-semibold' : 'text-[var(--ty-font-sub-color)]'}>
                   {sourceMeta.isRequired ? '必填' : '选填'}
                 </span>
               </div>
             </div>
 
             {sourceMeta.defaultUnit && (
-              <div className="text-[11px] pt-1 border-t border-slate-100">
-                <span className="text-slate-400 block">单位族 / 默认单位:</span>
-                <span className="font-medium text-blue-700">
+              <div className="text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
+                <span className="text-[var(--ty-font-sub-light-color)] block">单位族 / 默认单位:</span>
+                <span className="font-medium text-[var(--ty-primary-color)]">
                   {sourceMeta.unitFamily || '标量'} ({sourceMeta.defaultUnit})
                 </span>
               </div>
             )}
 
             {sourceMeta.enumOptions && sourceMeta.enumOptions.length > 0 && (
-              <div className="text-[11px] pt-1 border-t border-slate-100">
-                <span className="text-slate-400 block mb-1">受控枚举 ({sourceMeta.enumOptions.length}):</span>
+              <div className="text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
+                <span className="text-[var(--ty-font-sub-light-color)] block mb-1">受控枚举 ({sourceMeta.enumOptions.length}):</span>
                 <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                   {sourceMeta.enumOptions.map(opt => (
                     <span
                       key={opt.code}
-                      className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px]"
+                      className="px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] text-ty-2xs"
                     >
                       {opt.label}
                     </span>
@@ -181,51 +181,51 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             )}
           </div>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-[6px] p-6 text-center text-slate-400 text-xs flex-1 flex flex-col items-center justify-center">
-            <AlertTriangle className="w-6 h-6 mb-2 text-slate-300" />
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-6 text-center text-[var(--ty-font-sub-light-color)] text-ty-xs flex-1 flex flex-col items-center justify-center">
+            <AlertTriangle className="w-6 h-6 mb-2 text-[var(--ty-icon-lighter-color)]" />
             <span>请先选择 PLM 来源属性</span>
           </div>
         )}
       </div>
 
       {/* 2. 映射与业务展示 */}
-      <div className="bg-slate-50/90 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
-          <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[8px] p-4 space-y-3.5 flex flex-col">
+        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
+          <div className="w-6 h-6 rounded-full bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] flex items-center justify-center font-bold text-ty-xs">
             2
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">映射与业务展示</h4>
-            <p className="text-[11px] text-slate-500">前台显示名称、顺序号与列宽</p>
+            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">映射与业务展示</h4>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">前台显示名称、顺序号与列宽</p>
           </div>
         </div>
 
         {/* 前台显示名称 */}
         <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">
-            前台显示名称 <span className="text-rose-500">* (必填)</span>
+          <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+            前台显示名称 <span className="text-[var(--ty-red-color)]">* (必填)</span>
           </label>
           <input
             type="text"
             value={formData.displayTitle}
             onChange={e => onChange({ displayTitle: e.target.value })}
             placeholder="例如：物料编码 / 规格型号"
-            className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 ${
-              errors.displayTitle ? 'border-rose-400' : 'border-slate-300'
+            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+              errors.displayTitle ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
             }`}
           />
           {errors.displayTitle && (
-            <p className="text-[11px] text-rose-500">{errors.displayTitle}</p>
+            <p className="text-ty-2xs text-[var(--ty-red-color)]">{errors.displayTitle}</p>
           )}
         </div>
 
         {/* 顺序号 (displayOrder) 数字输入框 */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-slate-700">
-              顺序号 (displayOrder) <span className="text-rose-500">*</span>
+            <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+              顺序号 (displayOrder) <span className="text-[var(--ty-red-color)]">*</span>
             </label>
-            <span className="text-[10px] text-slate-400">控制结果列展示排位</span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">控制结果列展示排位</span>
           </div>
           <div className="relative">
             <input
@@ -238,18 +238,18 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
                 onChange({ displayOrder: isNaN(val) ? 0 : val });
               }}
               placeholder="请输入正整数，如 1、2、3..."
-              className={`w-full h-8 pl-3 pr-8 bg-white border rounded-[6px] text-xs font-mono font-semibold text-slate-800 focus:outline-hidden focus:border-blue-500 ${
-                errors.displayOrder ? 'border-rose-400 bg-rose-50/20' : 'border-slate-300'
+              className={`w-full h-8 pl-3 pr-8 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-xs font-mono font-semibold text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+                errors.displayOrder ? 'border-[var(--ty-red-color)] bg-[var(--ty-red-light-color)]/20' : 'border-[var(--ty-border-color)]'
               }`}
             />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-mono">
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">
               位
             </span>
           </div>
           {errors.displayOrder ? (
-            <p className="text-[11px] text-rose-500 font-medium">{errors.displayOrder}</p>
+            <p className="text-ty-2xs text-[var(--ty-red-color)] font-medium">{errors.displayOrder}</p>
           ) : (
-            <p className="text-[10px] text-slate-400">
+            <p className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
               大于 0 的整数，在当前根类型内唯一。查询结果列将从小到大排列。
             </p>
           )}
@@ -257,9 +257,9 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
 
         {/* 默认表格列宽 */}
         <div className="space-y-1 pt-1">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-semibold text-slate-700">默认表格列宽 (px)</span>
-            <span className="font-mono text-slate-600">{formData.defaultColumnWidth} px</span>
+          <div className="flex justify-between items-center text-ty-xs">
+            <span className="font-semibold text-[var(--ty-font-main-color)]">默认表格列宽 (px)</span>
+            <span className="font-mono text-[var(--ty-font-sub-color)]">{formData.defaultColumnWidth} px</span>
           </div>
           <input
             type="range"
@@ -268,27 +268,27 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             step="10"
             value={formData.defaultColumnWidth}
             onChange={e => onChange({ defaultColumnWidth: Number(e.target.value) })}
-            className="w-full accent-blue-600 cursor-pointer"
+            className="w-full accent-[var(--ty-primary-color)] cursor-pointer"
           />
         </div>
       </div>
 
       {/* 3. Manticore 底层配置 */}
-      <div className="bg-slate-50/90 border border-slate-200 rounded-[8px] p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-slate-200 pb-2.5">
-          <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
+      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[8px] p-4 space-y-3.5 flex flex-col">
+        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
+          <div className="w-6 h-6 rounded-full bg-[var(--ty-purple-light-color)] text-[var(--ty-purple-color)] flex items-center justify-center font-bold text-ty-xs">
             3
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">Manticore 底层配置</h4>
-            <p className="text-[11px] text-slate-500">检索物理字段与检索展示能力</p>
+            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">Manticore 底层配置</h4>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">检索物理字段与检索展示能力</p>
           </div>
         </div>
 
         {/* Manticore 物理字段名 */}
         <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">
-            Manticore 物理字段名 <span className="text-rose-500">*</span>
+          <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+            Manticore 物理字段名 <span className="text-[var(--ty-red-color)]">*</span>
           </label>
           <input
             type="text"
@@ -296,29 +296,29 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             onChange={e => onChange({ manticoreField: e.target.value.toLowerCase() })}
             disabled={isEditingConfigured}
             placeholder="例如：part_number"
-            className={`w-full h-8 px-2.5 bg-white border rounded-[6px] text-xs font-mono text-blue-700 font-semibold focus:outline-hidden focus:border-blue-500 ${
-              errors.manticoreField ? 'border-rose-400' : 'border-slate-300'
-            } ${isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : ''}`}
+            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-xs font-mono text-[var(--ty-primary-color)] font-semibold focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+              errors.manticoreField ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
+            } ${isEditingConfigured ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : ''}`}
           />
           {errors.manticoreField && (
-            <p className="text-[11px] text-rose-500">{errors.manticoreField}</p>
+            <p className="text-ty-2xs text-[var(--ty-red-color)]">{errors.manticoreField}</p>
           )}
           {isEditingConfigured && (
-            <p className="text-[10px] text-slate-400">已配置字段的物理名称不可更改</p>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">已配置字段的物理名称不可更改</p>
           )}
         </div>
 
         {/* Manticore 存储类型 */}
         <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">
+          <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
             Manticore 存储类型
           </label>
           <select
             value={formData.manticoreType}
             onChange={e => onChange({ manticoreType: e.target.value as ManticoreFieldType })}
             disabled={isEditingConfigured}
-            className={`w-full h-8 px-2.5 bg-white border border-slate-300 rounded-[6px] text-xs font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
-              isEditingConfigured ? 'bg-slate-100 cursor-not-allowed opacity-80' : 'cursor-pointer'
+            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+              isEditingConfigured ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : 'cursor-pointer'
             }`}
           >
             <option value="STRING">STRING (标量字符串)</option>
@@ -331,57 +331,57 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
         </div>
 
         {/* 检索与展示能力配置 */}
-        <div className="bg-white border border-slate-200 rounded-[6px] p-3 space-y-2.5 flex-1">
-          <div className="text-[11px] font-semibold text-slate-700 mb-1 flex items-center">
-            <Shield className="w-3.5 h-3.5 mr-1 text-purple-600" />
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 space-y-2.5 flex-1">
+          <div className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] mb-1 flex items-center">
+            <Shield className="w-3.5 h-3.5 mr-1 text-[var(--ty-purple-color)]" />
             检索、展示与超链接能力配置
           </div>
 
-          <div className="space-y-1.5 text-xs">
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+          <div className="space-y-1.5 text-ty-xs">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isDisplayInResult}
                 onChange={e => onChange({ isDisplayInResult: e.target.checked })}
-                className="rounded text-blue-600 cursor-pointer"
+                className="rounded text-[var(--ty-primary-color)] cursor-pointer"
               />
-              <span className="text-slate-800">在正式查询表格结果列展示</span>
+              <span className="text-[var(--ty-font-main-color)]">在正式查询表格结果列展示</span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isFulltextSearch}
                 onChange={e => onChange({ isFulltextSearch: e.target.checked })}
-                className="rounded text-purple-600 cursor-pointer"
+                className="rounded text-[var(--ty-purple-color)] cursor-pointer"
               />
-              <span className="text-slate-800">加入全局全文分词检索</span>
+              <span className="text-[var(--ty-font-main-color)]">加入全局全文分词检索</span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isQueryCondition}
                 onChange={e => onChange({ isQueryCondition: e.target.checked })}
-                className="rounded text-blue-600 cursor-pointer"
+                className="rounded text-[var(--ty-primary-color)] cursor-pointer"
               />
-              <span className="text-slate-800">允许作为精确/范围查询条件</span>
+              <span className="text-[var(--ty-font-main-color)]">允许作为精确/范围查询条件</span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isSortable}
                 disabled={formData.manticoreType === 'TEXT'}
                 onChange={e => onChange({ isSortable: e.target.checked })}
-                className="rounded text-blue-600 cursor-pointer disabled:opacity-40"
+                className="rounded text-[var(--ty-primary-color)] cursor-pointer disabled:opacity-40"
               />
-              <span className={formData.manticoreType === 'TEXT' ? 'text-slate-400' : 'text-slate-800'}>
+              <span className={formData.manticoreType === 'TEXT' ? 'text-[var(--ty-font-sub-light-color)]' : 'text-[var(--ty-font-main-color)]'}>
                 支持排序 (非 TEXT)
               </span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isEnableHyperlink}
@@ -392,97 +392,97 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
                     displayType: checked ? 'LINK' : 'CONDITION_QUERY'
                   });
                 }}
-                className="rounded text-blue-600 cursor-pointer"
+                className="rounded text-[var(--ty-primary-color)] cursor-pointer"
               />
-              <span className="text-slate-800 font-medium flex items-center">
-                <Link className="w-3 h-3 mr-1 text-blue-600" />
+              <span className="text-[var(--ty-font-main-color)] font-medium flex items-center">
+                <Link className="w-3 h-3 mr-1 text-[var(--ty-primary-color)]" />
                 字段值启用超链接 (跳转 PLM)
               </span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isUniqueKey}
                 onChange={e => onChange({ isUniqueKey: e.target.checked })}
-                className="rounded text-amber-600 cursor-pointer"
+                className="rounded text-[var(--ty-orange-color)] cursor-pointer"
               />
-              <span className="text-slate-800 font-medium">作为业务唯一键 (Unique Key)</span>
+              <span className="text-[var(--ty-font-main-color)] font-medium">作为业务唯一键 (Unique Key)</span>
             </label>
           </div>
 
           {/* 超链接参数配置区 (启用超链接后展开) */}
           {formData.isEnableHyperlink && (
-            <div className="bg-blue-50/50 border border-blue-200 rounded-[6px] p-2.5 space-y-2 text-xs mt-2 animate-in fade-in">
-              <div className="flex items-center justify-between text-blue-900 font-semibold text-[11px] pb-1 border-b border-blue-100">
+            <div className="bg-[var(--ty-primary-lighter-color)]/40 border border-[var(--ty-primary-lighter-color)] rounded-[4px] p-2.5 space-y-2 text-ty-xs mt-2 animate-in fade-in">
+              <div className="flex items-center justify-between text-[var(--ty-primary-color)] font-semibold text-ty-2xs pb-1 border-b border-[var(--ty-primary-lighter-color)]">
                 <span className="flex items-center">
-                  <Link className="w-3 h-3 mr-1 text-blue-600" />
+                  <Link className="w-3 h-3 mr-1 text-[var(--ty-primary-color)]" />
                   超链接参数配置
                 </span>
-                <span className="text-[10px] text-blue-600 font-normal">
+                <span className="text-ty-2xs text-[var(--ty-primary-color)] font-normal">
                   支持 {'{oid}'} 和 {'{otype}'} 动态占位符
                 </span>
               </div>
 
               <div className="space-y-0.5">
-                <label className="text-[11px] text-slate-700 font-medium block">
-                  URL 模板 <span className="text-rose-500">*</span>
+                <label className="text-ty-2xs text-[var(--ty-font-main-color)] font-medium block">
+                  URL 模板 <span className="text-[var(--ty-red-color)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={hyperlink.urlTemplate}
                   onChange={e => updateHyperlink({ urlTemplate: e.target.value })}
                   placeholder="https://plm.internal.corp/app/view?oid={oid}&type={otype}"
-                  className={`w-full h-7 px-2 bg-white border rounded-[4px] text-[11px] font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
-                    errors.urlTemplate ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
+                  className={`w-full h-7 px-2 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-2xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+                    errors.urlTemplate ? 'border-[var(--ty-red-color)] bg-[var(--ty-red-light-color)]/30' : 'border-[var(--ty-border-color)]'
                   }`}
                 />
                 {errors.urlTemplate && (
-                  <p className="text-[10px] text-rose-500">{errors.urlTemplate}</p>
+                  <p className="text-ty-2xs text-[var(--ty-red-color)]">{errors.urlTemplate}</p>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="grid grid-cols-2 gap-2 text-ty-2xs">
                 <div>
-                  <span className="text-slate-600">{'{oid}'} 来源字段:</span>
+                  <span className="text-[var(--ty-font-sub-color)]">{'{oid}'} 来源字段:</span>
                   <input
                     type="text"
                     value={hyperlink.oidSourceField}
                     onChange={e => updateHyperlink({ oidSourceField: e.target.value })}
                     placeholder="master_oid"
-                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500"
+                    className="w-full h-7 px-2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] font-mono text-[var(--ty-font-main-color)] mt-0.5 focus:outline-hidden focus:border-[var(--ty-primary-color)]"
                   />
                 </div>
                 <div>
-                  <span className="text-slate-600">{'{otype}'} 来源字段:</span>
+                  <span className="text-[var(--ty-font-sub-color)]">{'{otype}'} 来源字段:</span>
                   <input
                     type="text"
                     value={hyperlink.otypeSourceField}
                     onChange={e => updateHyperlink({ otypeSourceField: e.target.value })}
                     placeholder="object_type_code"
-                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500"
+                    className="w-full h-7 px-2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] font-mono text-[var(--ty-font-main-color)] mt-0.5 focus:outline-hidden focus:border-[var(--ty-primary-color)]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-blue-100">
+              <div className="grid grid-cols-2 gap-2 text-ty-2xs pt-1 border-t border-[var(--ty-primary-lighter-color)]">
                 <div>
-                  <span className="text-slate-600">打开方式:</span>
+                  <span className="text-[var(--ty-font-sub-color)]">打开方式:</span>
                   <select
                     value={hyperlink.openTarget || '_blank'}
                     onChange={e => updateHyperlink({ openTarget: e.target.value as '_blank' | '_self' })}
-                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] text-[11px] text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                    className="w-full h-7 px-2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-2xs text-[var(--ty-font-main-color)] mt-0.5 focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer"
                   >
                     <option value="_blank">新标签页打开 (_blank)</option>
                     <option value="_self">当前窗口跳转 (_self)</option>
                   </select>
                 </div>
                 <div>
-                  <span className="text-slate-600">缺少参数时的处理方式:</span>
+                  <span className="text-[var(--ty-font-sub-color)]">缺少参数时的处理方式:</span>
                   <select
                     value={hyperlink.onMissingParam || 'HIDE_LINK_SHOW_TEXT'}
                     onChange={e => updateHyperlink({ onMissingParam: e.target.value as any })}
-                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] text-[11px] text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                    className="w-full h-7 px-2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-2xs text-[var(--ty-font-main-color)] mt-0.5 focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer"
                   >
                     <option value="HIDE_LINK_SHOW_TEXT">隐藏超链接，仅展示普通文本</option>
                     <option value="SHOW_DISABLED_LINK">置灰且不可点击</option>

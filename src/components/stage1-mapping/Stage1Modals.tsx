@@ -62,69 +62,69 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
-        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+        <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-2.5">
-            <div className="bg-emerald-50 p-2 rounded-[6px] text-emerald-600 border border-emerald-200">
+            <div className="bg-[var(--ty-green-light-color)] p-2 rounded-[4px] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
               <Send className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">生效配置确认</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">生效配置确认</h3>
+              <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
                 将草稿配置项正式生效为当前根类型的配置
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 影响摘要卡片 */}
-        <div className="bg-slate-50 border border-slate-200 rounded-[6px] p-3.5 space-y-2.5 text-xs">
-          <div className="flex justify-between items-center text-slate-600">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 space-y-2.5 text-ty-xs">
+          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>目标根类型：</span>
-            <span className="font-bold text-slate-900">
+            <span className="font-bold text-[var(--ty-font-main-color)]">
               {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
             </span>
           </div>
 
-          <div className="border-t border-slate-200 pt-2 space-y-1.5">
+          <div className="border-t border-[var(--ty-border-color)] pt-2 space-y-1.5">
             <div className="flex justify-between items-center">
-              <span className="text-slate-600">待生效草稿总数：</span>
-              <span className="font-bold text-slate-900 font-mono">{totalDraftCount} 项</span>
+              <span className="text-[var(--ty-font-sub-color)]">待生效草稿总数：</span>
+              <span className="font-bold text-[var(--ty-font-main-color)] font-mono">{totalDraftCount} 项</span>
             </div>
-            <div className="flex justify-between items-center text-slate-500 text-[11px] pl-2">
+            <div className="flex justify-between items-center text-[var(--ty-font-sub-light-color)] text-ty-2xs pl-2">
               <span>- 全新新增草稿字段：</span>
-              <span className="font-mono font-semibold">{draftOnlyFields.length} 项</span>
+              <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{draftOnlyFields.length} 项</span>
             </div>
-            <div className="flex justify-between items-center text-slate-500 text-[11px] pl-2">
+            <div className="flex justify-between items-center text-[var(--ty-font-sub-light-color)] text-ty-2xs pl-2">
               <span>- 既有已配置字段草稿修改：</span>
-              <span className="font-mono font-semibold">{modifiedDraftFields.length} 项</span>
+              <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{modifiedDraftFields.length} 项</span>
             </div>
           </div>
 
-          <div className="border-t border-slate-200 pt-2 grid grid-cols-2 gap-2 text-[11px]">
-            <div className="bg-amber-50 p-2.5 rounded-[6px] border border-amber-200 text-amber-900">
-              <div className="font-bold text-amber-800">数据影响变更: {dataImpactingCount} 项</div>
-              <div className="text-[10px] text-amber-700 mt-0.5">
+          <div className="border-t border-[var(--ty-border-color)] pt-2 grid grid-cols-2 gap-2 text-ty-2xs">
+            <div className="bg-[var(--ty-orange-light-color)] p-2.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)]">
+              <div className="font-bold">数据影响变更: {dataImpactingCount} 项</div>
+              <div className="text-[10px] opacity-80 mt-0.5">
                 {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
               </div>
             </div>
-            <div className="bg-emerald-50 p-2.5 rounded-[6px] border border-emerald-200 text-emerald-900">
-              <div className="font-bold text-emerald-800">纯展示变更: {displayOnlyCount} 项</div>
-              <div className="text-[10px] text-emerald-700 mt-0.5">即刻生效，无需同步</div>
+            <div className="bg-[var(--ty-green-light-color)] p-2.5 rounded-[4px] border border-[var(--ty-green-color)]/30 text-[var(--ty-green-color)]">
+              <div className="font-bold">纯展示变更: {displayOnlyCount} 项</div>
+              <div className="text-[10px] opacity-80 mt-0.5">即刻生效，无需同步</div>
             </div>
           </div>
         </div>
 
         {/* 权威生命周期说明 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-[6px] p-3 text-xs text-blue-800 flex items-start space-x-2">
-          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="bg-[var(--ty-primary-lighter-color)]/30 border border-[var(--ty-primary-lighter-color)] rounded-[4px] p-3 text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-2">
+          <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-semibold">生效操作不生成配置版本，不会自动触发数据同步</p>
-            <p className="text-[11px] text-blue-700 leading-relaxed">
+            <p className="text-ty-2xs opacity-90 leading-relaxed">
               {dataImpactingCount > 0
                 ? '本次包含数据影响变更，生效后标记根类型为「待同步」。正式查询将继续使用当前正式底座数据，直至触发数据同步执行成功。'
                 : '本次仅包含纯展示名称或样式变更，生效后即刻生效，无需执行数据同步。'}
@@ -136,14 +136,14 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-50 bg-white cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
           >
             取消
           </button>
           <button
             type="button"
             onClick={onConfirmPublish}
-            className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
             <span>确认生效配置 ({totalDraftCount} 项)</span>
@@ -177,35 +177,35 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
   const isFailedRetry = currentRootType.syncStatus === 'FAILED' || currentRootType.syncStatus === 'COMPLETED_WITH_ERRORS';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
-        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+        <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-2.5">
-            <div className={`p-2 rounded-[6px] border ${isFailedRetry ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+            <div className={`p-2 rounded-[4px] border ${isFailedRetry ? 'bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30' : 'bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-lighter-color)]'}`}>
               {isFailedRetry ? <RotateCcw className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
                 {isFailedRetry ? '重试数据同步 (以根类型为权威实体)' : '发起数据同步 (根类型权威实体)'}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
                 按当前已生效的字段映射配置，执行 PLM 来源库至 Manticore 检索底座的数据同步
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 异常提示 (如果处于异常或失败状态) */}
         {isFailedRetry && currentRootType.lastSyncErrorRecords && currentRootType.lastSyncErrorRecords.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-[6px] p-3 text-xs text-amber-900 space-y-1.5">
+          <div className="bg-[var(--ty-orange-light-color)] border border-[var(--ty-orange-color)]/30 rounded-[4px] p-3 text-ty-xs text-[var(--ty-orange-color)] space-y-1.5">
             <div className="font-bold flex items-center">
-              <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-700" />
+              <AlertTriangle className="w-3.5 h-3.5 mr-1 text-[var(--ty-orange-color)]" />
               上一批次同步有 {currentRootType.lastSyncErrorRecords.length} 条异常记录 (未中断整体任务):
             </div>
-            <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] font-mono text-amber-800 bg-white/80 p-1.5 rounded-[4px] border border-amber-200">
+            <div className="max-h-24 overflow-y-auto space-y-1 text-ty-2xs font-mono text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]/80 p-1.5 rounded-[4px] border border-[var(--ty-orange-color)]/30">
               {currentRootType.lastSyncErrorRecords.map(err => (
                 <div key={err.id}>• [{err.recordKey}] {err.errorField || '未知字段'}: {err.errorMsg}</div>
               ))}
@@ -214,56 +214,56 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         )}
 
         {/* 作用域与配置信息卡片 */}
-        <div className="bg-slate-50 border border-slate-200 rounded-[6px] p-3.5 space-y-2.5 text-xs">
-          <div className="flex justify-between items-center text-slate-600">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 space-y-2.5 text-ty-xs">
+          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>同步目标根类型：</span>
-            <span className="font-bold text-slate-900">
+            <span className="font-bold text-[var(--ty-font-main-color)]">
               {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
             </span>
           </div>
-          <div className="flex justify-between items-center text-slate-600">
+          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>已生效字段总数：</span>
-            <span className="font-mono font-bold text-emerald-700">
+            <span className="font-mono font-bold text-[var(--ty-green-color)]">
               {currentRootType.configuredFieldCount} 个
             </span>
           </div>
-          <div className="flex justify-between items-center text-slate-600">
+          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>正式底座可查字段：</span>
-            <span className="font-mono font-bold text-blue-700">
+            <span className="font-mono font-bold text-[var(--ty-primary-color)]">
               {currentRootType.formalQueryableFieldCount} 个
             </span>
           </div>
 
-          <div className="border-t border-slate-200 pt-2 space-y-2">
-            <label className="block text-slate-700 font-semibold">选择同步策略：</label>
+          <div className="border-t border-[var(--ty-border-color)] pt-2 space-y-2">
+            <label className="block text-[var(--ty-font-main-color)] font-semibold">选择同步策略：</label>
             <div className="space-y-2">
-              <label className="flex items-start space-x-2 p-2 rounded-[6px] border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
                   checked={syncScope === 'INCREMENTAL'}
                   onChange={() => setSyncScope('INCREMENTAL')}
-                  className="mt-0.5 text-blue-600"
+                  className="mt-0.5 text-[var(--ty-primary-color)]"
                 />
                 <div>
-                  <div className="font-semibold text-slate-800">增量同步 (基于水位戳)</div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="font-semibold text-[var(--ty-font-main-color)]">增量同步 (基于水位戳)</div>
+                  <div className="text-ty-2xs text-[var(--ty-font-sub-color)]">
                     同步最近变更及待生效字段数据，单条数据异常不中止任务
                   </div>
                 </div>
               </label>
 
-              <label className="flex items-start space-x-2 p-2 rounded-[6px] border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
                   checked={syncScope === 'FULL'}
                   onChange={() => setSyncScope('FULL')}
-                  className="mt-0.5 text-blue-600"
+                  className="mt-0.5 text-[var(--ty-primary-color)]"
                 />
                 <div>
-                  <div className="font-semibold text-slate-800">全量重建索引 (深度刷新索引)</div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="font-semibold text-[var(--ty-font-main-color)]">全量重建索引 (深度刷新索引)</div>
+                  <div className="text-ty-2xs text-[var(--ty-font-sub-color)]">
                     对当前根类型历史数据全量重建 Manticore 底座索引并原子更新数据
                   </div>
                 </div>
@@ -276,14 +276,14 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-50 bg-white cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
           >
             取消
           </button>
           <button
             type="button"
             onClick={() => onConfirmSync(syncScope)}
-            className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>{isFailedRetry ? '重试发起同步' : '确认发起同步'}</span>
@@ -363,48 +363,48 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+        <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center">
-                <Eye className="w-4 h-4 mr-1.5 text-blue-600" />
+              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
+                <Eye className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
                 正式查询底座数据预览
               </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-semibold rounded-[4px] bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
                 底座展示列: {displayQueryFields.length} 个
               </span>
               {hiddenColumnsCount > 0 && (
-                <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">
                   缺参隐藏列: {hiddenColumnsCount} 个
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
               只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，严格遵循 URL 模板与缺参策略。
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 状态与底座说明条 */}
-        <div className="px-5 py-2.5 bg-blue-50/70 border-b border-blue-100 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center space-x-2 text-blue-900">
-            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+        <div className="px-5 py-2.5 bg-[var(--ty-primary-lighter-color)]/20 border-b border-[var(--ty-primary-lighter-color)]/40 text-ty-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center space-x-2 text-[var(--ty-primary-color)]">
+            <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
             <span>
               当前正式查询底座展示 <strong>{displayQueryFields.length}</strong> 个结果列，已按顺序号从小到大排布。
             </span>
           </div>
 
           {(pendingSyncFields.length > 0 || draftFields.length > 0 || hiddenColumnsCount > 0) && (
-            <div className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200 flex items-center space-x-1.5">
+            <div className="text-ty-2xs text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 flex items-center space-x-1.5">
               {pendingSyncFields.length > 0 && (
                 <span>
                   待进入底座（{pendingSyncFields.length} 个）；
@@ -421,29 +421,29 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
         </div>
 
         {/* 模拟查询条件工具条 (32px 高度) */}
-        <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center space-x-2 text-xs flex-1 max-w-md">
+        <div className="px-5 py-2.5 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center space-x-2 text-ty-xs flex-1 max-w-md">
             <div className="relative w-full">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ty-font-sub-light-color)]" />
               <input
                 type="text"
                 placeholder="模拟全文检索或编码/名称关键词..."
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
-                className="w-full h-8 pl-7 pr-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:border-blue-500"
+                className="w-full h-8 pl-7 pr-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
               />
             </div>
           </div>
 
-          <div className="text-xs text-slate-500">
-            命中 <span className="font-bold text-slate-900 font-mono">{filteredData.length}</span> 条记录
+          <div className="text-ty-xs text-[var(--ty-font-sub-color)]">
+            命中 <span className="font-bold text-[var(--ty-font-main-color)] font-mono">{filteredData.length}</span> 条记录
           </div>
         </div>
 
         {/* 查询结果表格 */}
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
+          <table className="w-full text-left text-ty-xs">
+            <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
                 {displayQueryFields.length > 0 ? (
                   displayQueryFields.map(f => (
@@ -453,7 +453,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                       style={{ width: f.defaultColumnWidth ? `${f.defaultColumnWidth}px` : 'auto' }}
                     >
                       {f.displayTitle}
-                      <span className="text-[10px] font-mono text-slate-400 block font-normal">
+                      <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] block font-normal">
                         {f.manticoreField}
                       </span>
                     </th>
@@ -463,10 +463,10 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]">
               {displayQueryFields.length > 0 && filteredData.length > 0 ? (
                 filteredData.map(row => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={row.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
                     {displayQueryFields.map(f => {
                       const linkRes = resolveFieldHyperlink(f, row);
 
@@ -477,11 +477,11 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                               href={linkRes.url}
                               target={linkRes.target}
                               rel={linkRes.target === '_blank' ? 'noreferrer' : undefined}
-                              className="font-mono font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center"
+                              className="font-mono font-semibold text-[var(--ty-primary-color)] hover:opacity-80 hover:underline inline-flex items-center"
                               title={`跳转源系统: ${linkRes.url}`}
                             >
                               <span>{linkRes.text}</span>
-                              <Link className="w-2.5 h-2.5 ml-1 text-blue-400 shrink-0" />
+                              <Link className="w-2.5 h-2.5 ml-1 text-[var(--ty-primary-color)]/70 shrink-0" />
                             </a>
                           </td>
                         );
@@ -491,11 +491,11 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                         return (
                           <td key={f.id} className="py-2.5 px-3">
                             <span
-                              className="font-mono text-slate-400 line-through decoration-slate-300 cursor-not-allowed inline-flex items-center bg-slate-100/80 px-1.5 py-0.5 rounded text-[11px]"
+                              className="font-mono text-[var(--ty-font-sub-light-color)] line-through decoration-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center bg-[var(--ty-fill-dark-color)] px-1.5 py-0.5 rounded-[2px] text-ty-2xs"
                               title={`超链接已禁用: ${linkRes.reason}`}
                             >
                               <span>{linkRes.text}</span>
-                              <Link className="w-2.5 h-2.5 ml-1 text-slate-300 shrink-0" />
+                              <Link className="w-2.5 h-2.5 ml-1 text-[var(--ty-font-sub-light-color)] shrink-0" />
                             </span>
                           </td>
                         );
@@ -503,7 +503,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 
                       return (
                         <td key={f.id} className="py-2.5 px-3">
-                          <span className="font-mono text-slate-800">{linkRes.text}</span>
+                          <span className="font-mono text-[var(--ty-font-main-color)]">{linkRes.text}</span>
                         </td>
                       );
                     })}
@@ -511,8 +511,8 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 ))
               ) : (
                 <tr>
-                  <td colSpan={displayQueryFields.length || 1} className="py-12 text-center text-slate-400">
-                    <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <td colSpan={displayQueryFields.length || 1} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                    <FileSpreadsheet className="w-8 h-8 text-[var(--ty-border-color)] mx-auto mb-2" />
                     {displayQueryFields.length === 0
                       ? '当前根类型尚未配置可展示结果列或已被缺参策略隐藏'
                       : '未查找到相关数据'}
@@ -524,11 +524,11 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
         </div>
 
         {/* 底部关闭栏 */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+        <div className="px-5 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-[6px] text-xs font-medium shadow-2xs cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium shadow-2xs cursor-pointer transition-colors"
           >
             关闭预览
           </button>
@@ -553,113 +553,113 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
   if (!isOpen || !field) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
-        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+        <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">字段映射详细定义</h3>
-            <p className="text-xs font-mono text-blue-700">{field.manticoreField} ({field.displayTitle})</p>
+            <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">字段映射详细定义</h3>
+            <p className="text-ty-xs font-mono text-[var(--ty-primary-color)]">{field.manticoreField} ({field.displayTitle})</p>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-100 transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3 text-ty-xs">
           {/* PLM 来源 */}
-          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
-            <div className="font-semibold text-slate-700">1. PLM 来源元数据</div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-400">源字段 Key:</span> <span className="font-mono font-medium">{field.sourceFieldKey}</span></div>
-              <div><span className="text-slate-400">源字段名称:</span> <span className="font-mono font-medium">{field.sourceFieldName}</span></div>
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+            <div className="font-semibold text-[var(--ty-font-main-color)]">1. PLM 来源元数据</div>
+            <div className="grid grid-cols-2 gap-2 text-ty-2xs">
+              <div><span className="text-[var(--ty-font-sub-light-color)]">源字段 Key:</span> <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.sourceFieldKey}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">源字段名称:</span> <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.sourceFieldName}</span></div>
               <div>
-                <span className="text-slate-400">来源显示名:</span>{' '}
-                <span className="font-medium">{field.sourceDisplayName}</span>
+                <span className="text-[var(--ty-font-sub-light-color)]">来源显示名:</span>{' '}
+                <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDisplayName}</span>
                 {field.isDisplayNameMissing && (
-                  <span className="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1 rounded-[4px]">已兜底</span>
+                  <span className="ml-1 text-[9px] text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 rounded-[2px]">已兜底</span>
                 )}
               </div>
-              <div><span className="text-slate-400">业务类型:</span> <span className="font-medium">{field.sourceDataTypeLabel}</span></div>
-              <div><span className="text-slate-400">默认单位:</span> <span className="font-mono">{field.defaultUnit || '-'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">业务类型:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDataTypeLabel}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">默认单位:</span> <span className="font-mono text-[var(--ty-font-main-color)]">{field.defaultUnit || '-'}</span></div>
             </div>
           </div>
 
           {/* Manticore 底层 */}
-          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
-            <div className="font-semibold text-slate-700">2. Manticore 底层配置</div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-400">物理字段:</span> <span className="font-mono font-semibold text-blue-700">{field.manticoreField}</span></div>
-              <div><span className="text-slate-400">数据类型:</span> <span className="font-mono font-semibold">{field.manticoreType}</span></div>
-              <div><span className="text-slate-400">顺序号:</span> <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
-              <div><span className="text-slate-400">唯一主键:</span> <span>{field.isUniqueKey ? '是' : '否'}</span></div>
-              <div><span className="text-slate-400">排序支持:</span> <span>{field.isSortable ? '支持' : '不支持'}</span></div>
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+            <div className="font-semibold text-[var(--ty-font-main-color)]">2. Manticore 底层配置</div>
+            <div className="grid grid-cols-2 gap-2 text-ty-2xs">
+              <div><span className="text-[var(--ty-font-sub-light-color)]">物理字段:</span> <span className="font-mono font-semibold text-[var(--ty-primary-color)]">{field.manticoreField}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">数据类型:</span> <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{field.manticoreType}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">唯一主键:</span> <span className="text-[var(--ty-font-main-color)]">{field.isUniqueKey ? '是' : '否'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">排序支持:</span> <span className="text-[var(--ty-font-main-color)]">{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>
           </div>
 
           {/* 状态与生命周期 */}
-          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
-            <div className="font-semibold text-slate-700">3. 配置与底座归属</div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-slate-400">配置状态:</span> <span className="font-medium">{field.configStatus}</span></div>
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+            <div className="font-semibold text-[var(--ty-font-main-color)]">3. 配置与底座归属</div>
+            <div className="grid grid-cols-2 gap-2 text-ty-2xs">
+              <div><span className="text-[var(--ty-font-sub-light-color)]">配置状态:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.configStatus}</span></div>
               <div>
-                <span className="text-slate-400">正式底座归属:</span>{' '}
-                <span className={field.isInFormalQueryBase ? 'text-emerald-700 font-medium' : 'text-amber-700 font-medium'}>
+                <span className="text-[var(--ty-font-sub-light-color)]">正式底座归属:</span>{' '}
+                <span className={field.isInFormalQueryBase ? 'text-[var(--ty-green-color)] font-medium' : 'text-[var(--ty-orange-color)] font-medium'}>
                   {field.isInFormalQueryBase ? '已在正式底座' : '待进入正式底座'}
                 </span>
               </div>
-              <div><span className="text-slate-400">含数据影响:</span> <span>{field.isDataImpactingChange ? '是' : '否'}</span></div>
-              <div><span className="text-slate-400">更新时间:</span> <span>{field.updatedAt}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">含数据影响:</span> <span className="text-[var(--ty-font-main-color)]">{field.isDataImpactingChange ? '是' : '否'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">更新时间:</span> <span className="text-[var(--ty-font-main-color)]">{field.updatedAt}</span></div>
             </div>
           </div>
 
           {/* 结果展示与源系统超链接 */}
-          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
-            <div className="font-semibold text-slate-700">4. 结果展示与源系统超链接</div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+            <div className="font-semibold text-[var(--ty-font-main-color)]">4. 结果展示与源系统超链接</div>
+            <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div>
-                <span className="text-slate-400">结果表格展示:</span>{' '}
-                <span className={field.isDisplayInResult ? 'text-emerald-700 font-semibold' : 'text-slate-500'}>
+                <span className="text-[var(--ty-font-sub-light-color)]">结果表格展示:</span>{' '}
+                <span className={field.isDisplayInResult ? 'text-[var(--ty-green-color)] font-semibold' : 'text-[var(--ty-font-sub-color)]'}>
                   {field.isDisplayInResult ? '是' : '否'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400">字段值超链接:</span>{' '}
+                <span className="text-[var(--ty-font-sub-light-color)]">字段值超链接:</span>{' '}
                 {isFieldHyperlinkValid(field) ? (
-                  <span className="text-blue-700 font-semibold inline-flex items-center">
-                    <Link className="w-3 h-3 mr-1 text-blue-600" />
+                  <span className="text-[var(--ty-primary-color)] font-semibold inline-flex items-center">
+                    <Link className="w-3 h-3 mr-1 text-[var(--ty-primary-color)]" />
                     已生效启用
                   </span>
                 ) : field.displayType === 'LINK' ? (
-                  <span className="text-amber-700 font-semibold inline-flex items-center" title="配置未完整满足5项有效口径，在查询结果中降级展示为普通文本">
+                  <span className="text-[var(--ty-orange-color)] font-semibold inline-flex items-center" title="配置未完整满足5项有效口径，在查询结果中降级展示为普通文本">
                     未完整配置 (降级为普通文本)
                   </span>
                 ) : (
-                  <span className="text-slate-500">未启用 (普通文本)</span>
+                  <span className="text-[var(--ty-font-sub-color)]">未启用 (普通文本)</span>
                 )}
               </div>
               {isFieldHyperlinkValid(field) && field.hyperlinkConfig && (
                 <>
                   <div className="col-span-2">
-                    <span className="text-slate-400">URL 模板:</span>{' '}
-                    <span className="font-mono text-blue-800 break-all bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    <span className="text-[var(--ty-font-sub-light-color)]">URL 模板:</span>{' '}
+                    <span className="font-mono text-[var(--ty-primary-color)] break-all bg-[var(--ty-fill-white-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">
                       {field.hyperlinkConfig.urlTemplate || '-'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400">OID 来源字段:</span>{' '}
-                    <span className="font-mono font-medium">{field.hyperlinkConfig.oidSourceField || '-'}</span>
+                    <span className="text-[var(--ty-font-sub-light-color)]">OID 来源字段:</span>{' '}
+                    <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.hyperlinkConfig.oidSourceField || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">OTYPE 来源字段:</span>{' '}
-                    <span className="font-mono font-medium">{field.hyperlinkConfig.otypeSourceField || '-'}</span>
+                    <span className="text-[var(--ty-font-sub-light-color)]">OTYPE 来源字段:</span>{' '}
+                    <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.hyperlinkConfig.otypeSourceField || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">打开方式:</span>{' '}
-                    <span className="font-medium">{field.hyperlinkConfig.openTarget === '_self' ? '当前窗口 (_self)' : '新窗口 (_blank)'}</span>
+                    <span className="text-[var(--ty-font-sub-light-color)]">打开方式:</span>{' '}
+                    <span className="font-medium text-[var(--ty-font-main-color)]">{field.hyperlinkConfig.openTarget === '_self' ? '当前窗口 (_self)' : '新窗口 (_blank)'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400">缺参策略:</span>{' '}
-                    <span className="font-medium">
+                    <span className="text-[var(--ty-font-sub-light-color)]">缺参策略:</span>{' '}
+                    <span className="font-medium text-[var(--ty-font-main-color)]">
                       {field.hyperlinkConfig.onMissingParam === 'SHOW_DISABLED_LINK'
                         ? '显示置灰不可点链接'
                         : field.hyperlinkConfig.onMissingParam === 'HIDE_ENTIRE_COLUMN'
@@ -677,7 +677,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-[6px] text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium cursor-pointer transition-colors shadow-2xs"
           >
             关闭
           </button>

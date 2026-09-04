@@ -160,7 +160,7 @@ export default function App() {
   });
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800">
+    <div className="w-full h-screen flex flex-col overflow-hidden bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)]">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Admin Header Bar */}
         <Header onNavigate={handleNavigate} currentView={currentView} />
@@ -171,7 +171,7 @@ export default function App() {
           <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
           {/* Dynamic View Dispatcher */}
-          <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-slate-100/60">
+          <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
                 onNavigateToSyncQuality={(batchId) => {
@@ -256,20 +256,20 @@ export default function App() {
       </div>
 
       {showUnsavedConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs" id="unsaved-modal-overlay">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in duration-150" id="unsaved-modal-content">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ty-fill-darkest-color)]/60 backdrop-blur-xs" id="unsaved-modal-overlay">
+          <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-6" id="unsaved-modal-content">
             <div className="flex items-start space-x-3">
-              <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-[var(--ty-orange-light-color)] p-2 rounded-full text-[var(--ty-orange-color)] shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">未应用配置更改警告</h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                <h3 className="text-sm font-bold text-[var(--ty-font-main-color)]">未应用配置更改警告</h3>
+                <p className="text-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
                   检测到您当前在<strong>「字段属性相似度配置」</strong>中有尚未应用的编辑中草稿（即临时未保存更改）。
                 </p>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                <p className="text-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
                   如果您现在切换页面，所有未保存的编辑内容都将丢失。是否确认放弃更改并离开？
                 </p>
               </div>
@@ -277,14 +277,14 @@ export default function App() {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={handleCancelDiscard}
-                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+                className="px-4 py-2 border border-[var(--ty-border-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] text-xs font-semibold text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
                 id="btn-unsaved-cancel"
               >
                 留在当前页面 (返回保存)
               </button>
               <button
                 onClick={handleConfirmDiscard}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+                className="px-4 py-2 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 rounded-[4px] text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
                 id="btn-unsaved-discard"
               >
                 放弃更改并离开

@@ -223,16 +223,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     .reduce((sum, r) => sum + r.weight, 0);
 
   return (
-    <div className="space-y-6" id="query-preview-view-container">
+    <div className="space-y-4" id="query-preview-view-container">
       {/* 顶部控制面板 */}
-      <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-              <Search className="w-5 h-5 text-blue-600" />
+            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
+              <Search className="w-5 h-5 text-[var(--ty-primary-color)]" />
               查询预览与沙盒试算
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
               验证不同规则版本（编辑中/已保存/启用发布）在已有件或表单字段值基准下的算分与门槛排除效果
             </p>
           </div>
@@ -240,7 +240,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] transition-colors shadow-2xs cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置参数
@@ -248,7 +248,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <button
               onClick={handleRunTrial}
               disabled={isSearching}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-ty-xs font-bold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -258,17 +258,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         </div>
 
         {/* 6 大查询条件配置行 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {/* 1. 根类型 */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-slate-400" />
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               1. 根类型
             </label>
             <select
               value={rootTypeId}
               onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-root-type-select"
             >
               {rootTypeOptions.map(rt => (
@@ -281,14 +281,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
           {/* 2. 软类型 */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               2. 软类型
             </label>
             <select
               value={softTypeId}
               onChange={e => setSoftTypeId(e.target.value)}
-              className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-soft-type-select"
             >
               {availableSoftTypes.map(st => (
@@ -301,14 +301,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
           {/* 3. 基准来源 */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-slate-400" />
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               3. 基准来源
             </label>
             <select
               value={baselineSourceType}
               onChange={e => setBaselineSourceType(e.target.value as any)}
-              className="w-full h-9 text-xs font-semibold border border-slate-300 rounded-md px-2.5 bg-white text-blue-700 focus:ring-1 focus:ring-blue-500"
+              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-baseline-source-select"
             >
               <option value="EXISTING_PART">已有件作为基准</option>
@@ -318,7 +318,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
           {/* 4. 基准参考对象选择 */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 block">
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] block">
               {baselineSourceType === 'EXISTING_PART' ? '4. 基准已有件' : '4. 业务申请表单'}
             </label>
             {baselineSourceType === 'EXISTING_PART' ? (
@@ -326,7 +326,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <select
                   value={existingPartId}
                   onChange={e => setExistingPartId(e.target.value)}
-                  className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+                  className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                 >
                   {availableExistingParts.map(p => (
                     <option key={p.objectId} value={p.objectId}>
@@ -340,14 +340,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   value={existingPartId}
                   onChange={e => setExistingPartId(e.target.value)}
                   placeholder="输入件号..."
-                  className="w-full h-9 text-xs border border-slate-300 rounded-md px-2.5 bg-white"
+                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
                 />
               )
             ) : availableFormBaselines.length > 0 ? (
               <select
                 value={selectedFormId}
                 onChange={e => setSelectedFormId(e.target.value)}
-                className="w-full h-9 text-xs font-medium border border-slate-300 rounded-md px-2 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+                className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               >
                 {availableFormBaselines.map(f => (
                   <option key={f.id} value={f.id}>
@@ -356,7 +356,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 ))}
               </select>
             ) : (
-              <div className="h-9 px-2 flex items-center text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded-md">
+              <div className="h-8 px-2 flex items-center text-ty-xs text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px]">
                 暂无预置表单
               </div>
             )}
@@ -364,14 +364,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
           {/* 5. 调试规则版本 */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               5. 调试规则版本
             </label>
             <select
               value={ruleVersion}
               onChange={e => setRuleVersion(e.target.value as any)}
-              className="w-full h-9 text-xs font-semibold border border-slate-300 rounded-md px-2.5 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500"
+              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-rule-version-select"
             >
               <option value="DRAFT_POOL">当前编辑中内容 (Draft Pool)</option>
@@ -382,17 +382,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         </div>
 
         {/* 紧凑规则上下文摘要行 (Compact Rule Summary Bar) */}
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] flex flex-wrap items-center justify-between gap-3 text-ty-xs">
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <span className="text-slate-400">上下文：</span>
-              <span className="font-bold text-slate-800">
+              <span className="text-[var(--ty-font-sub-light-color)]">上下文：</span>
+              <span className="font-bold text-[var(--ty-font-main-color)]">
                 {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name.split(' ')[0]}
               </span>
             </div>
             <div>
-              <span className="text-slate-400">规则版本：</span>
-              <span className="font-semibold text-blue-700">
+              <span className="text-[var(--ty-font-sub-light-color)]">规则版本：</span>
+              <span className="font-semibold text-[var(--ty-primary-color)]">
                 {ruleVersion === 'DRAFT_POOL'
                   ? '当前编辑中内容'
                   : ruleVersion === 'SAVED_DRAFT'
@@ -401,18 +401,18 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               </span>
             </div>
             <div>
-              <span className="text-slate-400">参与评分字段：</span>
-              <span className="font-bold text-slate-800 font-mono">{activeScoreFieldsCount} 项</span>
+              <span className="text-[var(--ty-font-sub-light-color)]">参与评分字段：</span>
+              <span className="font-bold text-[var(--ty-font-main-color)] font-mono">{activeScoreFieldsCount} 项</span>
             </div>
             <div>
-              <span className="text-slate-400">门槛字段：</span>
-              <span className="font-bold text-amber-700 font-mono">{gateFieldsCount} 项</span>
+              <span className="text-[var(--ty-font-sub-light-color)]">门槛字段：</span>
+              <span className="font-bold text-[var(--ty-orange-color)] font-mono">{gateFieldsCount} 项</span>
             </div>
             <div>
-              <span className="text-slate-400">权重合计：</span>
+              <span className="text-[var(--ty-font-sub-light-color)]">权重合计：</span>
               <span
                 className={`font-bold font-mono ${
-                  totalWeight === 100 ? 'text-emerald-600' : 'text-rose-600'
+                  totalWeight === 100 ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-red-color)]'
                 }`}
               >
                 {totalWeight}%
@@ -421,7 +421,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
 
           {lastRunContext && (
-            <span className="text-[11px] text-slate-400">
+            <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
               试算时间：<span className="font-mono">{lastRunContext.runTime}</span>
             </span>
           )}
@@ -430,80 +430,80 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
       {/* 试算结果区域 */}
       {isSearching ? (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center shadow-sm">
-          <div className="inline-block animate-spin text-blue-600 mb-3">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs">
+          <div className="inline-block animate-spin text-[var(--ty-primary-color)] mb-3">
             <RotateCcw className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-slate-800">正在执行沙盒相似度试算...</h3>
-          <p className="text-xs text-slate-500 mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在执行沙盒相似度试算...</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
         </div>
       ) : !lastRunContext ? (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center shadow-sm" id="initial-guide-container">
-          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 mx-auto flex items-center justify-center mb-3">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs" id="initial-guide-container">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] mx-auto flex items-center justify-center mb-3">
             <Play className="w-6 h-6 fill-current ml-0.5" />
           </div>
-          <h3 className="text-sm font-bold text-slate-800">点击“启动沙盒试算”开始验证</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             选择对应的根类型、软类型以及基准对象，系统将基于所选规则版本进行候选件召回、门槛过滤与算分模拟。
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-3">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-slate-800">当前软类型尚未配置相似度规则</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前软类型尚未配置相似度规则</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {lastRunContext.searchResult.errorMessage}
           </p>
           {onNavigate && (
             <button
               onClick={() => onNavigate('field-rules')}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors shadow-2xs"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs cursor-pointer"
             >
               前往配置规则
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] shadow-2xs overflow-hidden space-y-0">
           {/* 基准参考信息头卡片 */}
           {lastRunContext.searchResult.reference && (
-            <div className="p-4 bg-slate-50/90 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="p-4 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs">
+                <div className="w-10 h-10 rounded-[4px] bg-[var(--ty-primary-color)] text-white flex items-center justify-center font-bold text-ty-sm shadow-2xs">
                   REF
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">
+                    <span className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
                       {lastRunContext.searchResult.reference.objectName}
                     </span>
-                    <span className="text-xs font-mono px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-semibold">
+                    <span className="text-ty-xs font-mono px-2 py-0.5 bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-[2px] font-semibold">
                       {lastRunContext.searchResult.reference.objectId}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 bg-slate-200 text-slate-700 rounded font-medium">
+                    <span className="text-[10px] px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[2px] font-medium border border-[var(--ty-border-color)]">
                       {lastRunContext.searchResult.baselineType === 'FORM_VALUES'
                         ? '表单录入基准'
                         : '已有件基准'}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500 flex flex-wrap items-center gap-3 mt-1">
+                  <div className="text-ty-xs text-[var(--ty-font-sub-color)] flex flex-wrap items-center gap-3 mt-1">
                     <span>
                       规格：
-                      <strong className="text-slate-700 font-medium">
+                      <strong className="text-[var(--ty-font-main-color)] font-medium">
                         {lastRunContext.searchResult.reference.specification || '--'}
                       </strong>
                     </span>
                     <span>
                       材质：
-                      <strong className="text-slate-700 font-medium">
+                      <strong className="text-[var(--ty-font-main-color)] font-medium">
                         {lastRunContext.searchResult.reference.material || '--'}
                       </strong>
                     </span>
                     <span>
                       分类：
-                      <strong className="text-slate-700 font-medium">
+                      <strong className="text-[var(--ty-font-main-color)] font-medium">
                         {lastRunContext.searchResult.reference.classificationPath}
                       </strong>
                     </span>
@@ -511,9 +511,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 </div>
               </div>
 
-              <div className="text-right text-xs">
-                <span className="text-slate-400 block">候选召回池</span>
-                <span className="font-semibold text-slate-800">
+              <div className="text-right text-ty-xs">
+                <span className="text-[var(--ty-font-sub-light-color)] block">候选召回池</span>
+                <span className="font-semibold text-[var(--ty-font-main-color)]">
                   共召回{' '}
                   {lastRunContext.searchResult.scoredCandidates.length +
                     lastRunContext.searchResult.excludedCandidates.length}{' '}
@@ -524,20 +524,20 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           )}
 
           {/* 结果分栏 Tabs */}
-          <div className="border-b border-slate-200 px-4 flex items-center gap-4 bg-white">
+          <div className="border-b border-[var(--ty-border-color)] px-4 flex items-center gap-4 bg-[var(--ty-fill-white-color)]">
             <button
               onClick={() => setActiveTab('SCORED')}
-              className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+              className={`py-3 text-ty-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
                 activeTab === 'SCORED'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
+                  : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
               }`}
               id="tab-scored-candidates"
             >
               <span>参与评分的候选</span>
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                  activeTab === 'SCORED' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                  activeTab === 'SCORED' ? 'bg-[var(--ty-primary-lighter-color)]/50 text-[var(--ty-primary-color)]' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                 }`}
               >
                 {lastRunContext.searchResult.scoredCandidates.length}
@@ -546,20 +546,20 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             <button
               onClick={() => setActiveTab('EXCLUDED')}
-              className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+              className={`py-3 text-ty-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
                 activeTab === 'EXCLUDED'
-                  ? 'border-amber-600 text-amber-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)]'
+                  : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
               }`}
               id="tab-excluded-candidates"
             >
               <span className="flex items-center gap-1">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                <ShieldAlert className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
                 已排除候选 (门槛未满足)
               </span>
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                  activeTab === 'EXCLUDED' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                  activeTab === 'EXCLUDED' ? 'bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                 }`}
               >
                 {lastRunContext.searchResult.excludedCandidates.length}
@@ -571,14 +571,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           {activeTab === 'SCORED' && (
             <div>
               {lastRunContext.searchResult.scoredCandidates.length === 0 ? (
-                <div className="p-12 text-center text-xs text-slate-500">
+                <div className="p-12 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
                   未找到符合当前评分条件的相似件
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left text-ty-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                      <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                         <th className="py-2.5 px-4 w-12 text-center">排序</th>
                         <th className="py-2.5 px-4">对象标识 / 名称</th>
                         <th className="py-2.5 px-4">规格参数</th>
@@ -590,37 +590,37 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         <th className="py-2.5 px-4 text-right">操作</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                       {lastRunContext.searchResult.scoredCandidates.map((cand, idx) => (
                         <tr
                           key={cand.objectId}
-                          className="hover:bg-blue-50/30 transition-colors"
+                          className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors"
                           id={`candidate-row-${cand.objectId}`}
                         >
-                          <td className="py-3 px-4 text-center font-mono font-bold text-slate-500">
+                          <td className="py-3 px-4 text-center font-mono font-bold text-[var(--ty-font-sub-light-color)]">
                             {idx + 1}
                           </td>
 
                           {/* 标识与名称 */}
                           <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900">{cand.objectName}</div>
-                            <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            <div className="font-bold text-[var(--ty-font-main-color)]">{cand.objectName}</div>
+                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
                               {cand.objectId}
                             </div>
                           </td>
 
                           {/* 规格 */}
-                          <td className="py-3 px-4 text-slate-700 font-medium">
+                          <td className="py-3 px-4 text-[var(--ty-font-main-color)] font-medium">
                             {cand.specification || '--'}
                           </td>
 
                           {/* 材质 */}
-                          <td className="py-3 px-4 text-slate-700 font-medium">
+                          <td className="py-3 px-4 text-[var(--ty-font-main-color)] font-medium">
                             {cand.material || '--'}
                           </td>
 
                           {/* 分类路径 */}
-                          <td className="py-3 px-4 text-slate-500 text-[11px] truncate max-w-xs">
+                          <td className="py-3 px-4 text-[var(--ty-font-sub-color)] text-ty-2xs truncate max-w-xs">
                             {cand.classificationPath}
                           </td>
 
@@ -628,18 +628,18 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4">
                             <div className="flex items-baseline gap-1.5">
                               <span
-                                className={`text-base font-bold font-mono ${
+                                className={`text-ty-md font-bold font-mono ${
                                   cand.similarityScore >= 85
-                                    ? 'text-emerald-600'
+                                    ? 'text-[var(--ty-green-color)]'
                                     : cand.similarityScore >= 70
-                                    ? 'text-blue-600'
-                                    : 'text-slate-600'
+                                    ? 'text-[var(--ty-primary-color)]'
+                                    : 'text-[var(--ty-font-sub-color)]'
                                 }`}
                               >
                                 {cand.similarityScore.toFixed(2)}%
                               </span>
                             </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
+                            <div className="text-[10px] text-[var(--ty-font-sub-light-color)] font-mono">
                               原始: {cand.rawSimilarityScore.toFixed(4)}%
                             </div>
                           </td>
@@ -648,17 +648,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4">
                             <div className="flex flex-col gap-1 items-start">
                               <span
-                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded-[2px] ${
                                   cand.similarityTier === '高相似'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30'
                                     : cand.similarityTier === '中相似'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : 'bg-slate-100 text-slate-600'
+                                    ? 'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)]'
+                                    : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                                 }`}
                               >
                                 {cand.similarityTier}
                               </span>
-                              <span className="text-[11px] text-slate-500">
+                              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
                                 覆盖率: {cand.coverageRate}%
                               </span>
                             </div>
@@ -666,12 +666,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
                           {/* 命中 / 差异 */}
                           <td className="py-3 px-4">
-                            <div className="text-[11px]">
-                              <span className="text-emerald-600 font-semibold">
+                            <div className="text-ty-2xs">
+                              <span className="text-[var(--ty-green-color)] font-semibold">
                                 全中 {cand.fullHitCount}
                               </span>
                               {' / '}
-                              <span className="text-rose-600 font-semibold">
+                              <span className="text-[var(--ty-red-color)] font-semibold">
                                 差异 {cand.differenceCount}
                               </span>
                             </div>
@@ -681,7 +681,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4 text-right">
                             <button
                               onClick={() => setSelectedCandidate(cand)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-ty-xs font-semibold text-[var(--ty-primary-color)] hover:opacity-80 hover:bg-[var(--ty-primary-lighter-color)]/20 rounded-[4px] transition-colors cursor-pointer"
                               id={`view-detail-${cand.objectId}`}
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -701,14 +701,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           {activeTab === 'EXCLUDED' && (
             <div>
               {lastRunContext.searchResult.excludedCandidates.length === 0 ? (
-                <div className="p-12 text-center text-xs text-slate-500">
+                <div className="p-12 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
                   当前试算未发现被门槛规则排除的候选件
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left text-ty-xs border-collapse">
                     <thead>
-                      <tr className="bg-amber-50/60 border-b border-amber-200 text-slate-700 font-semibold">
+                      <tr className="bg-[var(--ty-orange-light-color)]/30 border-b border-[var(--ty-orange-color)]/20 text-[var(--ty-font-main-color)] font-semibold">
                         <th className="py-2.5 px-4 w-12 text-center">序号</th>
                         <th className="py-2.5 px-4">被排除对象</th>
                         <th className="py-2.5 px-4">被排除门槛字段</th>
@@ -718,50 +718,50 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         <th className="py-2.5 px-4">排除原因说明</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                       {lastRunContext.searchResult.excludedCandidates.map((exc, idx) => (
                         <tr
                           key={exc.objectId}
-                          className="hover:bg-amber-50/30 transition-colors"
+                          className="hover:bg-[var(--ty-orange-light-color)]/20 transition-colors"
                           id={`excluded-row-${exc.objectId}`}
                         >
-                          <td className="py-3 px-4 text-center font-mono text-slate-400">
+                          <td className="py-3 px-4 text-center font-mono text-[var(--ty-font-sub-light-color)]">
                             {idx + 1}
                           </td>
 
                           {/* 被排除对象 */}
                           <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900">{exc.objectName}</div>
-                            <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            <div className="font-bold text-[var(--ty-font-main-color)]">{exc.objectName}</div>
+                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
                               {exc.objectId}
                             </div>
                           </td>
 
                           {/* 门槛字段 */}
                           <td className="py-3 px-4">
-                            <span className="font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1">
-                              <ShieldAlert className="w-3 h-3 text-amber-600" />
+                            <span className="font-bold text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-orange-color)]/30 inline-flex items-center gap-1">
+                              <ShieldAlert className="w-3 h-3 text-[var(--ty-orange-color)]" />
                               {exc.fieldLabel} ({exc.excludedByField})
                             </span>
                           </td>
 
                           {/* 基准值 */}
-                          <td className="py-3 px-4 font-mono font-semibold text-slate-800">
+                          <td className="py-3 px-4 font-mono font-semibold text-[var(--ty-font-main-color)]">
                             {String(exc.sourceValue ?? '--')}
                           </td>
 
                           {/* 候选值 */}
-                          <td className="py-3 px-4 font-mono font-semibold text-rose-600">
+                          <td className="py-3 px-4 font-mono font-semibold text-[var(--ty-red-color)]">
                             {String(exc.candidateValue ?? '--')}
                           </td>
 
                           {/* 门槛匹配要求 */}
-                          <td className="py-3 px-4 text-slate-700">
+                          <td className="py-3 px-4 text-[var(--ty-font-main-color)]">
                             {exc.matchingRequirement}
                           </td>
 
                           {/* 排除说明 */}
-                          <td className="py-3 px-4 text-slate-500 text-[11px]">
+                          <td className="py-3 px-4 text-[var(--ty-font-sub-color)] text-ty-2xs">
                             {exc.excludeReason}
                           </td>
                         </tr>
@@ -778,65 +778,65 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       {/* 算分明细抽屉 (Score Details Drawer) */}
       {selectedCandidate && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex justify-end"
           id="score-detail-drawer-backdrop"
         >
-          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
             {/* 抽屉头部 */}
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-ty-md font-bold text-[var(--ty-font-main-color)] flex items-center gap-2">
                   <span>算分明细与属性比对</span>
-                  <span className="text-sm font-mono text-blue-600 font-bold">
+                  <span className="text-ty-sm font-mono text-[var(--ty-primary-color)] font-bold">
                     {selectedCandidate.similarityScore.toFixed(2)}%
                   </span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-mono">
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5 font-mono">
                   {selectedCandidate.objectId} - {selectedCandidate.objectName}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
+                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-[4px] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 抽屉内容列表 */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <div className="text-xs font-bold text-slate-800">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
                 参与计算字段逐项明细 ({selectedCandidate.compareFields.length} 项)
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {selectedCandidate.compareFields.map(f => {
                   const isGate = f.mismatchAction === 'EXCLUDE_CANDIDATE';
                   return (
                     <div
                       key={f.fieldKey}
-                      className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2 text-xs"
+                      className="p-3 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/50 space-y-2 text-ty-xs"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{f.fieldLabel}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">({f.fieldKey})</span>
+                          <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
+                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] font-mono">({f.fieldKey})</span>
                           {isGate && (
-                            <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded">
+                            <span className="text-[10px] font-bold bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.2 rounded-[2px]">
                               门槛字段
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-400">权重 {f.weight}%</span>
+                          <span className="text-[var(--ty-font-sub-color)]">权重 {f.weight}%</span>
                           <span
                             className={`font-mono font-bold ${
                               f.status === 'FULL'
-                                ? 'text-emerald-600'
+                                ? 'text-[var(--ty-green-color)]'
                                 : f.status === 'PARTIAL'
-                                ? 'text-blue-600'
-                                : 'text-slate-400'
+                                ? 'text-[var(--ty-primary-color)]'
+                                : 'text-[var(--ty-font-sub-light-color)]'
                             }`}
                           >
                             得分: {f.weightedScore} 分
@@ -845,23 +845,23 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       </div>
 
                       {/* 源值 vs 候选值 */}
-                      <div className="grid grid-cols-2 gap-3 bg-white p-2.5 rounded border border-slate-200">
+                      <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-2.5 rounded-[4px] border border-[var(--ty-border-color)]">
                         <div>
-                          <span className="text-[10px] text-slate-400 block mb-0.5">基准值 (源)</span>
-                          <span className="font-semibold text-slate-800 font-mono">
+                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] block mb-0.5">基准值 (源)</span>
+                          <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
                             {String(f.sourceValue ?? '--')}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-slate-400 block mb-0.5">候选值 (目标)</span>
-                          <span className="font-semibold text-slate-800 font-mono">
+                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] block mb-0.5">候选值 (目标)</span>
+                          <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
                             {String(f.candidateValue ?? '--')}
                           </span>
                         </div>
                       </div>
 
                       {/* 结论说明 */}
-                      <div className="text-[11px] text-slate-500 leading-relaxed flex items-center justify-between pt-1">
+                      <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed flex items-center justify-between pt-1">
                         <span>{f.reason}</span>
                         <span className="font-mono font-semibold">
                           匹配率: {(f.matchRate * 100).toFixed(1)}%
@@ -874,10 +874,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
 
             {/* 抽屉底部 */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+            <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex justify-end">
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+                className="px-4 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] cursor-pointer"
               >
                 关闭
               </button>

@@ -21,28 +21,28 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
+    <header className="h-14 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
       {/* Left: Brand logo & Context */}
       <div className="flex items-center space-x-3">
-        <div className="bg-blue-600 text-white p-1.5 rounded-md flex items-center justify-center">
+        <div className="bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] p-1.5 rounded-[4px] flex items-center justify-center">
           <Database className="w-5 h-5" />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-900 text-sm tracking-tight">PLM / Manticore</span>
-            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-medium">{getStageBadge()}</span>
+            <span className="font-semibold text-[var(--ty-font-main-color)] text-sm tracking-tight">PLM / Manticore</span>
+            <span className="text-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] px-1.5 py-0.5 rounded-[2px] font-mono font-medium">{getStageBadge()}</span>
           </div>
-          <span className="text-[11px] text-slate-500 leading-none">企业级物料去重与多维搜索管理台</span>
+          <span className="text-xs text-[var(--ty-font-sub-color)] leading-none mt-0.5">企业级物料去重与多维搜索管理台</span>
         </div>
       </div>
 
       {/* Center/Right: Profile and shortcuts */}
       <div className="flex items-center space-x-4">
         {/* Link shortcuts */}
-        <div className="flex items-center space-x-3 text-slate-500 text-xs pl-4">
+        <div className="flex items-center space-x-3 text-[var(--ty-font-sub-color)] text-xs pl-4">
           <button
             onClick={() => onNavigate('client-find-similar')}
-            className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded hover:bg-blue-100 font-semibold transition-colors font-sans"
+            className="flex items-center space-x-1 bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] px-2.5 py-1 rounded-[4px] hover:bg-[var(--ty-primary-light-color)] font-semibold transition-colors cursor-pointer"
           >
             <span>应用端界面</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -50,13 +50,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* User profile */}
-        <div className="flex items-center space-x-2 border-l border-slate-200 pl-4">
-          <div className="w-7 h-7 bg-slate-200 rounded-full flex items-center justify-center text-slate-700 font-semibold text-xs border border-slate-300">
-            <User className="w-4 h-4 text-slate-600" />
+        <div className="flex items-center space-x-2 border-l border-[var(--ty-border-color)] pl-4">
+          <div className="w-7 h-7 bg-[var(--ty-fill-weak-dark-color)] rounded-full flex items-center justify-center text-[var(--ty-font-sub-color)] font-semibold text-xs border border-[var(--ty-border-color)]">
+            <User className="w-4 h-4 text-[var(--ty-icon-color)]" />
           </div>
           <div className="hidden md:flex flex-col">
-            <span className="text-xs font-medium text-slate-800">李晓华</span>
-            <span className="text-[10px] text-slate-500 leading-none font-sans">数据标准管理员</span>
+            <span className="text-xs font-medium text-[var(--ty-font-main-color)]">李晓华</span>
+            <span className="text-[10px] text-[var(--ty-font-sub-color)] leading-none">数据标准管理员</span>
           </div>
         </div>
       </div>

@@ -30,162 +30,155 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
   });
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 font-sans">
+    <div className="space-y-4" id="publish-record-view-container">
 
       {/* Title Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
-            <span>相似度配置</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-slate-800 font-medium">变更记录</span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">配置变更审计历史</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。
-          </p>
+      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-4 shadow-2xs">
+        <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-sub-light-color)] mb-1">
+          <span>相似度配置</span>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-[var(--ty-font-main-color)] font-medium">变更记录</span>
+        </div>
+        <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
+        <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
+          追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。
+        </p>
+      </div>
+
+      {/* Filters bar */}
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 shadow-2xs flex flex-wrap items-center gap-4">
+        <div className="flex items-center space-x-2">
+          <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">对象类型:</span>
+          <select
+            value={filterObjectType}
+            onChange={(e) => setFilterObjectType(e.target.value)}
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+          >
+            <option value="ALL">全部类型</option>
+            <option value="PART_MECHANICAL">机械零件</option>
+            <option value="PART_ELECTRICAL">电气元器件</option>
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">操作类型:</span>
+          <select
+            value={filterOpType}
+            onChange={(e) => setFilterOpType(e.target.value)}
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+          >
+            <option value="ALL">全部操作</option>
+            <option value="保存">保存</option>
+            <option value="启用">启用</option>
+            <option value="停用">停用</option>
+          </select>
+        </div>
+
+        <div className="text-ty-xs text-[var(--ty-font-sub-light-color)] font-mono ml-auto">
+          共 {filteredRecords.length} 条审计记录
         </div>
       </div>
 
-      {/* Filter and Content panel */}
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
-
-        {/* Filters bar */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4 mb-4 shadow-xs shrink-0 flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-semibold text-slate-600">对象类型:</span>
-            <select
-              value={filterObjectType}
-              onChange={(e) => setFilterObjectType(e.target.value)}
-              className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
-            >
-              <option value="ALL">全部类型</option>
-              <option value="PART_MECHANICAL">机械零件</option>
-              <option value="PART_ELECTRICAL">电气元器件</option>
-            </select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-semibold text-slate-600">操作类型:</span>
-            <select
-              value={filterOpType}
-              onChange={(e) => setFilterOpType(e.target.value)}
-              className="text-xs border border-slate-200 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 outline-hidden font-medium cursor-pointer"
-            >
-              <option value="ALL">全部操作</option>
-              <option value="保存">保存</option>
-              <option value="启用">启用</option>
-              <option value="停用">停用</option>
-            </select>
-          </div>
-
-          <div className="text-xs text-slate-400 font-mono ml-auto">
-            共 {filteredRecords.length} 条审计记录
-          </div>
+      {/* Change Records Table */}
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] px-4 py-2.5 border-b border-[var(--ty-border-color)] flex items-center justify-between">
+          <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center space-x-1.5">
+            <History className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+            <span>操作变更审计日志 (只读安全审计记录)</span>
+          </span>
         </div>
 
-        {/* Change Records Table */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
-              <History className="w-3.5 h-3.5 text-blue-500" />
-              <span>操作变更审计日志 (只读安全审计记录)</span>
-            </span>
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-ty-xs">
+            <thead>
+              <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                <th className="px-4 py-2.5 w-1/6">对象类型</th>
+                <th className="px-4 py-2.5 w-24">配置版本</th>
+                <th className="px-3 py-2.5 text-center w-20">操作类型</th>
+                <th className="px-5 py-2.5">变更摘要</th>
+                <th className="px-4 py-2.5 w-40">操作人</th>
+                <th className="px-4 py-2.5 w-36">操作时间</th>
+                <th className="px-3 py-2.5 text-center w-24">执行结果</th>
+                <th className="px-4 py-2.5 w-1/5">失败原因</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--ty-border-light-color)]">
+              {filteredRecords.length > 0 ? (
+                filteredRecords.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                    {/* Object Type */}
+                    <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)]">
+                      {rec.objectType}
+                    </td>
 
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 bg-white z-10">
-                <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-semibold font-sans">
-                  <th className="px-4 py-3 w-1/6">对象类型</th>
-                  <th className="px-4 py-3 w-24">配置版本</th>
-                  <th className="px-3 py-3 text-center w-20">操作类型</th>
-                  <th className="px-5 py-3">变更摘要</th>
-                  <th className="px-4 py-3 w-40">操作人</th>
-                  <th className="px-4 py-3 w-36">操作时间</th>
-                  <th className="px-3 py-3 text-center w-24">执行结果</th>
-                  <th className="px-4 py-3 w-1/5">失败原因</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredRecords.length > 0 ? (
-                  filteredRecords.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* Object Type */}
-                      <td className="px-4 py-3.5 font-medium text-slate-900 font-sans">
-                        {rec.objectType}
-                      </td>
+                    {/* Config Version */}
+                    <td className="px-4 py-3 font-mono font-bold text-[var(--ty-font-main-color)]">
+                      {rec.configVersion}
+                    </td>
 
-                      {/* Config Version */}
-                      <td className="px-4 py-3.5 font-mono font-bold text-slate-800">
-                        {rec.configVersion}
-                      </td>
+                    {/* Operation Type */}
+                    <td className="px-3 py-3 text-center">
+                      <span className={`px-2 py-0.5 rounded-[2px] text-[10px] font-bold ${
+                        rec.operationType === '启用' ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30' :
+                        rec.operationType === '停用' ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]' :
+                        'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)]'
+                      }`}>
+                        {rec.operationType}
+                      </span>
+                    </td>
 
-                      {/* Operation Type */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          rec.operationType === '启用' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                          rec.operationType === '停用' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
-                          'bg-blue-100 text-blue-800 border border-blue-200'
-                        }`}>
-                          {rec.operationType}
+                    {/* Change Summary */}
+                    <td className="px-5 py-3 text-[var(--ty-font-sub-color)] leading-relaxed font-medium text-ty-xs">
+                      {rec.summary}
+                    </td>
+
+                    {/* Operator */}
+                    <td className="px-4 py-3 text-[var(--ty-font-main-color)] whitespace-nowrap font-medium">
+                      {rec.operator}
+                    </td>
+
+                    {/* Operation Time */}
+                    <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap text-ty-2xs">
+                      {rec.time}
+                    </td>
+
+                    {/* Execution Result */}
+                    <td className="px-3 py-3 text-center">
+                      {rec.result === 'SUCCESS' ? (
+                        <span className="text-[var(--ty-green-color)] font-semibold flex items-center justify-center space-x-1 text-ty-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />
+                          <span>成功</span>
                         </span>
-                      </td>
+                      ) : (
+                        <span className="text-[var(--ty-red-color)] font-semibold flex items-center justify-center space-x-1 text-ty-xs">
+                          <XCircle className="w-3.5 h-3.5 text-[var(--ty-red-color)]" />
+                          <span>失败</span>
+                        </span>
+                      )}
+                    </td>
 
-                      {/* Change Summary */}
-                      <td className="px-5 py-3.5 text-slate-600 leading-relaxed font-sans font-medium text-xs">
-                        {rec.summary}
-                      </td>
-
-                      {/* Operator */}
-                      <td className="px-4 py-3.5 text-slate-700 whitespace-nowrap font-medium">
-                        {rec.operator}
-                      </td>
-
-                      {/* Operation Time */}
-                      <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">
-                        {rec.time}
-                      </td>
-
-                      {/* Execution Result */}
-                      <td className="px-3 py-3.5 text-center">
-                        {rec.result === 'SUCCESS' ? (
-                          <span className="text-emerald-600 font-semibold flex items-center justify-center space-x-1 text-xs">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>成功</span>
-                          </span>
-                        ) : (
-                          <span className="text-red-600 font-semibold flex items-center justify-center space-x-1 text-xs">
-                            <XCircle className="w-3.5 h-3.5 text-red-500" />
-                            <span>失败</span>
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Failure Reason */}
-                      <td className="px-4 py-3.5 text-slate-500 leading-normal font-sans">
-                        {rec.failureReason ? (
-                          <span className="text-red-500 font-medium text-xs bg-red-50/50 px-2 py-1 rounded border border-red-100 block">
-                            {rec.failureReason}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-mono">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="text-center py-8 text-slate-400 font-sans">
-                      暂无符合条件的变更记录。
+                    {/* Failure Reason */}
+                    <td className="px-4 py-3 text-[var(--ty-font-sub-color)] leading-normal">
+                      {rec.failureReason ? (
+                        <span className="text-[var(--ty-red-color)] font-medium text-ty-2xs bg-[var(--ty-red-light-color)] px-2 py-1 rounded-[2px] border border-[var(--ty-red-color)]/30 block">
+                          {rec.failureReason}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--ty-font-sub-light-color)] font-mono">-</span>
+                      )}
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-[var(--ty-font-sub-light-color)]">
+                    暂无符合条件的变更记录。
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-
       </div>
     </div>
   );
