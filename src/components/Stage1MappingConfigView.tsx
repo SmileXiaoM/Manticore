@@ -231,10 +231,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
       const nowTime = '2026-09-02 10:35:00';
       const batchId = `SYNC-BATCH-${Date.now().toString().slice(-6)}`;
 
-      // 递增正式查询底座版本 (原子切换)
-      const currentVerParts = currentRootType.formalQueryBaseVersion.replace('v', '').split('.');
-      const nextFormalQueryVer = `v${currentVerParts[0]}.${Number(currentVerParts[1] || 0) + 1}.0`;
-
       // 所有当前已配置的字段正式进入查询底座
       let nextFields: FieldMappingItem[] = [];
       setFieldMappings(prev => {
@@ -253,7 +249,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         return nextFields;
       });
 
-      // 更新根类型状态
+      // 更新根类型状态 (只更新数据状态、正式可查字段数、最近同步时间，并清空待同步状态，绝不含版本)
       setMappingObjects(prev =>
         prev.map(root => {
           if (root.id !== currentRootType.id) return root;
@@ -269,7 +265,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             syncStatus: hasMinorErrors ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
             lastSyncedAt: nowTime,
             lastSyncBatchId: batchId,
-            formalQueryBaseVersion: nextFormalQueryVer, // 原子切换最新成功查询底座版本！
             formalQueryableFieldCount: formalCount,
             hasPendingSyncChanges: false,
             syncErrorRecords: hasMinorErrors ? root.syncErrorRecords : []

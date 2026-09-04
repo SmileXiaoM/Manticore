@@ -2,8 +2,8 @@
  * 一阶段：对象与字段映射配置 - 领域数据类型定义
  * 严格对齐最新业务口径：
  * 1. 仅支持根类型配置 (Part, Document, Process)，不维护软类型
- * 2. 仅保留正式查询底座版本 (formalQueryBaseVersion)，不维护生效配置版本
- * 3. 根类型为数据同步与查询快照唯一权威实体
+ * 2. 彻底移除版本概念：没有配置版本、底座版本等业务概念，仅保留正式查询底座作为当前可查数据集合
+ * 3. 根类型为数据同步与查询唯一权威实体
  * 4. 数据同步单条异常不中止任务，显示「同步完成（有异常）」
  * 5. 来源显示名空值安全兜底，保留历史非空名称，不破坏已有映射
  */
@@ -63,10 +63,9 @@ export interface MappingObjectType {
   formalQueryableFieldCount: number; // 正式可查字段数 (当前底座快照中的字段数)
   draftFieldCount: number; // 草稿字段数 (纯新建草稿 + 生效字段的草稿修改)
   
-  // 状态与版本
+  // 状态
   configStatus: RootTypeConfigStatus;
   syncStatus: RootTypeSyncStatus;
-  formalQueryBaseVersion: string; // 正式查询底座版本 e.g. 'v1.2.0' 或 'NONE'
   
   // 同步执行细节
   lastSyncedAt?: string;
@@ -168,7 +167,8 @@ export interface FieldMappingItem {
   isUniqueKey?: boolean;
   
   defaultColumnWidth?: number;
-  defaultDisplayOrder?: number;
+  displayOrder?: number; // 顺序号 (大于0的正整数，同一根类型内唯一)
+  defaultDisplayOrder?: number; // 兼容历史引用
   hyperlinkConfig?: HyperlinkConfig;
   
   // 状态与底座归属
@@ -183,10 +183,64 @@ export interface FieldMappingItem {
   updatedBy: string;
 }
 
-// 根类型级正式查询底座快照 (保证与 formalQueryBaseVersion 原子绑定)
+// 获取字段顺序号
+export function getFieldDisplayOrder(field: Partial<FieldMappingItem>): number {
+  return field.displayOrder ?? field.defaultDisplayOrder ?? 1;
+}
+
+// 获取当前根类型下已占用的最大顺序号 (若无字段则为 0)
+export function getMaxDisplayOrder(fields: FieldMappingItem[], rootTypeId: string): number {
+  const rootFields = fields.filter(f => f.rootTypeId === rootTypeId);
+  if (rootFields.length === 0) return 0;
+  return Math.max(...rootFields.map(f => getFieldDisplayOrder(f)));
+}
+
+// 检查顺序号在同一根类型内是否被其他字段占用
+export function isDisplayOrderOccupied(
+  fields: FieldMappingItem[],
+  rootTypeId: string,
+  targetOrder: number,
+  excludeFieldId?: string
+): boolean {
+  return fields.some(f => 
+    f.rootTypeId === rootTypeId && 
+    f.id !== excludeFieldId && 
+    getFieldDisplayOrder(f) === targetOrder
+  );
+}
+
+// 顺序号校验：必须为大于 0 的整数，并在同一根类型内保持唯一；重复时阻止保存并明确提示“顺序号已被占用”
+export function validateDisplayOrder(
+  order: any,
+  existingFields?: FieldMappingItem[],
+  rootTypeId?: string,
+  excludeFieldId?: string
+): { valid: boolean; errorMsg?: string; errorMessage?: string } {
+  if (order === undefined || order === null || order === '' || Number.isNaN(Number(order))) {
+    const msg = '顺序号为必填项，请输入正整数';
+    return { valid: false, errorMsg: msg, errorMessage: msg };
+  }
+  const num = Number(order);
+  if (!Number.isInteger(num)) {
+    const msg = '顺序号必须为整数，不可输入小数';
+    return { valid: false, errorMsg: msg, errorMessage: msg };
+  }
+  if (num <= 0) {
+    const msg = '顺序号必须为大于 0 的整数';
+    return { valid: false, errorMsg: msg, errorMessage: msg };
+  }
+  if (existingFields && rootTypeId) {
+    if (isDisplayOrderOccupied(existingFields, rootTypeId, num, excludeFieldId)) {
+      const msg = '顺序号已被占用';
+      return { valid: false, errorMsg: msg, errorMessage: msg };
+    }
+  }
+  return { valid: true };
+}
+
+// 根类型级正式查询底座快照
 export interface QueryBaseSnapshot {
   rootTypeId: string;
-  formalQueryBaseVersion: string;
   fields: FieldMappingItem[];
   syncedAt?: string;
   batchId?: string;
@@ -312,10 +366,13 @@ export interface BatchImportCandidate {
   suggestedDisplayTitle: string;
   suggestedDisplayType: 'CONDITION_QUERY' | 'FULLTEXT' | 'CATEGORY_PATH' | 'ENUM_BADGE' | 'LINK' | 'HIDDEN';
   suggestedQueryCapability: 'QUERY_CONDITION' | 'FULLTEXT_SEARCH' | 'BOTH' | 'NONE';
+  suggestedDisplayOrder?: number;
   conflictType: BatchImportConflictType;
   conflictReason?: string;
   resolutionHint?: string;
   isSelectable: boolean;
+  existingFieldId?: string; // 关联的已配置/已有草稿字段 ID，便于直接跳转查看或编辑
+  customizedConfig?: Partial<FieldMappingItem>; // 用户通过「配置」入口修改后的完整映射配置
 }
 
 // 生效保存/发布影响摘要

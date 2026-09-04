@@ -121,7 +121,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
             <p className="font-semibold">生效操作不生成配置版本，不会自动触发数据同步</p>
             <p className="text-[11px] text-blue-700 leading-relaxed">
               {dataImpactingCount > 0
-                ? '本次包含数据影响变更，生效后标记根类型为「待同步」。正式查询将继续使用当前快照底座（' + currentRootType.formalQueryBaseVersion + '），直至触发数据同步执行成功。'
+                ? '本次包含数据影响变更，生效后标记根类型为「待同步」。正式查询将继续使用当前正式底座数据，直至触发数据同步执行成功。'
                 : '本次仅包含纯展示名称或样式变更，生效后即刻生效，无需执行数据同步。'}
             </p>
           </div>
@@ -223,9 +223,9 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
-            <span>当前正式查询底座版本：</span>
+            <span>正式底座可查字段：</span>
             <span className="font-mono font-bold text-blue-700">
-              {currentRootType.formalQueryBaseVersion}
+              {currentRootType.formalQueryableFieldCount} 个
             </span>
           </div>
 
@@ -257,9 +257,9 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
                   className="mt-0.5 text-blue-600"
                 />
                 <div>
-                  <div className="font-semibold text-slate-800">全量重建索引 (深度刷新快照)</div>
+                  <div className="font-semibold text-slate-800">全量重建索引 (深度刷新索引)</div>
                   <div className="text-[11px] text-slate-500">
-                    对当前根类型历史数据全量重建 Manticore 底座快照并原子切换版本
+                    对当前根类型历史数据全量重建 Manticore 底座索引并原子更新数据
                   </div>
                 </div>
               </label>
@@ -307,14 +307,20 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 }) => {
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 1. 严格过滤：仅取当前根类型下已进入正式底座可查的字段
-  const formalQueryFields = fields.filter(
-    f =>
-      f.rootTypeId === currentRootType.id &&
-      f.configStatus === 'CONFIGURED' &&
-      f.isInFormalQueryBase &&
-      f.isDisplayInResult
-  );
+  // 1. 严格过滤：仅取当前根类型下已进入正式底座可查的字段，并严格按顺序号 (displayOrder) 从小到大排列
+  const formalQueryFields = fields
+    .filter(
+      f =>
+        f.rootTypeId === currentRootType.id &&
+        f.configStatus === 'CONFIGURED' &&
+        f.isInFormalQueryBase &&
+        f.isDisplayInResult
+    )
+    .sort((a, b) => {
+      const orderA = a.displayOrder ?? a.defaultDisplayOrder ?? 999;
+      const orderB = b.displayOrder ?? b.defaultDisplayOrder ?? 999;
+      return orderA - orderB;
+    });
 
   // 待进入底座字段 (待同步)
   const pendingSyncFields = fields.filter(
@@ -354,13 +360,13 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
             <div className="flex items-center space-x-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center">
                 <Eye className="w-4 h-4 mr-1.5 text-blue-600" />
-                正式查询底座快照预览
+                正式查询底座数据预览
               </h3>
               <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
                 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
               <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
-                底座快照版本: {currentRootType.formalQueryBaseVersion}
+                底座可查字段: {formalQueryFields.length} 个
               </span>
             </div>
             <p className="text-xs text-slate-500">
@@ -372,12 +378,12 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           </button>
         </div>
 
-        {/* 状态与版本中性说明条 */}
+        {/* 状态与底座说明条 */}
         <div className="px-5 py-2.5 bg-blue-50/70 border-b border-blue-100 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center space-x-2 text-blue-900">
             <Info className="w-4 h-4 text-blue-600 shrink-0" />
             <span>
-              当前检索底座版本为 <strong>{currentRootType.formalQueryBaseVersion}</strong>，包含 <strong>{formalQueryFields.length}</strong> 个底座可查字段。
+              当前正式查询底座包含 <strong>{formalQueryFields.length}</strong> 个可查字段，结果列已按顺序号从小到大排列。
             </span>
           </div>
 
@@ -573,6 +579,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div><span className="text-slate-400">物理字段:</span> <span className="font-mono font-semibold text-blue-700">{field.manticoreField}</span></div>
               <div><span className="text-slate-400">数据类型:</span> <span className="font-mono font-semibold">{field.manticoreType}</span></div>
+              <div><span className="text-slate-400">顺序号:</span> <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
               <div><span className="text-slate-400">唯一主键:</span> <span>{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-slate-400">排序支持:</span> <span>{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>

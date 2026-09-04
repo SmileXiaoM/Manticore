@@ -63,9 +63,13 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  // 过滤当前根类型的字段列表
+  // 过滤当前根类型的字段列表并严格按顺序号 (displayOrder) 从小到大排列
   const rootTypeFields = useMemo(() => {
-    return fields.filter(f => f.rootTypeId === currentRootType.id);
+    return [...fields.filter(f => f.rootTypeId === currentRootType.id)].sort((a, b) => {
+      const orderA = a.draftData?.displayOrder ?? a.draftData?.defaultDisplayOrder ?? a.displayOrder ?? a.defaultDisplayOrder ?? 999;
+      const orderB = b.draftData?.displayOrder ?? b.draftData?.defaultDisplayOrder ?? b.displayOrder ?? b.defaultDisplayOrder ?? 999;
+      return orderA - orderB;
+    });
   }, [fields, currentRootType.id]);
 
   // 统计数值 (纯草稿 vs 已配置字段存在草稿修改)
@@ -258,13 +262,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           <span className="text-slate-500">字段映射配置</span>
         </div>
 
-        {/* 仅保留正式查询底座版本 */}
+        {/* 根类型正式底座可查字段数统计 */}
         <div className="flex items-center space-x-3 text-xs">
           <div className="text-slate-500">
-            正式查询底座版本: <span className="font-mono font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{currentRootType.formalQueryBaseVersion}</span>
-          </div>
-          <div className="text-slate-500">
-            底座可查字段: <span className="font-mono font-bold text-slate-800">{currentRootType.formalQueryableFieldCount}</span> 个
+            正式底座可查字段: <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{currentRootType.formalQueryableFieldCount}</span> 个
           </div>
         </div>
       </div>
@@ -298,7 +299,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     1. 映射以一条条字段为基本单元，直接归属根类型。
                   </p>
                   <p className="text-slate-300">
-                    2. 生效保存不生成配置版本；仅当数据同步执行成功后，才原子替换「正式查询底座快照与版本」。
+                    2. 生效保存不生成配置版本；仅当数据同步执行成功后，才原子更新正式查询底座数据。
                   </p>
                 </div>
               )}
@@ -507,6 +508,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 <th className="py-2.5 px-3 min-w-[150px] whitespace-nowrap">PLM 来源字段</th>
                 <th className="py-2.5 px-3 min-w-[150px] whitespace-nowrap">Manticore 检索字段</th>
                 <th className="py-2.5 px-3 min-w-[140px] whitespace-nowrap">前台显示名称</th>
+                <th className="py-2.5 px-2.5 text-center min-w-[65px] whitespace-nowrap">顺序号</th>
                 <th className="py-2.5 px-3 min-w-[100px] whitespace-nowrap">PLM 业务类型</th>
                 <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">底层类型</th>
                 <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">展示方式</th>
@@ -554,6 +556,26 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                         </div>
                       ) : (
                         field.displayTitle
+                      )}
+                    </td>
+
+                    {/* 顺序号 */}
+                    <td className="py-2.5 px-2.5 text-center">
+                      {field.hasDraftModification && field.draftData?.displayOrder !== undefined ? (
+                        <div className="font-mono font-bold text-slate-900">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                            {field.draftData.displayOrder}
+                          </span>
+                          {field.draftData.displayOrder !== field.displayOrder && (
+                            <div className="text-[10px] text-slate-400 font-normal mt-0.5 line-through">
+                              原: {field.displayOrder}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-mono font-semibold text-slate-800 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-xs">
+                          {field.displayOrder ?? field.defaultDisplayOrder ?? '-'}
+                        </span>
                       )}
                     </td>
 

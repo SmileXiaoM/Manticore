@@ -107,23 +107,22 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     };
   }, []);
 
-  // 宽屏模式（内容区 >= 1100px）：对应 1440px(约1134px)与1920px(约1616px)视口，操作列展开文字（锁定240px）
-  // 紧凑模式（内容区 < 1100px）：对应 1280px(约974px)与820px(约516px)视口，操作列为纯图标（锁定116px），彻底消除对状态列的遮挡
-  const isExpandedActions = containerWidth >= 1100;
+  // 宽屏模式（内容区 >= 1074px）：对应 1440px(约1134px)与1920px(约1616px)视口，操作列展开文字（锁定240px）
+  // 紧凑模式（内容区 < 1074px）：对应 1280px(约974px)与820px(约516px)视口，操作列为纯图标（锁定116px），彻底消除对状态列的遮挡
+  const isExpandedActions = containerWidth >= 1074;
 
-  // 9列基础宽度定义：总和严格控制在 894px
-  // 宽屏基础总宽 = 894 + 240 = 1134px，与 1440px 视口下 1134px 内容区完全契合，无横向滚动
-  // 紧凑基础总宽 = 894 + 116 = 1010px，1280px 下内部横向滚动仅约 36px (远低于此前 124px)，数据状态列完全不被遮挡
+  // 8列基础宽度定义：总和严格控制在 834px (已移除正式查询底座版本列)
+  // 宽屏基础总宽 = 834 + 240 = 1074px，与 1440px 视口下 1134px 内容区完全契合，无横向滚动且有 60px 弹性扩展
+  // 紧凑基础总宽 = 834 + 116 = 950px，1280px (974px) 视口下完全容纳无需横向滚动，数据状态列完全不被遮挡
   const baseColumns = {
-    rootType: 136,
-    sourceSystem: 74,
-    configuredFields: 68,
-    queryableFields: 80,
-    draftFields: 56,
-    baseVersion: 104,
-    configStatus: 124,
-    dataStatus: 164,
-    lastSyncTime: 88
+    rootType: 148,
+    sourceSystem: 80,
+    configuredFields: 72,
+    queryableFields: 84,
+    draftFields: 60,
+    configStatus: 126,
+    dataStatus: 170,
+    lastSyncTime: 94
   };
 
   const expandedActionWidth = 240;
@@ -138,11 +137,11 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   const compactBaseTotal = baseContentWidth + compactActionWidth;
 
   // 动态列宽分配策略：基于 W3C table-fixed 与 colgroup 规范
-  // 保证操作列在 1440px 与 1920px 下均稳定在 240px（不超过260px，更绝不拉伸至300px以上）
+  // 保证操作列在 1440px 与 1920px 下均稳定在 240px
   // 1920px 下多余空间定向分配给：根类型 (35%)、来源系统 (20%)、数据状态 (45%)
   const colWidths = useMemo(() => {
     if (!isExpandedActions) {
-      // 紧凑模式：基础总宽 1010px (894px 内容列 + 116px 纯图标操作列)
+      // 紧凑模式：基础总宽 950px (834px 内容列 + 116px 纯图标操作列)
       return {
         ...baseColumns,
         actions: compactActionWidth,
@@ -150,10 +149,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       };
     }
 
-    // 宽屏模式：基准总宽 1134px (894px 内容列 + 240px 文字操作列)
-    // 1440px 下内容区约 1134px，表格宽度完全适配内容区，10列全部完整可见，无横向滚动
-    // 1920px 下多余空间定向分配给：根类型 (35%)、来源系统 (20%)、数据状态 (45%)
-    // 操作列严格保持 240px，绝对不扩大拉伸
+    // 宽屏模式：基准总宽 1074px (834px 内容列 + 240px 文字操作列)
     const surplus = Math.max(0, containerWidth - expandedBaseTotal);
     const rootTypeAdd = Math.round(surplus * 0.35);
     const sourceSystemAdd = Math.round(surplus * 0.20);
@@ -165,7 +161,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       configuredFields: baseColumns.configuredFields,
       queryableFields: baseColumns.queryableFields,
       draftFields: baseColumns.draftFields,
-      baseVersion: baseColumns.baseVersion,
       configStatus: baseColumns.configStatus,
       dataStatus: baseColumns.dataStatus + dataStatusAdd,
       lastSyncTime: baseColumns.lastSyncTime,
@@ -308,7 +303,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               </div>
             )}
             <div className="text-[10px] text-slate-400 whitespace-nowrap">
-              底座维持: <span className="font-mono text-slate-700">{root.formalQueryBaseVersion}</span>
+              正式底座维持生效前数据
             </div>
           </div>
         );
@@ -363,7 +358,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         </div>
       </div>
 
-      {/* 2. 权威生命周期与底座版本解耦规则说明 (默认折叠) */}
+      {/* 2. 权威生命周期与底座规则说明 (默认折叠) */}
       <div className="bg-white border border-slate-200 rounded-[8px] p-3 text-xs shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -388,13 +383,13 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               1. <strong>根类型作用域</strong>：一阶段直接按 Part、Document、Process 三个根类型维护字段映射，不存在软类型管理概念。
             </p>
             <p>
-              2. <strong>正式查询底座版本</strong>：不维护配置生效版本，仅维护「正式查询底座版本」。数据影响变更生效后底座版本不变，根类型进入「待同步」。
+              2. <strong>正式查询底座</strong>：不维护配置版本号。数据影响变更生效后，根类型进入「待同步」；数据同步成功后更新可查数据底座。
             </p>
             <p>
-              3. <strong>容错与异常记录</strong>：单条数据转换错误仅记录异常并继续处理，任务最终呈现「同步完成（有异常）」，底座版本正常切换，异常数据可单独补偿重试。
+              3. <strong>容错与异常记录</strong>：单条数据转换错误仅记录异常并继续处理，任务最终呈现「同步完成（有异常）」，底座数据正常更新，异常数据可单独补偿重试。
             </p>
             <p>
-              4. <strong>正式查询底座快照隔离</strong>：查询预览严格读取该根类型当前底座快照，即使修改了草稿或发生致命同步失败，也绝不影响线上既有可查字段。
+              4. <strong>正式查询底座隔离</strong>：查询预览严格读取该根类型当前已同步的底座数据，即使修改了草稿或发生同步失败，也绝不影响线上既有可查字段。
             </p>
           </div>
         )}
@@ -452,7 +447,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <col style={{ width: colWidths.configuredFields }} />
               <col style={{ width: colWidths.queryableFields }} />
               <col style={{ width: colWidths.draftFields }} />
-              <col style={{ width: colWidths.baseVersion }} />
               <col style={{ width: colWidths.configStatus }} />
               <col style={{ width: colWidths.dataStatus }} />
               <col style={{ width: colWidths.lastSyncTime }} />
@@ -489,12 +483,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                   className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden"
                 >
                   草稿字段
-                </th>
-                <th
-                  style={{ width: colWidths.baseVersion }}
-                  className="py-2.5 px-0.5 text-center whitespace-nowrap overflow-hidden"
-                >
-                  正式查询底座版本
                 </th>
                 <th
                   style={{ width: colWidths.configStatus }}
@@ -589,16 +577,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
-                    </td>
-
-                    {/* 正式查询底座版本 */}
-                    <td
-                      style={{ width: colWidths.baseVersion }}
-                      className="py-2.5 px-0.5 text-center overflow-hidden"
-                    >
-                      <span className="font-mono text-[11px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 inline-block whitespace-nowrap">
-                        {root.formalQueryBaseVersion}
-                      </span>
                     </td>
 
                     {/* 配置状态 (严格位于单元格内部，不越界、不侵入数据状态列) */}
@@ -726,8 +704,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
 
             <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
               <div className="text-xs text-slate-600 bg-amber-50 p-2.5 rounded border border-amber-200">
-                <strong>容错规则说明</strong>：以下单条数据异常已记录并隔离，未中止整体同步流程。正式查询底座已成功切换至{' '}
-                <span className="font-mono font-bold text-blue-700">{viewingErrorsRootType.formalQueryBaseVersion}</span>。您可以单独修复源端数据或重试补偿。
+                <strong>容错规则说明</strong>：以下单条数据异常已记录并隔离，未中止整体同步流程。正式查询底座已成功更新。您可以单独修复源端数据或重试补偿。
               </div>
 
               {viewingErrorsRootType.lastSyncErrorRecords && viewingErrorsRootType.lastSyncErrorRecords.length > 0 ? (

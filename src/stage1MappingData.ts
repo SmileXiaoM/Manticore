@@ -49,7 +49,6 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     draftFieldCount: 2, // 1 个纯草稿 + 1 个已配置字段的草稿修改
     configStatus: 'CONFIGURED_WITH_DRAFT',
     syncStatus: 'COMPLETED',
-    formalQueryBaseVersion: 'v1.2.0',
     lastSyncedAt: '2026-08-28 14:35:12',
     lastSyncBatchId: 'BATCH-20260828-002',
     lastSyncSuccessCount: 38400,
@@ -69,7 +68,6 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     draftFieldCount: 0,
     configStatus: 'CONFIGURED',
     syncStatus: 'COMPLETED_WITH_ERRORS',
-    formalQueryBaseVersion: 'v1.0.0',
     lastSyncedAt: '2026-08-22 11:20:00',
     lastSyncBatchId: 'BATCH-20260822-001',
     lastSyncSuccessCount: 12480,
@@ -126,7 +124,6 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     draftFieldCount: 2,
     configStatus: 'DRAFTING',
     syncStatus: 'NOT_SYNCED',
-    formalQueryBaseVersion: 'NONE',
     lastSyncedAt: undefined,
     lastSyncBatchId: undefined,
     lastSyncSuccessCount: 0,
@@ -159,6 +156,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: true,
       defaultColumnWidth: 160,
+      displayOrder: 1,
+
       defaultDisplayOrder: 1,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -187,6 +186,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: true,
       isUniqueKey: false,
       defaultColumnWidth: 200,
+      displayOrder: 2,
+
       defaultDisplayOrder: 2,
       configStatus: 'CONFIGURED',
       hasDraftModification: true, // 存在草稿修改演示
@@ -221,6 +222,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 140,
+      displayOrder: 3,
+
       defaultDisplayOrder: 3,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -251,6 +254,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 130,
+      displayOrder: 4,
+
       defaultDisplayOrder: 4,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -279,6 +284,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 220,
+      displayOrder: 5,
+
       defaultDisplayOrder: 5,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -308,6 +315,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 150,
+      displayOrder: 6,
+
       defaultDisplayOrder: 6,
       configStatus: 'DRAFT',
       hasDraftModification: false,
@@ -338,6 +347,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: true,
       defaultColumnWidth: 160,
+      displayOrder: 1,
+
       defaultDisplayOrder: 1,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -366,6 +377,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: true,
       isUniqueKey: false,
       defaultColumnWidth: 240,
+      displayOrder: 2,
+
       defaultDisplayOrder: 2,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -394,6 +407,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 100,
+      displayOrder: 3,
+
       defaultDisplayOrder: 3,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -422,6 +437,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: false,
       defaultColumnWidth: 180,
+      displayOrder: 4,
+
       defaultDisplayOrder: 4,
       configStatus: 'CONFIGURED',
       hasDraftModification: false,
@@ -452,6 +469,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: false,
       isUniqueKey: true,
       defaultColumnWidth: 160,
+      displayOrder: 1,
+
       defaultDisplayOrder: 1,
       configStatus: 'DRAFT',
       hasDraftModification: false,
@@ -480,6 +499,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isFulltextSearch: true,
       isUniqueKey: false,
       defaultColumnWidth: 200,
+      displayOrder: 2,
+
       defaultDisplayOrder: 2,
       configStatus: 'DRAFT',
       hasDraftModification: false,
@@ -491,11 +512,10 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
   ]
 };
 
-// 4. 根类型级正式查询底座快照 (保证与 formalQueryBaseVersion 原子绑定)
+// 4. 根类型级正式查询底座快照
 export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
   PART: {
     rootTypeId: 'PART',
-    formalQueryBaseVersion: 'v1.2.0',
     syncedAt: '2026-08-28 14:35:12',
     batchId: 'BATCH-20260828-002',
     fields: [
@@ -519,6 +539,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: true,
         defaultColumnWidth: 160,
+        displayOrder: 1,
+
         defaultDisplayOrder: 1,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -547,6 +569,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: true,
         isUniqueKey: false,
         defaultColumnWidth: 200,
+        displayOrder: 2,
+
         defaultDisplayOrder: 2,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -575,6 +599,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: false,
         defaultColumnWidth: 140,
+        displayOrder: 3,
+
         defaultDisplayOrder: 3,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -605,6 +631,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: false,
         defaultColumnWidth: 130,
+        displayOrder: 4,
+
         defaultDisplayOrder: 4,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -633,6 +661,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: false,
         defaultColumnWidth: 220,
+        displayOrder: 5,
+
         defaultDisplayOrder: 5,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -645,7 +675,6 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
   },
   DOCUMENT: {
     rootTypeId: 'DOCUMENT',
-    formalQueryBaseVersion: 'v1.0.0',
     syncedAt: '2026-08-22 11:20:00',
     batchId: 'BATCH-20260822-001',
     fields: [
@@ -669,6 +698,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: true,
         defaultColumnWidth: 160,
+        displayOrder: 1,
+
         defaultDisplayOrder: 1,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -697,6 +728,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: true,
         isUniqueKey: false,
         defaultColumnWidth: 240,
+        displayOrder: 2,
+
         defaultDisplayOrder: 2,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -725,6 +758,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: false,
         defaultColumnWidth: 100,
+        displayOrder: 3,
+
         defaultDisplayOrder: 3,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -753,6 +788,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isFulltextSearch: false,
         isUniqueKey: false,
         defaultColumnWidth: 180,
+        displayOrder: 4,
+
         defaultDisplayOrder: 4,
         configStatus: 'CONFIGURED',
         hasDraftModification: false,
@@ -765,7 +802,6 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
   },
   PROCESS: {
     rootTypeId: 'PROCESS',
-    formalQueryBaseVersion: 'NONE',
     fields: []
   }
 };

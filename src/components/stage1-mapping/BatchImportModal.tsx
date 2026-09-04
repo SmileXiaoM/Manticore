@@ -9,17 +9,12 @@ import {
   Clock,
   AlertTriangle,
   FileSpreadsheet,
-  Database,
-  ArrowRight,
-  Filter,
-  Save,
-  Info,
   RefreshCw,
-  Sparkles,
-  Server,
-  Layers,
+  Sliders,
   Check,
-  RotateCcw
+  ExternalLink,
+  Edit3,
+  HelpCircle
 } from 'lucide-react';
 import {
   SourceFieldMeta,
@@ -29,8 +24,12 @@ import {
   BatchImportConflictType,
   ManticoreFieldType,
   resolveSourceDisplayName,
-  formatRootTypeDisplayName
+  formatRootTypeDisplayName,
+  getMaxDisplayOrder,
+  isDisplayOrderOccupied,
+  validateDisplayOrder
 } from '../../stage1MappingTypes';
+import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -39,6 +38,7 @@ interface BatchImportModalProps {
   availablePlmFields: SourceFieldMeta[];
   existingFieldMappings: FieldMappingItem[];
   onSaveBatchDrafts: (newDrafts: FieldMappingItem[]) => void;
+  onEditField?: (field: FieldMappingItem) => void;
   hasPermission?: boolean;
 }
 
@@ -49,6 +49,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   availablePlmFields,
   existingFieldMappings,
   onSaveBatchDrafts,
+  onEditField,
   hasPermission = true
 }) => {
   // 1. PLM 元数据读取状态: 'IDLE' | 'FETCHING' | 'SUCCESS' | 'FAILED' | 'EMPTY'
@@ -59,10 +60,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [conflictFilter, setConflictFilter] = useState<'ALL' | 'UNMAPPED' | 'ALREADY_CONFIGURED' | 'HAS_DRAFT' | 'SOURCE_CHANGED' | 'INCOMPATIBLE'>('ALL');
 
-  // 3. 选中的候选 keys 及自定义 Manticore 字段名 / 自定义前台显示名
+  // 3. 选中的候选 keys 及各字段自定义完整配置
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-  const [customManticoreFields, setCustomManticoreFields] = useState<Record<string, string>>({});
-  const [customDisplayTitles, setCustomDisplayTitles] = useState<Record<string, string>>({});
+  // 针对候选字段的完整自定义配置 (使用统一 FieldMappingFormData)
+  const [candidateCustomConfigs, setCandidateCustomConfigs] = useState<Record<string, FieldMappingFormData>>({});
+
+  // 4. 单行配置抽屉/子弹窗状态
+  const [configuringCandidate, setConfiguringCandidate] = useState<BatchImportCandidate | null>(null);
+  const [configuringFormData, setConfiguringFormData] = useState<FieldMappingFormData | null>(null);
+  const [configuringErrors, setConfiguringErrors] = useState<Record<string, string>>({});
+
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
   // 当弹窗打开时重置状态
@@ -73,17 +80,21 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setSearchTerm('');
       setConflictFilter('ALL');
       setSelectedKeys([]);
-      setCustomManticoreFields({});
-      setCustomDisplayTitles({});
+      setCandidateCustomConfigs({});
+      setConfiguringCandidate(null);
+      setConfiguringFormData(null);
+      setConfiguringErrors({});
       setShowUnsavedConfirm(false);
     }
   }, [isOpen]);
 
-  // 4. 构建候选比对列表 (从 availablePlmFields 与 existingFieldMappings 关联推断)
+  // 构建候选比对列表 (从 availablePlmFields 与 existingFieldMappings 关联推断)
   const candidates: BatchImportCandidate[] = useMemo(() => {
     if (fetchStatus !== 'SUCCESS') return [];
 
-    return availablePlmFields.map(meta => {
+    const baseMaxOrder = getMaxDisplayOrder(existingFieldMappings, currentRootType.id);
+
+    return availablePlmFields.map((meta, idx) => {
       // 查找当前根类型下已存在的映射
       const existing = existingFieldMappings.find(
         f =>
@@ -101,8 +112,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       let conflictReason: string | undefined = undefined;
       let resolutionHint: string | undefined = undefined;
       let isSelectable = true;
+      let existingFieldId: string | undefined = undefined;
 
-      // 规则：显示名缺失不误判为 SOURCE_CHANGED 或错误
       if (meta.sourceDataType === 'LONG_TEXT' && meta.sourceFieldKey.includes('cad_binary')) {
         conflictType = 'TYPE_INCOMPATIBLE';
         conflictReason = '二进制模型流不支持直接全文或标量索引';
@@ -114,15 +125,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         resolutionHint = '需在 PLM 属性目录中补充数据类型';
         isSelectable = false;
       } else if (existing) {
+        existingFieldId = existing.id;
         if (existing.configStatus === 'CONFIGURED') {
           conflictType = 'ALREADY_CONFIGURED';
-          conflictReason = '已存在生效配置';
-          resolutionHint = '无需重复导入，可在字段列表中直接修改';
+          conflictReason = '该属性已在当前根类型中生效配置，无需重复导入';
+          resolutionHint = '可在字段配置列表中直接查看或修改';
           isSelectable = false;
         } else {
           conflictType = 'HAS_DRAFT';
-          conflictReason = '已存在未生效的草稿项';
-          resolutionHint = '可前往字段列表查看或编辑现有草稿';
+          conflictReason = '该属性已存在未生效的草稿项，无需重复导入';
+          resolutionHint = '可前往字段配置列表继续编辑现有草稿';
           isSelectable = false;
         }
       }
@@ -154,7 +166,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       return {
         sourceFieldMeta: {
           ...meta,
-          sourceDisplayName: meta.sourceDisplayName // 保持原始元数据
+          sourceDisplayName: meta.sourceDisplayName
         },
         resolvedDisplayName: resolvedName,
         isDisplayNameMissing: isMissing,
@@ -163,10 +175,12 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         suggestedDisplayTitle: resolvedName,
         suggestedDisplayType,
         suggestedQueryCapability: suggestedQueryCap,
+        suggestedDisplayOrder: baseMaxOrder + idx + 1,
         conflictType,
         conflictReason,
         resolutionHint,
-        isSelectable
+        isSelectable,
+        existingFieldId
       };
     });
   }, [fetchStatus, availablePlmFields, existingFieldMappings, currentRootType.id]);
@@ -198,7 +212,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           .map(m => m.sourceFieldKey);
         setSelectedKeys(unmappedKeys);
       }
-    }, 500);
+    }, 450);
   };
 
   // 过滤后的候选列表
@@ -248,7 +262,110 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  const isDirty = selectedKeys.length > 0 || Object.keys(customManticoreFields).length > 0;
+  // 打开候选字段的单独完整配置弹窗
+  const handleOpenConfigureCandidate = (c: BatchImportCandidate) => {
+    const key = c.sourceFieldMeta.sourceFieldKey;
+    const existingCustom = candidateCustomConfigs[key];
+
+    if (existingCustom) {
+      setConfiguringFormData({ ...existingCustom });
+    } else {
+      // 初始默认推断值
+      const defaultOrder = c.suggestedDisplayOrder ?? (getMaxDisplayOrder(existingFieldMappings, currentRootType.id) + 1);
+      const isNum = c.sourceFieldMeta.sourceDataType === 'NUMERIC' || c.sourceFieldMeta.sourceDataType === 'NUMERIC_WITH_UNIT';
+      const isLongText = c.sourceFieldMeta.sourceDataType === 'LONG_TEXT';
+
+      setConfiguringFormData({
+        selectedSourceKey: key,
+        displayTitle: c.suggestedDisplayTitle,
+        displayOrder: defaultOrder,
+        defaultColumnWidth: 150,
+        displayType: c.suggestedDisplayType,
+        manticoreField: c.suggestedManticoreField,
+        manticoreType: c.suggestedManticoreType,
+        isQueryCondition: true,
+        isSortable: isNum,
+        isDisplayInResult: true,
+        isFulltextSearch: isLongText,
+        isUniqueKey: false,
+        hyperlinkConfig: {
+          urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
+          oidSourceField: 'master_oid',
+          otypeSourceField: 'object_type_code',
+          displayTextSource: 'FIELD_VALUE',
+          staticLabel: '查看源数据',
+          openTarget: '_blank',
+          onMissingParam: 'HIDE_LINK_SHOW_TEXT'
+        }
+      });
+    }
+
+    setConfiguringCandidate(c);
+    setConfiguringErrors({});
+  };
+
+  // 保存单行候选配置
+  const handleSaveCandidateConfig = () => {
+    if (!configuringCandidate || !configuringFormData) return;
+
+    const newErrors: Record<string, string> = {};
+    if (!configuringFormData.displayTitle.trim()) {
+      newErrors.displayTitle = '前台显示名称为必填项，不可为空';
+    }
+
+    const orderVal = validateDisplayOrder(
+      configuringFormData.displayOrder,
+      existingFieldMappings,
+      currentRootType.id
+    );
+    if (!orderVal.valid && orderVal.errorMessage) {
+      newErrors.displayOrder = orderVal.errorMessage;
+    }
+
+    if (!configuringFormData.manticoreField.trim()) {
+      newErrors.manticoreField = 'Manticore 字段名不能为空';
+    } else if (!/^[a-z][a-z0-9_]*$/.test(configuringFormData.manticoreField)) {
+      newErrors.manticoreField = 'Manticore 字段必须为全小写蛇形命名 (例如 part_number)';
+    }
+
+    if (configuringFormData.displayType === 'LINK') {
+      if (!configuringFormData.hyperlinkConfig?.urlTemplate.trim()) {
+        newErrors.urlTemplate = '超链接 URL 模板不能为空';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setConfiguringErrors(newErrors);
+      return;
+    }
+
+    const key = configuringCandidate.sourceFieldMeta.sourceFieldKey;
+    setCandidateCustomConfigs(prev => ({
+      ...prev,
+      [key]: { ...configuringFormData }
+    }));
+
+    // 自动勾选此候选
+    if (!selectedKeys.includes(key)) {
+      setSelectedKeys(prev => [...prev, key]);
+    }
+
+    setConfiguringCandidate(null);
+    setConfiguringFormData(null);
+    setConfiguringErrors({});
+  };
+
+  // 导航到已配置字段或草稿项进行编辑
+  const handleJumpToEditField = (existingFieldId?: string) => {
+    if (!existingFieldId || !onEditField) return;
+    const target = existingFieldMappings.find(f => f.id === existingFieldId);
+    if (target) {
+      onClose();
+      onEditField(target);
+    }
+  };
+
+  const isDirty = selectedKeys.length > 0 || Object.keys(candidateCustomConfigs).length > 0;
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -258,29 +375,48 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  // 确认批量保存为草稿 (以 rootTypeId + sourceFieldKey 去重)
+  // 确认批量保存为草稿 (顺序号连续生成或使用用户自定义配置)
   const handleConfirmBatch = () => {
     const selectedCandidateList = candidates.filter(
       c => selectedKeys.includes(c.sourceFieldMeta.sourceFieldKey) && c.isSelectable
     );
 
-    const uniqueMap = new Map<string, BatchImportCandidate>();
-    selectedCandidateList.forEach(c => {
-      const stableKey = `${currentRootType.id}::${c.sourceFieldMeta.sourceFieldKey}`;
-      if (!uniqueMap.has(stableKey)) {
-        uniqueMap.set(stableKey, c);
-      }
-    });
+    const baseMaxOrder = getMaxDisplayOrder(existingFieldMappings, currentRootType.id);
 
-    const newDrafts: FieldMappingItem[] = Array.from(uniqueMap.values()).map((c, idx) => {
-      const customName = customManticoreFields[c.sourceFieldMeta.sourceFieldKey] || c.suggestedManticoreField;
-      const customTitle = customDisplayTitles[c.sourceFieldMeta.sourceFieldKey] || c.suggestedDisplayTitle;
+    const newDrafts: FieldMappingItem[] = selectedCandidateList.map((c, idx) => {
+      const key = c.sourceFieldMeta.sourceFieldKey;
+      const custom = candidateCustomConfigs[key];
 
       const { resolvedName, isMissing } = resolveSourceDisplayName(
         c.sourceFieldMeta.sourceDisplayName,
         c.sourceFieldMeta.sourceFieldName,
         c.sourceFieldMeta.sourceFieldKey
       );
+
+      // 如果用户通过「配置」修改了，则采用定制值；否则采用推断默认值
+      const title = custom ? custom.displayTitle.trim() : c.suggestedDisplayTitle;
+      const manticoreName = custom ? custom.manticoreField : c.suggestedManticoreField;
+      const manticoreType = custom ? custom.manticoreType : c.suggestedManticoreType;
+      const displayType = custom ? custom.displayType : c.suggestedDisplayType;
+      const isQueryCond = custom ? custom.isQueryCondition : true;
+      const isSort = custom ? custom.isSortable : (c.suggestedManticoreType !== 'TEXT');
+      const isDisplayInRes = custom ? custom.isDisplayInResult : (c.suggestedDisplayType !== 'FULLTEXT');
+      const isFulltext = custom ? custom.isFulltextSearch : (c.suggestedManticoreType === 'TEXT');
+      const isUnique = custom ? custom.isUniqueKey : false;
+      const colWidth = custom ? custom.defaultColumnWidth : 150;
+      const hyperlink = custom?.displayType === 'LINK' ? custom.hyperlinkConfig : undefined;
+
+      // 顺序号：若用户定制了顺序号则优先使用，否则从当前已有最大顺序号加 1 开始连续生成
+      const order = custom && custom.displayOrder > 0 ? custom.displayOrder : (baseMaxOrder + idx + 1);
+
+      const derivedQueryCap: FieldMappingItem['queryCapability'] =
+        isQueryCond && isFulltext
+          ? 'BOTH'
+          : isFulltext
+          ? 'FULLTEXT_SEARCH'
+          : isQueryCond
+          ? 'QUERY_CONDITION'
+          : 'NONE';
 
       return {
         id: `MAP-BATCH-${Date.now()}-${idx}`,
@@ -294,18 +430,20 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         sourceDataTypeLabel: c.sourceFieldMeta.sourceDataTypeLabel,
         unitFamily: c.sourceFieldMeta.unitFamily,
         defaultUnit: c.sourceFieldMeta.defaultUnit,
-        manticoreField: customName,
-        manticoreType: c.suggestedManticoreType,
-        displayTitle: customTitle.trim() || resolvedName,
-        displayType: c.suggestedDisplayType,
-        queryCapability: c.suggestedQueryCapability,
-        isQueryCondition: c.suggestedQueryCapability === 'QUERY_CONDITION' || c.suggestedQueryCapability === 'BOTH',
-        isSortable: c.suggestedManticoreType !== 'TEXT',
-        isDisplayInResult: c.suggestedDisplayType !== 'FULLTEXT',
-        isFulltextSearch: c.suggestedManticoreType === 'TEXT',
-        isUniqueKey: false,
-        defaultColumnWidth: 150,
-        defaultDisplayOrder: 20 + idx,
+        manticoreField: manticoreName,
+        manticoreType,
+        displayTitle: title || resolvedName,
+        displayOrder: order,
+        defaultDisplayOrder: order,
+        displayType,
+        queryCapability: derivedQueryCap,
+        isQueryCondition: isQueryCond,
+        isSortable: isSort,
+        isDisplayInResult: isDisplayInRes,
+        isFulltextSearch: isFulltext,
+        isUniqueKey: isUnique,
+        defaultColumnWidth: colWidth,
+        hyperlinkConfig: hyperlink,
         configStatus: 'DRAFT',
         hasDraftModification: false,
         isDataImpactingChange: true,
@@ -328,17 +466,11 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
             未映射 (可导入)
           </span>
         );
-      case 'SOURCE_CHANGED':
-        return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200" title={c.conflictReason}>
-            <Sparkles className="w-2.5 h-2.5 mr-1 text-purple-600 shrink-0" />
-            PLM来源变更
-          </span>
-        );
       case 'ALREADY_CONFIGURED':
         return (
           <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-            已生效映射
+            <Check className="w-2.5 h-2.5 mr-1 text-blue-600 shrink-0" />
+            已配置
           </span>
         );
       case 'HAS_DRAFT':
@@ -352,9 +484,9 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       case 'METADATA_MISSING':
       default:
         return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200" title={c.conflictReason}>
-            <AlertTriangle className="w-2.5 h-2.5 mr-1 text-rose-600 shrink-0" />
-            阻断/不兼容
+          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+            <AlertCircle className="w-2.5 h-2.5 mr-1 text-slate-400 shrink-0" />
+            不可导入
           </span>
         );
     }
@@ -365,50 +497,19 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+        {/* Header - 已精简顶部信息，收回高度并保持右对齐操作 */}
+        <div className="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50 shrink-0">
           <div className="space-y-0.5">
-            <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center">
-                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" />
-                从 PLM 批量发现并导入字段 (生成草稿)
-              </h3>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
-                根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
-              </span>
-            </div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center">
+              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-blue-600" />
+              批量发现并导入 PLM 字段映射
+            </h3>
             <p className="text-xs text-slate-500">
               主动读取来源系统元数据定义，自动完成类型推断与来源显示名兜底。勾选后生成草稿，需生效配置后方能进入正式底座。
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleRequestClose}
-            className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
-        {/* PLM 元数据读取控制条 */}
-        <div className="px-5 py-3 bg-slate-100/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center space-x-3 text-xs">
-            <div className="flex items-center space-x-1.5 text-slate-700">
-              <Server className="w-3.5 h-3.5 text-blue-600" />
-              <span className="font-semibold">来源系统:</span>
-              <span className="font-mono bg-white px-2 py-0.5 rounded-[4px] border border-slate-200">
-                {currentRootType.sourceSystemName}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1.5 text-slate-700">
-              <Layers className="w-3.5 h-3.5 text-purple-600" />
-              <span className="font-semibold">根类型对象:</span>
-              <span className="font-mono bg-white px-2 py-0.5 rounded-[4px] border border-slate-200 font-bold">
-                {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
-              </span>
-            </div>
-          </div>
-
+          {/* 右对齐的读取 PLM 元数据控制按钮 */}
           <div className="flex items-center space-x-2">
             {fetchStatus === 'SUCCESS' ? (
               <button
@@ -435,44 +536,31 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </button>
             )}
 
-            {fetchStatus !== 'FETCHING' && (
-              <div className="flex items-center space-x-1 pl-2 border-l border-slate-300">
-                <button
-                  type="button"
-                  onClick={() => handleFetchPlmMetadata(true)}
-                  className="h-6 px-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-[4px] text-[11px] font-mono cursor-pointer"
-                  title="模拟连接失败"
-                >
-                  模拟失败
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFetchPlmMetadata(false, true)}
-                  className="h-6 px-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-[4px] text-[11px] font-mono cursor-pointer"
-                  title="模拟空结果"
-                >
-                  模拟空结果
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleRequestClose}
+              className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors ml-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* 内容区 */}
-        <div className="flex-1 overflow-y-auto flex flex-col">
+        {/* 主体区 */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {fetchStatus === 'IDLE' && (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                <Database className="w-6 h-6" />
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/40">
+              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+                <FileSpreadsheet className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-slate-800">尚未读取 PLM 来源元数据</h4>
-              <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                点击上方「读取 PLM 元数据」按钮，系统将自动连接当前所选的 PLM 实例并解析出根类型 <strong>{currentRootType.name}</strong> 的全部属性定义。
+              <h4 className="text-sm font-bold text-slate-800">尚未读取 PLM 元数据字典</h4>
+              <p className="text-xs text-slate-500 max-w-md mt-1 mb-4 leading-relaxed">
+                点击上方或下方“读取 PLM 元数据”按钮，系统将连接来源系统接口，实时比对并识别未配置的属性候选。
               </p>
               <button
                 type="button"
                 onClick={() => handleFetchPlmMetadata(false)}
-                className="mt-2 h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium cursor-pointer shadow-2xs transition-colors flex items-center space-x-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>立即读取 PLM 元数据</span>
@@ -481,58 +569,39 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           )}
 
           {fetchStatus === 'FETCHING' && (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
-              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-              <h4 className="text-sm font-bold text-slate-800">正在连接 PLM 解析属性字典...</h4>
-              <p className="text-xs text-slate-400 font-mono">
-                GET /api/plm/v21/metadata?rootType={currentRootType.code}
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mb-3" />
+              <h4 className="text-sm font-bold text-slate-800">正在连接 PLM 系统读取元数据...</h4>
+              <p className="text-xs text-slate-500 mt-1 font-mono">
+                FETCH /api/plm/schema/metadata?rootType={currentRootType.id}
               </p>
             </div>
           )}
 
           {fetchStatus === 'FAILED' && (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-                <AlertTriangle className="w-6 h-6" />
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3">
+                <AlertCircle className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-slate-900">PLM 元数据读取失败</h4>
-              <p className="text-xs text-rose-600 max-w-lg bg-rose-50 p-2.5 rounded-[6px] border border-rose-200">
-                {fetchErrorMsg}
-              </p>
-              <div className="flex items-center space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleFetchPlmMetadata(false)}
-                  className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>重试读取</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="h-8 px-3.5 border border-slate-300 rounded-[6px] text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  取消
-                </button>
-              </div>
+              <h4 className="text-sm font-bold text-rose-800">PLM 元数据读取失败</h4>
+              <p className="text-xs text-rose-600 max-w-md mt-1 mb-4">{fetchErrorMsg}</p>
+              <button
+                type="button"
+                onClick={() => handleFetchPlmMetadata(false)}
+                className="h-8 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-[6px] text-xs font-medium cursor-pointer shadow-2xs transition-colors"
+              >
+                重试连接
+              </button>
             </div>
           )}
 
           {fetchStatus === 'EMPTY' && (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
-              <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-800">未在 PLM 中发现任何已注册属性</h4>
-              <p className="text-xs text-slate-400 max-w-md">
-                当前根类型在 PLM 中可能未配置任何属性。
-              </p>
-              <button
-                type="button"
-                onClick={() => handleFetchPlmMetadata(false)}
-                className="h-8 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium cursor-pointer"
-              >
-                重新读取
-              </button>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-700">未发现任何 PLM 属性</h4>
+              <p className="text-xs text-slate-500 mt-1">PLM 系统当前根类型未返回任何业务属性定义</p>
             </div>
           )}
 
@@ -602,7 +671,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
                 <div className="text-xs text-slate-500 flex items-center space-x-3">
                   <div>
-                    已选择: <span className="font-bold text-blue-700 font-mono">{selectedCount}</span> 项
+                    已勾选待导入: <span className="font-bold text-blue-700 font-mono">{selectedCount}</span> 项
                   </div>
                   <div className="text-slate-300">|</div>
                   <div>
@@ -634,19 +703,23 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         </button>
                       </th>
                       <th className="py-2.5 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
-                      <th className="py-2.5 px-3 min-w-[110px]">PLM 业务类型</th>
+                      <th className="py-2.5 px-3 min-w-[100px]">PLM 业务类型</th>
                       <th className="py-2.5 px-3 min-w-[140px]">前台显示名称</th>
-                      <th className="py-2.5 px-3 min-w-[140px]">推断 Manticore 字段</th>
-                      <th className="py-2.5 px-3 min-w-[90px]">底层类型</th>
-                      <th className="py-2.5 px-3 min-w-[120px]">比对状态</th>
+                      <th className="py-2.5 px-3 min-w-[130px]">Manticore 字段</th>
+                      <th className="py-2.5 px-3 min-w-[80px]">底层类型</th>
+                      <th className="py-2.5 px-3 min-w-[65px] text-center">顺序号</th>
+                      <th className="py-2.5 px-3 min-w-[130px]">比对状态与说明</th>
+                      <th className="py-2.5 px-3 min-w-[110px] text-center sticky right-0 bg-slate-50 border-l border-slate-200 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)]">
+                        配置与操作
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {filteredCandidates.length > 0 ? (
                       filteredCandidates.map(c => {
-                        const isChecked = selectedKeys.includes(c.sourceFieldMeta.sourceFieldKey);
-                        const customManticore = customManticoreFields[c.sourceFieldMeta.sourceFieldKey] || c.suggestedManticoreField;
-                        const customTitle = customDisplayTitles[c.sourceFieldMeta.sourceFieldKey] ?? c.suggestedDisplayTitle;
+                        const key = c.sourceFieldMeta.sourceFieldKey;
+                        const isChecked = selectedKeys.includes(key);
+                        const custom = candidateCustomConfigs[key];
 
                         const { resolvedName, isMissing } = resolveSourceDisplayName(
                           c.sourceFieldMeta.sourceDisplayName,
@@ -654,13 +727,18 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                           c.sourceFieldMeta.sourceFieldKey
                         );
 
+                        const currentTitle = custom ? custom.displayTitle : c.suggestedDisplayTitle;
+                        const currentManticore = custom ? custom.manticoreField : c.suggestedManticoreField;
+                        const currentType = custom ? custom.manticoreType : c.suggestedManticoreType;
+                        const currentOrder = custom ? custom.displayOrder : c.suggestedDisplayOrder;
+
                         return (
                           <tr
-                            key={c.sourceFieldMeta.sourceFieldKey}
-                            onClick={() => handleToggleRow(c.sourceFieldMeta.sourceFieldKey, c.isSelectable)}
+                            key={key}
+                            onClick={() => handleToggleRow(key, c.isSelectable)}
                             className={`transition-colors ${
                               !c.isSelectable
-                                ? 'bg-slate-50/50 opacity-70 cursor-not-allowed'
+                                ? 'bg-slate-50/40 opacity-75 cursor-not-allowed'
                                 : isChecked
                                 ? 'bg-blue-50/40 hover:bg-blue-50/60 cursor-pointer'
                                 : 'hover:bg-slate-50 cursor-pointer'
@@ -671,7 +749,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
-                                  onChange={() => handleToggleRow(c.sourceFieldMeta.sourceFieldKey, c.isSelectable)}
+                                  onChange={() => handleToggleRow(key, c.isSelectable)}
                                   className="rounded text-blue-600 cursor-pointer"
                                 />
                               ) : (
@@ -679,6 +757,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               )}
                             </td>
 
+                            {/* PLM 来源元数据 (只读) */}
                             <td className="py-2.5 px-3">
                               <div className="font-mono font-semibold text-slate-900">
                                 {c.sourceFieldMeta.sourceFieldName}
@@ -686,7 +765,10 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <div className="text-[11px] text-slate-500 flex items-center mt-0.5">
                                 <span>{resolvedName}</span>
                                 {isMissing && (
-                                  <span className="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1 rounded font-normal" title="PLM 未返回显示名，已按字段名兜底">
+                                  <span
+                                    className="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1 rounded font-normal shrink-0"
+                                    title="PLM 未返回显示名，已按字段名兜底"
+                                  >
                                     显示名兜底
                                   </span>
                                 )}
@@ -702,62 +784,94 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               )}
                             </td>
 
-                            <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
-                              {c.isSelectable ? (
-                                <input
-                                  type="text"
-                                  value={customTitle}
-                                  onChange={e => {
-                                    setCustomDisplayTitles({
-                                      ...customDisplayTitles,
-                                      [c.sourceFieldMeta.sourceFieldKey]: e.target.value
-                                    });
-                                  }}
-                                  className="h-7 px-2 bg-white border border-slate-300 rounded-[4px] text-slate-800 text-xs w-full focus:outline-hidden focus:border-blue-500"
-                                />
-                              ) : (
-                                <span className="text-slate-700">{customTitle}</span>
-                              )}
+                            {/* 前台显示名称 */}
+                            <td className="py-2.5 px-3 font-medium text-slate-800">
+                              {currentTitle}
                             </td>
 
-                            <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
-                              {c.isSelectable ? (
-                                <input
-                                  type="text"
-                                  value={customManticore}
-                                  onChange={e => {
-                                    setCustomManticoreFields({
-                                      ...customManticoreFields,
-                                      [c.sourceFieldMeta.sourceFieldKey]: e.target.value.toLowerCase()
-                                    });
-                                  }}
-                                  className="h-7 px-2 bg-white border border-slate-300 rounded-[4px] font-mono text-blue-700 text-xs w-full focus:outline-hidden focus:border-blue-500"
-                                />
-                              ) : (
-                                <span className="font-mono text-slate-400">{c.suggestedManticoreField}</span>
-                              )}
+                            {/* Manticore 字段 */}
+                            <td className="py-2.5 px-3 font-mono text-blue-700 font-semibold">
+                              {currentManticore}
                             </td>
 
+                            {/* 底层类型 */}
                             <td className="py-2.5 px-3 font-mono text-slate-600">
-                              {c.suggestedManticoreType}
+                              {currentType}
                             </td>
 
+                            {/* 顺序号 */}
+                            <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-700">
+                              {currentOrder !== undefined ? (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px]">
+                                  {currentOrder}
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+
+                            {/* 比对状态与提示 */}
                             <td className="py-2.5 px-3">
                               <div className="space-y-0.5">
                                 {renderConflictBadge(c)}
-                                {c.resolutionHint && (
-                                  <div className="text-[10px] text-slate-400 leading-tight">
-                                    {c.resolutionHint}
+                                {custom && (
+                                  <span className="ml-1 px-1 py-0.2 rounded text-[9px] bg-purple-50 text-purple-700 border border-purple-200 font-medium inline-block">
+                                    已定制属性
+                                  </span>
+                                )}
+                                {c.conflictReason && (
+                                  <div className="text-[10px] text-slate-500 leading-tight">
+                                    {c.conflictReason}
                                   </div>
                                 )}
                               </div>
+                            </td>
+
+                            {/* 配置与操作入口 */}
+                            <td
+                              className="py-2.5 px-3 text-center sticky right-0 bg-white/95 border-l border-slate-200 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)]"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {c.conflictType === 'UNMAPPED' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenConfigureCandidate(c)}
+                                  className="h-7 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-[4px] text-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto shadow-2xs"
+                                  title="打开完整配置表单，编辑显示名、顺序号、列宽、Manticore属性与检索能力"
+                                >
+                                  <Sliders className="w-3 h-3 text-blue-600" />
+                                  <span>配置</span>
+                                </button>
+                              ) : c.conflictType === 'ALREADY_CONFIGURED' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleJumpToEditField(c.existingFieldId)}
+                                  className="h-7 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-[4px] text-[11px] font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
+                                  title="已配置字段无法重复导入，点击直接查看/修改现有配置"
+                                >
+                                  <Edit3 className="w-3 h-3 text-slate-500" />
+                                  <span>查看/修改配置</span>
+                                </button>
+                              ) : c.conflictType === 'HAS_DRAFT' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleJumpToEditField(c.existingFieldId)}
+                                  className="h-7 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-[4px] text-[11px] font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
+                                  title="已存在草稿无法重复导入，点击直接继续编辑现有草稿"
+                                >
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  <span>继续编辑草稿</span>
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-slate-400">不可导入</span>
+                              )}
                             </td>
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <td colSpan={9} className="py-12 text-center text-slate-400">
                           未找到匹配的候选元数据
                         </td>
                       </tr>
@@ -769,40 +883,119 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           )}
         </div>
 
-        {/* 底部栏 (统一 32px 按钮高度) */}
-        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-          <div className="text-xs text-slate-500 flex items-center space-x-2">
-            <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span>
-              批量导入将直接为根类型生成草稿项。生效配置后方能进入正式底座。
-            </span>
-          </div>
+        {/* 底部固定操作条 */}
+        {fetchStatus === 'SUCCESS' && (
+          <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+            <div className="flex items-center space-x-2 text-xs text-slate-500">
+              <span className="font-semibold text-slate-800">
+                已勾选 <span className="font-mono text-blue-700 text-sm">{selectedCount}</span> 项
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-[11px] text-slate-400">
+                * 批量导入的字段将自动生成为草稿项，顺序号连续编排，需生效配置后方能进入正式底座
+              </span>
+            </div>
 
-          <div className="flex items-center space-x-2.5">
-            <button
-              type="button"
-              onClick={handleRequestClose}
-              className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-white bg-white cursor-pointer transition-colors shadow-2xs"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmBatch}
-              disabled={selectedCount === 0 || !hasPermission || fetchStatus !== 'SUCCESS'}
-              className={`h-8 px-4 rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
-                selectedCount > 0 && hasPermission && fetchStatus === 'SUCCESS'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>保存选中项为草稿 ({selectedCount})</span>
-            </button>
+            <div className="flex items-center space-x-2.5">
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-white bg-white cursor-pointer transition-colors shadow-2xs"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBatch}
+                disabled={selectedCount === 0 || !hasPermission}
+                className={`h-8 px-4 rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
+                  selectedCount > 0 && hasPermission
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>确认批量导入为草稿 ({selectedCount})</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* 未保存退出确认 */}
+        {/* 单行完整属性配置子弹窗 (使用公共 FieldMappingForm，避免代码与校验分裂) */}
+        {configuringCandidate && configuringFormData && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-white rounded-[8px] shadow-2xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="space-y-0.5">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center">
+                      <Sliders className="w-4 h-4 mr-1.5 text-blue-600" />
+                      配置导入字段属性 - {configuringCandidate.sourceFieldMeta.sourceFieldName}
+                    </h3>
+                    <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-slate-100 text-slate-800 border border-slate-200">
+                      根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    使用与单字段相同的完整配置结构。推断值仅为默认建议，您可在导入前自由修改前台显示名、顺序号、Manticore 物理类型及检索能力。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfiguringCandidate(null);
+                    setConfiguringFormData(null);
+                    setConfiguringErrors({});
+                  }}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                <FieldMappingForm
+                  currentRootType={currentRootType}
+                  sourceMeta={configuringCandidate.sourceFieldMeta}
+                  formData={configuringFormData}
+                  onChange={partial => setConfiguringFormData(prev => prev ? { ...prev, ...partial } : null)}
+                  errors={configuringErrors}
+                  isEditingConfigured={false}
+                  sourceReadonly={true}
+                />
+              </div>
+
+              <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+                <span className="text-xs text-slate-500">
+                  * 确认配置后将更新此字段在批量导入中的设定，并自动将其标记为勾选状态
+                </span>
+                <div className="flex items-center space-x-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfiguringCandidate(null);
+                      setConfiguringFormData(null);
+                      setConfiguringErrors({});
+                    }}
+                    className="h-8 px-4 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-white bg-white cursor-pointer transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCandidateConfig}
+                    className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] text-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>确认配置</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 未保存修改确认弹窗 */}
         {showUnsavedConfirm && (
           <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white rounded-[8px] shadow-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
@@ -811,9 +1004,9 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">未保存选择确认</h4>
+                  <h4 className="text-xs font-bold text-slate-900">未保存勾选确认</h4>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    您已勾选了 {selectedCount} 项候选字段，尚未保存为草稿。确定要放弃并退出吗？
+                    当前已有勾选或定制的导入项。如果退出，所选内容将不会保存为草稿。确定要退出吗？
                   </p>
                 </div>
               </div>
