@@ -24,6 +24,7 @@ import {
   MappingObjectType,
   formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
+import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -594,27 +595,20 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* 8. 结果展示 (支持超链接标记) */}
+                    {/* 8. 结果展示 (支持超链接标记，复用统一有效超链接判定口径) */}
                     <td className="py-2.5 px-2.5 text-center">
                       {(() => {
-                        const isDisplay =
-                          field.hasDraftModification && field.draftData?.isDisplayInResult !== undefined
-                            ? field.draftData.isDisplayInResult
-                            : field.isDisplayInResult;
-
-                        if (!isDisplay) {
+                        if (!field.isDisplayInResult) {
                           return <span className="text-slate-400 text-[11px]">否</span>;
                         }
 
-                        const isLink =
-                          (field.hasDraftModification && field.draftData?.displayType === 'LINK') ||
-                          field.displayType === 'LINK';
+                        const hasValidLink = isFieldHyperlinkValid(field);
 
-                        if (isLink) {
+                        if (hasValidLink) {
                           return (
                             <span
                               className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold whitespace-nowrap"
-                              title="在查询结果中以源系统超链接形式展示"
+                              title="在查询结果中以源系统超链接形式展示 (配置完整有效)"
                             >
                               <Link className="w-2.5 h-2.5 mr-1 text-blue-600 shrink-0" />
                               是 · 超链接

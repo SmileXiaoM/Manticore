@@ -348,6 +348,14 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       manticoreType: 'STRING',
       displayTitle: '文档编号',
       displayType: 'LINK',
+      hyperlinkConfig: {
+        urlTemplate: 'https://plm.internal.corp/app/document/view?oid={oid}&type={otype}',
+        oidSourceField: 'master_oid',
+        otypeSourceField: 'object_type_code',
+        displayTextSource: 'FIELD_VALUE',
+        openTarget: '_blank',
+        onMissingParam: 'HIDE_LINK_SHOW_TEXT'
+      },
       queryCapability: 'QUERY_CONDITION',
       isQueryCondition: true,
       isSortable: true,
@@ -438,6 +446,14 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       manticoreType: 'STRING',
       displayTitle: '图纸图号',
       displayType: 'LINK',
+      hyperlinkConfig: {
+        urlTemplate: 'https://plm.internal.corp/app/cad/drawing?oid={oid}&type={otype}',
+        oidSourceField: 'drawing_oid',
+        otypeSourceField: 'drawing_type',
+        displayTextSource: 'FIELD_VALUE',
+        openTarget: '_blank',
+        onMissingParam: 'HIDE_LINK_SHOW_TEXT'
+      },
       queryCapability: 'QUERY_CONDITION',
       isQueryCondition: true,
       isSortable: true,
@@ -1153,7 +1169,11 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       docTitle: '传动轴装配技术规范与扭矩校核标准',
       docVersion: 'A.3',
       drawingNo: 'DWG-ME-2026-8801',
-      sheetSize: 'A3'
+      sheetSize: 'A3',
+      master_oid: 'OR:wt.doc.WTDocument:8812001',
+      object_type_code: 'WTDocument',
+      drawing_oid: 'OR:wt.epm.EPMDocument:7701001',
+      drawing_type: 'EPMDocument'
     },
     {
       id: 'REC-D-002',
@@ -1161,7 +1181,11 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       docTitle: '高温高压密封圈材质选型指南',
       docVersion: 'B.1',
       drawingNo: 'DWG-FL-2026-1024',
-      sheetSize: 'A4'
+      sheetSize: 'A4',
+      master_oid: 'OR:wt.doc.WTDocument:8812002',
+      object_type_code: 'WTDocument',
+      drawing_oid: 'OR:wt.epm.EPMDocument:7701002',
+      drawing_type: 'EPMDocument'
     }
   ],
   PROCESS: []

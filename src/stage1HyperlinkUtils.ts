@@ -90,26 +90,59 @@ export function getFieldCellDisplayValue(field: FieldMappingItem, record: Record
 }
 
 /**
+ * 统一判定字段是否具备真正有效的超链接配置：
+ * 必须同时满足以下 5 项条件：
+ * 1. 字段允许在结果中展示 (isDisplayInResult 为 true)；
+ * 2. 已启用超链接 (displayType === 'LINK')；
+ * 3. 存在 hyperlinkConfig 配置对象；
+ * 4. urlTemplate 非空；
+ * 5. 模板所需的 {oid}、{otype} 来源字段配置完整：
+ *    - 若模板包含 {oid}，oidSourceField 必须非空；
+ *    - 若模板包含 {otype}，otypeSourceField 必须非空。
+ *
+ * 【重要隔离原则】：
+ * 严格只读取当前已生效字段上的正式值，严禁从草稿 draftData 读取，
+ * 确保已配置字段在保存草稿尚未生效前，绝不影响正式底座预览与生效状态！
+ */
+export function isFieldHyperlinkValid(field: FieldMappingItem): boolean {
+  if (!field) return false;
+
+  // 1. 必须允许在结果中展示
+  if (!field.isDisplayInResult) return false;
+
+  // 2. 必须已启用超链接
+  if (field.displayType !== 'LINK') return false;
+
+  // 3. 必须存在超链接配置对象
+  if (!field.hyperlinkConfig) return false;
+
+  // 4. urlTemplate 非空
+  const template = field.hyperlinkConfig.urlTemplate?.trim();
+  if (!template) return false;
+
+  // 5. 模板所需的 {oid}、{otype} 来源字段配置完整
+  if (template.includes('{oid}') && !field.hyperlinkConfig.oidSourceField?.trim()) {
+    return false;
+  }
+  if (template.includes('{otype}') && !field.hyperlinkConfig.otypeSourceField?.trim()) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * 判定单条记录对于某个启用超链接的字段是否缺少必要替换参数
+ * 仅对有效超链接配置进行检查，只读取正式生效配置
  */
 export function isFieldHyperlinkParamMissing(
   field: FieldMappingItem,
   record: Record<string, any>
 ): boolean {
-  const isLink =
-    (field.hasDraftModification && field.draftData?.displayType === 'LINK') ||
-    field.displayType === 'LINK';
+  if (!isFieldHyperlinkValid(field)) return false;
 
-  if (!isLink) return false;
-
-  const config =
-    (field.hasDraftModification && field.draftData?.hyperlinkConfig) ||
-    field.hyperlinkConfig;
-
-  if (!config) return true;
-
-  const template = config.urlTemplate?.trim() || '';
-  if (!template) return true;
+  const config = field.hyperlinkConfig!;
+  const template = config.urlTemplate.trim();
 
   // 检查 {oid}
   if (template.includes('{oid}')) {
@@ -128,23 +161,20 @@ export function isFieldHyperlinkParamMissing(
 
 /**
  * 检查字段是否因为缺参策略设定为 HIDE_ENTIRE_COLUMN 而应该整列隐藏
- * 规则：当字段启用了超链接，且缺参策略为 HIDE_ENTIRE_COLUMN 时，如果数据集中存在缺参（或全缺参），则该列整列不进入结果表格
+ * 规则：
+ * 1. 字段必须具备有效超链接配置；
+ * 2. 缺参策略为 HIDE_ENTIRE_COLUMN；
+ * 3. 记录集存在缺参（或记录为空），则整列不进入正式结果表格。
+ * 【隔离原则】：严格只读正式生效配置，严禁从 draftData 读取。
  */
 export function isFieldColumnHiddenByMissingParam(
   field: FieldMappingItem,
   records: Record<string, any>[]
 ): boolean {
-  const isLink =
-    (field.hasDraftModification && field.draftData?.displayType === 'LINK') ||
-    field.displayType === 'LINK';
+  if (!isFieldHyperlinkValid(field)) return false;
 
-  if (!isLink) return false;
-
-  const config =
-    (field.hasDraftModification && field.draftData?.hyperlinkConfig) ||
-    field.hyperlinkConfig;
-
-  if (!config || config.onMissingParam !== 'HIDE_ENTIRE_COLUMN') {
+  const config = field.hyperlinkConfig!;
+  if (config.onMissingParam !== 'HIDE_ENTIRE_COLUMN') {
     return false;
   }
 
@@ -157,7 +187,8 @@ export function isFieldColumnHiddenByMissingParam(
 }
 
 /**
- * 统一超链接解析函数：根据字段配置与当前记录，计算最终展示形式 (超链接、纯文本、置灰禁用链接或隐藏列)
+ * 统一超链接解析函数：根据字段正式生效配置与当前记录，计算最终展示形式 (超链接、纯文本、置灰禁用链接或隐藏列)
+ * 【隔离原则】：严格只读正式生效配置，严禁从 draftData 读取。
  */
 export function resolveFieldHyperlink(
   field: FieldMappingItem,
@@ -165,46 +196,24 @@ export function resolveFieldHyperlink(
 ): HyperlinkResolution {
   const cellVal = getFieldCellDisplayValue(field, record);
 
-  const isLink =
-    (field.hasDraftModification && field.draftData?.displayType === 'LINK') ||
-    field.displayType === 'LINK';
-
-  const config =
-    (field.hasDraftModification && field.draftData?.hyperlinkConfig) ||
-    field.hyperlinkConfig;
-
-  // 1. 未启用超链接的字段，始终按普通文本展示
-  if (!isLink || !config) {
+  // 1. 若不满足有效超链接配置判定，始终按普通文本展示
+  if (!isFieldHyperlinkValid(field)) {
     return {
       type: 'TEXT',
       text: cellVal
     };
   }
 
+  const config = field.hyperlinkConfig!;
   const displayText =
     config.displayTextSource === 'STATIC_TEXT' && config.staticLabel?.trim()
       ? config.staticLabel.trim()
       : cellVal;
 
-  const template = config.urlTemplate?.trim() || '';
+  const template = config.urlTemplate.trim();
   const onMissing = config.onMissingParam || 'HIDE_LINK_SHOW_TEXT';
 
-  // 2. 检查 URL 模板是否为空
-  if (!template) {
-    if (onMissing === 'HIDE_ENTIRE_COLUMN') {
-      return { type: 'HIDE_COLUMN', text: cellVal };
-    }
-    if (onMissing === 'SHOW_DISABLED_LINK') {
-      return {
-        type: 'DISABLED_LINK',
-        text: displayText,
-        reason: 'URL 模板未配置'
-      };
-    }
-    return { type: 'TEXT', text: cellVal };
-  }
-
-  // 3. 解析并替换 {oid} 与 {otype}
+  // 2. 解析并替换 {oid} 与 {otype}，严格使用 encodeURIComponent 进行 URL 编码
   let finalUrl = template;
   let hasMissingParam = false;
   let missingReason = '';
@@ -231,7 +240,7 @@ export function resolveFieldHyperlink(
     }
   }
 
-  // 4. 防御性检查：生成的 URL 绝不可包含 'undefined' 或 'null' 或残留未解析的占位符
+  // 3. 防御性检查：生成的 URL 绝不可包含 'undefined' 或 'null' 或残留未解析的占位符
   if (
     finalUrl.includes('undefined') ||
     finalUrl.includes('null') ||
@@ -241,7 +250,7 @@ export function resolveFieldHyperlink(
     missingReason = missingReason || 'URL 模板包含未解析的占位符或无效参数';
   }
 
-  // 5. 缺参策略处理
+  // 4. 缺参策略处理
   if (hasMissingParam) {
     if (onMissing === 'HIDE_ENTIRE_COLUMN') {
       return { type: 'HIDE_COLUMN', text: cellVal };
@@ -260,7 +269,7 @@ export function resolveFieldHyperlink(
     };
   }
 
-  // 6. 参数完整：返回真实超链接与配置的打开方式 (不得固定为 _blank)
+  // 5. 参数完整：返回真实超链接与配置的打开方式 (不得固定为 _blank)
   const openTarget = config.openTarget === '_self' ? '_self' : '_blank';
 
   return {

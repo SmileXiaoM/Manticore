@@ -25,7 +25,8 @@ import {
 } from '../../stage1MappingTypes';
 import {
   resolveFieldHyperlink,
-  isFieldColumnHiddenByMissingParam
+  isFieldColumnHiddenByMissingParam,
+  isFieldHyperlinkValid
 } from '../../stage1HyperlinkUtils';
 
 // ==================== 1. 生效配置影响确认弹窗 (无配置版本，草稿生效) ====================
@@ -198,15 +199,15 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         </div>
 
         {/* 异常提示 (如果处于异常或失败状态) */}
-        {isFailedRetry && currentRootType.syncErrorRecords && currentRootType.syncErrorRecords.length > 0 && (
+        {isFailedRetry && currentRootType.lastSyncErrorRecords && currentRootType.lastSyncErrorRecords.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-[6px] p-3 text-xs text-amber-900 space-y-1.5">
             <div className="font-bold flex items-center">
               <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-700" />
-              上一批次同步有 {currentRootType.syncErrorRecords.length} 条异常记录 (未中断整体任务):
+              上一批次同步有 {currentRootType.lastSyncErrorRecords.length} 条异常记录 (未中断整体任务):
             </div>
             <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] font-mono text-amber-800 bg-white/80 p-1.5 rounded-[4px] border border-amber-200">
-              {currentRootType.syncErrorRecords.map(err => (
-                <div key={err.id}>• [{err.recordBusinessKey}] {err.fieldDisplayName || err.fieldKey}: {err.errorMessage}</div>
+              {currentRootType.lastSyncErrorRecords.map(err => (
+                <div key={err.id}>• [{err.recordKey}] {err.errorField || '未知字段'}: {err.errorMsg}</div>
               ))}
             </div>
           </div>
@@ -623,11 +624,20 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
               </div>
               <div>
                 <span className="text-slate-400">字段值超链接:</span>{' '}
-                <span className={field.displayType === 'LINK' ? 'text-blue-700 font-semibold' : 'text-slate-500'}>
-                  {field.displayType === 'LINK' ? '已启用' : '未启用 (普通文本)'}
-                </span>
+                {isFieldHyperlinkValid(field) ? (
+                  <span className="text-blue-700 font-semibold inline-flex items-center">
+                    <Link className="w-3 h-3 mr-1 text-blue-600" />
+                    已生效启用
+                  </span>
+                ) : field.displayType === 'LINK' ? (
+                  <span className="text-amber-700 font-semibold inline-flex items-center" title="配置未完整满足5项有效口径，在查询结果中降级展示为普通文本">
+                    未完整配置 (降级为普通文本)
+                  </span>
+                ) : (
+                  <span className="text-slate-500">未启用 (普通文本)</span>
+                )}
               </div>
-              {field.displayType === 'LINK' && field.hyperlinkConfig && (
+              {isFieldHyperlinkValid(field) && field.hyperlinkConfig && (
                 <>
                   <div className="col-span-2">
                     <span className="text-slate-400">URL 模板:</span>{' '}

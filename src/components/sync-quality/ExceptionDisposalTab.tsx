@@ -91,7 +91,9 @@ interface ExceptionDisposalTabProps {
   exceptions: SyncException[];
   batches: SyncBatch[];
   verifications: VerificationRecord[];
-  onUpdateExceptions: (updated: SyncException[]) => void;
+  onUpdateExceptions: (
+    updated: SyncException[] | ((prev: SyncException[]) => SyncException[])
+  ) => void;
   onAddVerification?: (newRecord: VerificationRecord) => void;
   onUpdateVerificationResult?: (
     verificationId: string,

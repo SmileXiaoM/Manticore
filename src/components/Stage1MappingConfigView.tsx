@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import {
   MappingObjectType,
   FieldMappingItem,
-  SourceFieldMeta
+  SourceFieldMeta,
+  RootTypeConfigStatus
 } from '../stage1MappingTypes';
 import {
   initialSourceSystems,
@@ -106,12 +107,21 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           f => f.configStatus === 'CONFIGURED' && f.isInFormalQueryBase && f.isDisplayInResult
         ).length;
 
+        let derivedStatus: RootTypeConfigStatus = 'NOT_CONFIGURED';
+        if (configuredCount > 0 && draftCount > 0) {
+          derivedStatus = 'CONFIGURED_WITH_DRAFT';
+        } else if (configuredCount > 0) {
+          derivedStatus = 'CONFIGURED';
+        } else if (draftCount > 0) {
+          derivedStatus = 'DRAFTING';
+        }
+
         return {
           ...root,
           configuredFieldCount: configuredCount,
           formalQueryableFieldCount: formalQueryCount,
-          draftWorkItemCount: draftCount,
-          configStatus: configuredCount > 0 ? 'CONFIGURED' : draftCount > 0 ? 'DRAFT_ONLY' : 'UNCONFIGURED'
+          draftFieldCount: draftCount,
+          configStatus: derivedStatus
         };
       })
     );
@@ -200,7 +210,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           ...root,
           configuredFieldCount: configuredCount,
           formalQueryableFieldCount: formalCount,
-          draftWorkItemCount: 0,
+          draftFieldCount: 0,
           configStatus: 'CONFIGURED' as const,
           syncStatus: hasDataImpacting ? 'PENDING' : root.syncStatus,
           hasPendingSyncChanges: hasDataImpacting
@@ -267,11 +277,19 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             lastSyncBatchId: batchId,
             formalQueryableFieldCount: formalCount,
             hasPendingSyncChanges: false,
-            syncErrorRecords: hasMinorErrors ? root.syncErrorRecords : []
+            lastSyncErrorRecords: hasMinorErrors ? root.lastSyncErrorRecords : []
           };
         })
       );
     }, 1200);
+  };
+
+  // 打开正式查询底座预览 (支持传入指定 rootTypeId，先切换根类型，再打开模态框)
+  const handleOpenQueryPreview = (rootTypeId?: string) => {
+    if (rootTypeId) {
+      setSelectedRootTypeId(rootTypeId);
+    }
+    setIsQueryPreviewOpen(true);
   };
 
   // 触发单根类型快速同步
@@ -289,6 +307,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           mappingObjects={mappingObjects}
           onSelectRootType={handleSelectRootType}
           onTriggerSync={handleTriggerQuickSync}
+          onOpenQueryPreview={handleOpenQueryPreview}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
           hasPermission={hasPermission}
         />
@@ -303,7 +322,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onViewFieldDetail={handleViewFieldDetail}
           onPublishConfig={() => setIsPublishModalOpen(true)}
           onTriggerDataSync={() => setIsTriggerSyncModalOpen(true)}
-          onOpenQueryPreview={() => setIsQueryPreviewOpen(true)}
+          onOpenQueryPreview={() => handleOpenQueryPreview(currentRootType.id)}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
           hasPermission={hasPermission}
         />
@@ -358,9 +377,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         currentRootType={currentRootType}
         fields={fieldMappings}
         previewRecords={
-          mockStage1PreviewRecords[currentRootType.id] ||
-          mockStage1PreviewRecords['PART'] ||
-          []
+          mockStage1PreviewRecords[currentRootType.id] || []
         }
       />
 
