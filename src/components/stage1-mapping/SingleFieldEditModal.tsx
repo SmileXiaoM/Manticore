@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Sliders,
@@ -15,10 +15,11 @@ import {
   resolveSourceDisplayName,
   formatRootTypeDisplayName,
   getMaxDisplayOrder,
-  isDisplayOrderOccupied,
   validateDisplayOrder
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
+
+const EMPTY_EXISTING_FIELDS: FieldMappingItem[] = [];
 
 interface SingleFieldEditModalProps {
   isOpen: boolean;
@@ -36,13 +37,17 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   onClose,
   currentRootType,
   availablePlmFields,
-  existingFields = [],
+  existingFields = EMPTY_EXISTING_FIELDS,
   editingField,
   onSaveDraft,
   hasPermission = true
 }) => {
   const isEditingExisting = !!editingField;
   const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
+
+  const prevOpenRef = useRef(false);
+  const prevEditingFieldIdRef = useRef<string | null>(null);
+  const prevRootTypeIdRef = useRef<string | null>(null);
 
   const [formData, setFormData] = useState<FieldMappingFormData>({
     selectedSourceKey: '',
@@ -57,6 +62,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     isDisplayInResult: true,
     isFulltextSearch: false,
     isUniqueKey: false,
+    isEnableHyperlink: false,
     hyperlinkConfig: {
       urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
       oidSourceField: 'master_oid',
@@ -77,31 +83,54 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     return availablePlmFields.find(f => f.sourceFieldKey === formData.selectedSourceKey) || null;
   }, [availablePlmFields, formData.selectedSourceKey]);
 
-  // 弹窗打开或切换编辑项时回填
+  // 弹窗打开、切换编辑项或切换根类型时才回填，用户输入过程中绝不重新初始化
   useEffect(() => {
     if (!isOpen) {
+      prevOpenRef.current = false;
       setShowUnsavedConfirm(false);
       setErrors({});
       return;
     }
 
+    const isJustOpened = !prevOpenRef.current && isOpen;
+    const isTargetChanged = (editingField ? editingField.id : null) !== prevEditingFieldIdRef.current;
+    const isRootTypeChanged = currentRootType.id !== prevRootTypeIdRef.current;
+
+    if (!isJustOpened && !isTargetChanged && !isRootTypeChanged) {
+      return;
+    }
+
+    prevOpenRef.current = true;
+    prevEditingFieldIdRef.current = editingField ? editingField.id : null;
+    prevRootTypeIdRef.current = currentRootType.id;
+
     if (editingField) {
       const draft = editingField.hasDraftModification && editingField.draftData ? editingField.draftData : null;
       const initialOrder = draft?.displayOrder ?? draft?.defaultDisplayOrder ?? editingField.displayOrder ?? editingField.defaultDisplayOrder ?? 1;
+
+      const rawDisplayType = draft?.displayType ?? editingField.displayType;
+      const isHidden = rawDisplayType === 'HIDDEN';
+      const isFulltext = rawDisplayType === 'FULLTEXT';
+      const isLink = rawDisplayType === 'LINK' || !!(draft?.hyperlinkConfig ?? editingField?.hyperlinkConfig);
+
+      const initialDisplayInResult = isHidden ? false : (draft?.isDisplayInResult ?? editingField?.isDisplayInResult ?? true);
+      const initialFulltext = isFulltext ? true : (draft?.isFulltextSearch ?? editingField?.isFulltextSearch ?? false);
+      const initialEnableHyperlink = isLink;
 
       const initialData: FieldMappingFormData = {
         selectedSourceKey: editingField.sourceFieldKey,
         displayTitle: draft?.displayTitle ?? editingField.displayTitle,
         displayOrder: initialOrder,
         defaultColumnWidth: draft?.defaultColumnWidth ?? editingField.defaultColumnWidth ?? 150,
-        displayType: draft?.displayType ?? editingField.displayType,
+        displayType: isLink ? 'LINK' : 'CONDITION_QUERY',
         manticoreField: editingField.manticoreField,
         manticoreType: editingField.manticoreType,
         isQueryCondition: draft?.isQueryCondition ?? editingField.isQueryCondition ?? true,
         isSortable: draft?.isSortable ?? editingField.isSortable ?? false,
-        isDisplayInResult: draft?.isDisplayInResult ?? editingField.isDisplayInResult ?? true,
-        isFulltextSearch: draft?.isFulltextSearch ?? editingField.isFulltextSearch ?? false,
+        isDisplayInResult: initialDisplayInResult,
+        isFulltextSearch: initialFulltext,
         isUniqueKey: draft?.isUniqueKey ?? editingField.isUniqueKey ?? false,
+        isEnableHyperlink: initialEnableHyperlink,
         hyperlinkConfig: draft?.hyperlinkConfig ?? editingField.hyperlinkConfig ?? {
           urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
           oidSourceField: 'master_oid',
@@ -116,7 +145,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       setFormData(initialData);
       setInitialSnapshot(JSON.stringify(initialData));
     } else {
-      // 新建字段：默认顺序号取当前根类型已有最大顺序号加 1
+      // 新建字段：默认顺序号必须为当前根类型最大顺序号加 1
       const nextOrder = getMaxDisplayOrder(existingFields, currentRootType.id) + 1;
       const firstAvailable = availablePlmFields[0];
       const defaultKey = firstAvailable ? firstAvailable.sourceFieldKey : '';
@@ -129,6 +158,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         ? firstAvailable.sourceFieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
         : '';
 
+      const isLongText = firstAvailable?.sourceDataType === 'LONG_TEXT';
+      const isNum = firstAvailable?.sourceDataType === 'NUMERIC' || firstAvailable?.sourceDataType === 'NUMERIC_WITH_UNIT';
+
       const initialData: FieldMappingFormData = {
         selectedSourceKey: defaultKey,
         displayTitle: resolved,
@@ -136,12 +168,13 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         defaultColumnWidth: 150,
         displayType: 'CONDITION_QUERY',
         manticoreField: defaultManticore,
-        manticoreType: firstAvailable?.sourceDataType === 'NUMERIC' || firstAvailable?.sourceDataType === 'NUMERIC_WITH_UNIT' ? 'FLOAT' : firstAvailable?.sourceDataType === 'LONG_TEXT' ? 'TEXT' : 'STRING',
+        manticoreType: isNum ? 'FLOAT' : isLongText ? 'TEXT' : 'STRING',
         isQueryCondition: true,
-        isSortable: firstAvailable?.sourceDataType === 'NUMERIC' || firstAvailable?.sourceDataType === 'NUMERIC_WITH_UNIT',
+        isSortable: isNum,
         isDisplayInResult: true,
-        isFulltextSearch: firstAvailable?.sourceDataType === 'LONG_TEXT',
+        isFulltextSearch: isLongText,
         isUniqueKey: false,
+        isEnableHyperlink: false,
         hyperlinkConfig: {
           urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
           oidSourceField: 'master_oid',
@@ -254,8 +287,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       newErrors.manticoreField = 'Manticore 字段必须为全小写蛇形命名 (例如 part_number)';
     }
 
-    if (formData.displayType === 'LINK') {
-      if (!formData.hyperlinkConfig?.urlTemplate.trim()) {
+    if (formData.isEnableHyperlink || formData.displayType === 'LINK') {
+      if (!formData.hyperlinkConfig?.urlTemplate?.trim()) {
         newErrors.urlTemplate = '超链接 URL 模板不能为空';
       }
     }
@@ -293,6 +326,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         ? 'QUERY_CONDITION'
         : 'NONE';
 
+    const finalDisplayType: FieldMappingItem['displayType'] = formData.isEnableHyperlink ? 'LINK' : 'CONDITION_QUERY';
+    const finalHyperlinkConfig = formData.isEnableHyperlink ? formData.hyperlinkConfig : undefined;
+
     const isDataImpacting = checkIsDataImpactingChange(
       isEditingExisting && isEditingConfigured ? editingField : null,
       {
@@ -316,7 +352,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           displayTitle: formData.displayTitle.trim(),
           displayOrder: formData.displayOrder,
           defaultDisplayOrder: formData.displayOrder,
-          displayType: formData.displayType,
+          displayType: finalDisplayType,
           queryCapability: derivedQueryCapability,
           isQueryCondition: formData.isQueryCondition,
           isSortable: formData.isSortable,
@@ -324,7 +360,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           isFulltextSearch: formData.isFulltextSearch,
           isUniqueKey: formData.isUniqueKey,
           defaultColumnWidth: formData.defaultColumnWidth,
-          hyperlinkConfig: formData.displayType === 'LINK' ? formData.hyperlinkConfig : undefined,
+          hyperlinkConfig: finalHyperlinkConfig,
           isDataImpactingChange: isDataImpacting
         },
         isDataImpactingChange: isDataImpacting,
@@ -351,7 +387,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         displayTitle: formData.displayTitle.trim(),
         displayOrder: formData.displayOrder,
         defaultDisplayOrder: formData.displayOrder,
-        displayType: formData.displayType,
+        displayType: finalDisplayType,
         queryCapability: derivedQueryCapability,
         isQueryCondition: formData.isQueryCondition,
         isSortable: formData.isSortable,
@@ -359,7 +395,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isFulltextSearch: formData.isFulltextSearch,
         isUniqueKey: formData.isUniqueKey,
         defaultColumnWidth: formData.defaultColumnWidth,
-        hyperlinkConfig: formData.displayType === 'LINK' ? formData.hyperlinkConfig : undefined,
+        hyperlinkConfig: finalHyperlinkConfig,
         configStatus: 'DRAFT',
         hasDraftModification: false,
         isDataImpactingChange: isDataImpacting,

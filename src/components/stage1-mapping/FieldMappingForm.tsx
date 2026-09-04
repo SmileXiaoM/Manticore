@@ -23,7 +23,6 @@ export interface FieldMappingFormData {
   displayTitle: string;
   displayOrder: number;
   defaultColumnWidth: number;
-  displayType: FieldMappingItem['displayType'];
   manticoreField: string;
   manticoreType: ManticoreFieldType;
   isQueryCondition: boolean;
@@ -31,7 +30,9 @@ export interface FieldMappingFormData {
   isDisplayInResult: boolean;
   isFulltextSearch: boolean;
   isUniqueKey: boolean;
+  isEnableHyperlink: boolean;
   hyperlinkConfig?: HyperlinkConfig;
+  displayType?: FieldMappingItem['displayType'];
 }
 
 export interface FieldMappingFormProps {
@@ -195,7 +196,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900">映射与业务展示</h4>
-            <p className="text-[11px] text-slate-500">前台显示名称、顺序号与渲染样式</p>
+            <p className="text-[11px] text-slate-500">前台显示名称、顺序号与列宽</p>
           </div>
         </div>
 
@@ -254,70 +255,6 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           )}
         </div>
 
-        {/* 展示渲染类型 */}
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">展示渲染方式</label>
-          <select
-            value={formData.displayType}
-            onChange={e => onChange({ displayType: e.target.value as any })}
-            className="w-full h-8 px-2.5 bg-white border border-slate-300 rounded-[6px] text-xs text-slate-800 focus:outline-hidden focus:border-blue-500 cursor-pointer"
-          >
-            <option value="CONDITION_QUERY">标准条件 / 文本数值</option>
-            <option value="LINK">超链接跳转 (PLM/外部系统)</option>
-            <option value="FULLTEXT">全文大字段高亮</option>
-            <option value="CATEGORY_PATH">分类树路径面包屑</option>
-            <option value="ENUM_BADGE">彩色枚举状态标签</option>
-            <option value="HIDDEN">仅索引不直接展示</option>
-          </select>
-        </div>
-
-        {/* 超链接配置 */}
-        {formData.displayType === 'LINK' && (
-          <div className="bg-white border border-blue-200 rounded-[6px] p-3 space-y-2.5 text-xs animate-in fade-in">
-            <div className="flex items-center text-blue-800 font-semibold text-[11px]">
-              <Link className="w-3.5 h-3.5 mr-1 text-blue-600" />
-              超链接跳转参数映射
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-600 font-medium">URL 模板</label>
-              <input
-                type="text"
-                value={hyperlink.urlTemplate}
-                onChange={e => updateHyperlink({ urlTemplate: e.target.value })}
-                placeholder="https://plm.corp/view?oid={oid}&type={otype}"
-                className={`w-full h-7 px-2 bg-slate-50 border rounded-[4px] text-[11px] font-mono text-slate-800 ${
-                  errors.urlTemplate ? 'border-rose-400' : 'border-slate-300'
-                }`}
-              />
-              {errors.urlTemplate && (
-                <p className="text-[10px] text-rose-500">{errors.urlTemplate}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span className="text-slate-500">{'{oid}'} 来源字段:</span>
-                <input
-                  type="text"
-                  value={hyperlink.oidSourceField}
-                  onChange={e => updateHyperlink({ oidSourceField: e.target.value })}
-                  className="w-full h-7 px-2 bg-slate-50 border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5"
-                />
-              </div>
-              <div>
-                <span className="text-slate-500">{'{otype}'} 来源字段:</span>
-                <input
-                  type="text"
-                  value={hyperlink.otypeSourceField}
-                  onChange={e => updateHyperlink({ otypeSourceField: e.target.value })}
-                  className="w-full h-7 px-2 bg-slate-50 border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* 默认表格列宽 */}
         <div className="space-y-1 pt-1">
           <div className="flex justify-between items-center text-xs">
@@ -344,7 +281,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900">Manticore 底层配置</h4>
-            <p className="text-[11px] text-slate-500">检索物理字段与 5 项核心能力</p>
+            <p className="text-[11px] text-slate-500">检索物理字段与检索展示能力</p>
           </div>
         </div>
 
@@ -393,37 +330,14 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           </select>
         </div>
 
-        {/* 5 项检索与展示能力配置 */}
-        <div className="bg-white border border-slate-200 rounded-[6px] p-3 space-y-2 flex-1">
+        {/* 检索与展示能力配置 */}
+        <div className="bg-white border border-slate-200 rounded-[6px] p-3 space-y-2.5 flex-1">
           <div className="text-[11px] font-semibold text-slate-700 mb-1 flex items-center">
             <Shield className="w-3.5 h-3.5 mr-1 text-purple-600" />
-            5 项检索与展示能力配置
+            检索、展示与超链接能力配置
           </div>
 
           <div className="space-y-1.5 text-xs">
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
-              <input
-                type="checkbox"
-                checked={formData.isQueryCondition}
-                onChange={e => onChange({ isQueryCondition: e.target.checked })}
-                className="rounded text-blue-600 cursor-pointer"
-              />
-              <span className="text-slate-800">允许作为精确/范围查询条件</span>
-            </label>
-
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
-              <input
-                type="checkbox"
-                checked={formData.isSortable}
-                disabled={formData.manticoreType === 'TEXT'}
-                onChange={e => onChange({ isSortable: e.target.checked })}
-                className="rounded text-blue-600 cursor-pointer disabled:opacity-40"
-              />
-              <span className={formData.manticoreType === 'TEXT' ? 'text-slate-400' : 'text-slate-800'}>
-                支持多列升降排序 (非 TEXT)
-              </span>
-            </label>
-
             <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
@@ -447,6 +361,48 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
               <input
                 type="checkbox"
+                checked={formData.isQueryCondition}
+                onChange={e => onChange({ isQueryCondition: e.target.checked })}
+                className="rounded text-blue-600 cursor-pointer"
+              />
+              <span className="text-slate-800">允许作为精确/范围查询条件</span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.isSortable}
+                disabled={formData.manticoreType === 'TEXT'}
+                onChange={e => onChange({ isSortable: e.target.checked })}
+                className="rounded text-blue-600 cursor-pointer disabled:opacity-40"
+              />
+              <span className={formData.manticoreType === 'TEXT' ? 'text-slate-400' : 'text-slate-800'}>
+                支持排序 (非 TEXT)
+              </span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.isEnableHyperlink}
+                onChange={e => {
+                  const checked = e.target.checked;
+                  onChange({
+                    isEnableHyperlink: checked,
+                    displayType: checked ? 'LINK' : 'CONDITION_QUERY'
+                  });
+                }}
+                className="rounded text-blue-600 cursor-pointer"
+              />
+              <span className="text-slate-800 font-medium flex items-center">
+                <Link className="w-3 h-3 mr-1 text-blue-600" />
+                字段值启用超链接 (跳转 PLM)
+              </span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded-[4px] transition-colors">
+              <input
+                type="checkbox"
                 checked={formData.isUniqueKey}
                 onChange={e => onChange({ isUniqueKey: e.target.checked })}
                 className="rounded text-amber-600 cursor-pointer"
@@ -454,6 +410,88 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               <span className="text-slate-800 font-medium">作为业务唯一键 (Unique Key)</span>
             </label>
           </div>
+
+          {/* 超链接参数配置区 (启用超链接后展开) */}
+          {formData.isEnableHyperlink && (
+            <div className="bg-blue-50/50 border border-blue-200 rounded-[6px] p-2.5 space-y-2 text-xs mt-2 animate-in fade-in">
+              <div className="flex items-center justify-between text-blue-900 font-semibold text-[11px] pb-1 border-b border-blue-100">
+                <span className="flex items-center">
+                  <Link className="w-3 h-3 mr-1 text-blue-600" />
+                  超链接参数配置
+                </span>
+                <span className="text-[10px] text-blue-600 font-normal">
+                  支持 {'{oid}'} 和 {'{otype}'} 动态占位符
+                </span>
+              </div>
+
+              <div className="space-y-0.5">
+                <label className="text-[11px] text-slate-700 font-medium block">
+                  URL 模板 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={hyperlink.urlTemplate}
+                  onChange={e => updateHyperlink({ urlTemplate: e.target.value })}
+                  placeholder="https://plm.internal.corp/app/view?oid={oid}&type={otype}"
+                  className={`w-full h-7 px-2 bg-white border rounded-[4px] text-[11px] font-mono text-slate-800 focus:outline-hidden focus:border-blue-500 ${
+                    errors.urlTemplate ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300'
+                  }`}
+                />
+                {errors.urlTemplate && (
+                  <p className="text-[10px] text-rose-500">{errors.urlTemplate}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="text-slate-600">{'{oid}'} 来源字段:</span>
+                  <input
+                    type="text"
+                    value={hyperlink.oidSourceField}
+                    onChange={e => updateHyperlink({ oidSourceField: e.target.value })}
+                    placeholder="master_oid"
+                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-slate-600">{'{otype}'} 来源字段:</span>
+                  <input
+                    type="text"
+                    value={hyperlink.otypeSourceField}
+                    onChange={e => updateHyperlink({ otypeSourceField: e.target.value })}
+                    placeholder="object_type_code"
+                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] font-mono text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-blue-100">
+                <div>
+                  <span className="text-slate-600">打开方式:</span>
+                  <select
+                    value={hyperlink.openTarget || '_blank'}
+                    onChange={e => updateHyperlink({ openTarget: e.target.value as '_blank' | '_self' })}
+                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] text-[11px] text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="_blank">新标签页打开 (_blank)</option>
+                    <option value="_self">当前窗口跳转 (_self)</option>
+                  </select>
+                </div>
+                <div>
+                  <span className="text-slate-600">缺少参数时的处理方式:</span>
+                  <select
+                    value={hyperlink.onMissingParam || 'HIDE_LINK_SHOW_TEXT'}
+                    onChange={e => updateHyperlink({ onMissingParam: e.target.value as any })}
+                    className="w-full h-7 px-2 bg-white border border-slate-300 rounded-[4px] text-[11px] text-slate-800 mt-0.5 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="HIDE_LINK_SHOW_TEXT">隐藏超链接，仅展示普通文本</option>
+                    <option value="SHOW_DISABLED_LINK">置灰且不可点击</option>
+                    <option value="HIDE_ENTIRE_COLUMN">隐藏整列</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

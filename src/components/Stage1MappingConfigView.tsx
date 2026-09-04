@@ -315,6 +315,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         onClose={() => setIsSingleEditOpen(false)}
         currentRootType={currentRootType}
         availablePlmFields={availablePlmFields}
+        existingFields={fieldMappings}
         editingField={editingTargetField}
         onSaveDraft={handleSaveDraft}
         hasPermission={hasPermission}
@@ -328,6 +329,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         availablePlmFields={availablePlmFields}
         existingFieldMappings={fieldMappings}
         onSaveBatchDrafts={handleSaveBatchDrafts}
+        onEditField={handleEditField}
         hasPermission={hasPermission}
       />
 

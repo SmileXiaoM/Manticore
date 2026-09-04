@@ -26,7 +26,7 @@ import {
   resolveSourceDisplayName,
   formatRootTypeDisplayName,
   getMaxDisplayOrder,
-  isDisplayOrderOccupied,
+  getFieldDisplayOrder,
   validateDisplayOrder
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
@@ -70,6 +70,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const [configuringFormData, setConfiguringFormData] = useState<FieldMappingFormData | null>(null);
   const [configuringErrors, setConfiguringErrors] = useState<Record<string, string>>({});
 
+  const [batchErrorMessage, setBatchErrorMessage] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
   // 当弹窗打开时重置状态
@@ -84,6 +85,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setConfiguringCandidate(null);
       setConfiguringFormData(null);
       setConfiguringErrors({});
+      setBatchErrorMessage(null);
       setShowUnsavedConfirm(false);
     }
   }, [isOpen]);
@@ -93,8 +95,9 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     if (fetchStatus !== 'SUCCESS') return [];
 
     const baseMaxOrder = getMaxDisplayOrder(existingFieldMappings, currentRootType.id);
+    let unmappedCounter = 0;
 
-    return availablePlmFields.map((meta, idx) => {
+    return availablePlmFields.map((meta) => {
       // 查找当前根类型下已存在的映射
       const existing = existingFieldMappings.find(
         f =>
@@ -113,6 +116,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       let resolutionHint: string | undefined = undefined;
       let isSelectable = true;
       let existingFieldId: string | undefined = undefined;
+      let realDisplayOrder: number | undefined = undefined;
 
       if (meta.sourceDataType === 'LONG_TEXT' && meta.sourceFieldKey.includes('cad_binary')) {
         conflictType = 'TYPE_INCOMPATIBLE';
@@ -126,6 +130,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         isSelectable = false;
       } else if (existing) {
         existingFieldId = existing.id;
+        realDisplayOrder = getFieldDisplayOrder(existing);
         if (existing.configStatus === 'CONFIGURED') {
           conflictType = 'ALREADY_CONFIGURED';
           conflictReason = '该属性已在当前根类型中生效配置，无需重复导入';
@@ -163,6 +168,13 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         suggestedDisplayType = 'ENUM_BADGE';
       }
 
+      // 只有“未映射”且可直接导入的候选字段才分配建议顺序号，按待导入顺序递增，避免被已存在或不可导入字段占位空耗
+      let suggestedDisplayOrder: number | undefined = undefined;
+      if (conflictType === 'UNMAPPED' && isSelectable) {
+        unmappedCounter += 1;
+        suggestedDisplayOrder = baseMaxOrder + unmappedCounter;
+      }
+
       return {
         sourceFieldMeta: {
           ...meta,
@@ -175,7 +187,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         suggestedDisplayTitle: resolvedName,
         suggestedDisplayType,
         suggestedQueryCapability: suggestedQueryCap,
-        suggestedDisplayOrder: baseMaxOrder + idx + 1,
+        suggestedDisplayOrder,
+        realDisplayOrder,
         conflictType,
         conflictReason,
         resolutionHint,
@@ -274,13 +287,14 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       const defaultOrder = c.suggestedDisplayOrder ?? (getMaxDisplayOrder(existingFieldMappings, currentRootType.id) + 1);
       const isNum = c.sourceFieldMeta.sourceDataType === 'NUMERIC' || c.sourceFieldMeta.sourceDataType === 'NUMERIC_WITH_UNIT';
       const isLongText = c.sourceFieldMeta.sourceDataType === 'LONG_TEXT';
+      const isLink = c.suggestedDisplayType === 'LINK';
 
       setConfiguringFormData({
         selectedSourceKey: key,
         displayTitle: c.suggestedDisplayTitle,
         displayOrder: defaultOrder,
         defaultColumnWidth: 150,
-        displayType: c.suggestedDisplayType,
+        displayType: isLink ? 'LINK' : 'CONDITION_QUERY',
         manticoreField: c.suggestedManticoreField,
         manticoreType: c.suggestedManticoreType,
         isQueryCondition: true,
@@ -288,6 +302,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         isDisplayInResult: true,
         isFulltextSearch: isLongText,
         isUniqueKey: false,
+        isEnableHyperlink: isLink,
         hyperlinkConfig: {
           urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
           oidSourceField: 'master_oid',
@@ -313,13 +328,37 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       newErrors.displayTitle = '前台显示名称为必填项，不可为空';
     }
 
+    const currentKey = configuringCandidate.sourceFieldMeta.sourceFieldKey;
+    const currentOrder = configuringFormData.displayOrder;
+
     const orderVal = validateDisplayOrder(
-      configuringFormData.displayOrder,
+      currentOrder,
       existingFieldMappings,
       currentRootType.id
     );
     if (!orderVal.valid && orderVal.errorMessage) {
       newErrors.displayOrder = orderVal.errorMessage;
+    }
+
+    // 校验与当前已有字段是否冲突
+    if (!newErrors.displayOrder) {
+      const conflictExisting = existingFieldMappings.find(
+        f => f.rootTypeId === currentRootType.id && getFieldDisplayOrder(f) === currentOrder
+      );
+      if (conflictExisting) {
+        newErrors.displayOrder = `顺序号 ${currentOrder} 已被当前已有字段「${conflictExisting.displayTitle}」占用`;
+      }
+    }
+
+    // 校验与其他已定制的候选配置是否冲突
+    if (!newErrors.displayOrder) {
+      for (const [otherKey, config] of Object.entries(candidateCustomConfigs)) {
+        const otherConfig = config as FieldMappingFormData;
+        if (otherKey !== currentKey && otherConfig && otherConfig.displayOrder === currentOrder) {
+          newErrors.displayOrder = `顺序号 ${currentOrder} 与已定制候选字段「${otherConfig.displayTitle}」冲突`;
+          break;
+        }
+      }
     }
 
     if (!configuringFormData.manticoreField.trim()) {
@@ -328,8 +367,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       newErrors.manticoreField = 'Manticore 字段必须为全小写蛇形命名 (例如 part_number)';
     }
 
-    if (configuringFormData.displayType === 'LINK') {
-      if (!configuringFormData.hyperlinkConfig?.urlTemplate.trim()) {
+    if (configuringFormData.isEnableHyperlink || configuringFormData.displayType === 'LINK') {
+      if (!configuringFormData.hyperlinkConfig?.urlTemplate?.trim()) {
         newErrors.urlTemplate = '超链接 URL 模板不能为空';
       }
     }
@@ -339,15 +378,18 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       return;
     }
 
-    const key = configuringCandidate.sourceFieldMeta.sourceFieldKey;
     setCandidateCustomConfigs(prev => ({
       ...prev,
-      [key]: { ...configuringFormData }
+      [currentKey]: {
+        ...configuringFormData,
+        displayType: configuringFormData.isEnableHyperlink ? 'LINK' : 'CONDITION_QUERY',
+        hyperlinkConfig: configuringFormData.isEnableHyperlink ? configuringFormData.hyperlinkConfig : undefined
+      }
     }));
 
     // 自动勾选此候选
-    if (!selectedKeys.includes(key)) {
-      setSelectedKeys(prev => [...prev, key]);
+    if (!selectedKeys.includes(currentKey)) {
+      setSelectedKeys(prev => [...prev, currentKey]);
     }
 
     setConfiguringCandidate(null);
@@ -357,12 +399,22 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
   // 导航到已配置字段或草稿项进行编辑
   const handleJumpToEditField = (existingFieldId?: string) => {
-    if (!existingFieldId || !onEditField) return;
-    const target = existingFieldMappings.find(f => f.id === existingFieldId);
-    if (target) {
-      onClose();
-      onEditField(target);
+    if (!existingFieldId) {
+      setBatchErrorMessage('未找到对应字段的映射标识，无法跳转编辑');
+      return;
     }
+    const target = existingFieldMappings.find(f => f.id === existingFieldId);
+    if (!target) {
+      setBatchErrorMessage('未在当前根类型中找到对应的字段映射项，可能已被删除');
+      return;
+    }
+    if (!onEditField) {
+      setBatchErrorMessage('系统未配置字段编辑入口，无法完成跳转');
+      return;
+    }
+    setBatchErrorMessage(null);
+    onClose();
+    onEditField(target);
   };
 
   const isDirty = selectedKeys.length > 0 || Object.keys(candidateCustomConfigs).length > 0;
@@ -375,17 +427,71 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  // 确认批量保存为草稿 (顺序号连续生成或使用用户自定义配置)
+  // 确认批量保存为草稿 (严格校验整批顺序号唯一性，列表与保存完全一致)
   const handleConfirmBatch = () => {
+    setBatchErrorMessage(null);
+
     const selectedCandidateList = candidates.filter(
       c => selectedKeys.includes(c.sourceFieldMeta.sourceFieldKey) && c.isSelectable
     );
 
-    const baseMaxOrder = getMaxDisplayOrder(existingFieldMappings, currentRootType.id);
+    if (selectedCandidateList.length === 0) {
+      setBatchErrorMessage('请至少选择一个待导入的属性');
+      return;
+    }
 
-    const newDrafts: FieldMappingItem[] = selectedCandidateList.map((c, idx) => {
+    // 1. 提取所有待导入项与其确切最终顺序号（严格与表格显示一致）
+    const pendingItems = selectedCandidateList.map(c => {
       const key = c.sourceFieldMeta.sourceFieldKey;
       const custom = candidateCustomConfigs[key];
+      const title = custom ? custom.displayTitle.trim() : c.suggestedDisplayTitle;
+      const order = custom && custom.displayOrder > 0 ? custom.displayOrder : (c.suggestedDisplayOrder ?? 0);
+      return {
+        candidate: c,
+        custom,
+        title,
+        order
+      };
+    });
+
+    // 2. 基础有效性校验：必须为正整数
+    for (const item of pendingItems) {
+      if (!Number.isInteger(item.order) || item.order <= 0) {
+        setBatchErrorMessage(`字段「${item.title}」的顺序号无效 (${item.order})，必须为大于 0 的正整数`);
+        return;
+      }
+    }
+
+    // 3. 校验与当前根类型已有字段的冲突
+    for (const item of pendingItems) {
+      const conflictExisting = existingFieldMappings.find(
+        f => f.rootTypeId === currentRootType.id && getFieldDisplayOrder(f) === item.order
+      );
+      if (conflictExisting) {
+        setBatchErrorMessage(
+          `顺序号冲突：待导入字段「${item.title}」的顺序号 (${item.order}) 与当前根类型已有字段「${conflictExisting.displayTitle}」重复，请修改后再保存`
+        );
+        return;
+      }
+    }
+
+    // 4. 校验整批内部的顺序号唯一性
+    const seenOrders = new Map<number, string>();
+    for (const item of pendingItems) {
+      if (seenOrders.has(item.order)) {
+        const prevTitle = seenOrders.get(item.order);
+        setBatchErrorMessage(
+          `顺序号冲突：待导入字段「${item.title}」与「${prevTitle}」设置了相同的顺序号 (${item.order})，请修改后再保存`
+        );
+        return;
+      }
+      seenOrders.set(item.order, item.title);
+    }
+
+    // 5. 校验通过，生成草稿映射项
+    const newDrafts: FieldMappingItem[] = pendingItems.map((item, idx) => {
+      const c = item.candidate;
+      const custom = item.custom;
 
       const { resolvedName, isMissing } = resolveSourceDisplayName(
         c.sourceFieldMeta.sourceDisplayName,
@@ -393,21 +499,28 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         c.sourceFieldMeta.sourceFieldKey
       );
 
-      // 如果用户通过「配置」修改了，则采用定制值；否则采用推断默认值
-      const title = custom ? custom.displayTitle.trim() : c.suggestedDisplayTitle;
+      const title = item.title;
       const manticoreName = custom ? custom.manticoreField : c.suggestedManticoreField;
       const manticoreType = custom ? custom.manticoreType : c.suggestedManticoreType;
-      const displayType = custom ? custom.displayType : c.suggestedDisplayType;
+      const isEnableHyperlink = custom ? !!custom.isEnableHyperlink : (c.suggestedDisplayType === 'LINK');
+      const displayType: FieldMappingItem['displayType'] = isEnableHyperlink ? 'LINK' : 'CONDITION_QUERY';
       const isQueryCond = custom ? custom.isQueryCondition : true;
       const isSort = custom ? custom.isSortable : (c.suggestedManticoreType !== 'TEXT');
-      const isDisplayInRes = custom ? custom.isDisplayInResult : (c.suggestedDisplayType !== 'FULLTEXT');
+      const isDisplayInRes = custom ? custom.isDisplayInResult : true;
       const isFulltext = custom ? custom.isFulltextSearch : (c.suggestedManticoreType === 'TEXT');
       const isUnique = custom ? custom.isUniqueKey : false;
       const colWidth = custom ? custom.defaultColumnWidth : 150;
-      const hyperlink = custom?.displayType === 'LINK' ? custom.hyperlinkConfig : undefined;
+      const hyperlink = isEnableHyperlink ? (custom?.hyperlinkConfig ?? {
+        urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
+        oidSourceField: 'master_oid',
+        otypeSourceField: 'object_type_code',
+        displayTextSource: 'FIELD_VALUE',
+        staticLabel: '查看源数据',
+        openTarget: '_blank',
+        onMissingParam: 'HIDE_LINK_SHOW_TEXT'
+      }) : undefined;
 
-      // 顺序号：若用户定制了顺序号则优先使用，否则从当前已有最大顺序号加 1 开始连续生成
-      const order = custom && custom.displayOrder > 0 ? custom.displayOrder : (baseMaxOrder + idx + 1);
+      const order = item.order;
 
       const derivedQueryCap: FieldMappingItem['queryCapability'] =
         isQueryCond && isFulltext
@@ -605,6 +718,23 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
             </div>
           )}
 
+          {/* 错误提示横幅 */}
+          {batchErrorMessage && (
+            <div className="mx-5 my-2.5 p-3 rounded-[6px] bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center justify-between shrink-0 animate-in fade-in duration-150">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span className="font-medium">{batchErrorMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBatchErrorMessage(null)}
+                className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {fetchStatus === 'SUCCESS' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* 筛选条 (统一 32px 控件) */}
@@ -730,7 +860,12 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         const currentTitle = custom ? custom.displayTitle : c.suggestedDisplayTitle;
                         const currentManticore = custom ? custom.manticoreField : c.suggestedManticoreField;
                         const currentType = custom ? custom.manticoreType : c.suggestedManticoreType;
-                        const currentOrder = custom ? custom.displayOrder : c.suggestedDisplayOrder;
+                        const currentOrder =
+                          c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
+                            ? c.realDisplayOrder
+                            : custom && custom.displayOrder > 0
+                            ? custom.displayOrder
+                            : c.suggestedDisplayOrder;
 
                         return (
                           <tr
@@ -802,11 +937,26 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                             {/* 顺序号 */}
                             <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-700">
                               {currentOrder !== undefined ? (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px]">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded border text-[11px] ${
+                                    c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
+                                      ? 'bg-slate-100 border-slate-300 text-slate-600'
+                                      : custom
+                                      ? 'bg-purple-50 border-purple-200 text-purple-700 font-bold'
+                                      : 'bg-blue-50 border-blue-200 text-blue-700'
+                                  }`}
+                                  title={
+                                    c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
+                                      ? '该字段在当前根类型已有映射中的实际顺序号'
+                                      : custom
+                                      ? '用户在本次批量导入中单独定制的顺序号'
+                                      : '系统推断建议顺序号'
+                                  }
+                                >
                                   {currentOrder}
                                 </span>
                               ) : (
-                                '-'
+                                <span className="text-slate-300">-</span>
                               )}
                             </td>
 

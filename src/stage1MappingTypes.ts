@@ -62,11 +62,11 @@ export interface MappingObjectType {
   configuredFieldCount: number; // 已配置生效字段数
   formalQueryableFieldCount: number; // 正式可查字段数 (当前底座快照中的字段数)
   draftFieldCount: number; // 草稿字段数 (纯新建草稿 + 生效字段的草稿修改)
-  
+
   // 状态
   configStatus: RootTypeConfigStatus;
   syncStatus: RootTypeSyncStatus;
-  
+
   // 同步执行细节
   lastSyncedAt?: string;
   lastSyncBatchId?: string;
@@ -74,7 +74,7 @@ export interface MappingObjectType {
   lastSyncErrorCount?: number; // 异常记录数 e.g. 3
   lastSyncErrorRecords?: SyncErrorRecord[]; // 异常记录明细
   lastSyncErrorMsg?: string; // 致命失败原因 (仅当 syncStatus === 'FAILED' 时)
-  
+
   hasPendingSyncChanges?: boolean; // 是否有待同步的数据影响变更
 }
 
@@ -141,7 +141,7 @@ export interface FieldMappingItem {
   id: string;
   rootTypeId: string; // 'PART' | 'DOCUMENT' | 'PROCESS'
   sourceSystemId: string; // 'PLM_WINCHILL'
-  
+
   // 来源元数据
   sourceFieldKey: string; // 稳定业务键 (sourceSystemId + rootTypeId + sourceFieldKey 唯一)
   sourceFieldName: string;
@@ -151,40 +151,43 @@ export interface FieldMappingItem {
   sourceDataTypeLabel: string;
   unitFamily?: string;
   defaultUnit?: string;
-  
+
   // 目标 Manticore 配置
   manticoreField: string;
   manticoreType: ManticoreFieldType;
   displayTitle: string;
   displayType: 'CONDITION_QUERY' | 'FULLTEXT' | 'CATEGORY_PATH' | 'ENUM_BADGE' | 'LINK' | 'HIDDEN';
   queryCapability: 'QUERY_CONDITION' | 'FULLTEXT_SEARCH' | 'BOTH' | 'NONE';
-  
+
   // 检索与展示能力开关
   isQueryCondition?: boolean;
   isDisplayInResult: boolean;
   isSortable: boolean;
   isFulltextSearch?: boolean;
   isUniqueKey?: boolean;
-  
+
   defaultColumnWidth?: number;
   displayOrder?: number; // 顺序号 (大于0的正整数，同一根类型内唯一)
   defaultDisplayOrder?: number; // 兼容历史引用
   hyperlinkConfig?: HyperlinkConfig;
-  
+
   // 状态与底座归属
   configStatus: FieldConfigStatus; // 'CONFIGURED' | 'DRAFT'
   hasDraftModification: boolean; // 若为已配置字段，是否存在草稿修改
   draftData?: Partial<FieldMappingItem>; // 关联的草稿修改内容
-  
+
   isDataImpactingChange: boolean; // 是否为数据影响变更 (改变物理字段/类型/查询/全文/主键等)
   isInFormalQueryBase: boolean; // 是否已进入当前正式查询底座快照
-  
+
   updatedAt: string;
   updatedBy: string;
 }
 
-// 获取字段顺序号
+// 获取字段顺序号 (优先取草稿顺序号)
 export function getFieldDisplayOrder(field: Partial<FieldMappingItem>): number {
+  if (field.hasDraftModification && field.draftData?.displayOrder !== undefined) {
+    return field.draftData.displayOrder;
+  }
   return field.displayOrder ?? field.defaultDisplayOrder ?? 1;
 }
 
@@ -202,9 +205,9 @@ export function isDisplayOrderOccupied(
   targetOrder: number,
   excludeFieldId?: string
 ): boolean {
-  return fields.some(f => 
-    f.rootTypeId === rootTypeId && 
-    f.id !== excludeFieldId && 
+  return fields.some(f =>
+    f.rootTypeId === rootTypeId &&
+    f.id !== excludeFieldId &&
     getFieldDisplayOrder(f) === targetOrder
   );
 }
@@ -367,6 +370,7 @@ export interface BatchImportCandidate {
   suggestedDisplayType: 'CONDITION_QUERY' | 'FULLTEXT' | 'CATEGORY_PATH' | 'ENUM_BADGE' | 'LINK' | 'HIDDEN';
   suggestedQueryCapability: 'QUERY_CONDITION' | 'FULLTEXT_SEARCH' | 'BOTH' | 'NONE';
   suggestedDisplayOrder?: number;
+  realDisplayOrder?: number;
   conflictType: BatchImportConflictType;
   conflictReason?: string;
   resolutionHint?: string;
