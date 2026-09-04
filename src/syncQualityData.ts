@@ -1,1785 +1,374 @@
 /**
- * 一阶段：数据同步质量 - 初始演示数据
- * 严格按照 V0.1 与 2026-08-31 同步日志证据合同 (R8) 规范提供真实、自洽、多对象的演示数据
+ * 一阶段：数据同步记录 - 初始演示数据
+ * 遵循业务约束：只有根类型，无软类型，无版本概念，单条错误不终止同步
+ * 数量口径完全自洽：同步总数 = 成功数 + 异常数 + 跳过数（运行中：正在处理 = 总数 - 成功 - 异常 - 跳过）
  */
 
-import {
-  SyncBatch,
-  VerificationRecord,
-  VerificationStatus,
-  SyncException,
-  FieldDifference
-} from './syncQualityTypes';
+import { SyncBatch } from './syncQualityTypes';
 
-// 字段级比对差异（四类典型差异覆盖 + 贯通示例差异）
-export const initialFieldDifferences: FieldDifference[] = [
-  {
-    id: 'DIFF-001',
-    objectCode: 'P-00921',
-    objectName: '精加工主轴滑动轴承座',
-    objectType: 'Part',
-    softType: '机械零件',
-    fieldName: 'updatecount (数据版本号)',
-    plmSourceValue: '17',
-    mappedExpectedValue: '17',
-    manticoreActualValue: '16',
-    diffType: '版本滞后',
-    result: 'MISMATCH'
-  },
-  {
-    id: 'DIFF-002',
-    objectCode: 'DOC-88310',
-    objectName: '液压动力回路拓扑设计规范',
-    objectType: 'Document',
-    softType: '技术文档',
-    fieldName: 'lifeCycleState (生命周期状态)',
-    plmSourceValue: '已发布 (RELEASED)',
-    mappedExpectedValue: 'RELEASED',
-    manticoreActualValue: 'INWORK (工作阶段)',
-    diffType: '状态不一致',
-    result: 'MISMATCH'
-  },
-  {
-    id: 'DIFF-003',
-    objectCode: 'DOC-77402',
-    objectName: '高压橡胶密封圈试验规范说明书',
-    objectType: 'Document',
-    softType: '技术文档',
-    fieldName: 'documentContent (大文本正文)',
-    plmSourceValue: '【第6版修订规范】高压密封件额定耐受压力提升至 42.5MPa，试验保压周期从 120min 延长至 180min，且环境温湿度需控制在标准公差内...',
-    mappedExpectedValue: '【第6版修订规范】高压密封件额定耐受压力提升至 42.5MPa，试验保压周期从 120min 延长至 180min，且环境温湿度需控制在标准公差内...',
-    manticoreActualValue: '【第5版旧规范】高压密封件额定耐受压力为 35.0MPa，保压周期 120min...',
-    diffType: '大文本旧值',
-    result: 'MISMATCH'
-  },
-  {
-    id: 'DIFF-004',
-    objectCode: 'PRC-3301',
-    objectName: '主轴箱铸造及精密铣削工艺路线',
-    objectType: 'Process',
-    softType: '工艺路线',
-    fieldName: 'processRecord (工艺索引实体)',
-    plmSourceValue: '存在有效工艺主记录 (包含 14 道工序清单与刀具参数)',
-    mappedExpectedValue: '存在有效工艺主记录 (包含 14 道工序清单与刀具参数)',
-    manticoreActualValue: '未找到记录 (NULL)',
-    diffType: 'Manticore 缺失记录',
-    result: 'MISSING'
-  },
-  {
-    id: 'DIFF-005',
-    objectCode: 'DRW-55109',
-    objectName: '主传动箱体结构装配图纸',
-    objectType: 'Document',
-    softType: '图纸',
-    fieldName: 'drawing_frame_size (图幅尺寸)',
-    plmSourceValue: 'CUSTOM_A0_EXT',
-    mappedExpectedValue: 'A0_EXTENDED',
-    manticoreActualValue: 'NULL (解析校验未通过)',
-    diffType: 'Schema 校验失败',
-    result: 'MISSING'
-  },
-  {
-    id: 'DIFF-006',
-    objectCode: 'DOC-91002',
-    objectName: '电液伺服控制阀出厂检验大纲',
-    objectType: 'Document',
-    softType: '技术文档',
-    fieldName: 'security_level (密级标签)',
-    plmSourceValue: 'INTERNAL_RESTRICTED (内部受限)',
-    mappedExpectedValue: 'RESTRICTED',
-    manticoreActualValue: 'UNCLASSIFIED (未分级)',
-    diffType: '状态不一致',
-    result: 'MISMATCH'
-  },
-  {
-    id: 'DIFF-007',
-    objectCode: 'P-00102',
-    objectName: '六角头螺栓 M10x50 8.8级',
-    objectType: 'Part',
-    softType: '机械零件',
-    fieldName: 'material (主要材质)',
-    plmSourceValue: '35CrMo',
-    mappedExpectedValue: '35CrMo',
-    manticoreActualValue: '35CrMo',
-    diffType: '正常匹配',
-    result: 'MATCH'
-  },
-  {
-    id: 'DIFF-010',
-    objectCode: 'P-00339',
-    objectName: '车规级主控芯片封装总成',
-    objectType: 'Part',
-    softType: '电子电气零件',
-    fieldName: 'pin_array_config (引脚阵列配置)',
-    plmSourceValue: 'BGA_256_EXT',
-    mappedExpectedValue: 'BGA_256_EXT',
-    manticoreActualValue: 'NULL (解析校验未通过)',
-    diffType: 'Schema 校验失败',
-    result: 'MISSING'
-  }
-];
-
-// 初始同步批次列表（包含全量多对象批次 SYNC-20260825-001，以及 R8 贯通增量任务 SYNC-20260825-010 及其重试子执行）
 export const initialSyncBatches: SyncBatch[] = [
-  // 1. 全量多对象基准批次
+  // 1. 全量同步批次（三根类型覆盖，完成有少量异常与跳过数据）
   {
     id: 'SYNC-20260825-001',
-    executionId: 'SYNC-20260825-001',
-    jobCode: 'FULL_SYSTEM_SYNC',
-    triggerType: 'SCHEDULED',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part', 'Document', 'Process'],
+    jobName: '全系统三根类型基准全量同步',
+    rootTypes: ['Part', 'Document', 'Process'],
     syncMethod: 'FULL',
-    sourceDataCutoffAt: '2026-08-25 02:00:00',
-    objectMappingVersion: 'ALL-MAP-V21',
-    fieldMappingVersion: 'GLOBAL-FIELD-V21',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-001',
-    scheduledAt: '2026-08-25 02:00:00',
+    triggerType: 'SCHEDULED',
     startTime: '2026-08-25 02:00:15',
     endTime: '2026-08-25 02:48:32',
-    durationSeconds: 2897,
     durationText: '48分17秒',
     sourceDataCount: 68450,
-    insertedCount: 930,
-    updatedCount: 67449,
-    deletedCount: 44,
     successCount: 68423,
     failedCount: 3,
-    skippedCount: 24,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '68,450 = 68,423(成功) + 24(跳过) + 3(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-001',
-      attemptNo: 1,
-      triggeredBy: '系统定时调度器'
-    },
+    skippedCount: 24, // 满足：68450 = 68423 + 3 + 24
     executionStatus: 'PARTIAL_SUCCESS',
-    verificationStatus: 'WARNING',
-    linkedVerificationId: 'CHK-20260825-001',
-    statusNote: '该批次执行为“部分成功”，一致性核验为“预警”，两者分别独立判断。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '机械零件',
-        extractedCount: 31200,
-        insertedCount: 420,
-        updatedCount: 30770,
-        deletedCount: 10,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
-      },
-      {
-        objectType: 'Part',
-        softType: '电子电气零件',
-        extractedCount: 16800,
-        insertedCount: 310,
-        updatedCount: 16470,
-        deletedCount: 20,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
-      },
-      {
-        objectType: 'Document',
-        softType: '技术文档',
-        extractedCount: 12600,
-        insertedCount: 100,
-        updatedCount: 12471,
-        deletedCount: 3,
-        failedCount: 2,
-        skippedCount: 24,
-        status: 'PARTIAL_SUCCESS'
-      },
-      {
-        objectType: 'Document',
-        softType: '图纸',
-        extractedCount: 5400,
-        insertedCount: 70,
-        updatedCount: 5328,
-        deletedCount: 1,
-        failedCount: 1,
-        skippedCount: 0,
-        status: 'PARTIAL_SUCCESS'
-      },
-      {
-        objectType: 'Process',
-        softType: '工艺路线',
-        extractedCount: 2450,
-        insertedCount: 30,
-        updatedCount: 2410,
-        deletedCount: 10,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
-      }
-    ],
+    statusNote: '全量同步顺利完成大部分数据抽取与写入；跳过 24 条未发布数据，检测到 3 条数据存在字段校验或解析异常。',
     failedRecords: [
       {
         id: 'FAIL-001',
-        objectCode: 'DOC-88310',
-        objectType: 'Document',
-        softType: '技术文档',
-        businessReason: '源系统状态发布时间戳存在时钟回拨，导致映射状态与目标索引状态不匹配',
-        traceId: 'TRC-PLM-20260825-9921',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-002',
-        errorCategory: 'STATUS_SYNC_ERROR',
-        errorCode: 'SYNC_STATE_002',
+        recordKey: 'DOC-88310',
+        rootType: 'Document',
+        failedField: 'lifeCycleState',
+        failureReason: '源系统状态发布时间戳存在时钟回拨，导致映射状态与目标索引状态不匹配',
+        occurredAt: '2026-08-25 02:22:10',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'StatusTransitionSyncWorker: Status conflict for entity DOC-88310. PLM version release state mismatch.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_STATE_002',
+        traceId: 'TRC-PLM-20260825-9921',
+        errorCategory: 'STATUS_SYNC_ERROR',
+        techDetail: 'StatusTransitionSyncWorker: Status conflict for entity DOC-88310. PLM version release state mismatch.',
+        owner: '数据标准组'
       },
       {
         id: 'FAIL-002',
-        objectCode: 'DOC-77402',
-        objectType: 'Document',
-        softType: '技术文档',
-        businessReason: '文档正文大文本字段包含非标准控制字符，流式解析超时导致索引更新中断',
-        traceId: 'TRC-PLM-20260825-8834',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-003',
-        errorCategory: 'STREAM_PARSE_TIMEOUT',
-        errorCode: 'SYNC_PARSE_003',
+        recordKey: 'DOC-77402',
+        rootType: 'Document',
+        failedField: 'documentContent',
+        failureReason: '文档正文大文本字段包含非标准控制字符，流式解析超时导致索引更新中断',
+        occurredAt: '2026-08-25 02:31:45',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'StreamTextParserException: Chunk delimiter timeout after 30000ms at offset 0x4F01A for DOC-77402.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_PARSE_003',
+        traceId: 'TRC-PLM-20260825-8834',
+        errorCategory: 'STREAM_PARSE_TIMEOUT',
+        techDetail: 'StreamTextParserException: Chunk delimiter timeout after 30000ms at offset 0x4F01A for DOC-77402.',
+        owner: '数据清洗支持'
       },
       {
         id: 'FAIL-003',
-        objectCode: 'DRW-55109',
-        objectType: 'Document',
-        softType: '图纸',
-        businessReason: '图纸矢量元数据转换异常，图幅尺寸参数未通过 Schema 校验',
-        traceId: 'TRC-PLM-20260825-7712',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-005',
-        errorCategory: 'SCHEMA_VALIDATION',
+        recordKey: 'DRW-55109',
+        rootType: 'Document',
+        failedField: 'drawing_frame_size',
+        failureReason: '工程图幅尺寸参数在 Manticore 标准规范词表中未定义对应枚举 (CUSTOM_A0_EXT)',
+        occurredAt: '2026-08-25 02:40:12',
+        retryable: true,
+        latestRetryResult: 'NONE',
         errorCode: 'SYNC_SCHEMA_005',
-        retryable: false,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'SchemaValidationException: Field drawing_frame_size invalid value "CUSTOM_A0_EXT" in DRW-55109.'
+        traceId: 'TRC-PLM-20260825-7712',
+        errorCategory: 'SCHEMA_VALIDATION',
+        techDetail: 'SchemaMappingException: Target attribute "drawing_frame_size" lacks enumeration "CUSTOM_A0_EXT".',
+        owner: '标准化管理员'
       }
     ],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 02:00:15', status: 'DONE', description: 'PLM 定时全量同步调度触发，批次 SYNC-20260825-001 生成' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 02:05:00', status: 'DONE', description: '抽取 IntePLM V21 变更数据共 68,450 条记录' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 02:40:10', status: 'DONE', description: '多对象并发写入 Manticore 索引库，完成 68,423 条，失败 3 条' },
-      { step: '生成失败追溯单', timestamp: '2026-08-25 02:45:20', status: 'DONE', description: '生成 3 条失败记录并同步注册质量异常单' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-25 02:48:32', status: 'DONE', description: '批次执行完成，已自动挂载核验计划 CHK-20260825-001' }
+    handlingNotes: [
+      {
+        id: 'NOTE-001',
+        content: '已通知图纸管理部门确认 CUSTOM_A0_EXT 是否纳入下一批次标准图幅字典。',
+        operator: '李晓华 (数据管理员)',
+        createdAt: '2026-08-25 08:30:00'
+      }
     ]
   },
 
-  // 2. R8 规范贯通增量同步批次 (具备 UPDATECOUNT 水位、快照与重试血缘)
+  // 2. 零件增量同步批次（单条失败数据，执行完成后状态为 PARTIAL_SUCCESS）
   {
     id: 'SYNC-20260825-010',
-    executionId: 'SYNC-20260825-010',
-    jobCode: 'PART_INCREMENTAL_SYNC',
-    triggerType: 'SCHEDULED',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
+    jobName: '零部件常规增量同步任务',
+    rootTypes: ['Part'],
     syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-25 01:00:00',
-    dataWindowEnd: '2026-08-25 02:00:00',
-    watermarkType: 'UPDATECOUNT',
-    watermarkStart: '830120',
-    watermarkEnd: '830998',
-    objectMappingVersion: 'PART-MAP-V12',
-    fieldMappingVersion: 'PART-FIELD-V12',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-002',
-    scheduledAt: '2026-08-25 02:00:00',
+    triggerType: 'SCHEDULED',
     startTime: '2026-08-25 02:00:15',
     endTime: '2026-08-25 02:48:32',
-    durationSeconds: 2897,
     durationText: '48分17秒',
     sourceDataCount: 1320,
-    insertedCount: 57,
-    updatedCount: 1258,
-    deletedCount: 0,
     successCount: 1315,
     failedCount: 3,
-    skippedCount: 2,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '1,320 = 1,315(成功) + 2(跳过) + 3(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-010',
-      attemptNo: 1,
-      triggeredBy: '系统定时调度器'
-    },
+    skippedCount: 2, // 满足：1320 = 1315 + 3 + 2
     executionStatus: 'PARTIAL_SUCCESS',
-    verificationStatus: 'WARNING',
-    linkedVerificationId: 'CHK-20260825-010',
-    statusNote: '零件增量执行完成；发现 3 条引脚阵列枚举不一致失败记录，已生成重试子批次。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '机械零件',
-        extractedCount: 890,
-        insertedCount: 40,
-        updatedCount: 848,
-        deletedCount: 0,
-        failedCount: 1,
-        skippedCount: 1,
-        status: 'PARTIAL_SUCCESS'
-      },
-      {
-        objectType: 'Part',
-        softType: '电子电气零件',
-        extractedCount: 430,
-        insertedCount: 17,
-        updatedCount: 410,
-        deletedCount: 0,
-        failedCount: 2,
-        skippedCount: 1,
-        status: 'PARTIAL_SUCCESS'
-      }
-    ],
+    statusNote: '零部件增量同步已完成；检测到 3 条引脚阵列枚举参数未通过字段验证，主任务继续完成其余 1,315 条数据写入。',
     failedRecords: [
       {
         id: 'FAIL-010',
-        objectCode: 'P-00339',
-        objectType: 'Part',
-        softType: '电子电气零件',
-        businessReason: '引脚阵列映射参数在目标 Schema 中未找到对应枚举 (BGA_256_EXT)',
-        traceId: 'TRC-PLM-20260825-0101',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-010',
-        errorCategory: 'SCHEMA_VALIDATION',
-        errorCode: 'SYNC_MAPPING_001',
+        recordKey: 'P-00339',
+        rootType: 'Part',
+        failedField: 'pin_array_config',
+        failureReason: '引脚阵列映射参数在目标 Schema 中未找到对应枚举 (BGA_256_EXT)',
+        occurredAt: '2026-08-25 02:41:20',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'SchemaMappingException: Target attribute "pin_array_config" lacks enumeration "BGA_256_EXT".'
-      }
-    ],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 02:00:15', status: 'DONE', description: '零件增量定时同步启动，读取 UPDATECOUNT 水位 830120 -> 830998' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 02:05:00', status: 'DONE', description: '抽取变更零件记录 1,320 条' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 02:40:10', status: 'DONE', description: '成功写入 1,315 条，跳过 2 条，3 条写入失败' },
-      { step: '生成失败追溯单', timestamp: '2026-08-25 02:45:20', status: 'DONE', description: '生成失败追溯单并关联质量异常 EX-20260825-010' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-25 02:48:32', status: 'DONE', description: '触发标准化哈希核验 CHK-20260825-010' }
-    ]
-  },
-
-  // 3. R8 重试子执行批次 (指回 SYNC-20260825-010，attemptNo=2)
-  {
-    id: 'SYNC-20260825-010-R1',
-    executionId: 'SYNC-20260825-010-R1',
-    jobCode: 'PART_INCREMENTAL_SYNC',
-    triggerType: 'RETRY',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
-    syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-25 01:00:00',
-    dataWindowEnd: '2026-08-25 02:00:00',
-    watermarkType: 'UPDATECOUNT',
-    watermarkStart: '830120',
-    watermarkEnd: '830998',
-    objectMappingVersion: 'PART-MAP-V12',
-    fieldMappingVersion: 'PART-FIELD-V12',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-002',
-    scheduledAt: '2026-08-25 03:15:00',
-    startTime: '2026-08-25 03:15:10',
-    endTime: '2026-08-25 03:16:25',
-    durationSeconds: 75,
-    durationText: '1分15秒',
-    sourceDataCount: 3,
-    insertedCount: 0,
-    updatedCount: 3,
-    deletedCount: 0,
-    successCount: 3,
-    failedCount: 0,
-    skippedCount: 0,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '3 = 3(成功) + 0(跳过) + 0(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-010',
-      parentExecutionId: 'SYNC-20260825-010',
-      attemptNo: 2,
-      triggeredBy: '李晓华 (数据标准管理员)',
-      triggerReason: '校准引脚阵列 Schema 枚举后执行定向重试'
-    },
-    executionStatus: 'SUCCESS',
-    verificationStatus: 'PASSED',
-    linkedVerificationId: 'CHK-20260825-010-R1',
-    statusNote: '重试子批次对原批次 3 条失败记录重新同步，全部成功完成。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '电子电气零件',
-        extractedCount: 3,
-        insertedCount: 0,
-        updatedCount: 3,
-        deletedCount: 0,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
-      }
-    ],
-    failedRecords: [],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 03:15:10', status: 'DONE', description: '针对父批次 SYNC-20260825-010 发起重试子执行' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 03:15:30', status: 'DONE', description: '抽取 3 条未写入零件实体' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 03:16:15', status: 'DONE', description: '全部写入成功' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-25 03:16:25', status: 'DONE', description: '重试执行完毕，完成核验 CHK-20260825-010-R1' }
-    ]
-  },
-
-  // 4. 零件与文档增量批次
-  {
-    id: 'SYNC-20260825-004',
-    executionId: 'SYNC-20260825-004',
-    jobCode: 'PART_DOC_INCREMENTAL_SYNC',
-    triggerType: 'SCHEDULED',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part', 'Document'],
-    syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-25 09:00:00',
-    dataWindowEnd: '2026-08-25 10:15:00',
-    watermarkType: 'TIMESTAMP',
-    watermarkStart: '2026-08-25 09:00:00',
-    watermarkEnd: '2026-08-25 10:15:00',
-    objectMappingVersion: 'PART-DOC-MAP-V11',
-    fieldMappingVersion: 'GLOBAL-FIELD-V21',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-003',
-    scheduledAt: '2026-08-25 10:15:00',
-    startTime: '2026-08-25 10:15:00',
-    endTime: '2026-08-25 10:18:24',
-    durationSeconds: 204,
-    durationText: '3分24秒',
-    sourceDataCount: 1320,
-    insertedCount: 57,
-    updatedCount: 1263,
-    deletedCount: 0,
-    successCount: 1320,
-    failedCount: 0,
-    skippedCount: 0,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '1,320 = 1,320(成功) + 0(跳过) + 0(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-004',
-      attemptNo: 1,
-      triggeredBy: '系统变更监听器'
-    },
-    executionStatus: 'SUCCESS',
-    verificationStatus: 'PASSED',
-    linkedVerificationId: 'CHK-20260825-004',
-    statusNote: '增量批次执行完成，数量与内容比对全部一致。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '机械零件',
-        extractedCount: 890,
-        insertedCount: 45,
-        updatedCount: 845,
-        deletedCount: 0,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_MAPPING_001',
+        traceId: 'TRC-PLM-20260825-0101',
+        errorCategory: 'SCHEMA_VALIDATION',
+        techDetail: 'SchemaMappingException: Target attribute "pin_array_config" lacks enumeration "BGA_256_EXT".',
+        owner: '李晓华 (数据管理员)'
       },
       {
-        objectType: 'Document',
-        softType: '技术文档',
-        extractedCount: 430,
-        insertedCount: 12,
-        updatedCount: 418,
-        deletedCount: 0,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'SUCCESS'
+        id: 'FAIL-011',
+        recordKey: 'P-00412',
+        rootType: 'Part',
+        failedField: 'voltage_range',
+        failureReason: '工作电压范围字段单位格式不合规，源数据缺少标称单位伏特(V)',
+        occurredAt: '2026-08-25 02:42:05',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_UNIT_002',
+        traceId: 'TRC-PLM-20260825-0102',
+        errorCategory: 'UNIT_PARSE_ERROR',
+        techDetail: 'UnitConversionException: Input string "12.0~24.0" missing standard volt unit suffix.',
+        owner: '电气标准组'
+      },
+      {
+        id: 'FAIL-012',
+        recordKey: 'P-00508',
+        rootType: 'Part',
+        failedField: 'material',
+        failureReason: '主要材质与当前物料所属分类属性约束冲突，源系统存在历史脏数据',
+        occurredAt: '2026-08-25 02:43:18',
+        retryable: false,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_ATTR_CONFLICT',
+        traceId: 'TRC-PLM-20260825-0103',
+        errorCategory: 'BUSINESS_CONFLICT',
+        techDetail: 'BusinessConstraintViolation: Material "PTFE" incompatible with MetalPart classification.',
+        owner: '物料规范组'
       }
     ],
+    handlingNotes: []
+  },
+
+  // 3. 失败重试子批次（对 P-00339, P-00412 等执行重试，成功完成）
+  {
+    id: 'SYNC-20260825-010-R1',
+    jobName: '零部件失败数据专项重试',
+    rootTypes: ['Part'],
+    syncMethod: 'INCREMENTAL',
+    triggerType: 'RETRY',
+    startTime: '2026-08-25 03:15:10',
+    endTime: '2026-08-25 03:16:25',
+    durationText: '1分15秒',
+    sourceDataCount: 2,
+    successCount: 2,
+    failedCount: 0,
+    skippedCount: 0, // 满足：2 = 2 + 0 + 0
+    executionStatus: 'SUCCESS',
+    statusNote: '重试批次对前序批次中 2 条可重试失败记录重新执行清洗与同步，全部写入成功。',
     failedRecords: [],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 10:15:00', status: 'DONE', description: '增量变更监听触发' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 10:16:10', status: 'DONE', description: '抽取 1,320 条最新修改记录' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 10:18:00', status: 'DONE', description: '全部成功写入 Manticore 检索库' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-25 10:18:24', status: 'DONE', description: '数量核验 CHK-20260825-004 执行完成，核验结果：通过' }
+    handlingNotes: [
+      {
+        id: 'NOTE-002',
+        content: '校准引脚阵列 Schema 枚举后发起定向重试，已成功写入索引。',
+        operator: '李晓华 (数据管理员)',
+        createdAt: '2026-08-25 03:18:00'
+      }
     ]
   },
 
-  // 5. 正在运行中批次 (RUNNING: 结束时间为 undefined，对账为 PENDING)
+  // 4. 零件与文档增量批次（完全成功，无异常无跳过）
+  {
+    id: 'SYNC-20260825-004',
+    jobName: '零部件与文档常规增量同步',
+    rootTypes: ['Part', 'Document'],
+    syncMethod: 'INCREMENTAL',
+    triggerType: 'SCHEDULED',
+    startTime: '2026-08-25 10:15:00',
+    endTime: '2026-08-25 10:18:24',
+    durationText: '3分24秒',
+    sourceDataCount: 1320,
+    successCount: 1320,
+    failedCount: 0,
+    skippedCount: 0, // 满足：1320 = 1320 + 0 + 0
+    executionStatus: 'SUCCESS',
+    statusNote: '批次执行完成，1,320 条变更记录全部成功清洗并写入 Manticore 检索库。',
+    failedRecords: [],
+    handlingNotes: []
+  },
+
+  // 5. 正在运行中批次（RUNNING，无结束时间，存在正在处理数量）
   {
     id: 'SYNC-20260825-005',
-    executionId: 'SYNC-20260825-005',
-    jobCode: 'PROCESS_INCREMENTAL_SYNC',
-    triggerType: 'MANUAL',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Process'],
+    jobName: '工艺路线专项增量同步',
+    rootTypes: ['Process'],
     syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-25 15:00:00',
-    dataWindowEnd: '2026-08-25 16:20:00',
-    watermarkType: 'TIMESTAMP',
-    watermarkStart: '2026-08-25 15:00:00',
-    watermarkEnd: '2026-08-25 16:20:00',
-    objectMappingVersion: 'PROCESS-MAP-V08',
-    fieldMappingVersion: 'PROCESS-FIELD-V08',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-004',
-    scheduledAt: '2026-08-25 16:20:00',
+    triggerType: 'MANUAL',
     startTime: '2026-08-25 16:20:00',
     durationText: '已运行 8分15秒',
     sourceDataCount: 860,
-    insertedCount: 110,
-    updatedCount: 414,
-    deletedCount: 0,
     successCount: 524,
     failedCount: 0,
-    skippedCount: 0,
-    reconciliation: {
-      status: 'PENDING',
-      differenceCount: 0,
-      explanation: '批次正在分片写入中 (当前进度 524/860，待处理 336 条)，待写入完成后自动执行对账'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-005',
-      attemptNo: 1,
-      triggeredBy: '李晓华 (数据标准管理员)'
-    },
+    skippedCount: 0, // 正在处理数 = 860 - 524 - 0 - 0 = 336
     executionStatus: 'RUNNING',
-    verificationStatus: 'UNCHECKED',
-    statusNote: '任务正在分片抽取并写入工艺对象，处于运行中阶段，暂不允许发起一致性核验。',
-    objectDetails: [
-      {
-        objectType: 'Process',
-        softType: '工艺路线',
-        extractedCount: 860,
-        insertedCount: 110,
-        updatedCount: 414,
-        deletedCount: 0,
-        failedCount: 0,
-        skippedCount: 0,
-        status: 'RUNNING'
-      }
-    ],
+    statusNote: '任务正在分片抽取并写入工艺路线数据，当前进度 524/860，剩余 336 条正在处理中。',
     failedRecords: [],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 16:20:00', status: 'DONE', description: '工艺数据专项增量同步触发' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 16:22:15', status: 'DONE', description: '完成 860 条工艺路线与工序数据抽取' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 16:25:00', status: 'CURRENT', description: '正在写入 Manticore 索引 (当前进度 524/860)...' },
-      { step: '生成失败追溯单', timestamp: '-', status: 'WAITING', description: '待写入完成后汇总结算' },
-      { step: '批次结束与触发核验', timestamp: '-', status: 'WAITING', description: '等待执行完毕后发起核验' }
-    ]
+    handlingNotes: []
   },
 
-  // 6. 早间文档增量批次
+  // 6. 早间文档增量批次（跳过 64 条草稿文档，2 条校验异常）
   {
     id: 'SYNC-20260825-003',
-    executionId: 'SYNC-20260825-003',
-    jobCode: 'DOC_INCREMENTAL_SYNC',
-    triggerType: 'SCHEDULED',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Document'],
+    jobName: '技术文档早间增量同步',
+    rootTypes: ['Document'],
     syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-25 00:00:00',
-    dataWindowEnd: '2026-08-25 08:30:00',
-    watermarkType: 'TIMESTAMP',
-    watermarkStart: '2026-08-25 00:00:00',
-    watermarkEnd: '2026-08-25 08:30:00',
-    objectMappingVersion: 'DOC-MAP-V10',
-    fieldMappingVersion: 'GLOBAL-FIELD-V21',
-    syncConfigVersion: 'SYNC-CFG-V5',
-    configSnapshotId: 'CFG-SNAP-20260825-005',
-    scheduledAt: '2026-08-25 08:30:00',
+    triggerType: 'SCHEDULED',
     startTime: '2026-08-25 08:30:00',
     endTime: '2026-08-25 08:34:10',
-    durationSeconds: 250,
     durationText: '4分10秒',
     sourceDataCount: 486,
-    insertedCount: 40,
-    updatedCount: 380,
-    deletedCount: 0,
     successCount: 420,
     failedCount: 2,
-    skippedCount: 64,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '486 = 420(成功) + 64(跳过) + 2(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260825-003',
-      attemptNo: 1,
-      triggeredBy: '系统定时调度器'
-    },
+    skippedCount: 64, // 满足：486 = 420 + 2 + 64
     executionStatus: 'PARTIAL_SUCCESS',
-    verificationStatus: 'WARNING',
-    linkedVerificationId: 'CHK-20260825-003',
-    statusNote: '由于 64 条草稿文档由于未进入 PLM 审批态自动跳过，2 条文档存在校验异常。',
-    objectDetails: [
-      {
-        objectType: 'Document',
-        softType: '技术文档',
-        extractedCount: 486,
-        insertedCount: 40,
-        updatedCount: 380,
-        deletedCount: 0,
-        failedCount: 2,
-        skippedCount: 64,
-        status: 'PARTIAL_SUCCESS'
-      }
-    ],
+    statusNote: '64 条处于草稿编辑态的文档自动合规跳过；420 条成功写入；2 条文档存在校验异常。',
     failedRecords: [
       {
         id: 'FAIL-004',
-        objectCode: 'DOC-91002',
-        objectType: 'Document',
-        softType: '技术文档',
-        businessReason: '密级标签未通过合规性白名单校验',
-        traceId: 'TRC-PLM-20260825-6601',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-006',
-        errorCategory: 'SECURITY_VALIDATION',
-        errorCode: 'SYNC_SEC_001',
+        recordKey: 'DOC-91002',
+        rootType: 'Document',
+        failedField: 'security_level',
+        failureReason: '密级标签未通过合规性白名单校验 (INTERNAL_RESTRICTED)',
+        occurredAt: '2026-08-25 08:32:15',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'SecurityClassificationMismatch: Level "INTERNAL_RESTRICTED" not mapped in Manticore dictionary.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_SEC_001',
+        traceId: 'TRC-PLM-20260825-6601',
+        errorCategory: 'SECURITY_VALIDATION',
+        techDetail: 'SecurityClassificationMismatch: Level "INTERNAL_RESTRICTED" not mapped in Manticore dictionary.',
+        owner: '安全合规组'
       },
       {
         id: 'FAIL-005',
-        objectCode: 'DOC-91008',
-        objectType: 'Document',
-        softType: '技术文档',
-        businessReason: '关联部件主键引用不存在 (外键断裂)',
-        traceId: 'TRC-PLM-20260825-6609',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260825-007',
-        errorCategory: 'FOREIGN_KEY_MISSING',
-        errorCode: 'SYNC_FK_002',
+        recordKey: 'DOC-91008',
+        rootType: 'Document',
+        failedField: 'parent_part_id',
+        failureReason: '关联零部件引用不存在 (外键断裂，引用的零部件尚未同步)',
+        occurredAt: '2026-08-25 08:33:02',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'ForeignKeyConstraintException: Parent part PART_ID_99011 not found in local index.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_FK_002',
+        traceId: 'TRC-PLM-20260825-6609',
+        errorCategory: 'FOREIGN_KEY_MISSING',
+        techDetail: 'ForeignKeyConstraintException: Parent part PART_ID_99011 not found in local index.',
+        owner: '数据标准组'
       }
     ],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-25 08:30:00', status: 'DONE', description: '早间文档增量同步触发' },
-      { step: '源数据分片抽取', timestamp: '2026-08-25 08:31:00', status: 'DONE', description: '抽取 486 条文档记录' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-25 08:33:00', status: 'DONE', description: '写入成功 420 条，跳过 64 条草稿，失败 2 条' },
-      { step: '生成失败追溯单', timestamp: '2026-08-25 08:33:45', status: 'DONE', description: '生成 2 条异常并留痕' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-25 08:34:10', status: 'DONE', description: '挂载抽样核验 CHK-20260825-003' }
-    ]
+    handlingNotes: []
   },
 
-  // 7. 8月24日历史增量批次 (包含版本 updatecount 滞后异常)
+  // 7. 历史零件增量批次（单条并发锁冲突导致 18 条更新异常）
   {
     id: 'SYNC-20260824-006',
-    executionId: 'SYNC-20260824-006',
-    jobCode: 'PART_INCREMENTAL_SYNC',
-    triggerType: 'SCHEDULED',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
+    jobName: '零部件傍晚增量同步',
+    rootTypes: ['Part'],
     syncMethod: 'INCREMENTAL',
-    dataWindowStart: '2026-08-24 16:00:00',
-    dataWindowEnd: '2026-08-24 18:15:00',
-    watermarkType: 'UPDATECOUNT',
-    watermarkStart: '792001',
-    watermarkEnd: '794801',
-    objectMappingVersion: 'PART-MAP-V11',
-    fieldMappingVersion: 'GLOBAL-FIELD-V20',
-    syncConfigVersion: 'SYNC-CFG-V4',
-    configSnapshotId: 'CFG-SNAP-20260824-001',
-    scheduledAt: '2026-08-24 18:15:00',
+    triggerType: 'SCHEDULED',
     startTime: '2026-08-24 18:15:00',
     endTime: '2026-08-24 18:19:45',
-    durationSeconds: 285,
     durationText: '4分45秒',
     sourceDataCount: 2800,
-    insertedCount: 120,
-    updatedCount: 2662,
-    deletedCount: 0,
     successCount: 2782,
     failedCount: 18,
-    skippedCount: 0,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '2,800 = 2,782(成功) + 0(跳过) + 18(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260824-006',
-      attemptNo: 1,
-      triggeredBy: '系统定时调度器'
-    },
+    skippedCount: 0, // 满足：2800 = 2782 + 18 + 0
     executionStatus: 'PARTIAL_SUCCESS',
-    verificationStatus: 'FAILED',
-    linkedVerificationId: 'CHK-20260824-006',
-    statusNote: '增量批次执行完成，但一致性核验发现 18 条零件版本 UpdateCount 滞后。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '机械零件',
-        extractedCount: 2800,
-        insertedCount: 120,
-        updatedCount: 2662,
-        deletedCount: 0,
-        failedCount: 18,
-        skippedCount: 0,
-        status: 'PARTIAL_SUCCESS'
-      }
-    ],
+    statusNote: '增量批次完成 2,782 条写入；高频并发更新引起 18 条记录乐观锁冲突。',
     failedRecords: [
       {
         id: 'FAIL-007',
-        objectCode: 'P-00921',
-        objectType: 'Part',
-        softType: '机械零件',
-        businessReason: '高频并发版本更新引起锁冲突，Manticore 索引未能获取到最新版本 updatecount',
-        traceId: 'TRC-PLM-20260824-1801',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260824-006',
-        errorCategory: 'LOCK_CONFLICT',
-        errorCode: 'SYNC_LOCK_001',
+        recordKey: 'P-00921',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '高频并发版本更新引起乐观锁冲突，Manticore 索引未能获取到最新版本标记',
+        occurredAt: '2026-08-24 18:18:22',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'OptimisticLockingFailure: Version updatecount 17 conflict with cached index version 16.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1801',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Version updatecount 17 conflict with cached index version 16.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-008',
+        recordKey: 'P-00925',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:30',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1805',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00925.',
+        owner: '李晓华 (数据管理员)'
+      },
+      {
+        id: 'FAIL-009',
+        recordKey: 'P-00930',
+        rootType: 'Part',
+        failedField: 'updatecount',
+        failureReason: '源系统与目标索引在写入时发生版本更新锁抢占',
+        occurredAt: '2026-08-24 18:18:42',
+        retryable: true,
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_LOCK_001',
+        traceId: 'TRC-PLM-20260824-1809',
+        errorCategory: 'LOCK_CONFLICT',
+        techDetail: 'OptimisticLockingFailure: Simultaneous update conflict on record P-00930.',
+        owner: '李晓华 (数据管理员)'
       }
     ],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-24 18:15:00', status: 'DONE', description: '傍晚零件增量同步触发' },
-      { step: '源数据分片抽取', timestamp: '2026-08-24 18:16:30', status: 'DONE', description: '抽取 2,800 条零件变更记录' },
-      { step: '对象模型清洗与写入', timestamp: '2026-08-24 18:19:00', status: 'DONE', description: '完成写入 2,782 条，18 条由于并发冲突写入失败' },
-      { step: '生成失败追溯单', timestamp: '2026-08-24 18:19:20', status: 'DONE', description: '生成异常并挂载追溯单' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-24 18:19:45', status: 'DONE', description: '触发版本 UpdateCount 核验 CHK-20260824-006' }
-    ]
+    handlingNotes: []
   },
 
-  // 8. 8月24日夜间补偿失败批次 (保持独立来源与 UNCHECKED 状态)
+  // 8. 任务级错误失败批次（FAILED：无法连接源系统，整个任务无法继续执行）
   {
     id: 'SYNC-20260824-009',
-    executionId: 'SYNC-20260824-009',
-    jobCode: 'PART_COMPENSATION_JOB',
-    triggerType: 'MANUAL_COMPENSATION',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
+    jobName: '夜间零部件补偿同步',
+    rootTypes: ['Part'],
     syncMethod: 'COMPENSATION',
-    dataWindowStart: '2026-08-24 18:00:00',
-    dataWindowEnd: '2026-08-24 23:00:00',
-    watermarkType: 'UPDATECOUNT',
-    watermarkStart: '794801',
-    watermarkEnd: '794813',
-    objectMappingVersion: 'PART-MAP-V11',
-    fieldMappingVersion: 'GLOBAL-FIELD-V20',
-    syncConfigVersion: 'SYNC-CFG-V4',
-    configSnapshotId: 'CFG-SNAP-20260824-002',
-    scheduledAt: '2026-08-24 23:10:00',
+    triggerType: 'MANUAL',
     startTime: '2026-08-24 23:10:00',
     endTime: '2026-08-24 23:12:05',
-    durationSeconds: 125,
     durationText: '2分05秒',
     sourceDataCount: 12,
-    insertedCount: 0,
-    updatedCount: 0,
-    deletedCount: 0,
     successCount: 0,
     failedCount: 12,
-    skippedCount: 0,
-    reconciliation: {
-      status: 'BALANCED',
-      differenceCount: 0,
-      formula: '12 = 0(成功) + 0(跳过) + 12(失败)'
-    },
-    lineage: {
-      rootExecutionId: 'SYNC-20260824-009',
-      attemptNo: 1,
-      triggeredBy: '李晓华 (数据标准管理员)',
-      triggerReason: '针对夜间零件并发版本滞后发起的人工补偿'
-    },
+    skippedCount: 0, // 满足：12 = 0 + 12 + 0
     executionStatus: 'FAILED',
-    verificationStatus: 'UNCHECKED',
-    statusNote: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权失败，全批次未完成写入，未触发核验。',
-    objectDetails: [
-      {
-        objectType: 'Part',
-        softType: '机械零件',
-        extractedCount: 12,
-        insertedCount: 0,
-        updatedCount: 0,
-        deletedCount: 0,
-        failedCount: 12,
-        skippedCount: 0,
-        status: 'FAILED'
-      }
-    ],
+    statusNote: '任务级错误：PLM 网关接口认证凭证已过期 (HTTP 401 Unauthorized)，无法建立连接，全批次未能读取和写入数据。',
     failedRecords: [
       {
         id: 'FAIL-006',
-        objectCode: 'P-00811',
-        objectType: 'Part',
-        softType: '机械零件',
-        businessReason: 'PLM 源数据快照通道认证凭证已过期 (HTTP 401 Unauthorized)',
-        traceId: 'TRC-PLM-20260824-0019',
-        hasExceptionCreated: true,
-        linkedExceptionId: 'EX-20260824-009',
-        errorCategory: 'AUTH_EXPIRED',
-        errorCode: 'SYNC_AUTH_401',
+        recordKey: 'P-00811',
+        rootType: 'Part',
+        failedField: '全量连接通道',
+        failureReason: '任务级网络/鉴权中断：PLM 源数据通道认证凭证已过期 (HTTP 401 Unauthorized)，导致批次无法读取数据',
+        occurredAt: '2026-08-24 23:11:15',
         retryable: true,
-        owner: '李晓华 (数据标准管理员)',
-        techDetail: 'AuthenticationFailedException: IntePLM Gateway Token expired at 2026-08-24 23:00:00.'
+        latestRetryResult: 'NONE',
+        errorCode: 'SYNC_AUTH_401',
+        traceId: 'TRC-PLM-20260824-0019',
+        errorCategory: 'AUTH_EXPIRED',
+        techDetail: 'AuthenticationFailedException: IntePLM Gateway Token expired at 2026-08-24 23:00:00. Connection refused.',
+        owner: '网关运维组'
       }
     ],
-    timeline: [
-      { step: '任务创建与调度', timestamp: '2026-08-24 23:10:00', status: 'DONE', description: '夜间人工补偿重试任务启动' },
-      { step: '源数据分片抽取', timestamp: '2026-08-24 23:11:15', status: 'ERROR', description: 'PLM 网关认证失败，抽取中断' },
-      { step: '对象模型清洗与写入', timestamp: '-', status: 'WAITING', description: '未进入写入阶段' },
-      { step: '生成失败追溯单', timestamp: '2026-08-24 23:12:00', status: 'DONE', description: '全量失败记录已入库' },
-      { step: '批次结束与触发核验', timestamp: '2026-08-24 23:12:05', status: 'DONE', description: '批次异常终止' }
-    ]
-  }
-];
-
-// 初始一致性核验记录（共 6 条记录，包含贯通增量批次核验与重试核验）
-export const initialVerificationRecords: VerificationRecord[] = [
-  // 1. 全量多对象核验
-  {
-    id: 'CHK-20260825-001',
-    linkedBatchId: 'SYNC-20260825-001',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part', 'Document', 'Process'],
-    method: 'STANDARDIZED_HASH',
-    methodLabel: '标准化哈希核验',
-    sampleSize: 68450,
-    integrityRate: 99.99,
-    fieldConsistencyRate: 99.94,
-    timelinessRate: 98.70,
-    exceptionCount: 5,
-    result: 'WARNING',
-    executedAt: '2026-08-25 03:00:00',
-    executor: '系统调度器 (AutoCheck)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '采用 SHA-256 标准化哈希比对全量字段指纹，核验 PLM 源库与 Manticore 检索库多对象一致性。',
-    objectDistributions: [
-      { objectType: 'Part', softType: '机械零件', checkedCount: 31200, exceptionCount: 1, status: 'WARNING' },
-      { objectType: 'Part', softType: '电子电气零件', checkedCount: 16800, exceptionCount: 0, status: 'PASSED' },
-      { objectType: 'Document', softType: '技术文档', checkedCount: 12600, exceptionCount: 2, status: 'WARNING' },
-      { objectType: 'Document', softType: '图纸', checkedCount: 5400, exceptionCount: 1, status: 'WARNING' },
-      { objectType: 'Process', softType: '工艺路线', checkedCount: 2450, exceptionCount: 1, status: 'WARNING' }
-    ],
-    linkedExceptionIds: ['EX-20260825-001', 'EX-20260825-002', 'EX-20260825-003', 'EX-20260825-004', 'EX-20260825-005'],
-    fieldDifferences: initialFieldDifferences.slice(0, 5)
-  },
-
-  // 2. 贯通增量批次核验
-  {
-    id: 'CHK-20260825-010',
-    linkedBatchId: 'SYNC-20260825-010',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
-    method: 'STANDARDIZED_HASH',
-    methodLabel: '标准化哈希核验',
-    sampleSize: 1320,
-    integrityRate: 99.77,
-    fieldConsistencyRate: 99.77,
-    timelinessRate: 100,
-    exceptionCount: 1,
-    result: 'WARNING',
-    executedAt: '2026-08-25 03:00:00',
-    executor: '系统调度器 (AutoCheck)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '核验增量批次 SYNC-20260825-010 的 1,320 条零件数据，发现 1 条引脚阵列 Schema 枚举不一致。',
-    objectDistributions: [
-      { objectType: 'Part', softType: '机械零件', checkedCount: 890, exceptionCount: 0, status: 'PASSED' },
-      { objectType: 'Part', softType: '电子电气零件', checkedCount: 430, exceptionCount: 1, status: 'WARNING' }
-    ],
-    linkedExceptionIds: ['EX-20260825-010'],
-    fieldDifferences: [initialFieldDifferences[7]]
-  },
-
-  // 3. 贯通增量重试子批次核验
-  {
-    id: 'CHK-20260825-010-R1',
-    linkedBatchId: 'SYNC-20260825-010-R1',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
-    method: 'UNIQUE_KEY',
-    methodLabel: '唯一键核验',
-    sampleSize: 3,
-    integrityRate: 100,
-    fieldConsistencyRate: 100,
-    timelinessRate: 100,
-    exceptionCount: 0,
-    result: 'PASSED',
-    executedAt: '2026-08-25 03:17:00',
-    executor: '李晓华 (数据标准管理员)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '重试子执行核验，3条失败记录已全部对齐写入目标索引。',
-    objectDistributions: [
-      { objectType: 'Part', softType: '电子电气零件', checkedCount: 3, exceptionCount: 0, status: 'PASSED' }
-    ],
-    linkedExceptionIds: [],
-    fieldDifferences: []
-  },
-
-  // 4. 零件与文档增量批次核验
-  {
-    id: 'CHK-20260825-004',
-    linkedBatchId: 'SYNC-20260825-004',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part', 'Document'],
-    method: 'COUNT',
-    methodLabel: '数量核验',
-    sampleSize: 1320,
-    integrityRate: 100,
-    fieldConsistencyRate: 100,
-    timelinessRate: 100,
-    exceptionCount: 0,
-    result: 'PASSED',
-    executedAt: '2026-08-25 10:18:24',
-    executor: '李晓华 (数据标准管理员)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '核对批次抽取总量与 Manticore 写入总量，主键对齐比对无任何丢失。',
-    objectDistributions: [
-      { objectType: 'Part', softType: '机械零件', checkedCount: 890, exceptionCount: 0, status: 'PASSED' },
-      { objectType: 'Document', softType: '技术文档', checkedCount: 430, exceptionCount: 0, status: 'PASSED' }
-    ],
-    linkedExceptionIds: [],
-    fieldDifferences: []
-  },
-
-  // 5. 文档定向风险核验
-  {
-    id: 'CHK-20260825-003',
-    linkedBatchId: 'SYNC-20260825-003',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Document'],
-    method: 'RISK_TARGETED',
-    methodLabel: '风险定向抽样',
-    sampleSize: 120,
-    integrityRate: 99.58,
-    fieldConsistencyRate: 98.33,
-    timelinessRate: 96.70,
-    exceptionCount: 2,
-    result: 'WARNING',
-    executedAt: '2026-08-25 08:40:00',
-    executor: '李晓华 (数据标准管理员)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '定向针对状态变更频繁与包含长文本大字段的文档进行深度字段比对。',
-    objectDistributions: [
-      { objectType: 'Document', softType: '技术文档', checkedCount: 120, exceptionCount: 2, status: 'WARNING' }
-    ],
-    linkedExceptionIds: ['EX-20260825-006', 'EX-20260825-007'],
-    fieldDifferences: initialFieldDifferences.filter(d => d.objectType === 'Document')
-  },
-
-  // 6. 8月24日 UpdateCount 版本核验
-  {
-    id: 'CHK-20260824-006',
-    linkedBatchId: 'SYNC-20260824-006',
-    sourceSystem: 'IntePLM V21',
-    objectsSummary: ['Part'],
-    method: 'VERSION_UPDATECOUNT',
-    methodLabel: '版本一致性核验',
-    sampleSize: 2800,
-    integrityRate: 100,
-    fieldConsistencyRate: 97.40,
-    timelinessRate: 92.10,
-    exceptionCount: 18,
-    result: 'FAILED',
-    executedAt: '2026-08-24 18:20:00',
-    executor: '系统调度器 (AutoCheck)',
-    verificationScope: 'FULL_BATCH',
-    strategyNotes: '核对零件版本 UpdateCount，发现 18 条记录存在索引落后于源库主数据的情况。',
-    objectDistributions: [
-      { objectType: 'Part', softType: '机械零件', checkedCount: 2800, exceptionCount: 18, status: 'FAILED' }
-    ],
-    linkedExceptionIds: ['EX-20260824-006'],
-    fieldDifferences: [initialFieldDifferences[0]]
-  }
-];
-
-// 集中批次状态派生函数 (R1)
-export const deriveBatchVerificationStatus = (
-  batch: SyncBatch,
-  allVerifications: VerificationRecord[],
-  allExceptions: SyncException[]
-): { verificationStatus: VerificationStatus; linkedVerificationId?: string } => {
-  // 查找属于本批次的所有核验单
-  const batchVerifications = allVerifications.filter(v => v.linkedBatchId === batch.id);
-
-  // 区分整批核验与定向/部分对象核验
-  const fullBatchVerifications = batchVerifications.filter(
-    v => v.verificationScope === 'FULL_BATCH' || (!v.verificationScope && v.linkedExceptionIds.length === 0)
-  );
-
-  const latestFullVer = fullBatchVerifications[0] || null;
-  const latestOverallVer = batchVerifications[0] || null;
-
-  // 检查本批次未关闭的异常单
-  const batchExceptions = allExceptions.filter(e => e.sourceBatchId === batch.id);
-  const unresolvedExceptions = batchExceptions.filter(
-    e => e.status !== 'CLOSED' && e.status !== 'RECOVERED'
-  );
-
-  // 1. 如果该批次从未发起任何核验
-  if (batchVerifications.length === 0) {
-    return {
-      verificationStatus: batch.verificationStatus || 'UNCHECKED',
-      linkedVerificationId: batch.linkedVerificationId
-    };
-  }
-
-  // 2. 最新整批核验正在核验比对中 (CHECKING)
-  if (latestFullVer && latestFullVer.result === 'CHECKING') {
-    return {
-      verificationStatus: 'CHECKING',
-      linkedVerificationId: latestFullVer.id
-    };
-  }
-
-  // 3. 若存在任何未关闭的异常单，整批严禁显示为“通过”
-  if (unresolvedExceptions.length > 0) {
-    const baseStatus: VerificationStatus = latestFullVer?.result === 'FAILED' ? 'FAILED' : 'WARNING';
-    return {
-      verificationStatus: baseStatus,
-      // 保持主核验单/整批核验单 ID，定向核验单不覆盖批次主核验
-      linkedVerificationId: latestFullVer?.id || batch.linkedVerificationId || latestOverallVer?.id
-    };
-  }
-
-  // 4. 若不存在未关闭异常单，且存在整批核验单，使用最新整批核验单结果
-  if (latestFullVer) {
-    return {
-      verificationStatus: latestFullVer.result,
-      linkedVerificationId: latestFullVer.id
-    };
-  }
-
-  // 5. 若仅存在部分对象范围核验 (OBJECT_SCOPE) 或定向核验 (EXCEPTION_TARGET)
-  // 未覆盖整批时不得宣告整批通过
-  return {
-    verificationStatus: batch.verificationStatus === 'PASSED' ? (batchExceptions.length > 0 ? 'WARNING' : 'PASSED') : batch.verificationStatus,
-    linkedVerificationId: batch.linkedVerificationId || latestOverallVer?.id
-  };
-};
-
-// 初始异常处置列表（全网唯一、自洽且包含完整闭环状态与权限）
-export const initialSyncExceptions: SyncException[] = [
-  {
-    id: 'EX-20260825-001',
-    objectCode: 'P-00921',
-    objectName: '精加工主轴滑动轴承座',
-    objectType: 'Part',
-    softType: '机械零件',
-    exceptionType: 'VERSION_LAG',
-    exceptionTypeLabel: '版本滞后',
-    businessDescription: 'PLM 源库已升版至 updatecount=17，但 Manticore 检索库索引当前仍保留为 updatecount=16，导致二阶段相似度计算使用的是旧版物理尺寸。',
-    sourceBatchId: 'SYNC-20260825-001',
-    linkedVerificationId: 'CHK-20260825-001',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'HIGH',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 03:00:00',
-    hasPermission: true,
-    timeline: [
+    handlingNotes: [
       {
-        id: 'TL-101',
-        node: '发现异常',
-        timestamp: '2026-08-25 03:00:00',
-        operator: '系统自动核验 (CHK-20260825-001)',
-        note: '标准化哈希核验比对发现 updatecount 字段不一致 (PLM:17 vs Manticore:16)',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-002',
-    objectCode: 'DOC-88310',
-    objectName: '液压动力回路拓扑设计规范',
-    objectType: 'Document',
-    softType: '技术文档',
-    exceptionType: 'STATUS_MISMATCH',
-    exceptionTypeLabel: '状态不一致',
-    businessDescription: '源系统状态显示为已发布 (RELEASED)，但 Manticore 索引仍为工作阶段 (INWORK)。经排查源端存在发布审核撤回并发操作，需业务人员确认最终有效状态。',
-    sourceBatchId: 'SYNC-20260825-001',
-    linkedVerificationId: 'CHK-20260825-001',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'MEDIUM',
-    status: 'PENDING_BUSINESS_CONFIRM',
-    retryCount: 1,
-    assignee: '王工 (液压设计室)',
-    lastHandledTime: '2026-08-25 08:30:15',
-    hasPermission: true,
-    businessConfirmReason: 'PLM 流程记录显示该文档在发布后 3 分钟内曾被短暂转入补充评审，需确认是否以最终盖章版本为准。',
-    timeline: [
-      {
-        id: 'TL-201',
-        node: '发现异常',
-        timestamp: '2026-08-25 03:00:00',
-        operator: '系统自动核验 (CHK-20260825-001)',
-        note: '字段核验发现状态枚举不一致 (源库: RELEASED vs 检索库: INWORK)',
-        result: 'INFO'
-      },
-      {
-        id: 'TL-202',
-        node: '自动重试',
-        timestamp: '2026-08-25 04:00:00',
-        operator: '系统自动补偿器',
-        note: '由于检测到并发加锁状态，自动重试同步跳过并转入人工复核',
-        result: 'FAILED'
-      },
-      {
-        id: 'TL-203',
-        node: '待业务确认',
-        timestamp: '2026-08-25 08:30:15',
-        operator: '李晓华 (数据标准管理员)',
-        note: '转交液压设计室王工确认最终有效文档发布版本',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-003',
-    objectCode: 'DOC-77402',
-    objectName: '高压橡胶密封圈试验规范说明书',
-    objectType: 'Document',
-    softType: '技术文档',
-    exceptionType: 'TEXT_STALE',
-    exceptionTypeLabel: '大文本旧值',
-    businessDescription: '文档正文包含 12 万字试验数据及特殊字符，抽取写入时流式解析超时，当前索引仍为第 5 版旧文本。',
-    sourceBatchId: 'SYNC-20260825-001',
-    linkedVerificationId: 'CHK-20260825-001',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'HIGH',
-    status: 'PENDING',
-    retryCount: 1,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 03:00:00',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-301',
-        node: '发现异常',
-        timestamp: '2026-08-25 03:00:00',
-        operator: '系统自动核验 (CHK-20260825-001)',
-        note: '哈希指纹校验失败：正文内容文本校验值不匹配 (版本 6 vs 版本 5)',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-004',
-    objectCode: 'PRC-3301',
-    objectName: '主轴箱铸造及精密铣削工艺路线',
-    objectType: 'Process',
-    softType: '工艺路线',
-    exceptionType: 'MANTICORE_MISSING',
-    exceptionTypeLabel: 'Manticore 缺失记录',
-    businessDescription: 'PLM 工艺库存在该主轴箱工艺主记录，但 Manticore 工艺专用索引中未查找到该实体。该对象需要工艺系统专用管理员角色进行补偿同步。',
-    sourceBatchId: 'SYNC-20260825-001',
-    linkedVerificationId: 'CHK-20260825-001',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'MEDIUM',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '陈工艺 (工艺系统管理员)',
-    lastHandledTime: '2026-08-25 03:00:00',
-    hasPermission: false, // 明确无当前角色权限
-    timeline: [
-      {
-        id: 'TL-401',
-        node: '发现异常',
-        timestamp: '2026-08-25 03:00:00',
-        operator: '系统自动核验 (CHK-20260825-001)',
-        note: '唯一键核验发现 Manticore 检索库索引主键 PRC-3301 不存在',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-005',
-    objectCode: 'DRW-55109',
-    objectName: '主传动箱体结构装配图纸',
-    objectType: 'Document',
-    softType: '图纸',
-    exceptionType: 'SCHEMA_VIOLATION',
-    exceptionTypeLabel: 'Schema 校验失败',
-    businessDescription: '图纸矢量元数据转换异常，图幅尺寸参数 "CUSTOM_A0_EXT" 未在 Manticore Schema 白名单枚举中，导致索引构建阶段被拦截。',
-    sourceBatchId: 'SYNC-20260825-001',
-    linkedVerificationId: 'CHK-20260825-001',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'MEDIUM',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 02:45:20',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-501',
-        node: '发现异常',
-        timestamp: '2026-08-25 02:45:20',
-        operator: '同步执行器 (SYNC-20260825-001)',
-        note: '写入阶段捕获 SchemaValidationException: drawing_frame_size 枚举越界',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-010',
-    objectCode: 'P-00339',
-    objectName: '车规级主控芯片封装总成',
-    objectType: 'Part',
-    softType: '电子电气零件',
-    exceptionType: 'SCHEMA_VIOLATION',
-    exceptionTypeLabel: 'Schema 校验失败',
-    businessDescription: '引脚阵列参数 "BGA_256_EXT" 缺失目标 Schema 枚举配置，导致写入被拦截。已通过重试子批次 SYNC-20260825-010-R1 完成补救，待复核确认。',
-    sourceBatchId: 'SYNC-20260825-010',
-    linkedVerificationId: 'CHK-20260825-010',
-    latestReverificationStatus: 'PASSED',
-    severity: 'HIGH',
-    status: 'PENDING_REVIEW',
-    retryCount: 1,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 03:16:25',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-1001',
-        node: '发现异常',
-        timestamp: '2026-08-25 02:48:32',
-        operator: '同步执行器 (SYNC-20260825-010)',
-        note: '引脚阵列参数未通过 Schema 校验 (BGA_256_EXT)',
-        result: 'INFO'
-      },
-      {
-        id: 'TL-1002',
-        node: '重新同步/补偿',
-        timestamp: '2026-08-25 03:15:10',
-        operator: '李晓华 (数据标准管理员)',
-        note: '触发重试子执行批次 SYNC-20260825-010-R1',
-        result: 'SUCCESS'
-      },
-      {
-        id: 'TL-1003',
-        node: '重新核验',
-        timestamp: '2026-08-25 03:17:00',
-        operator: '李晓华 (数据标准管理员)',
-        note: '重新核验通过 (CHK-20260825-010-R1)',
-        result: 'SUCCESS'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-006',
-    objectCode: 'DOC-91002',
-    objectName: '电液伺服控制阀出厂检验大纲',
-    objectType: 'Document',
-    softType: '技术文档',
-    exceptionType: 'STATUS_MISMATCH',
-    exceptionTypeLabel: '密级合规不一致',
-    businessDescription: '密级标签 INTERNAL_RESTRICTED 未正确映射到检索安全字典，需要数据标准管理员校准密级字典并重新下发。',
-    sourceBatchId: 'SYNC-20260825-003',
-    linkedVerificationId: 'CHK-20260825-003',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'HIGH',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 08:33:45',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-601',
-        node: '发现异常',
-        timestamp: '2026-08-25 08:33:45',
-        operator: '同步执行器 (SYNC-20260825-003)',
-        note: '密级标签未通过合规性白名单校验',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260825-007',
-    objectCode: 'DOC-91008',
-    objectName: '液压支架主阀体受力有限元分析报告',
-    objectType: 'Document',
-    softType: '技术文档',
-    exceptionType: 'MANTICORE_MISSING',
-    exceptionTypeLabel: '外键关联断裂',
-    businessDescription: '该文档关联的母体零部件 PART_ID_99011 在 Manticore 检索库索引中不存在，导致关联外键约束校验拦截写入。',
-    sourceBatchId: 'SYNC-20260825-003',
-    linkedVerificationId: 'CHK-20260825-003',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'MEDIUM',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-25 08:33:45',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-701',
-        node: '发现异常',
-        timestamp: '2026-08-25 08:33:45',
-        operator: '同步执行器 (SYNC-20260825-003)',
-        note: 'ForeignKeyConstraintException: Parent part PART_ID_99011 not found',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260824-006',
-    objectCode: 'P-00921',
-    objectName: '行星齿轮减速器箱体',
-    objectType: 'Part',
-    softType: '机械零件',
-    exceptionType: 'VERSION_LAG',
-    exceptionTypeLabel: '版本滞后',
-    businessDescription: '高频并发版本更新引起乐观锁冲突，Manticore 检索库中 UpdateCount 为 16，PLM 源端已递增至 17。',
-    sourceBatchId: 'SYNC-20260824-006',
-    linkedVerificationId: 'CHK-20260824-006',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'HIGH',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-24 18:20:00',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-801',
-        node: '发现异常',
-        timestamp: '2026-08-24 18:20:00',
-        operator: '系统自动核验 (CHK-20260824-006)',
-        note: 'UpdateCount 核验发现版本落后 (PLM:17 vs Manticore:16)',
-        result: 'INFO'
-      }
-    ]
-  },
-  {
-    id: 'EX-20260824-009',
-    objectCode: 'P-00811',
-    objectName: '主电机轴承端盖密封组件',
-    objectType: 'Part',
-    softType: '机械零件',
-    exceptionType: 'ENCODING_ERROR',
-    exceptionTypeLabel: '网关认证过期',
-    businessDescription: '补偿同步任务在尝试连接 PLM 历史快照视图时鉴权 Token 过期，全批次未完成写入，需更新认证后重新同步。',
-    sourceBatchId: 'SYNC-20260824-009',
-    latestReverificationStatus: 'UNCHECKED',
-    severity: 'HIGH',
-    status: 'PENDING',
-    retryCount: 0,
-    assignee: '李晓华 (数据标准管理员)',
-    lastHandledTime: '2026-08-24 23:12:00',
-    hasPermission: true,
-    timeline: [
-      {
-        id: 'TL-901',
-        node: '发现异常',
-        timestamp: '2026-08-24 23:12:00',
-        operator: '同步执行器 (SYNC-20260824-009)',
-        note: 'AuthenticationFailedException: IntePLM Gateway Token expired',
-        result: 'FAILED'
+        id: 'NOTE-003',
+        content: '网关运维已更新网关 Token 并在次日晨会前恢复连接。',
+        operator: '系统支持',
+        createdAt: '2026-08-25 00:30:00'
       }
     ]
   }
 ];
-
-// 统一基准演示参考时间：2026-08-25 16:30:00 (UTC+8)
-export const DEMO_NOW = new Date('2026-08-25T16:30:00+08:00');
-
-/**
- * 统一时间区间计算工具函数
- * @param dateStr 时间字符串，支持 "2026-08-25 02:00:15" 或 "刚刚 (2026-08-25 16:45)"
- * @param range 'ALL' | 'TODAY' | 'LAST_24H' | 'LAST_7D'
- */
-export const checkTimeRange = (dateStr: string, range: string): boolean => {
-  if (range === 'ALL') return true;
-  if (!dateStr || dateStr === '-') return false;
-
-  const match = dateStr.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?/);
-  if (!match) return false;
-
-  const normalizedStr = match[0].replace(' ', 'T') + (match[0].length === 16 ? ':00+08:00' : '+08:00');
-  const targetTime = new Date(normalizedStr).getTime();
-  if (isNaN(targetTime)) return false;
-
-  const demoNowTime = DEMO_NOW.getTime();
-
-  if (range === 'TODAY') {
-    const todayStart = new Date('2026-08-25T00:00:00+08:00').getTime();
-    return targetTime >= todayStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
-  }
-
-  if (range === 'LAST_24H') {
-    const last24hStart = demoNowTime - 24 * 3600 * 1000; // 2026-08-24 16:30:00
-    return targetTime >= last24hStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
-  }
-
-  if (range === 'LAST_7D') {
-    const last7dStart = demoNowTime - 7 * 24 * 3600 * 1000; // 2026-08-18 16:30:00
-    return targetTime >= last7dStart && targetTime <= demoNowTime + 2 * 3600 * 1000;
-  }
-
-  return true;
-};
-
-// 严密数据完整性、日志证据合同与追溯双向自检工具 (R8 增补)
-// 完整性自洽性校验函数 (Pure Function，无副作用，满足 R6 合同断言)
-export const validateDataIntegrity = (
-  batches: SyncBatch[],
-  verifications: VerificationRecord[],
-  exceptions: SyncException[]
-): { valid: boolean; errors: string[] } => {
-  const errors: string[] = [];
-  const batchMap = new Map(batches.map(b => [b.id, b]));
-  const verMap = new Map(verifications.map(v => [v.id, v]));
-  const exMap = new Map(exceptions.map(e => [e.id, e]));
-
-  // 1. 全局 ID 唯一性与 executionId 单一事实来源
-  const allIds = [...batches.map(b => b.id), ...verifications.map(v => v.id), ...exceptions.map(e => e.id)];
-  const duplicateIds = allIds.filter((id, index) => allIds.indexOf(id) !== index);
-  if (duplicateIds.length > 0) {
-    errors.push(`检测到全局重复 ID: ${Array.from(new Set(duplicateIds)).join(', ')}`);
-  }
-
-  // 用于校验配置快照编号与配置三元组的严格一一映射 (R4)
-  const configSnapshotTupleMap = new Map<string, string>();
-
-  // 2. 检查批次日志证据合同与数量对账
-  batches.forEach(b => {
-    if (b.executionId && b.executionId !== b.id) {
-      errors.push(`批次 ${b.id} 的 executionId (${b.executionId}) 与 id 不一致`);
-    }
-
-    // 配置快照证据完整性与唯一性 (R4, R5)
-    if (!b.configSnapshotId || !b.objectMappingVersion || !b.fieldMappingVersion || !b.syncConfigVersion) {
-      errors.push(`批次 ${b.id} 缺少完整的配置快照编号或映射版本证据 (configSnapshotId / objectMappingVersion / fieldMappingVersion / syncConfigVersion)`);
-    } else {
-      const tupleKey = `${b.objectMappingVersion}::${b.fieldMappingVersion}::${b.syncConfigVersion}`;
-      if (configSnapshotTupleMap.has(b.configSnapshotId)) {
-        const existingTuple = configSnapshotTupleMap.get(b.configSnapshotId);
-        if (existingTuple !== tupleKey) {
-          errors.push(`配置快照编号 ${b.configSnapshotId} 映射到了多个不一致的配置组合 (${existingTuple} vs ${tupleKey})`);
-        }
-      } else {
-        configSnapshotTupleMap.set(b.configSnapshotId, tupleKey);
-      }
-    }
-
-    // 时间合同与耗时计算 (R6)
-    if (b.executionStatus === 'RUNNING') {
-      if (b.endTime) {
-        errors.push(`运行中批次 ${b.id} 不得包含结束时间 endTime`);
-      }
-    } else {
-      if (!b.endTime) {
-        errors.push(`结束态批次 ${b.id} 必须包含结束时间 endTime`);
-      } else if (b.startTime && b.durationSeconds !== undefined) {
-        const startMs = new Date(b.startTime).getTime();
-        const endMs = new Date(b.endTime).getTime();
-        if (!isNaN(startMs) && !isNaN(endMs)) {
-          const calcSec = Math.round((endMs - startMs) / 1000);
-          if (Math.abs(calcSec - b.durationSeconds) > 3) {
-            errors.push(`批次 ${b.id} 耗时秒数 (${b.durationSeconds}s) 与起止时间计算值 (${calcSec}s) 误差超限`);
-          }
-        }
-      }
-    }
-
-    // 范围证据合同 (R2)
-    if (b.syncMethod === 'FULL') {
-      if (!b.sourceDataCutoffAt && !b.sourceSnapshotAt) {
-        errors.push(`全量同步批次 ${b.id} 缺少范围证据 (需提供 sourceDataCutoffAt 或 sourceSnapshotAt)`);
-      }
-    } else if (b.syncMethod === 'INCREMENTAL' || b.syncMethod === 'COMPENSATION') {
-      if (!b.dataWindowStart || !b.dataWindowEnd || !b.watermarkType || !b.watermarkStart || !b.watermarkEnd) {
-        errors.push(`增量/补偿批次 ${b.id} 缺少时间窗口 (dataWindowStart/End) 或完整水位证据 (watermarkType/watermarkStart/watermarkEnd)`);
-      }
-      if (b.dataWindowStart && b.dataWindowEnd && b.dataWindowStart > b.dataWindowEnd) {
-        errors.push(`增量/补偿批次 ${b.id} 窗口起始时间 (${b.dataWindowStart}) 晚于截止时间 (${b.dataWindowEnd})`);
-      }
-    }
-
-    // 对象明细总和与批次头汇总严格相等
-    const sumInserted = b.objectDetails.reduce((acc, od) => acc + od.insertedCount, 0);
-    const sumUpdated = b.objectDetails.reduce((acc, od) => acc + od.updatedCount, 0);
-    const sumDeleted = b.objectDetails.reduce((acc, od) => acc + od.deletedCount, 0);
-    const sumFailed = b.objectDetails.reduce((acc, od) => acc + od.failedCount, 0);
-    const sumSkipped = b.objectDetails.reduce((acc, od) => acc + od.skippedCount, 0);
-    const sumExtracted = b.objectDetails.reduce((acc, od) => acc + od.extractedCount, 0);
-
-    if (sumInserted !== b.insertedCount) {
-      errors.push(`批次 ${b.id} 对象明细新增总和 (${sumInserted}) 与批次新增数 (${b.insertedCount}) 不一致`);
-    }
-    if (sumUpdated !== b.updatedCount) {
-      errors.push(`批次 ${b.id} 对象明细更新总和 (${sumUpdated}) 与批次更新数 (${b.updatedCount}) 不一致`);
-    }
-    if (sumDeleted !== b.deletedCount) {
-      errors.push(`批次 ${b.id} 对象明细删除总和 (${sumDeleted}) 与批次删除数 (${b.deletedCount}) 不一致`);
-    }
-    if (sumFailed !== b.failedCount) {
-      errors.push(`批次 ${b.id} 对象明细失败总和 (${sumFailed}) 与批次失败数 (${b.failedCount}) 不一致`);
-    }
-    if (sumSkipped !== b.skippedCount) {
-      errors.push(`批次 ${b.id} 对象明细跳过总和 (${sumSkipped}) 与批次跳过数 (${b.skippedCount}) 不一致`);
-    }
-    if (sumExtracted !== b.sourceDataCount) {
-      errors.push(`批次 ${b.id} 对象明细抽取总和 (${sumExtracted}) 与批次源数据量 (${b.sourceDataCount}) 不一致`);
-    }
-
-    // 区分生命周期校验数量对账 (R3)
-    if (b.executionStatus === 'RUNNING') {
-      if (b.reconciliation?.status !== 'PENDING') {
-        errors.push(`运行中批次 ${b.id} 对账状态必须为 PENDING`);
-      }
-      const processedCount = b.successCount + b.skippedCount + b.failedCount;
-      if (processedCount > b.sourceDataCount) {
-        errors.push(`运行中批次 ${b.id} 已处理数量 (${processedCount}) 超过抽取源数据总量 (${b.sourceDataCount})`);
-      }
-      const calcSuccess = b.insertedCount + b.updatedCount + b.deletedCount;
-      if (b.successCount !== calcSuccess) {
-        errors.push(`运行中批次 ${b.id} 成功数对账不成立: 成功数 ${b.successCount} != 新增 ${b.insertedCount} + 更新 ${b.updatedCount} + 删除 ${b.deletedCount}`);
-      }
-      b.objectDetails.forEach(od => {
-        const odProcessed = od.insertedCount + od.updatedCount + od.deletedCount + od.skippedCount + od.failedCount;
-        if (odProcessed > od.extractedCount) {
-          errors.push(`运行中批次 ${b.id} 对象明细 (${od.objectType}/${od.softType}) 处理量 (${odProcessed}) 超过抽取量 (${od.extractedCount})`);
-        }
-      });
-    } else {
-      // 结束态批次对账公式校验
-      const calculatedExtracted = b.successCount + b.skippedCount + b.failedCount;
-      if (b.sourceDataCount !== calculatedExtracted) {
-        errors.push(`批次 ${b.id} 数量对账不成立: 抽取数 ${b.sourceDataCount} != 成功数 ${b.successCount} + 跳过数 ${b.skippedCount} + 失败数 ${b.failedCount}`);
-      }
-      const calculatedSuccess = b.insertedCount + b.updatedCount + b.deletedCount;
-      if (b.successCount !== calculatedSuccess) {
-        errors.push(`批次 ${b.id} 成功数对账不成立: 成功数 ${b.successCount} != 新增 ${b.insertedCount} + 更新 ${b.updatedCount} + 删除 ${b.deletedCount}`);
-      }
-      b.objectDetails.forEach(od => {
-        const odSuccess = od.insertedCount + od.updatedCount + od.deletedCount;
-        if (od.extractedCount !== odSuccess + od.skippedCount + od.failedCount) {
-          errors.push(`批次 ${b.id} 对象明细 (${od.objectType}/${od.softType}) 数量不自洽: 抽取 ${od.extractedCount} != (成功 ${odSuccess} + 跳过 ${od.skippedCount} + 失败 ${od.failedCount})`);
-        }
-      });
-      if (b.reconciliation?.status === 'BALANCED' && b.reconciliation.differenceCount !== 0) {
-        errors.push(`批次 ${b.id} 对账状态为 BALANCED 但差异数不为 0 (${b.reconciliation.differenceCount})`);
-      }
-      if (b.reconciliation?.status === 'MISMATCH' && b.reconciliation.differenceCount === 0) {
-        errors.push(`批次 ${b.id} 对账状态为 MISMATCH 但差异数为 0`);
-      }
-    }
-
-    // 重试血缘与闭环校验
-    if (b.lineage?.rootExecutionId && !batchMap.has(b.lineage.rootExecutionId)) {
-      errors.push(`批次 ${b.id} 的根执行编号 ${b.lineage.rootExecutionId} 在批次列表中不存在`);
-    }
-    if (b.lineage?.parentExecutionId) {
-      if (b.lineage.parentExecutionId === b.id) {
-        errors.push(`批次 ${b.id} 的重试父批次不能指向自身`);
-      }
-      const parentBatch = batchMap.get(b.lineage.parentExecutionId);
-      if (!parentBatch) {
-        errors.push(`批次 ${b.id} 的重试父批次 ${b.lineage.parentExecutionId} 不存在`);
-      } else if (b.lineage.attemptNo <= (parentBatch.lineage?.attemptNo || 1)) {
-        errors.push(`批次 ${b.id} 存在父批次，但 attemptNo (${b.lineage.attemptNo}) 未比父批次递增`);
-      }
-
-      // 祖先链无环检测
-      let currParent: string | undefined = b.lineage.parentExecutionId;
-      const visited = new Set<string>([b.id]);
-      while (currParent) {
-        if (visited.has(currParent)) {
-          errors.push(`批次 ${b.id} 的重试血缘存在循环引用 (${currParent})`);
-          break;
-        }
-        visited.add(currParent);
-        const pNode = batchMap.get(currParent);
-        currParent = pNode?.lineage?.parentExecutionId;
-      }
-    }
-
-    // 核验关联校验
-    if (b.linkedVerificationId) {
-      const targetVer = verMap.get(b.linkedVerificationId);
-      if (!targetVer) {
-        errors.push(`批次 ${b.id} 引用的核验单 ${b.linkedVerificationId} 不存在`);
-      } else if (targetVer.linkedBatchId !== b.id) {
-        errors.push(`批次 ${b.id} 指向核验单 ${targetVer.id}，但核验单的 linkedBatchId 为 ${targetVer.linkedBatchId}，存在矛盾`);
-      }
-    }
-
-    // 失败记录证据合同校验
-    b.failedRecords.forEach(fr => {
-      if (!fr.errorCode || !fr.errorCategory || typeof fr.retryable !== 'boolean' || !fr.traceId || !fr.owner) {
-        errors.push(`批次 ${b.id} 失败记录 ${fr.id} 缺少必要的字段证据 (errorCode / errorCategory / retryable / traceId / owner)`);
-      }
-      if (fr.hasExceptionCreated && fr.linkedExceptionId) {
-        const targetEx = exMap.get(fr.linkedExceptionId);
-        if (!targetEx) {
-          errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 不存在`);
-        } else if (targetEx.sourceBatchId !== b.id) {
-          errors.push(`批次 ${b.id} 失败记录引用的异常 ${fr.linkedExceptionId} 其 sourceBatchId 为 ${targetEx.sourceBatchId}，来源不一致`);
-        }
-      }
-      // 脱敏与凭据泄露检查
-      if (fr.techDetail && /bearer|password|secret|token.*=|\/\/.*:.*@/i.test(fr.techDetail)) {
-        errors.push(`批次 ${b.id} 失败记录 ${fr.id} 的技术详情疑似包含敏感凭据信息`);
-      }
-    });
-
-    // 批次显示“通过”时不存在未关闭异常
-    if (b.verificationStatus === 'PASSED') {
-      const batchExceptions = exceptions.filter(e => e.sourceBatchId === b.id);
-      const unresolved = batchExceptions.filter(e => e.status !== 'CLOSED' && e.status !== 'RECOVERED');
-      if (unresolved.length > 0) {
-        errors.push(`批次 ${b.id} 核验状态为“通过”，但存在未关闭异常 (${unresolved.map(u => u.id).join(', ')})`);
-      }
-    }
-  });
-
-  // 3. 检查核验单引用的批次和异常
-  verifications.forEach(v => {
-    const targetBatch = batchMap.get(v.linkedBatchId);
-    if (!targetBatch) {
-      errors.push(`核验单 ${v.id} 引用的批次 ${v.linkedBatchId} 不存在`);
-    } else {
-      const invalidObjects = v.objectsSummary.filter(obj => !targetBatch.objectsSummary.includes(obj));
-      if (invalidObjects.length > 0) {
-        errors.push(`核验单 ${v.id} 对象范围 ${invalidObjects.join(', ')} 超出关联批次 ${targetBatch.id} 的对象范围`);
-      }
-    }
-
-    v.linkedExceptionIds.forEach(exId => {
-      const targetEx = exMap.get(exId);
-      if (!targetEx) {
-        errors.push(`核验单 ${v.id} 引用的异常单 ${exId} 不存在`);
-      } else if (targetEx.sourceBatchId !== v.linkedBatchId) {
-        errors.push(`核验单 ${v.id} 所属批次为 ${v.linkedBatchId}，但引用的异常单 ${exId} 来源批次为 ${targetEx.sourceBatchId}，违反唯一来源原则`);
-      }
-    });
-  });
-
-  // 4. 检查异常单引用的批次和核验单
-  exceptions.forEach(e => {
-    const targetBatch = batchMap.get(e.sourceBatchId);
-    if (!targetBatch) {
-      errors.push(`异常单 ${e.id} 引用的来源批次 ${e.sourceBatchId} 不存在`);
-    }
-    if (e.linkedVerificationId) {
-      const targetVer = verMap.get(e.linkedVerificationId);
-      if (!targetVer) {
-        errors.push(`异常单 ${e.id} 引用的核验单 ${e.linkedVerificationId} 不存在`);
-      } else if (targetVer.linkedBatchId !== e.sourceBatchId) {
-        errors.push(`异常单 ${e.id} 来源批次为 ${e.sourceBatchId}，但引用的核验单 ${targetVer.id} 属于批次 ${targetVer.linkedBatchId}，存在跨批次错乱`);
-      }
-    }
-    if (e.status === 'CLOSED') {
-      if (!e.closeConclusion) {
-        errors.push(`已关闭异常 ${e.id} 缺少 closeConclusion 关闭结论留痕`);
-      }
-      const hasCloseNode = e.timeline.some(t => t.node === '已关闭' || t.node === '复核关闭' || t.node === '复核通过并关闭');
-      if (!hasCloseNode) {
-        errors.push(`已关闭异常 ${e.id} 时间线缺少关闭节点`);
-      }
-    }
-  });
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-};
-
-// 轻量负向验证自检断言辅助函数 (仅用于开发期验证 5 类人为缺失/异常数据能够被准确捕获，不污染业务状态)
-export const runNegativeIntegrityAssertions = (
-  baseBatches: SyncBatch[],
-  verifications: VerificationRecord[],
-  exceptions: SyncException[]
-): { allNegativePassed: boolean; testCases: { name: string; caught: boolean; errorSnippet?: string }[] } => {
-  const testCases: { name: string; caught: boolean; errorSnippet?: string }[] = [];
-
-  // Case 1: 全量范围字段同时缺失 (无 sourceDataCutoffAt 且无 sourceSnapshotAt)
-  const fullBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
-  const targetFull = fullBatches.find(b => b.syncMethod === 'FULL');
-  if (targetFull) {
-    delete targetFull.sourceDataCutoffAt;
-    delete targetFull.sourceSnapshotAt;
-    const res1 = validateDataIntegrity(fullBatches, verifications, exceptions);
-    const caught = res1.errors.some(e => e.includes('缺少范围证据'));
-    testCases.push({
-      name: '全量同步范围证据同时缺失',
-      caught,
-      errorSnippet: res1.errors.find(e => e.includes('缺少范围证据'))
-    });
-  }
-
-  // Case 2: 配置版本缺失 (删去 objectMappingVersion)
-  const cfgBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
-  if (cfgBatches[0]) {
-    delete (cfgBatches[0] as Partial<SyncBatch>).objectMappingVersion;
-    const res2 = validateDataIntegrity(cfgBatches, verifications, exceptions);
-    const caught = res2.errors.some(e => e.includes('缺少完整的配置快照编号或映射版本证据'));
-    testCases.push({
-      name: '配置映射版本证据缺失',
-      caught,
-      errorSnippet: res2.errors.find(e => e.includes('缺少完整的配置快照编号或映射版本证据'))
-    });
-  }
-
-  // Case 3: 运行中已处理数大于抽取数 (处理进度超限)
-  const runningBatches = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
-  const targetRunning = runningBatches.find(b => b.executionStatus === 'RUNNING');
-  if (targetRunning) {
-    targetRunning.successCount = targetRunning.sourceDataCount + 100;
-    targetRunning.insertedCount = targetRunning.successCount;
-    const res3 = validateDataIntegrity(runningBatches, verifications, exceptions);
-    const caught = res3.errors.some(e => e.includes('已处理数量') && e.includes('超过抽取源数据总量'));
-    testCases.push({
-      name: '运行中批次已处理数大于抽取数',
-      caught,
-      errorSnippet: res3.errors.find(e => e.includes('已处理数量'))
-    });
-  }
-
-  // Case 4: 增量批次仅缺起始水位 (watermarkStart 缺失)
-  const incBatches1 = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
-  const targetInc1 = incBatches1.find(b => b.syncMethod === 'INCREMENTAL');
-  if (targetInc1) {
-    delete targetInc1.watermarkStart;
-    const res4 = validateDataIntegrity(incBatches1, verifications, exceptions);
-    const caught = res4.errors.some(e => e.includes('缺少时间窗口') && e.includes('完整水位证据'));
-    testCases.push({
-      name: '增量批次仅缺起始水位',
-      caught,
-      errorSnippet: res4.errors.find(e => e.includes('缺少时间窗口'))
-    });
-  }
-
-  // Case 5: 增量批次仅缺结束水位 (watermarkEnd 缺失)
-  const incBatches2 = JSON.parse(JSON.stringify(baseBatches)) as SyncBatch[];
-  const targetInc2 = incBatches2.find(b => b.syncMethod === 'INCREMENTAL');
-  if (targetInc2) {
-    delete targetInc2.watermarkEnd;
-    const res5 = validateDataIntegrity(incBatches2, verifications, exceptions);
-    const caught = res5.errors.some(e => e.includes('缺少时间窗口') && e.includes('完整水位证据'));
-    testCases.push({
-      name: '增量批次仅缺结束水位',
-      caught,
-      errorSnippet: res5.errors.find(e => e.includes('缺少时间窗口'))
-    });
-  }
-
-  return {
-    allNegativePassed: testCases.length === 5 && testCases.every(t => t.caught),
-    testCases
-  };
-};

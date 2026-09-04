@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               }`}
             >
               <Database className="w-3.5 h-3.5 text-blue-400" />
-              <span>数据同步质量</span>
+              <span>数据同步记录</span>
               {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
             </button>
           </div>

@@ -116,6 +116,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<string>('field-rules');
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
 
   const handleNavigate = (newView: string) => {
     // R10-BLK-04: strict unsaved changes guard using the shared comparison function
@@ -174,13 +175,19 @@ export default function App() {
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
                 onNavigateToSyncQuality={(batchId) => {
+                  if (batchId) {
+                    setSelectedSyncBatchId(batchId);
+                  }
                   handleNavigate('data-sync-quality');
                 }}
               />
             )}
 
             {currentView === 'data-sync-quality' && (
-              <DataSyncQualityView />
+              <DataSyncQualityView
+                initialSelectedBatchId={selectedSyncBatchId}
+                onClearSelectedBatchId={() => setSelectedSyncBatchId(null)}
+              />
             )}
 
             {currentView === 'field-rules' && (
