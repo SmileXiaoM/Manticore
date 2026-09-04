@@ -158,14 +158,11 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         suggestedType = 'FLOAT';
       } else if (meta.sourceDataType === 'LONG_TEXT') {
         suggestedType = 'TEXT';
-        suggestedDisplayType = 'FULLTEXT';
         suggestedQueryCap = 'FULLTEXT_SEARCH';
       } else if (meta.sourceDataType === 'CATEGORY_TREE') {
         suggestedType = 'STRING';
-        suggestedDisplayType = 'CATEGORY_PATH';
       } else if (meta.sourceDataType === 'ENUM') {
         suggestedType = 'STRING';
-        suggestedDisplayType = 'ENUM_BADGE';
       }
 
       // 只有“未映射”且可直接导入的候选字段才分配建议顺序号，按待导入顺序递增，避免被已存在或不可导入字段占位空耗

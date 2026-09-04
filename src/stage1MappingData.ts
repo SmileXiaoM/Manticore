@@ -149,6 +149,14 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       manticoreType: 'STRING',
       displayTitle: '物料编码',
       displayType: 'LINK',
+      hyperlinkConfig: {
+        urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
+        oidSourceField: 'master_oid',
+        otypeSourceField: 'object_type_code',
+        displayTextSource: 'FIELD_VALUE',
+        openTarget: '_blank',
+        onMissingParam: 'HIDE_LINK_SHOW_TEXT'
+      },
       queryCapability: 'QUERY_CONDITION',
       isQueryCondition: true,
       isSortable: true,
@@ -1093,7 +1101,9 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       nominalDiameter: '25.0',
       grossWeight: '3.45',
       lifecycleState: 'RELEASED',
-      createTime: '2026-08-15 09:20:11'
+      createTime: '2026-08-15 09:20:11',
+      master_oid: 'OR:wt.part.WTPart:9823101',
+      object_type_code: 'WTPart'
     },
     {
       id: 'REC-P-002',
@@ -1104,7 +1114,9 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       nominalDiameter: '50.0',
       grossWeight: '1.20',
       lifecycleState: 'RELEASED',
-      createTime: '2026-08-16 11:05:44'
+      createTime: '2026-08-16 11:05:44',
+      master_oid: 'OR:wt.part.WTPart:9823102',
+      object_type_code: 'WTPart'
     },
     {
       id: 'REC-P-003',
@@ -1115,7 +1127,9 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       nominalDiameter: '120.0',
       grossWeight: '18.80',
       lifecycleState: 'RELEASED',
-      createTime: '2026-08-18 14:30:00'
+      createTime: '2026-08-18 14:30:00',
+      master_oid: 'OR:wt.part.WTPart:9823103',
+      object_type_code: 'WTPart'
     },
     {
       id: 'REC-P-004',
@@ -1126,7 +1140,10 @@ export const mockStage1PreviewRecords: Record<string, Stage1PreviewRecord[]> = {
       nominalDiameter: '10.0',
       grossWeight: '0.08',
       lifecycleState: 'RELEASED',
-      createTime: '2026-08-20 08:45:12'
+      createTime: '2026-08-20 08:45:12',
+      // 故意缺参测试：缺少 master_oid，按 onMissingParam 处理（HIDE_LINK_SHOW_TEXT）
+      master_oid: '',
+      object_type_code: 'WTPart'
     }
   ],
   DOCUMENT: [

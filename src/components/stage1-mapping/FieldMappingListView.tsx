@@ -16,7 +16,8 @@ import {
   Database,
   Info,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Link
 } from 'lucide-react';
 import {
   FieldMappingItem,
@@ -207,24 +208,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         待进入正式底座
       </span>
     );
-  };
-
-  const renderDisplayTypeBadge = (displayType: FieldMappingItem['displayType']) => {
-    switch (displayType) {
-      case 'LINK':
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-medium">超链接</span>;
-      case 'FULLTEXT':
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-medium">全文检索</span>;
-      case 'CATEGORY_PATH':
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-medium">分类树路径</span>;
-      case 'ENUM_BADGE':
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-medium">枚举标签</span>;
-      case 'HIDDEN':
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 text-slate-500 border border-slate-200 text-[11px]">不展示</span>;
-      case 'CONDITION_QUERY':
-      default:
-        return <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 text-slate-700 border border-slate-200 text-[11px]">标准条件</span>;
-    }
   };
 
   const renderQueryCapabilityBadge = (cap: FieldMappingItem['queryCapability']) => {
@@ -511,10 +494,9 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 <th className="py-2.5 px-2.5 text-center min-w-[65px] whitespace-nowrap">顺序号</th>
                 <th className="py-2.5 px-3 min-w-[100px] whitespace-nowrap">PLM 业务类型</th>
                 <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">底层类型</th>
-                <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">展示方式</th>
                 <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">查询能力</th>
                 <th className="py-2.5 px-2.5 text-center min-w-[60px] whitespace-nowrap">排序</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[70px] whitespace-nowrap">结果展示</th>
+                <th className="py-2.5 px-2.5 text-center min-w-[105px] whitespace-nowrap">结果展示</th>
                 <th className="py-2.5 px-3 min-w-[130px] whitespace-nowrap">配置状态</th>
                 <th className="py-2.5 px-3 min-w-[130px] whitespace-nowrap">底座状态</th>
                 <th className="py-2.5 px-3 text-center min-w-[120px] sticky right-0 bg-slate-50 border-l border-slate-200/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.03)] z-10 whitespace-nowrap">操作</th>
@@ -592,16 +574,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       {field.manticoreType}
                     </td>
 
-                    {/* 6. 展示方式 */}
-                    <td className="py-2.5 px-3">
-                      {renderDisplayTypeBadge(
-                        field.hasDraftModification && field.draftData?.displayType
-                          ? field.draftData.displayType
-                          : field.displayType
-                      )}
-                    </td>
-
-                    {/* 7. 查询能力 */}
+                    {/* 6. 查询能力 */}
                     <td className="py-2.5 px-3">
                       {renderQueryCapabilityBadge(
                         field.hasDraftModification && field.draftData?.queryCapability
@@ -610,7 +583,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* 8. 允许排序 */}
+                    {/* 7. 允许排序 */}
                     <td className="py-2.5 px-2.5 text-center">
                       {(field.hasDraftModification && field.draftData?.isSortable !== undefined
                         ? field.draftData.isSortable
@@ -621,18 +594,39 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* 9. 结果展示 */}
+                    {/* 8. 结果展示 (支持超链接标记) */}
                     <td className="py-2.5 px-2.5 text-center">
-                      {(field.hasDraftModification && field.draftData?.isDisplayInResult !== undefined
-                        ? field.draftData.isDisplayInResult
-                        : field.isDisplayInResult) ? (
-                        <span className="text-emerald-700 font-semibold text-[11px]">是</span>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">否</span>
-                      )}
+                      {(() => {
+                        const isDisplay =
+                          field.hasDraftModification && field.draftData?.isDisplayInResult !== undefined
+                            ? field.draftData.isDisplayInResult
+                            : field.isDisplayInResult;
+
+                        if (!isDisplay) {
+                          return <span className="text-slate-400 text-[11px]">否</span>;
+                        }
+
+                        const isLink =
+                          (field.hasDraftModification && field.draftData?.displayType === 'LINK') ||
+                          field.displayType === 'LINK';
+
+                        if (isLink) {
+                          return (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold whitespace-nowrap"
+                              title="在查询结果中以源系统超链接形式展示"
+                            >
+                              <Link className="w-2.5 h-2.5 mr-1 text-blue-600 shrink-0" />
+                              是 · 超链接
+                            </span>
+                          );
+                        }
+
+                        return <span className="text-emerald-700 font-semibold text-[11px]">是</span>;
+                      })()}
                     </td>
 
-                    {/* 10. 配置状态 */}
+                    {/* 9. 配置状态 */}
                     <td className="py-2.5 px-3">
                       {renderConfigStatusBadge(field)}
                     </td>

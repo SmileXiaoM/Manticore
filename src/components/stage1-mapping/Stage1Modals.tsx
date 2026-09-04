@@ -23,6 +23,10 @@ import {
   Stage1PreviewRecord,
   formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
+import {
+  resolveFieldHyperlink,
+  isFieldColumnHiddenByMissingParam
+} from '../../stage1HyperlinkUtils';
 
 // ==================== 1. 生效配置影响确认弹窗 (无配置版本，草稿生效) ====================
 interface PublishConfigModalProps {
@@ -322,6 +326,12 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
       return orderA - orderB;
     });
 
+  // 2. 根据超链接缺参策略 HIDE_ENTIRE_COLUMN 进行整列隐藏判断：缺参字段整列不进入结果表格
+  const displayQueryFields = formalQueryFields.filter(
+    f => !isFieldColumnHiddenByMissingParam(f, previewRecords || [])
+  );
+  const hiddenColumnsCount = formalQueryFields.length - displayQueryFields.length;
+
   // 待进入底座字段 (待同步)
   const pendingSyncFields = fields.filter(
     f =>
@@ -366,11 +376,16 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
               <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
-                底座可查字段: {formalQueryFields.length} 个
+                底座展示列: {displayQueryFields.length} 个
               </span>
+              {hiddenColumnsCount > 0 && (
+                <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-[4px] bg-amber-50 text-amber-800 border border-amber-200">
+                  缺参隐藏列: {hiddenColumnsCount} 个
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">
-              只读当前已成功同步的正式查询底座数据。草稿及已生效但待同步的字段不进入本次正式查询条件与结果列。
+              只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，严格遵循 URL 模板与缺参策略。
             </p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-[4px] hover:bg-slate-200 transition-colors">
@@ -383,20 +398,22 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           <div className="flex items-center space-x-2 text-blue-900">
             <Info className="w-4 h-4 text-blue-600 shrink-0" />
             <span>
-              当前正式查询底座包含 <strong>{formalQueryFields.length}</strong> 个可查字段，结果列已按顺序号从小到大排列。
+              当前正式查询底座展示 <strong>{displayQueryFields.length}</strong> 个结果列，已按顺序号从小到大排布。
             </span>
           </div>
 
-          {(pendingSyncFields.length > 0 || draftFields.length > 0) && (
-            <div className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200">
+          {(pendingSyncFields.length > 0 || draftFields.length > 0 || hiddenColumnsCount > 0) && (
+            <div className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-[4px] border border-amber-200 flex items-center space-x-1.5">
               {pendingSyncFields.length > 0 && (
                 <span>
-                  有 {pendingSyncFields.length} 个字段待进入正式底座（
-                  {pendingSyncFields.map(f => f.displayTitle).join(', ')}），未进入本次查询。
+                  待进入底座（{pendingSyncFields.length} 个）；
                 </span>
               )}
               {draftFields.length > 0 && (
-                <span className="ml-1">草稿项 ({draftFields.length} 个) 已自动隔离。</span>
+                <span>草稿项（{draftFields.length} 个）已自动隔离；</span>
+              )}
+              {hiddenColumnsCount > 0 && (
+                <span>有 {hiddenColumnsCount} 列因超链接缺少必要参数按配置整列隐藏。</span>
               )}
             </div>
           )}
@@ -427,8 +444,8 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
               <tr>
-                {formalQueryFields.length > 0 ? (
-                  formalQueryFields.map(f => (
+                {displayQueryFields.length > 0 ? (
+                  displayQueryFields.map(f => (
                     <th
                       key={f.id}
                       className="py-2.5 px-3 whitespace-nowrap"
@@ -441,58 +458,51 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                     </th>
                   ))
                 ) : (
-                  <th className="py-2.5 px-3">无正式可查字段</th>
+                  <th className="py-2.5 px-3">无正式可查展示列</th>
                 )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {formalQueryFields.length > 0 && filteredData.length > 0 ? (
+              {displayQueryFields.length > 0 && filteredData.length > 0 ? (
                 filteredData.map(row => (
                   <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    {formalQueryFields.map(f => {
-                      let cellVal = '-';
-                      if (f.manticoreField === 'part_number') cellVal = row.partNumber;
-                      else if (f.manticoreField === 'part_name') cellVal = row.partName;
-                      else if (f.manticoreField === 'material') cellVal = row.material || '-';
-                      else if (f.manticoreField.includes('nominal_diameter'))
-                        cellVal = row.nominalDiameter ? `${row.nominalDiameter} mm` : '-';
-                      else if (f.manticoreField === 'category_path')
-                        cellVal = row.categoryPath || '-';
-                      else if (f.manticoreField.includes('voltage'))
-                        cellVal = row.ratedVoltage ? `${row.ratedVoltage} V` : '-';
-                      else if (f.manticoreField.includes('capacitance'))
-                        cellVal = row.capacitance ? `${row.capacitance} uF` : '-';
-                      else if (f.manticoreField === 'fastener_code')
-                        cellVal = row.fastenerCode || '-';
-                      else if (f.manticoreField === 'standard_spec')
-                        cellVal = row.standardSpec || '-';
-                      else if (f.manticoreField === 'thread_spec')
-                        cellVal = row.threadSpec || '-';
-                      else if (f.manticoreField === 'doc_number')
-                        cellVal = row.docNumber || '-';
-                      else if (f.manticoreField === 'doc_title')
-                        cellVal = row.docTitle || '-';
-                      else if (f.manticoreField === 'drawing_no')
-                        cellVal = row.drawingNo || '-';
-                      else if (f.manticoreField === 'sheet_size')
-                        cellVal = row.sheetSize || '-';
-                      else cellVal = row[f.sourceFieldName] || '-';
+                    {displayQueryFields.map(f => {
+                      const linkRes = resolveFieldHyperlink(f, row);
+
+                      if (linkRes.type === 'LINK') {
+                        return (
+                          <td key={f.id} className="py-2.5 px-3">
+                            <a
+                              href={linkRes.url}
+                              target={linkRes.target}
+                              rel={linkRes.target === '_blank' ? 'noreferrer' : undefined}
+                              className="font-mono font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center"
+                              title={`跳转源系统: ${linkRes.url}`}
+                            >
+                              <span>{linkRes.text}</span>
+                              <Link className="w-2.5 h-2.5 ml-1 text-blue-400 shrink-0" />
+                            </a>
+                          </td>
+                        );
+                      }
+
+                      if (linkRes.type === 'DISABLED_LINK') {
+                        return (
+                          <td key={f.id} className="py-2.5 px-3">
+                            <span
+                              className="font-mono text-slate-400 line-through decoration-slate-300 cursor-not-allowed inline-flex items-center bg-slate-100/80 px-1.5 py-0.5 rounded text-[11px]"
+                              title={`超链接已禁用: ${linkRes.reason}`}
+                            >
+                              <span>{linkRes.text}</span>
+                              <Link className="w-2.5 h-2.5 ml-1 text-slate-300 shrink-0" />
+                            </span>
+                          </td>
+                        );
+                      }
 
                       return (
                         <td key={f.id} className="py-2.5 px-3">
-                          {f.displayType === 'LINK' ? (
-                            <a
-                              href={`https://plm.internal.corp/view?part=${cellVal}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-mono font-semibold text-blue-600 hover:underline inline-flex items-center"
-                            >
-                              <span>{cellVal}</span>
-                              <Link className="w-2.5 h-2.5 ml-1 text-blue-400" />
-                            </a>
-                          ) : (
-                            <span className="font-mono text-slate-800">{cellVal}</span>
-                          )}
+                          <span className="font-mono text-slate-800">{linkRes.text}</span>
                         </td>
                       );
                     })}
@@ -500,10 +510,10 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 ))
               ) : (
                 <tr>
-                  <td colSpan={formalQueryFields.length || 1} className="py-12 text-center text-slate-400">
+                  <td colSpan={displayQueryFields.length || 1} className="py-12 text-center text-slate-400">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    {formalQueryFields.length === 0
-                      ? '当前根类型尚未同步任何可查询字段'
+                    {displayQueryFields.length === 0
+                      ? '当前根类型尚未配置可展示结果列或已被缺参策略隐藏'
                       : '未查找到相关数据'}
                   </td>
                 </tr>
@@ -598,6 +608,57 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
               </div>
               <div><span className="text-slate-400">含数据影响:</span> <span>{field.isDataImpactingChange ? '是' : '否'}</span></div>
               <div><span className="text-slate-400">更新时间:</span> <span>{field.updatedAt}</span></div>
+            </div>
+          </div>
+
+          {/* 结果展示与源系统超链接 */}
+          <div className="bg-slate-50 p-3 rounded-[6px] border border-slate-200 space-y-1.5">
+            <div className="font-semibold text-slate-700">4. 结果展示与源系统超链接</div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div>
+                <span className="text-slate-400">结果表格展示:</span>{' '}
+                <span className={field.isDisplayInResult ? 'text-emerald-700 font-semibold' : 'text-slate-500'}>
+                  {field.isDisplayInResult ? '是' : '否'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">字段值超链接:</span>{' '}
+                <span className={field.displayType === 'LINK' ? 'text-blue-700 font-semibold' : 'text-slate-500'}>
+                  {field.displayType === 'LINK' ? '已启用' : '未启用 (普通文本)'}
+                </span>
+              </div>
+              {field.displayType === 'LINK' && field.hyperlinkConfig && (
+                <>
+                  <div className="col-span-2">
+                    <span className="text-slate-400">URL 模板:</span>{' '}
+                    <span className="font-mono text-blue-800 break-all bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                      {field.hyperlinkConfig.urlTemplate || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">OID 来源字段:</span>{' '}
+                    <span className="font-mono font-medium">{field.hyperlinkConfig.oidSourceField || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">OTYPE 来源字段:</span>{' '}
+                    <span className="font-mono font-medium">{field.hyperlinkConfig.otypeSourceField || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">打开方式:</span>{' '}
+                    <span className="font-medium">{field.hyperlinkConfig.openTarget === '_self' ? '当前窗口 (_self)' : '新窗口 (_blank)'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">缺参策略:</span>{' '}
+                    <span className="font-medium">
+                      {field.hyperlinkConfig.onMissingParam === 'SHOW_DISABLED_LINK'
+                        ? '显示置灰不可点链接'
+                        : field.hyperlinkConfig.onMissingParam === 'HIDE_ENTIRE_COLUMN'
+                        ? '整列不进入结果表格'
+                        : '隐藏链接展示普通文本'}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
