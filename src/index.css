@@ -2,23 +2,27 @@
 @import "tailwindcss";
 
 :root {
-  /* IntePLM 语义色彩 Token 规范 */
+  /* IntePLM 语义色彩 Token 规范 (唯一规范源: frontend-style-guide.md) */
   --ty-font-main-color: #010d23;
-  --ty-font-main-light-color: #2b384e;
-  --ty-font-sub-color: #71757f;
-  --ty-font-placeholder-color: #b5b7bc;
+  --ty-font-main-light-color: #343d4f;
+  --ty-font-sub-color: #676e7b;
+  --ty-font-sub-light-color: #999ea7;
+  --ty-font-placeholder-color: #b2b6bd;
   --ty-border-color: #d9dbde;
-  --ty-border-light-color: #ebecee;
+  --ty-border-light-color: #e5e6e9;
   --ty-fill-color: #f2f3f4;
   --ty-fill-light-color: #f8fafc;
   --ty-fill-white-color: #ffffff;
-  --ty-blue-color: #1664ff;
+  --ty-primary-color: #0955eb;
+  --ty-primary-hover-color: #278dff;
+  --ty-primary-active-color: #0f45be;
+  --ty-blue-color: #0955eb;
   --ty-blue-light-color: #e8f3ff;
-  --ty-green-color: #00b42a;
+  --ty-green-color: #2bbd68;
   --ty-green-light-color: #e8ffea;
-  --ty-orange-color: #ff7d00;
+  --ty-orange-color: #fc7b1e;
   --ty-orange-light-color: #fff7e8;
-  --ty-red-color: #f53f3f;
+  --ty-red-color: #f73c4b;
   --ty-red-light-color: #ffece8;
 }
 
@@ -30,11 +34,21 @@
   --color-inte-border: var(--ty-border-color);
   --color-inte-border-light: var(--ty-border-light-color);
   --color-inte-text-main: var(--ty-font-main-color);
+  --color-inte-text-main-light: var(--ty-font-main-light-color);
   --color-inte-text-sub: var(--ty-font-sub-color);
-  --color-inte-primary: var(--ty-blue-color);
+  --color-inte-text-sub-light: var(--ty-font-sub-light-color);
+  --color-inte-text-placeholder: var(--ty-font-placeholder-color);
+  --color-inte-primary: var(--ty-primary-color);
+  --color-inte-primary-hover: var(--ty-primary-hover-color);
+  --color-inte-primary-active: var(--ty-primary-active-color);
+  --color-inte-blue: var(--ty-blue-color);
+  --color-inte-blue-light: var(--ty-blue-light-color);
   --color-inte-success: var(--ty-green-color);
+  --color-inte-success-light: var(--ty-green-light-color);
   --color-inte-warning: var(--ty-orange-color);
+  --color-inte-warning-light: var(--ty-orange-light-color);
   --color-inte-danger: var(--ty-red-color);
+  --color-inte-danger-light: var(--ty-red-light-color);
 }
 
 body {

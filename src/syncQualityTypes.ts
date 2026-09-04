@@ -95,41 +95,41 @@ export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
     case 'RUNNING':
       return {
         label: '同步中',
-        bgClass: 'bg-blue-50',
-        textClass: 'text-blue-700',
+        bgClass: 'bg-[var(--ty-blue-light-color)]',
+        textClass: 'text-[var(--ty-blue-color)]',
         borderClass: 'border-blue-200',
-        dotClass: 'bg-blue-500'
+        dotClass: 'bg-[var(--ty-blue-color)]'
       };
     case 'SUCCESS':
       return {
         label: '同步完成',
-        bgClass: 'bg-emerald-50',
-        textClass: 'text-emerald-700',
+        bgClass: 'bg-[var(--ty-green-light-color)]',
+        textClass: 'text-[var(--ty-green-color)]',
         borderClass: 'border-emerald-200',
-        dotClass: 'bg-emerald-500'
+        dotClass: 'bg-[var(--ty-green-color)]'
       };
     case 'PARTIAL_SUCCESS':
       return {
         label: '同步完成（有异常）',
-        bgClass: 'bg-amber-50',
-        textClass: 'text-amber-800',
+        bgClass: 'bg-[var(--ty-orange-light-color)]',
+        textClass: 'text-[var(--ty-orange-color)]',
         borderClass: 'border-amber-200',
-        dotClass: 'bg-amber-500'
+        dotClass: 'bg-[var(--ty-orange-color)]'
       };
     case 'FAILED':
       return {
         label: '同步失败',
-        bgClass: 'bg-rose-50',
-        textClass: 'text-rose-700',
+        bgClass: 'bg-[var(--ty-red-light-color)]',
+        textClass: 'text-[var(--ty-red-color)]',
         borderClass: 'border-rose-200',
-        dotClass: 'bg-rose-500'
+        dotClass: 'bg-[var(--ty-red-color)]'
       };
     default:
       return {
         label: '未同步',
-        bgClass: 'bg-slate-50',
-        textClass: 'text-slate-600',
-        borderClass: 'border-slate-200',
+        bgClass: 'bg-[var(--ty-fill-light-color)]',
+        textClass: 'text-[var(--ty-font-sub-color)]',
+        borderClass: 'border-[var(--ty-border-light-color)]',
         dotClass: 'bg-slate-400'
       };
   }
@@ -172,4 +172,19 @@ export function getTriggerTypeLabel(trigger: TriggerType): string {
     default:
       return trigger;
   }
+}
+
+/**
+ * 统一本地时间格式化函数
+ * 使用浏览器本地时区格式化输出 YYYY-MM-DD HH:mm:ss，杜绝 toISOString() 导致的 8 小时 UTC 时差
+ */
+export function formatLocalDateTime(date: Date = new Date()): string {
+  const pad = (num: number) => String(num).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
