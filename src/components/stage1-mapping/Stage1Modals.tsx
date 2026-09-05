@@ -62,11 +62,11 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-2.5">
-            <div className="bg-[var(--ty-green-light-color)] p-2 rounded-[4px] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
+            <div className="bg-[var(--ty-green-lightest-color)] p-2 rounded-ty-sm text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
               <Send className="w-4 h-4" />
             </div>
             <div>
@@ -76,13 +76,13 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 影响摘要卡片 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 space-y-2.5 text-ty-xs">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2.5 text-ty-xs">
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>目标根类型：</span>
             <span className="font-bold text-[var(--ty-font-main-color)]">
@@ -106,13 +106,13 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </div>
 
           <div className="border-t border-[var(--ty-border-color)] pt-2 grid grid-cols-2 gap-2 text-ty-2xs">
-            <div className="bg-[var(--ty-orange-lightest-color)] p-2.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
+            <div className="bg-[var(--ty-orange-lightest-color)] p-2.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
               <div className="font-bold text-[var(--ty-orange-color)]">数据影响变更: {dataImpactingCount} 项</div>
               <div className="text-ty-2xs opacity-80 mt-0.5">
                 {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
               </div>
             </div>
-            <div className="bg-[var(--ty-green-lightest-color)] p-2.5 rounded-[4px] border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
+            <div className="bg-[var(--ty-green-lightest-color)] p-2.5 rounded-ty-sm border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
               <div className="font-bold text-[var(--ty-green-color)]">纯展示变更: {displayOnlyCount} 项</div>
               <div className="text-ty-2xs opacity-80 mt-0.5">即刻生效，无需同步</div>
             </div>
@@ -120,7 +120,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
         </div>
 
         {/* 权威生命周期说明 */}
-        <div className="bg-[var(--ty-primary-lighter-color)]/30 border border-[var(--ty-primary-lighter-color)] rounded-[4px] p-3 text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-2">
+        <div className="bg-[var(--ty-primary-lighter-color)]/30 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm p-3 text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-2">
           <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-semibold">生效操作不生成配置版本，不会自动触发数据同步</p>
@@ -136,14 +136,14 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
           >
             取消
           </button>
           <button
             type="button"
             onClick={onConfirmPublish}
-            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
             <span>确认生效配置 ({totalDraftCount} 项)</span>
@@ -177,11 +177,11 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
   const isFailedRetry = currentRootType.syncStatus === 'FAILED' || currentRootType.syncStatus === 'COMPLETED_WITH_ERRORS';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-2.5">
-            <div className={`p-2 rounded-[4px] border ${isFailedRetry ? 'bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30' : 'bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-lighter-color)]'}`}>
+            <div className={`p-2 rounded-ty-sm border ${isFailedRetry ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30' : 'bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30'}`}>
               {isFailedRetry ? <RotateCcw className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
             </div>
             <div>
@@ -193,19 +193,19 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 异常提示 (如果处于异常或失败状态) */}
         {isFailedRetry && currentRootType.lastSyncErrorRecords && currentRootType.lastSyncErrorRecords.length > 0 && (
-          <div className="bg-[var(--ty-orange-light-color)] border border-[var(--ty-orange-color)]/30 rounded-[4px] p-3 text-ty-xs text-[var(--ty-orange-color)] space-y-1.5">
-            <div className="font-bold flex items-center">
+          <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-3 text-ty-xs text-[var(--ty-font-main-light-color)] space-y-1.5">
+            <div className="font-bold flex items-center text-[var(--ty-orange-color)]">
               <AlertTriangle className="w-3.5 h-3.5 mr-1 text-[var(--ty-orange-color)]" />
               上一批次同步有 {currentRootType.lastSyncErrorRecords.length} 条异常记录 (未中断整体任务):
             </div>
-            <div className="max-h-24 overflow-y-auto space-y-1 text-ty-2xs font-mono text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]/80 p-1.5 rounded-[4px] border border-[var(--ty-orange-color)]/30">
+            <div className="max-h-24 overflow-y-auto space-y-1 text-ty-2xs font-mono text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-white-color)]/80 p-1.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30">
               {currentRootType.lastSyncErrorRecords.map(err => (
                 <div key={err.id}>• [{err.recordKey}] {err.errorField || '未知字段'}: {err.errorMsg}</div>
               ))}
@@ -214,7 +214,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         )}
 
         {/* 作用域与配置信息卡片 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 space-y-2.5 text-ty-xs">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2.5 text-ty-xs">
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>同步目标根类型：</span>
             <span className="font-bold text-[var(--ty-font-main-color)]">
@@ -237,7 +237,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <div className="border-t border-[var(--ty-border-color)] pt-2 space-y-2">
             <label className="block text-[var(--ty-font-main-color)] font-semibold">选择同步策略：</label>
             <div className="space-y-2">
-              <label className="flex items-start space-x-2 p-2 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
@@ -253,7 +253,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
                 </div>
               </label>
 
-              <label className="flex items-start space-x-2 p-2 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
+              <label className="flex items-start space-x-2 p-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] cursor-pointer hover:border-[var(--ty-primary-color)] transition-colors">
                 <input
                   type="radio"
                   name="syncScope"
@@ -276,14 +276,14 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
           >
             取消
           </button>
           <button
             type="button"
             onClick={() => onConfirmSync(syncScope)}
-            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>{isFailedRetry ? '重试发起同步' : '确认发起同步'}</span>
@@ -363,8 +363,8 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
@@ -373,14 +373,14 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 <Eye className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
                 正式查询底座数据预览
               </h3>
-              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
-              <span className="px-2 py-0.5 text-ty-2xs font-mono font-semibold rounded-[4px] bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-semibold rounded-ty-sm bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
                 底座展示列: {displayQueryFields.length} 个
               </span>
               {hiddenColumnsCount > 0 && (
-                <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">
+                <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
                   缺参隐藏列: {hiddenColumnsCount} 个
                 </span>
               )}
@@ -389,14 +389,14 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
               只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，严格遵循 URL 模板与缺参策略。
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 状态与底座说明条 */}
-        <div className="px-5 py-2.5 bg-[var(--ty-primary-lighter-color)]/20 border-b border-[var(--ty-primary-lighter-color)]/40 text-ty-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center space-x-2 text-[var(--ty-primary-color)]">
+        <div className="px-5 py-2.5 bg-[var(--ty-primary-lightest-color)] border-b border-[var(--ty-primary-color)]/30 text-ty-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center space-x-2 text-[var(--ty-font-main-light-color)]">
             <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
             <span>
               当前正式查询底座展示 <strong>{displayQueryFields.length}</strong> 个结果列，已按顺序号从小到大排布。
@@ -404,7 +404,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           </div>
 
           {(pendingSyncFields.length > 0 || draftFields.length > 0 || hiddenColumnsCount > 0) && (
-            <div className="text-ty-2xs text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 flex items-center space-x-1.5">
+            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30 flex items-center space-x-1.5">
               {pendingSyncFields.length > 0 && (
                 <span>
                   待进入底座（{pendingSyncFields.length} 个）；
@@ -430,7 +430,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 placeholder="模拟全文检索或编码/名称关键词..."
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
-                className="w-full h-8 pl-7 pr-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
+                className="w-full h-8 pl-7 pr-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
               />
             </div>
           </div>
@@ -491,7 +491,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                         return (
                           <td key={f.id} className="py-2.5 px-3">
                             <span
-                              className="font-mono text-[var(--ty-font-sub-light-color)] line-through decoration-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center bg-[var(--ty-fill-dark-color)] px-1.5 py-0.5 rounded-[2px] text-ty-2xs"
+                              className="font-mono text-[var(--ty-font-sub-light-color)] line-through decoration-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center bg-[var(--ty-fill-dark-color)] px-1.5 py-0.5 rounded-ty-xs text-ty-2xs"
                               title={`超链接已禁用: ${linkRes.reason}`}
                             >
                               <span>{linkRes.text}</span>
@@ -528,7 +528,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium shadow-2xs cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer transition-colors"
           >
             关闭预览
           </button>
@@ -553,21 +553,21 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
   if (!isOpen || !field) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div>
             <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">字段映射详细定义</h3>
             <p className="text-ty-xs font-mono text-[var(--ty-primary-color)]">{field.manticoreField} ({field.displayTitle})</p>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-3 text-ty-xs">
           {/* PLM 来源 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
             <div className="font-semibold text-[var(--ty-font-main-color)]">1. PLM 来源元数据</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">源字段 Key:</span> <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.sourceFieldKey}</span></div>
@@ -576,7 +576,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
                 <span className="text-[var(--ty-font-sub-light-color)]">来源显示名:</span>{' '}
                 <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDisplayName}</span>
                 {field.isDisplayNameMissing && (
-                  <span className="ml-1 text-ty-2xs text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-[2px]">已兜底</span>
+                  <span className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-ty-xs font-medium">已兜底</span>
                 )}
               </div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">业务类型:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDataTypeLabel}</span></div>
@@ -585,19 +585,19 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           </div>
 
           {/* Manticore 底层 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
             <div className="font-semibold text-[var(--ty-font-main-color)]">2. Manticore 底层配置</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">物理字段:</span> <span className="font-mono font-semibold text-[var(--ty-primary-color)]">{field.manticoreField}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">数据类型:</span> <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{field.manticoreType}</span></div>
-              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">唯一主键:</span> <span className="text-[var(--ty-font-main-color)]">{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">排序支持:</span> <span className="text-[var(--ty-font-main-color)]">{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>
           </div>
 
           {/* 状态与生命周期 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
             <div className="font-semibold text-[var(--ty-font-main-color)]">3. 配置与底座归属</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">配置状态:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.configStatus}</span></div>
@@ -613,7 +613,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           </div>
 
           {/* 结果展示与源系统超链接 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
             <div className="font-semibold text-[var(--ty-font-main-color)]">4. 结果展示与源系统超链接</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div>
@@ -641,7 +641,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
                 <>
                   <div className="col-span-2">
                     <span className="text-[var(--ty-font-sub-light-color)]">URL 模板:</span>{' '}
-                    <span className="font-mono text-[var(--ty-primary-color)] break-all bg-[var(--ty-fill-white-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">
+                    <span className="font-mono text-[var(--ty-primary-color)] break-all bg-[var(--ty-fill-white-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">
                       {field.hyperlinkConfig.urlTemplate || '-'}
                     </span>
                   </div>
@@ -677,7 +677,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium cursor-pointer transition-colors shadow-2xs"
+            className="h-8 px-4 bg-[var(--ty-fill-dark-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer transition-colors"
           >
             关闭
           </button>

@@ -320,7 +320,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
       {toastMessage && (
         <div className="fixed top-16 right-8 z-50 transition-all duration-300 transform translate-y-0">
           <div
-            className={`px-4 py-2.5 rounded-[4px] shadow-lg text-ty-xs font-medium flex items-center space-x-2 border ${
+            className={`px-4 py-2.5 rounded-ty-sm shadow-ty-lg text-ty-xs font-medium flex items-center space-x-2 border ${
               toastMessage.type === 'success'
                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
                 : toastMessage.type === 'warning'
@@ -339,12 +339,12 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
       {/* 主页面工作区 */}
       <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 space-y-4">
         {/* 顶部标题与简要说明 */}
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
               <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
               <h1 className="text-ty-md font-semibold text-[var(--ty-font-main-color)]">数据同步记录</h1>
-              <span className="text-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-[2px] font-medium border border-[var(--ty-border-color)]">
+              <span className="text-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
                 一阶段检索底座
               </span>
             </div>
@@ -356,56 +356,56 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
         {/* 顶部紧凑指标摘要：一行展示 4 个关键指标 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 flex items-center justify-between shadow-2xs">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
             <div>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">批次总数</span>
               <span className="text-ty-xl font-bold text-[var(--ty-font-main-color)] mt-0.5 block">{summaryMetrics.total}</span>
             </div>
-            <div className="w-8 h-8 rounded-[4px] bg-[var(--ty-fill-color)] flex items-center justify-center text-[var(--ty-font-sub-color)]">
+            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-fill-color)] flex items-center justify-center text-[var(--ty-font-sub-color)]">
               <Layers className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 flex items-center justify-between shadow-2xs">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
             <div>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步中数量</span>
               <span className="text-ty-xl font-bold text-[var(--ty-primary-color)] mt-0.5 block">{summaryMetrics.running}</span>
             </div>
-            <div className="w-8 h-8 rounded-[4px] bg-[var(--ty-primary-lighter-color)]/30 flex items-center justify-center text-[var(--ty-primary-color)]">
+            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-primary-lighter-color)]/30 flex items-center justify-center text-[var(--ty-primary-color)]">
               <RefreshCw className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 flex items-center justify-between shadow-2xs">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
             <div>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步完成（有异常）</span>
               <span className="text-ty-xl font-bold text-[var(--ty-orange-color)] mt-0.5 block">{summaryMetrics.partialSuccess}</span>
             </div>
-            <div className="w-8 h-8 rounded-[4px] bg-[var(--ty-orange-light-color)] flex items-center justify-center text-[var(--ty-orange-color)]">
+            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 flex items-center justify-center text-[var(--ty-orange-color)]">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 flex items-center justify-between shadow-2xs">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
             <div>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步失败数量</span>
               <span className="text-ty-xl font-bold text-[var(--ty-red-color)] mt-0.5 block">{summaryMetrics.failed}</span>
             </div>
-            <div className="w-8 h-8 rounded-[4px] bg-[var(--ty-red-light-color)] flex items-center justify-center text-[var(--ty-red-color)]">
+            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 flex items-center justify-center text-[var(--ty-red-color)]">
               <XCircle className="w-4 h-4" />
             </div>
           </div>
         </div>
 
         {/* 筛选条件栏：仅保留根类型、状态、搜索框与重置 */}
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 shadow-2xs flex flex-wrap items-center gap-3">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex flex-wrap items-center gap-3">
           {/* 根类型筛选 */}
           <div className="flex items-center space-x-1.5 text-ty-xs">
             <span className="text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">根类型:</span>
             <select
               value={selectedRootType}
               onChange={e => setSelectedRootType(e.target.value)}
-              className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
             >
               <option value="ALL">全部根类型</option>
               <option value="Part">零部件 (Part)</option>
@@ -420,7 +420,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             <select
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
-              className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
             >
               <option value="ALL">全部状态</option>
               <option value="RUNNING">同步中</option>
@@ -438,14 +438,14 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               placeholder="搜索批次编号或任务名称..."
               value={searchKeyword}
               onChange={e => setSearchKeyword(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] focus:outline-hidden focus:border-[var(--ty-primary-color)] text-[var(--ty-font-main-color)] placeholder:text-[var(--ty-font-placeholder-color)] bg-[var(--ty-fill-white-color)]"
+              className="w-full pl-8 pr-3 py-1 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm focus:outline-hidden focus:border-[var(--ty-primary-color)] text-[var(--ty-font-main-color)] placeholder:text-[var(--ty-font-placeholder-color)] bg-[var(--ty-fill-white-color)]"
             />
           </div>
 
           {/* 重置按钮 */}
           <button
             onClick={handleResetFilters}
-            className="flex items-center space-x-1 px-3 py-1 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+            className="flex items-center space-x-1 px-3 py-1 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3 h-3 text-[var(--ty-font-sub-light-color)]" />
             <span>重置</span>
@@ -458,7 +458,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
         </div>
 
         {/* 批次表格卡片：表头与主要信息默认 14px，辅助信息 12px */}
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden flex flex-col">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1100px]">
               <thead>
@@ -509,7 +509,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                 {batch.id}
                               </span>
                               {batch.triggerType === 'RETRY' && (
-                                <span className="text-ty-2xs px-1.5 py-0.2 rounded-[2px] bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] font-semibold whitespace-nowrap">
+                                <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold whitespace-nowrap">
                                   重试批次
                                 </span>
                               )}
@@ -537,7 +537,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                             {batch.rootTypes.map(rt => (
                               <span
                                 key={rt}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-xs font-medium border border-[var(--ty-border-color)]"
+                                className="inline-flex items-center px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-xs font-medium border border-[var(--ty-border-color)]"
                               >
                                 {getRootTypeDisplayName(rt)}
                               </span>
@@ -586,7 +586,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         {/* 5. 同步状态：规范状态标签 12px */}
                         <td className="py-3 px-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium border whitespace-nowrap ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border whitespace-nowrap ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${statusMeta.dotClass}`}></span>
                             {statusMeta.label}
@@ -602,7 +602,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   e.stopPropagation();
                                   setSelectedBatchId(batch.id);
                                 }}
-                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-red-color)] bg-[var(--ty-red-light-color)] hover:opacity-90 rounded-[4px] border border-[var(--ty-red-color)]/30 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-red-color)] bg-[var(--ty-red-lightest-color)] hover:bg-[var(--ty-red-light-color)] rounded-ty-sm border border-[var(--ty-red-color)]/30 transition-colors cursor-pointer"
                               >
                                 查看失败
                               </button>
@@ -612,7 +612,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   e.stopPropagation();
                                   setSelectedBatchId(batch.id);
                                 }}
-                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] hover:opacity-90 rounded-[4px] border border-[var(--ty-orange-color)]/30 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] hover:bg-[var(--ty-orange-light-color)] rounded-ty-sm border border-[var(--ty-orange-color)]/30 transition-colors cursor-pointer"
                               >
                                 查看异常
                               </button>
@@ -622,7 +622,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   e.stopPropagation();
                                   setSelectedBatchId(batch.id);
                                 }}
-                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/30 hover:opacity-90 rounded-[4px] border border-[var(--ty-primary-lighter-color)] transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)] hover:bg-[var(--ty-primary-light-color)] rounded-ty-sm border border-[var(--ty-primary-color)]/30 transition-colors cursor-pointer"
                               >
                                 查看详情
                               </button>
@@ -641,8 +641,8 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
       {/* 单层详情抽屉：8px 圆角容器，线性自上而下展示 */}
       {activeBatch && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150">
-          <div className="w-full max-w-xl sm:max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-2xl flex flex-col border-l border-[var(--ty-border-color)] rounded-l-lg z-50 overflow-hidden">
+        <div className="fixed inset-0 z-40 flex justify-end bg-ty-overlay backdrop-blur-xs transition-opacity animate-in fade-in duration-150">
+          <div className="w-full max-w-xl sm:max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col border-l border-[var(--ty-border-color)] rounded-l-lg z-50 overflow-hidden">
             {/* 抽屉头部 */}
             <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
               <div className="flex items-center space-x-2.5">
@@ -664,7 +664,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedBatchId(null)}
-                className="w-8 h-8 rounded-[4px] text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] flex items-center justify-center transition-colors cursor-pointer"
                 title="关闭抽屉"
               >
                 <X className="w-4 h-4" />
@@ -674,22 +674,22 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             {/* 抽屉内容主体区：自上而下顺序展示 */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 text-ty-sm text-[var(--ty-font-main-color)]">
               {/* 1. 同步结果摘要 */}
-              <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] p-4 space-y-2.5">
+              <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-2.5">
                 <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">同步结果摘要</h3>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-[4px] p-2.5 text-center">
+                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步总数</span>
                     <span className="text-ty-md font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
                       {activeBatch.sourceDataCount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-[4px] p-2.5 text-center">
+                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-green-color)] block">成功数量</span>
                     <span className="text-ty-md font-bold text-[var(--ty-green-color)] mt-0.5 block">
                       {activeBatch.successCount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-[4px] p-2.5 text-center">
+                  <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-orange-color)] block">异常数量</span>
                     <span className={`text-ty-md font-bold mt-0.5 block ${activeBatch.executionStatus === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-orange-color)]'}`}>
                       {activeBatch.failedCount.toLocaleString()}
@@ -699,13 +699,13 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
                 {/* 跳过说明 / 正在处理说明 */}
                 {activeBatch.skippedCount > 0 && (
-                  <div className="text-ty-xs text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)]/70 p-2 rounded-[4px] border border-[var(--ty-border-light-color)] flex items-center space-x-1.5">
+                  <div className="text-ty-xs text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)]/70 p-2 rounded-ty-sm border border-[var(--ty-border-light-color)] flex items-center space-x-1.5">
                     <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
                     <span>跳过 {activeBatch.skippedCount} 条，不计为同步异常。</span>
                   </div>
                 )}
                 {activeBatch.executionStatus === 'RUNNING' && (
-                  <div className="text-ty-xs text-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/30 p-2 rounded-[4px] border border-[var(--ty-primary-lighter-color)] flex items-center space-x-1.5">
+                  <div className="text-ty-xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-primary-lightest-color)] p-2 rounded-ty-sm border border-[var(--ty-primary-color)]/30 flex items-center space-x-1.5">
                     <RefreshCw className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0 animate-spin" />
                     <span>
                       正在处理 {activeBatch.sourceDataCount - activeBatch.successCount - activeBatch.failedCount - activeBatch.skippedCount} 条数据...
@@ -715,7 +715,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               </div>
 
               {/* 2. 同步基本信息：无软类型无版本概念 */}
-              <div className="border border-[var(--ty-border-color)] rounded-[4px] p-4 space-y-3">
+              <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3">
                 <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">同步基本信息</h3>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-ty-xs">
                   <div>
@@ -724,7 +724,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                       {activeBatch.rootTypes.map(rt => (
                         <span
                           key={rt}
-                          className="px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] font-medium border border-[var(--ty-border-color)]"
+                          className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] font-medium border border-[var(--ty-border-color)]"
                         >
                           {getRootTypeDisplayName(rt)}
                         </span>
@@ -739,7 +739,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         const meta = getSyncStatusMeta(activeBatch.executionStatus);
                         return (
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium border ${meta.bgClass} ${meta.textClass} ${meta.borderClass}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border ${meta.bgClass} ${meta.textClass} ${meta.borderClass}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${meta.dotClass}`}></span>
                             {meta.label}
@@ -782,13 +782,13 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               {/* 3. 任务级失败专属模块 vs 数据级异常记录列表 (区分任务级失败与数据级异常) */}
               {activeBatch.executionStatus === 'FAILED' ? (
                 /* 任务级失败专属展示：不伪装成单条业务数据异常 */
-                <div className="border border-[var(--ty-red-color)]/30 bg-[var(--ty-red-light-color)]/40 rounded-[4px] p-4 space-y-3">
+                <div className="border border-[var(--ty-red-color)]/30 bg-[var(--ty-red-lightest-color)] rounded-ty-sm p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-ty-xs font-bold text-[var(--ty-red-color)] uppercase tracking-wider flex items-center">
                       <XCircle className="w-4 h-4 text-[var(--ty-red-color)] mr-1.5 shrink-0" />
                       <span>任务级中断根因与排查信息</span>
                     </h3>
-                    <span className="text-ty-xs bg-[var(--ty-red-light-color)] text-[var(--ty-red-color)] px-2 py-0.5 rounded-[2px] font-semibold border border-[var(--ty-red-color)]/20">
+                    <span className="text-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-ty-xs font-semibold border border-[var(--ty-red-color)]/30">
                       任务无法继续执行
                     </span>
                   </div>
@@ -827,7 +827,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                     </button>
 
                     {isTaskTechExpanded && (
-                      <div className="mt-2 p-2.5 bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-red-color)]/20 space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)] font-mono animate-in fade-in duration-100">
+                      <div className="mt-2 p-2.5 bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-red-color)]/20 space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)] font-mono animate-in fade-in duration-100">
                         {activeBatch.taskFailureDetail?.errorCode && (
                           <div>
                             <span className="text-[var(--ty-font-sub-light-color)]">错误码:</span> {activeBatch.taskFailureDetail.errorCode}
@@ -884,7 +884,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   </div>
 
                   {activeBatch.failedRecords.length === 0 ? (
-                    <div className="border border-dashed border-[var(--ty-border-color)] rounded-[4px] p-6 text-center text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]/50">
+                    <div className="border border-dashed border-[var(--ty-border-color)] rounded-ty-sm p-6 text-center text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]/50">
                       <CheckCircle2 className="w-6 h-6 text-[var(--ty-green-color)] mx-auto mb-1.5" />
                       <span className="text-ty-xs">本批次没有异常数据，所有记录均已成功同步或合规跳过。</span>
                     </div>
@@ -896,12 +896,12 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         return (
                           <div
                             key={record.id}
-                            className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3.5 space-y-2 shadow-2xs hover:border-[var(--ty-primary-lighter-color)] transition-colors"
+                            className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2 hover:border-[var(--ty-primary-lighter-color)] transition-colors"
                           >
                             {/* 异常卡片头部 */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-2">
-                                <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] font-mono bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">
+                                <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] font-mono bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">
                                   {record.recordKey}
                                 </span>
                                 <span className="text-ty-xs text-[var(--ty-font-main-color)] font-medium">
@@ -912,23 +912,26 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                               <div className="flex items-center space-x-2">
                                 {/* 是否可重试状态 */}
                                 {record.retryable ? (
-                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 font-medium">
+                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 font-medium inline-flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] shrink-0" />
                                     可重试
                                   </span>
                                 ) : (
-                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] font-medium">
+                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] font-medium">
                                     不可重试
                                   </span>
                                 )}
 
                                 {/* 最近重试状态 */}
                                 {record.latestRetryResult === 'SUCCESS' && (
-                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)] font-semibold">
+                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 font-semibold inline-flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] shrink-0" />
                                     重试成功
                                   </span>
                                 )}
                                 {record.latestRetryResult === 'RETRYING' && (
-                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] font-semibold animate-pulse">
+                                  <span className="text-ty-xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold animate-pulse inline-flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-primary-color)] shrink-0" />
                                     正在重试
                                   </span>
                                 )}
@@ -940,7 +943,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                               {record.failedField && (
                                 <div>
                                   <span className="text-[var(--ty-font-sub-color)]">失败字段:</span>{' '}
-                                  <code className="text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 py-0.5 rounded font-mono text-ty-xs">
+                                  <code className="text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 py-0.5 rounded-ty-xs font-mono text-ty-xs font-semibold">
                                     {record.failedField}
                                   </code>
                                 </div>
@@ -965,7 +968,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                               </button>
 
                               {isExpanded && (
-                                <div className="mt-2 p-2.5 bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] border border-[var(--ty-border-color)] space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)] font-mono animate-in fade-in duration-100">
+                                <div className="mt-2 p-2.5 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)] font-mono animate-in fade-in duration-100">
                                   {record.errorCode && (
                                     <div>
                                       <span className="text-[var(--ty-font-sub-light-color)]">错误码:</span> {record.errorCode}
@@ -1016,7 +1019,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               )}
 
               {/* 4. 人工处理说明记录 */}
-              <div className="border border-[var(--ty-border-color)] rounded-[4px] p-4 space-y-3">
+              <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">
                     人工处理说明 ({activeBatch.handlingNotes?.length || 0})
@@ -1028,7 +1031,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                 {activeBatch.handlingNotes && activeBatch.handlingNotes.length > 0 && (
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {activeBatch.handlingNotes.map(note => (
-                      <div key={note.id} className="bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-[4px] border border-[var(--ty-border-light-color)] text-ty-xs">
+                      <div key={note.id} className="bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-light-color)] text-ty-xs">
                         <div className="flex items-center justify-between text-ty-xs text-[var(--ty-font-sub-color)] mb-1">
                           <span className="font-medium text-[var(--ty-font-main-color)]">{note.operator}</span>
                           <span>{note.createdAt}</span>
@@ -1046,15 +1049,15 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                     value={newNoteContent}
                     onChange={e => setNewNoteContent(e.target.value)}
                     placeholder="输入人工排查与处理说明（如：已协调网关团队重新下发凭证）..."
-                    className="w-full text-ty-xs p-2 border border-[var(--ty-border-color)] rounded-[4px] focus:outline-hidden focus:border-[var(--ty-primary-color)] text-[var(--ty-font-main-color)] placeholder:text-[var(--ty-font-placeholder-color)] resize-none bg-[var(--ty-fill-white-color)]"
+                    className="w-full text-ty-xs p-2 border border-[var(--ty-border-color)] rounded-ty-sm focus:outline-hidden focus:border-[var(--ty-primary-color)] text-[var(--ty-font-main-color)] placeholder:text-[var(--ty-font-placeholder-color)] resize-none bg-[var(--ty-fill-white-color)]"
                   />
                   <div className="flex justify-end">
                     <button
                       onClick={handleAddHandlingNote}
                       disabled={!newNoteContent.trim()}
-                      className={`px-3 py-1 text-ty-xs rounded-[4px] font-medium transition-colors cursor-pointer ${
+                      className={`px-3 py-1 text-ty-xs rounded-ty-sm font-medium transition-colors cursor-pointer ${
                         newNoteContent.trim()
-                          ? 'bg-[var(--ty-font-main-color)] text-white hover:opacity-90'
+                          ? 'bg-[var(--ty-font-main-color)] text-[var(--ty-font-white-color)] hover:opacity-90'
                           : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed'
                       }`}
                     >
@@ -1081,7 +1084,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               <div className="flex items-center space-x-2.5">
                 <button
                   onClick={() => setSelectedBatchId(null)}
-                  className="px-3.5 py-1.5 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
                 >
                   关闭
                 </button>
@@ -1091,7 +1094,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   <button
                     onClick={handleExecuteRetry}
                     disabled={isRetrying}
-                    className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-[4px] bg-[var(--ty-primary-color)] text-white hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] transition-all shadow-xs cursor-pointer"
+                    className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] transition-all cursor-pointer"
                   >
                     {isRetrying ? (
                       <>
@@ -1115,9 +1118,9 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                       isRetrying ||
                       activeBatch.failedRecords.filter(r => r.retryable).length === 0
                     }
-                    className={`flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-[4px] transition-all shadow-xs cursor-pointer ${
+                    className={`flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-ty-sm transition-all cursor-pointer ${
                       activeBatch.failedRecords.filter(r => r.retryable).length > 0
-                        ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white'
+                        ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
                         : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
                     }`}
                   >

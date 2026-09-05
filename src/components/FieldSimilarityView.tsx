@@ -15,7 +15,8 @@ import {
   HelpCircle,
   ShieldAlert,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 import {
   FieldSimilarityRule,
@@ -641,7 +642,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   return (
     <div className="space-y-4" id="field-similarity-view-container">
       {/* 顶部标题与上下文控制栏 */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-4 shadow-2xs space-y-3">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
             <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
@@ -656,13 +657,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           {/* 操作按钮区 */}
           <div className="flex items-center gap-2">
             {isModified && (
-              <span className="text-ty-xs font-semibold px-2.5 py-1 bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 rounded-[4px] animate-pulse">
+              <span className="text-ty-xs font-semibold px-2.5 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm animate-pulse inline-flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
                 存在未保存草稿
               </span>
             )}
             <button
               onClick={handleSaveDraft}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
               id="save-draft-btn"
             >
               <Save className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />
@@ -670,7 +672,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </button>
             <button
               onClick={handlePublishActive}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
               id="publish-active-btn"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -679,7 +681,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {onNavigate && (
               <button
                 onClick={() => onNavigate('query-preview')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/30 border border-[var(--ty-primary-lighter-color)] rounded-[4px] hover:bg-[var(--ty-primary-lighter-color)]/50 transition-colors shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"
                 id="goto-query-preview-btn"
               >
                 前往查询预览
@@ -700,7 +702,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <select
               value={selectedRootTypeId}
               onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="root-type-selector"
             >
               {rootTypeOptions.map(rt => (
@@ -720,7 +722,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <select
               value={selectedSoftTypeId}
               onChange={e => setSelectedSoftTypeId(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="soft-type-selector"
             >
               {availableSoftTypes.map(st => (
@@ -732,7 +734,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
 
           {/* 3. 软类型说明与特征 */}
-          <div className="flex flex-col justify-center bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] px-3 py-1.5">
+          <div className="flex flex-col justify-center bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-3 py-1.5">
             <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-medium">当前业务口径重点：</span>
             <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] truncate">
               {currentSoftTypeObj?.exampleFieldsHint || '标准属性配置'}
@@ -743,19 +745,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
       {/* 规则配置摘要看板 (Compact Summary Bar) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-[4px] border border-[var(--ty-border-color)] flex items-center justify-between shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-between">
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">当前规则上下文</span>
             <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
               {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name.split(' ')[0]}
             </span>
           </div>
-          <span className="px-2 py-0.5 text-ty-2xs font-semibold bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[4px] border border-[var(--ty-border-color)]">
+          <span className="px-2 py-0.5 text-ty-2xs font-semibold bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-sm border border-[var(--ty-border-color)]">
             {currentScopeEditingRules.length} 条规则
           </span>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-[4px] border border-[var(--ty-border-color)] flex items-center justify-between shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-between">
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">参与评分字段数</span>
             <span className="text-ty-sm font-bold text-[var(--ty-primary-color)] mt-0.5 block font-mono">
@@ -765,19 +767,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">已启用参与计算</span>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-[4px] border border-[var(--ty-border-color)] flex items-center justify-between shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-between">
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">候选门槛字段数</span>
             <span className="text-ty-sm font-bold text-[var(--ty-orange-color)] mt-0.5 block font-mono">
               {gateRulesCount} 项
             </span>
           </div>
-          <span className="px-2 py-0.5 text-ty-2xs font-semibold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-[4px] border border-[var(--ty-orange-color)]/30">
+          <span className="px-2 py-0.5 text-ty-2xs font-semibold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-ty-sm border border-[var(--ty-orange-color)]/30">
             不满足即排除候选
           </span>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-[4px] border border-[var(--ty-border-color)] flex items-center justify-between shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] p-3.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-between">
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">评分权重合计</span>
             <span
@@ -789,7 +791,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </span>
           </div>
           <span
-            className={`px-2 py-0.5 text-ty-2xs font-semibold rounded-[4px] border ${
+            className={`px-2 py-0.5 text-ty-2xs font-semibold rounded-ty-sm border ${
               totalScoreWeight === 100
                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
                 : 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-red-color)]/30'
@@ -801,7 +803,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       </div>
 
       {/* 规则列表区域 */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] shadow-2xs overflow-hidden">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
         {/* 表格头部搜索与新建条 */}
         <div className="p-3 border-b border-[var(--ty-border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--ty-fill-weak-dark-color)]">
           <div className="flex flex-wrap items-center gap-2">
@@ -813,7 +815,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 placeholder="搜索字段名或编码..."
                 value={filterKeyword}
                 onChange={e => setFilterKeyword(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] placeholder-[var(--ty-font-sub-light-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
+                className="w-full h-8 pl-8 pr-3 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] placeholder-[var(--ty-font-sub-light-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
                 id="filter-rules-keyword-input"
               />
             </div>
@@ -822,7 +824,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <select
               value={filterScoreActive}
               onChange={e => setFilterScoreActive(e.target.value)}
-              className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
+              className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
               id="filter-score-active-select"
             >
               <option value="ALL">全部评分状态</option>
@@ -834,7 +836,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <select
               value={filterMismatchAction}
               onChange={e => setFilterMismatchAction(e.target.value)}
-              className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
+              className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
               id="filter-mismatch-action-select"
             >
               <option value="ALL">全部不匹配处理</option>
@@ -845,7 +847,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
           <button
             onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs self-start md:self-auto cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors self-start md:self-auto cursor-pointer"
             id="add-new-rule-btn"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -856,7 +858,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         {/* 规则数据表格 / 空态 */}
         {currentScopeEditingRules.length === 0 ? (
           <div className="p-12 text-center" id="empty-soft-type-rules-container">
-            <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-light-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
+            <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
             <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前软类型尚未配置相似度规则</h3>
@@ -865,7 +867,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </p>
             <button
               onClick={handleOpenCreateModal}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs cursor-pointer"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               立即为该软类型配置规则
@@ -908,7 +910,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div className="font-bold text-[var(--ty-font-main-color)] flex items-center gap-1.5">
                           {rule.fieldName}
                           {rule.displayUnit && rule.displayUnit !== '无' && (
-                            <span className="text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1 rounded-[2px]">
+                            <span className="text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1 rounded-ty-xs">
                               {rule.displayUnit}
                             </span>
                           )}
@@ -920,7 +922,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                       {/* 字段类型 */}
                       <td className="py-3 px-4">
-                        <span className="inline-block px-2 py-0.5 text-ty-2xs font-medium bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[4px] border border-[var(--ty-border-color)]">
+                        <span className="inline-block px-2 py-0.5 text-ty-2xs font-medium bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-sm border border-[var(--ty-border-color)]">
                           {rule.fieldType}
                         </span>
                       </td>
@@ -946,14 +948,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </span>
                           {isGate ? (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/40 rounded-[2px]"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/40 rounded-ty-xs"
                               title="门槛字段：不满足时直接排除整个候选"
                             >
                               <ShieldAlert className="w-3 h-3 text-[var(--ty-orange-color)]" />
                               候选门槛 (不满足排除)
                             </span>
                           ) : (
-                            <span className="inline-block text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.2 rounded-[2px]">
+                            <span className="inline-block text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.2 rounded-ty-xs">
                               记 0 分继续计算
                             </span>
                           )}
@@ -976,7 +978,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           id={`toggle-score-active-${rule.id}`}
                         >
                           <span
-                            className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                            className={`w-4 h-4 rounded-full bg-[var(--ty-fill-white-color)] transition-transform ${
                               rule.isScoreActive ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           />
@@ -988,7 +990,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenEditModal(rule)}
-                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lighter-color)]/30 rounded-[4px] transition-colors cursor-pointer"
+                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lighter-color)]/30 rounded-ty-sm transition-colors cursor-pointer"
                             title="编辑规则"
                             id={`edit-rule-${rule.id}`}
                           >
@@ -996,7 +998,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </button>
                           <button
                             onClick={() => handleDeleteRule(rule.id)}
-                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-light-color)] rounded-[4px] transition-colors cursor-pointer"
+                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-light-color)] rounded-ty-sm transition-colors cursor-pointer"
                             title="删除规则"
                             id={`delete-rule-${rule.id}`}
                           >
@@ -1016,10 +1018,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       {/* 规则新建 / 编辑模态抽屉 */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
           id="rule-modal-backdrop"
         >
-          <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] border border-[var(--ty-border-color)] shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* 模态框顶部 */}
             <div className="px-6 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)]">
               <div>
@@ -1035,7 +1037,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-[4px] transition-colors cursor-pointer"
+                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1051,9 +1053,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     一阶段已映射字段 <span className="text-[var(--ty-red-color)]">*</span>
                   </label>
                   {editingRuleId ? (
-                    <div className="p-2.5 bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] border border-[var(--ty-border-color)] text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center justify-between">
+                    <div className="p-2.5 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center justify-between">
                       <span>{formFieldName} ({formPropertyCode})</span>
-                      <span className="text-ty-2xs text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-border-color)]">
+                      <span className="text-ty-2xs text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">
                         {formFieldType}
                       </span>
                     </div>
@@ -1061,7 +1063,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <select
                       value={formPropertyCode}
                       onChange={e => handleFieldSelectChange(e.target.value)}
-                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                     >
                       {availableStage1Fields.map(f => (
                         <option key={f.fieldCode} value={f.fieldCode}>
@@ -1081,7 +1083,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <select
                       value={formMatchType}
                       onChange={e => setFormMatchType(e.target.value)}
-                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                     >
                       {getAllowedMatchTypes(formFieldType).map(mt => (
                         <option key={mt} value={mt}>
@@ -1102,7 +1104,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         max="100"
                         value={formWeight}
                         onChange={e => setFormWeight(Math.max(0, Math.min(100, Number(e.target.value))))}
-                        className="w-full h-8 text-ty-xs font-mono font-bold border border-[var(--ty-border-color)] rounded-[4px] px-2.5 pr-8 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                        className="w-full h-8 text-ty-xs font-mono font-bold border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 pr-8 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ty-xs text-[var(--ty-font-sub-light-color)] font-bold">
                         %
@@ -1113,7 +1115,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                 {/* 动态参数配置区 */}
                 {formMatchType === '文本相似匹配 (非 AI)' && (
-                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-[4px] space-y-2">
+                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-ty-xs font-semibold text-[var(--ty-primary-color)]">文本相似度下限阈值</span>
                       <span className="text-ty-xs font-bold text-[var(--ty-primary-color)] font-mono">{formTextThreshold}%</span>
@@ -1132,13 +1134,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 )}
 
                 {formMatchType === '数值容差匹配' && (
-                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-[4px] grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)] block mb-1">容差类型</label>
                       <select
                         value={formToleranceType}
                         onChange={e => setFormToleranceType(e.target.value as any)}
-                        className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-[4px] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+                        className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                       >
                         <option value="ABSOLUTE">绝对数值误差 (±Δ)</option>
                         <option value="PERCENTAGE">百分比相对误差 (±%)</option>
@@ -1153,7 +1155,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         step="0.05"
                         value={formToleranceValue}
                         onChange={e => setFormToleranceValue(Number(e.target.value))}
-                        className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono"
+                        className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono"
                       />
                     </div>
                   </div>
@@ -1169,7 +1171,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     {/* 选项 1: ZERO_AND_CONTINUE */}
                     <div
                       onClick={() => setFormMismatchAction('ZERO_AND_CONTINUE')}
-                      className={`p-3 rounded-[4px] border cursor-pointer transition-all ${
+                      className={`p-3 rounded-ty-sm border cursor-pointer transition-all ${
                         formMismatchAction === 'ZERO_AND_CONTINUE'
                           ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/20 ring-1 ring-[var(--ty-primary-color)]'
                           : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:border-[var(--ty-border-dark-color)]'
@@ -1195,7 +1197,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     {/* 选项 2: EXCLUDE_CANDIDATE */}
                     <div
                       onClick={() => setFormMismatchAction('EXCLUDE_CANDIDATE')}
-                      className={`p-3 rounded-[4px] border cursor-pointer transition-all ${
+                      className={`p-3 rounded-ty-sm border cursor-pointer transition-all ${
                         formMismatchAction === 'EXCLUDE_CANDIDATE'
                           ? 'border-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)]/40 ring-1 ring-[var(--ty-orange-color)]'
                           : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:border-[var(--ty-border-dark-color)]'
@@ -1221,7 +1223,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                   {/* 门槛黄色警示横幅 */}
                   {formMismatchAction === 'EXCLUDE_CANDIDATE' && (
-                    <div className="p-3 bg-[var(--ty-orange-light-color)] border border-[var(--ty-orange-color)]/40 rounded-[4px] text-[var(--ty-orange-color)] text-ty-xs flex items-start gap-2 animate-in fade-in">
+                    <div className="p-3 bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/40 rounded-ty-sm text-[var(--ty-font-main-light-color)] text-ty-xs flex items-start gap-2 animate-in fade-in">
                       <AlertTriangle className="w-4 h-4 text-[var(--ty-orange-color)] shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
                         该设置会缩小候选范围。多个字段均设置为“排除整个候选”时，任一字段不满足即排除候选。建议先通过查询预览验证。
@@ -1237,7 +1239,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <select
                       value={formNullHandling}
                       onChange={e => setFormNullHandling(e.target.value)}
-                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                     >
                       <option value="候选缺失按 0 分">候选缺失按 0 分 (计入分母)</option>
                       <option value="不参与计算 (权重均摊到其他有值项)">不参与计算 (不计入分母)</option>
@@ -1248,7 +1250,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <select
                       value={formIsScoreActive ? 'YES' : 'NO'}
                       onChange={e => setFormIsScoreActive(e.target.value === 'YES')}
-                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-semibold"
+                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-semibold"
                     >
                       <option value="YES">是 (参与相似度总分折算)</option>
                       <option value="NO">否 (仅作为展示与对比)</option>
@@ -1258,7 +1260,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </div>
 
               {/* 右侧实时试算仿真器 (5 列) */}
-              <div className="lg:col-span-5 bg-[var(--ty-fill-weak-dark-color)] p-4 rounded-[4px] border border-[var(--ty-border-color)] flex flex-col justify-between space-y-4">
+              <div className="lg:col-span-5 bg-[var(--ty-fill-weak-dark-color)] p-4 rounded-ty-sm border border-[var(--ty-border-color)] flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--ty-border-color)] pb-2">
                     <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] flex items-center gap-1.5">
@@ -1279,7 +1281,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           type="text"
                           value={trialSrcVal}
                           onChange={e => setTrialSrcVal(e.target.value)}
-                          className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+                          className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                           placeholder="例如: 10 或 SUS304"
                         />
                         {formDisplayUnit && formDisplayUnit !== '无' && (
@@ -1297,7 +1299,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           type="text"
                           value={trialCandVal}
                           onChange={e => setTrialCandVal(e.target.value)}
-                          className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+                          className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                           placeholder="例如: 16 或 A2-70"
                         />
                         {formDisplayUnit && formDisplayUnit !== '无' && (
@@ -1308,16 +1310,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </div>
 
                   {/* 仿真结果卡片 */}
-                  <div className="p-3 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] space-y-2">
+                  <div className="p-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] space-y-2">
                     <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-semibold">试算判定结果：</div>
                     <div
-                      className={`p-2.5 rounded-[4px] text-ty-xs font-bold flex items-center gap-2 ${
+                      className={`p-2.5 rounded-ty-sm text-ty-xs font-bold flex items-center gap-2 ${
                         modalTrialResult.outcomeType === 'SUCCESS'
-                          ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30'
+                          ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                           : modalTrialResult.outcomeType === 'PARTIAL'
-                          ? 'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)]'
+                          ? 'bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30'
                           : modalTrialResult.outcomeType === 'EXCLUDED'
-                          ? 'bg-[var(--ty-red-light-color)] text-[var(--ty-red-color)] border border-[var(--ty-red-color)]/30'
+                          ? 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30'
                           : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
                       }`}
                     >
@@ -1354,13 +1356,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <div className="px-6 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-end gap-2.5">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+                className="px-4 py-2 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
               >
                 取消
               </button>
               <button
                 onClick={handleSaveRule}
-                className="px-4 py-2 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs cursor-pointer"
+                className="px-4 py-2 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
               >
                 保存规则
               </button>

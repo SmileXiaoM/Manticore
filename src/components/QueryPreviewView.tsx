@@ -225,7 +225,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   return (
     <div className="space-y-4" id="query-preview-view-container">
       {/* 顶部控制面板 */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-4 shadow-2xs space-y-3">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div>
             <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
@@ -240,7 +240,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置参数
@@ -248,7 +248,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <button
               onClick={handleRunTrial}
               disabled={isSearching}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-ty-xs font-bold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-ty-xs font-bold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -268,7 +268,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <select
               value={rootTypeId}
               onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-root-type-select"
             >
               {rootTypeOptions.map(rt => (
@@ -288,7 +288,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <select
               value={softTypeId}
               onChange={e => setSoftTypeId(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-soft-type-select"
             >
               {availableSoftTypes.map(st => (
@@ -308,7 +308,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <select
               value={baselineSourceType}
               onChange={e => setBaselineSourceType(e.target.value as any)}
-              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-baseline-source-select"
             >
               <option value="EXISTING_PART">已有件作为基准</option>
@@ -326,7 +326,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 <select
                   value={existingPartId}
                   onChange={e => setExistingPartId(e.target.value)}
-                  className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                  className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                 >
                   {availableExistingParts.map(p => (
                     <option key={p.objectId} value={p.objectId}>
@@ -340,14 +340,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   value={existingPartId}
                   onChange={e => setExistingPartId(e.target.value)}
                   placeholder="输入件号..."
-                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
+                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
                 />
               )
             ) : availableFormBaselines.length > 0 ? (
               <select
                 value={selectedFormId}
                 onChange={e => setSelectedFormId(e.target.value)}
-                className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-[4px] px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               >
                 {availableFormBaselines.map(f => (
                   <option key={f.id} value={f.id}>
@@ -356,7 +356,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 ))}
               </select>
             ) : (
-              <div className="h-8 px-2 flex items-center text-ty-xs text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px]">
+              <div className="h-8 px-2 flex items-center text-ty-xs text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm">
                 暂无预置表单
               </div>
             )}
@@ -371,7 +371,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <select
               value={ruleVersion}
               onChange={e => setRuleVersion(e.target.value as any)}
-              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-rule-version-select"
             >
               <option value="DRAFT_POOL">当前编辑中内容 (Draft Pool)</option>
@@ -382,7 +382,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         </div>
 
         {/* 紧凑规则上下文摘要行 (Compact Rule Summary Bar) */}
-        <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] flex flex-wrap items-center justify-between gap-3 text-ty-xs">
+        <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm flex flex-wrap items-center justify-between gap-3 text-ty-xs">
           <div className="flex flex-wrap items-center gap-4">
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">上下文：</span>
@@ -430,7 +430,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
       {/* 试算结果区域 */}
       {isSearching ? (
-        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
           <div className="inline-block animate-spin text-[var(--ty-primary-color)] mb-3">
             <RotateCcw className="w-6 h-6" />
           </div>
@@ -438,7 +438,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
         </div>
       ) : !lastRunContext ? (
-        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs" id="initial-guide-container">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center" id="initial-guide-container">
           <div className="w-12 h-12 rounded-full bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] mx-auto flex items-center justify-center mb-3">
             <Play className="w-6 h-6 fill-current ml-0.5" />
           </div>
@@ -448,8 +448,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
-        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-12 text-center shadow-2xs">
-          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前软类型尚未配置相似度规则</h3>
@@ -459,19 +459,19 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           {onNavigate && (
             <button
               onClick={() => onNavigate('field-rules')}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-white bg-[var(--ty-primary-color)] rounded-[4px] hover:opacity-90 transition-colors shadow-2xs cursor-pointer"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
             >
               前往配置规则
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] shadow-2xs overflow-hidden space-y-0">
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden space-y-0">
           {/* 基准参考信息头卡片 */}
           {lastRunContext.searchResult.reference && (
             <div className="p-4 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-[4px] bg-[var(--ty-primary-color)] text-white flex items-center justify-center font-bold text-ty-sm shadow-2xs">
+                <div className="w-10 h-10 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] flex items-center justify-center font-bold text-ty-sm">
                   REF
                 </div>
                 <div>
@@ -479,10 +479,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     <span className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
                       {lastRunContext.searchResult.reference.objectName}
                     </span>
-                    <span className="text-ty-xs font-mono px-2 py-0.5 bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-[2px] font-semibold">
+                    <span className="text-ty-xs font-mono px-2 py-0.5 bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-ty-xs font-semibold">
                       {lastRunContext.searchResult.reference.objectId}
                     </span>
-                    <span className="text-ty-2xs px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[2px] font-medium border border-[var(--ty-border-color)]">
+                    <span className="text-ty-2xs px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
                       {lastRunContext.searchResult.baselineType === 'FORM_VALUES'
                         ? '表单录入基准'
                         : '已有件基准'}
@@ -648,7 +648,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4">
                             <div className="flex flex-col gap-1 items-start">
                               <span
-                                className={`px-1.5 py-0.5 text-ty-2xs font-bold rounded-[2px] ${
+                                className={`px-1.5 py-0.5 text-ty-2xs font-bold rounded-ty-xs ${
                                   cand.similarityTier === '高相似'
                                     ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                     : cand.similarityTier === '中相似'
@@ -681,7 +681,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4 text-right">
                             <button
                               onClick={() => setSelectedCandidate(cand)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-ty-xs font-semibold text-[var(--ty-primary-color)] hover:opacity-80 hover:bg-[var(--ty-primary-lighter-color)]/20 rounded-[4px] transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-ty-xs font-semibold text-[var(--ty-primary-color)] hover:opacity-80 hover:bg-[var(--ty-primary-lighter-color)]/20 rounded-ty-sm transition-colors cursor-pointer"
                               id={`view-detail-${cand.objectId}`}
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -739,7 +739,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
                           {/* 门槛字段 */}
                           <td className="py-3 px-4">
-                            <span className="font-bold text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-orange-color)]/30 inline-flex items-center gap-1">
+                            <span className="font-bold text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-orange-color)]/30 inline-flex items-center gap-1">
                               <ShieldAlert className="w-3 h-3 text-[var(--ty-orange-color)]" />
                               {exc.fieldLabel} ({exc.excludedByField})
                             </span>
@@ -778,10 +778,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       {/* 算分明细抽屉 (Score Details Drawer) */}
       {selectedCandidate && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex justify-end"
+          className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex justify-end"
           id="score-detail-drawer-backdrop"
         >
-          <div className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
+          <div className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
             {/* 抽屉头部 */}
             <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
               <div>
@@ -797,7 +797,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-[4px] transition-colors cursor-pointer"
+                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -815,14 +815,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   return (
                     <div
                       key={f.fieldKey}
-                      className="p-3 rounded-[4px] border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/50 space-y-2 text-ty-xs"
+                      className="p-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/50 space-y-2 text-ty-xs"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
                           <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">({f.fieldKey})</span>
                           {isGate && (
-                            <span className="text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.2 rounded-[2px]">
+                            <span className="text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.2 rounded-ty-xs">
                               门槛字段
                             </span>
                           )}
@@ -845,7 +845,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       </div>
 
                       {/* 源值 vs 候选值 */}
-                      <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-2.5 rounded-[4px] border border-[var(--ty-border-color)]">
+                      <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-color)]">
                         <div>
                           <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">基准值 (源)</span>
                           <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
@@ -877,7 +877,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex justify-end">
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="px-4 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] hover:bg-[var(--ty-fill-color)] cursor-pointer"
+                className="px-4 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer"
               >
                 关闭
               </button>

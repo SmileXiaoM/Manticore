@@ -24,13 +24,13 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-14 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
       {/* Left: Brand logo & Context */}
       <div className="flex items-center space-x-3">
-        <div className="bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] p-1.5 rounded-[4px] flex items-center justify-center">
+        <div className="bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] p-1.5 rounded-ty-sm flex items-center justify-center">
           <Database className="w-5 h-5" />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-[var(--ty-font-main-color)] text-sm tracking-tight">PLM / Manticore</span>
-            <span className="text-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] px-1.5 py-0.5 rounded-[2px] font-mono font-medium">{getStageBadge()}</span>
+            <span className="text-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] px-1.5 py-0.5 rounded-ty-xs font-mono font-medium">{getStageBadge()}</span>
           </div>
           <span className="text-xs text-[var(--ty-font-sub-color)] leading-none mt-0.5">企业级物料去重与多维搜索管理台</span>
         </div>
@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center space-x-3 text-[var(--ty-font-sub-color)] text-xs pl-4">
           <button
             onClick={() => onNavigate('client-find-similar')}
-            className="flex items-center space-x-1 bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] px-2.5 py-1 rounded-[4px] hover:bg-[var(--ty-primary-light-color)] font-semibold transition-colors cursor-pointer"
+            className="flex items-center space-x-1 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] px-2.5 py-1 rounded-ty-sm hover:bg-[var(--ty-primary-hover-color)] font-semibold transition-colors cursor-pointer"
           >
             <span>应用端界面</span>
             <ArrowUpRight className="w-3.5 h-3.5" />

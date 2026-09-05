@@ -257,9 +257,9 @@ export default function App() {
 
       {showUnsavedConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ty-fill-darkest-color)]/60 backdrop-blur-xs" id="unsaved-modal-overlay">
-          <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-6" id="unsaved-modal-content">
+          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-6" id="unsaved-modal-content">
             <div className="flex items-start space-x-3">
-              <div className="bg-[var(--ty-orange-light-color)] p-2 rounded-full text-[var(--ty-orange-color)] shrink-0">
+              <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 p-2 rounded-full text-[var(--ty-orange-color)] shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -277,14 +277,14 @@ export default function App() {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={handleCancelDiscard}
-                className="px-4 py-2 border border-[var(--ty-border-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] text-xs font-semibold text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
+                className="px-4 py-2 border border-[var(--ty-border-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-xs font-semibold text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
                 id="btn-unsaved-cancel"
               >
                 留在当前页面 (返回保存)
               </button>
               <button
                 onClick={handleConfirmDiscard}
-                className="px-4 py-2 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 rounded-[4px] text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
+                className="px-4 py-2 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 rounded-ty-sm text-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
                 id="btn-unsaved-discard"
               >
                 放弃更改并离开

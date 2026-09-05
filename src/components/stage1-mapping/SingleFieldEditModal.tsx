@@ -412,8 +412,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Header (固定顶部) */}
         <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
@@ -426,7 +426,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                   '新建单个字段映射 (生成草稿)'
                 )}
               </h3>
-              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-[4px] bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                 根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
@@ -437,7 +437,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           <button
             type="button"
             onClick={handleRequestClose}
-            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-[4px] hover:bg-[var(--ty-fill-dark-color)] transition-colors"
+            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -453,7 +453,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               <select
                 value={formData.selectedSourceKey}
                 onChange={e => handleSourceFieldSelect(e.target.value)}
-                className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer ${
+                className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer ${
                   errors.sourceField ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
                 }`}
               >
@@ -495,7 +495,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 text-ty-xs text-[var(--ty-font-sub-color)]">
             {isDirty && (
-              <span className="inline-flex items-center text-[var(--ty-orange-color)] font-medium bg-[var(--ty-orange-light-color)] px-2 py-0.5 rounded-[4px] border border-[var(--ty-orange-color)]/30">
+              <span className="inline-flex items-center text-[var(--ty-font-main-light-color)] font-medium bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30">
                 <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)]" />
                 表单存在未保存修改
               </span>
@@ -509,7 +509,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             <button
               type="button"
               onClick={handleRequestClose}
-              className="h-8 px-4 border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors shadow-2xs"
+              className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
             >
               取消
             </button>
@@ -517,9 +517,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!hasPermission}
-              className={`h-8 px-4 rounded-[4px] text-ty-xs font-medium shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer ${
+              className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer ${
                 hasPermission
-                  ? 'bg-[var(--ty-primary-color)] hover:opacity-90 text-white'
+                  ? 'bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)]'
                   : 'bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed'
               }`}
             >
@@ -533,10 +533,10 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
         {/* 未保存修改确认弹窗 */}
         {showUnsavedConfirm && (
-          <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-lg border border-[var(--ty-border-color)] max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
+          <div className="absolute inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-sm w-full p-4 space-y-3 animate-in zoom-in-95 duration-100">
               <div className="flex items-start space-x-3">
-                <div className="p-2 bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] rounded-full shrink-0">
+                <div className="p-2 bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] rounded-full shrink-0">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
@@ -551,7 +551,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowUnsavedConfirm(false)}
-                  className="h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] text-ty-xs font-medium cursor-pointer"
+                  className="h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer"
                 >
                   继续编辑
                 </button>
@@ -561,7 +561,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                     setShowUnsavedConfirm(false);
                     onClose();
                   }}
-                  className="h-8 px-3 bg-[var(--ty-red-color)] hover:opacity-90 text-white rounded-[4px] text-ty-xs font-medium cursor-pointer"
+                  className="h-8 px-3 bg-[var(--ty-red-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer"
                 >
                   放弃修改并退出
                 </button>

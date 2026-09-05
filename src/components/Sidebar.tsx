@@ -34,28 +34,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('stage1-mapping-config')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'stage1-mapping-config'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Sliders className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>接入配置</span>
-              {currentView === 'stage1-mapping-config' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'stage1-mapping-config' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button
               onClick={() => onNavigate('data-sync-quality')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-sync-quality'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Database className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>数据同步记录</span>
-              {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
           </div>
         </div>
@@ -66,54 +66,54 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('field-rules')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'field-rules'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Sliders className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>字段相似度规则</span>
-              {currentView === 'field-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'field-rules' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button
               onClick={() => onNavigate('query-preview')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'query-preview'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Search className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />
               <span>相似度查询预览</span>
-              {currentView === 'query-preview' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'query-preview' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button
               onClick={() => onNavigate('client-find-similar')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'client-find-similar'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Eye className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>应用端查找相似件</span>
-              {currentView === 'client-find-similar' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'client-find-similar' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button
               onClick={() => onNavigate('publish-records')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'publish-records'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <FileText className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
               <span>变更记录</span>
-              {currentView === 'publish-records' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'publish-records' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
           </div>
         </div>
@@ -124,28 +124,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('data-processing')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-processing'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <Settings className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
               <span>数据处理规则</span>
-              {currentView === 'data-processing' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'data-processing' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button
               onClick={() => onNavigate('decision-rules')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-[4px] text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'decision-rules'
-                  ? 'bg-[var(--ty-primary-color)] text-white font-semibold'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
               <span>三化决策规则</span>
-              {currentView === 'decision-rules' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></span>}
+              {currentView === 'decision-rules' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
           </div>
         </div>

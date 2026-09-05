@@ -201,21 +201,21 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     switch (status) {
       case 'CONFIGURED':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 shrink-0">
             <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
             已配置
           </span>
         );
       case 'CONFIGURED_WITH_DRAFT':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 shrink-0">
             <Clock className="w-3 h-3 mr-1 text-[var(--ty-blue-color)] shrink-0" />
             已配置（有草稿）
           </span>
         );
       case 'DRAFTING':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 shrink-0">
             <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
             草稿中
           </span>
@@ -223,7 +223,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_CONFIGURED':
       default:
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] shrink-0">
             未配置
           </span>
         );
@@ -236,7 +236,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1.5 shrink-0"></span>
               已同步
             </span>
@@ -250,7 +250,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED_WITH_ERRORS':
         return (
           <div className="space-y-1">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
               <AlertTriangle className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
               同步完成（有异常）
             </span>
@@ -271,7 +271,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'PENDING':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
               <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
               待同步
             </span>
@@ -282,7 +282,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         );
       case 'RUNNING':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30">
             <RefreshCw className="w-3 h-3 mr-1.5 animate-spin text-[var(--ty-blue-color)] shrink-0" />
             同步执行中...
           </span>
@@ -291,7 +291,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         return (
           <div className="space-y-0.5">
             <span
-              className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30"
+              className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30"
               title={root.lastSyncErrorMsg}
             >
               <AlertOctagon className="w-3 h-3 mr-1 text-[var(--ty-red-color)] shrink-0" />
@@ -310,7 +310,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_SYNCED':
       default:
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
             未同步
           </span>
         );
@@ -321,7 +321,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     <div className="space-y-4">
       {/* 1. 顶部全局概览与指标卡片 (4 列响应式网格) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3.5">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5">
           <div className="text-[var(--ty-font-sub-color)] text-ty-xs font-medium">根类型接入数</div>
           <div className="mt-1 flex items-baseline space-x-1.5">
             <span className="text-xl font-bold text-[var(--ty-font-main-color)] font-mono">{totalRootCount}</span>
@@ -330,7 +330,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
           <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] mt-0.5 truncate">Part / Document / Process</div>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3.5">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5">
           <div className="text-[var(--ty-font-sub-color)] text-ty-xs font-medium">已配置字段总数</div>
           <div className="mt-1 flex items-baseline space-x-1.5">
             <span className="text-xl font-bold text-[var(--ty-green-color)] font-mono">{totalConfiguredFields}</span>
@@ -339,7 +339,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
           <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] mt-0.5">当前已生效字段</div>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3.5">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5">
           <div className="text-[var(--ty-font-sub-color)] text-ty-xs font-medium">正式可查询字段总数</div>
           <div className="mt-1 flex items-baseline space-x-1.5">
             <span className="text-xl font-bold text-[var(--ty-blue-color)] font-mono">{totalQueryableFields}</span>
@@ -348,7 +348,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
           <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] mt-0.5">已进入正式查询底座</div>
         </div>
 
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3.5">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5">
           <div className="text-[var(--ty-font-sub-color)] text-ty-xs font-medium">待发布草稿字段</div>
           <div className="mt-1 flex items-baseline space-x-1.5">
             <span className="text-xl font-bold text-[var(--ty-orange-color)] font-mono">{totalDraftFields}</span>
@@ -359,7 +359,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       </div>
 
       {/* 2. 权威生命周期与底座规则说明 (默认折叠) */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3 text-ty-xs">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3 text-ty-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
@@ -378,7 +378,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         </div>
 
         {showLifecycleGuide && (
-          <div className="mt-2.5 pt-2.5 border-t border-[var(--ty-border-light-color)] text-ty-xs leading-relaxed text-[var(--ty-font-sub-color)] space-y-1.5 bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-[4px]">
+          <div className="mt-2.5 pt-2.5 border-t border-[var(--ty-border-light-color)] text-ty-xs leading-relaxed text-[var(--ty-font-sub-color)] space-y-1.5 bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-ty-sm">
             <p>
               1. <strong>根类型作用域</strong>：一阶段直接按 Part、Document、Process 三个根类型维护字段映射，不存在软类型管理概念。
             </p>
@@ -396,14 +396,14 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       </div>
 
       {/* 3. 筛选工具栏 (统一 32px 控件高度) */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           <div className="flex items-center space-x-2 text-ty-xs">
             <span className="text-[var(--ty-font-sub-color)] font-medium">来源系统:</span>
             <select
               value={selectedSystemId}
               onChange={e => setSelectedSystemId(e.target.value)}
-              className="h-8 px-2.5 bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs text-[var(--ty-font-main-color)] focus:bg-[var(--ty-fill-white-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer"
+              className="h-8 px-2.5 bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:bg-[var(--ty-fill-white-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer"
             >
               <option value="ALL">全部来源系统 ({sourceSystems.length})</option>
               {sourceSystems.map(sys => (
@@ -421,7 +421,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               placeholder="搜索根类型名称或代码..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full h-8 pl-8 pr-3 text-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] rounded-[4px] focus:bg-[var(--ty-fill-white-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] transition-colors"
+              className="w-full h-8 pl-8 pr-3 text-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] rounded-ty-sm focus:bg-[var(--ty-fill-white-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] transition-colors"
             />
           </div>
         </div>
@@ -434,7 +434,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       {/* 4. 根类型配置总表 (每个根类型一行) */}
       <div
         ref={tableContainerRef}
-        className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] overflow-hidden"
+        className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table
@@ -541,7 +541,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                     >
                       <div className="flex items-center justify-center w-full overflow-hidden">
                         <span
-                          className="font-mono bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] px-1.5 py-0.5 rounded-[2px] text-ty-2xs border border-[var(--ty-border-light-color)] truncate inline-block max-w-full"
+                          className="font-mono bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] px-1.5 py-0.5 rounded-ty-xs text-ty-2xs border border-[var(--ty-border-light-color)] truncate inline-block max-w-full"
                           title={root.sourceSystemName}
                         >
                           {root.sourceSystemName}
@@ -571,7 +571,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       className="py-2.5 px-0.5 text-center font-mono overflow-hidden"
                     >
                       {root.draftFieldCount > 0 ? (
-                        <span className="px-1.5 py-0.5 rounded-[2px] bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] font-bold text-ty-xs">
+                        <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 font-bold text-ty-xs">
                           {root.draftFieldCount}
                         </span>
                       ) : (
@@ -618,7 +618,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onSelectRootType(root.id)}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-primary-lighter-color)] hover:bg-[var(--ty-primary-light-color)] text-[var(--ty-primary-color)] rounded-[4px] font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-primary-lighter-color)] hover:bg-[var(--ty-primary-light-color)] text-[var(--ty-primary-color)] rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="配置字段 (配置该根类型的字段映射)"
                           aria-label="配置字段"
                         >
@@ -631,7 +631,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onOpenQueryPreview(root.id)}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-[4px] font-medium text-ty-xs border border-[var(--ty-border-color)] transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-ty-sm font-medium text-ty-xs border border-[var(--ty-border-color)] transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="查询预览 (查看当前正式查询底座快照)"
                           aria-label="查询预览"
                         >
@@ -646,9 +646,9 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           type="button"
                           onClick={() => onTriggerSync(root.id, 'NORMAL')}
                           disabled={root.syncStatus === 'RUNNING'}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-[4px] font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                             root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
-                              ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white shadow-2xs'
+                              ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
                               : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
                           }`}
                           title={
@@ -685,7 +685,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       {/* 5. 异常记录明细弹窗 */}
       {viewingErrorsRootType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ty-fill-darkest-color)]/60 backdrop-blur-xs p-4">
-          <div className="bg-[var(--ty-fill-white-color)] rounded-[8px] shadow-ty-lg w-full max-w-2xl overflow-hidden border border-[var(--ty-border-color)] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg w-full max-w-2xl overflow-hidden border border-[var(--ty-border-color)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)]">
               <div className="flex items-center space-x-2">
                 <AlertTriangle className="w-4 h-4 text-[var(--ty-orange-color)]" />
@@ -703,14 +703,14 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
             </div>
 
             <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
-              <div className="text-ty-xs text-[var(--ty-font-sub-color)] bg-[var(--ty-orange-light-color)] p-2.5 rounded-[4px]">
+              <div className="text-ty-xs text-[var(--ty-font-sub-color)] bg-[var(--ty-orange-light-color)] p-2.5 rounded-ty-sm">
                 <strong>容错规则说明</strong>：以下单条数据异常已记录并隔离，未中止整体同步流程。正式查询底座已成功更新。您可以单独修复源端数据或重试补偿。
               </div>
 
               {viewingErrorsRootType.lastSyncErrorRecords && viewingErrorsRootType.lastSyncErrorRecords.length > 0 ? (
                 <div className="space-y-2">
                   {viewingErrorsRootType.lastSyncErrorRecords.map(err => (
-                    <div key={err.id} className="p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] text-ty-xs space-y-1.5">
+                    <div key={err.id} className="p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="font-mono font-semibold text-[var(--ty-font-main-color)]">{err.recordKey}</div>
                         <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">{err.timestamp}</span>
@@ -718,7 +718,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       <div className="text-[var(--ty-red-color)] font-medium">
                         [{err.errorCode}] {err.errorMsg}
                       </div>
-                      <div className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono bg-[var(--ty-fill-white-color)] p-1.5 rounded-[2px] border border-[var(--ty-border-light-color)] overflow-x-auto">
+                      <div className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono bg-[var(--ty-fill-white-color)] p-1.5 rounded-ty-xs border border-[var(--ty-border-light-color)] overflow-x-auto">
                         源端载荷: {err.rawPayloadSummary}
                       </div>
                     </div>
@@ -736,7 +736,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                   onTriggerSync(viewingErrorsRootType.id, 'NORMAL');
                   setViewingErrorsRootType(null);
                 }}
-                className="px-3 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white rounded-[4px] text-ty-xs font-semibold flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-semibold flex items-center space-x-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>重试全部异常记录</span>
@@ -744,7 +744,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewingErrorsRootType(null)}
-                className="px-3 py-1.5 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[4px] text-ty-xs font-medium cursor-pointer"
+                className="px-3 py-1.5 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer"
               >
                 关闭
               </button>

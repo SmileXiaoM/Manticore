@@ -33,7 +33,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
     <div className="space-y-4" id="publish-record-view-container">
 
       {/* Title Header */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-[4px] border border-[var(--ty-border-color)] p-4 shadow-2xs">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4">
         <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-sub-light-color)] mb-1">
           <span>相似度配置</span>
           <ChevronRight className="w-3 h-3" />
@@ -46,13 +46,13 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
       </div>
 
       {/* Filters bar */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 shadow-2xs flex flex-wrap items-center gap-4">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-center gap-4">
         <div className="flex items-center space-x-2">
           <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">对象类型:</span>
           <select
             value={filterObjectType}
             onChange={(e) => setFilterObjectType(e.target.value)}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部类型</option>
             <option value="PART_MECHANICAL">机械零件</option>
@@ -65,7 +65,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <select
             value={filterOpType}
             onChange={(e) => setFilterOpType(e.target.value)}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-[4px] px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部操作</option>
             <option value="保存">保存</option>
@@ -80,7 +80,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
       </div>
 
       {/* Change Records Table */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="bg-[var(--ty-fill-weak-dark-color)] px-4 py-2.5 border-b border-[var(--ty-border-color)] flex items-center justify-between">
           <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center space-x-1.5">
             <History className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
@@ -118,7 +118,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
                     {/* Operation Type */}
                     <td className="px-3 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-[2px] text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
+                      <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
                         rec.operationType === '启用' ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30' :
                         rec.operationType === '停用' ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]' :
                         'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-lighter-color)]'
@@ -161,7 +161,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
                     {/* Failure Reason */}
                     <td className="px-4 py-3 text-[var(--ty-font-sub-color)] leading-normal">
                       {rec.failureReason ? (
-                        <span className="text-[var(--ty-font-main-light-color)] font-medium text-ty-2xs bg-[var(--ty-red-lightest-color)] px-2 py-1 rounded-[2px] border border-[var(--ty-red-color)]/30 block">
+                        <span className="text-[var(--ty-font-main-light-color)] font-medium text-ty-2xs bg-[var(--ty-red-lightest-color)] px-2 py-1 rounded-ty-xs border border-[var(--ty-red-color)]/30 block">
                           {rec.failureReason}
                         </span>
                       ) : (
