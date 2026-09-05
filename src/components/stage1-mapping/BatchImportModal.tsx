@@ -894,11 +894,11 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <div className="font-mono font-semibold text-[var(--ty-font-main-color)]">
                                 {c.sourceFieldMeta.sourceFieldName}
                               </div>
-                              <div className="text-ty-2xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
+                                <div className="text-ty-2xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
                                 <span>{resolvedName}</span>
                                 {isMissing && (
                                   <span
-                                    className="ml-1 text-[9px] text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 rounded-[2px] font-normal shrink-0"
+                                    className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-[2px] font-normal shrink-0"
                                     title="PLM 未返回显示名，已按字段名兜底"
                                   >
                                     显示名兜底
@@ -939,7 +939,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                     c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
                                       ? 'bg-[var(--ty-fill-dark-color)] border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)]'
                                       : custom
-                                      ? 'bg-[var(--ty-purple-light-color)] border-[var(--ty-purple-color)]/30 text-[var(--ty-purple-color)] font-bold'
+                                      ? 'bg-[var(--ty-primary-lighter-color)] border-[var(--ty-primary-color)]/30 text-[var(--ty-primary-color)] font-bold'
                                       : 'bg-[var(--ty-primary-lighter-color)] border-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)]'
                                   }`}
                                   title={
@@ -962,7 +962,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <div className="space-y-0.5">
                                 {renderConflictBadge(c)}
                                 {custom && (
-                                  <span className="ml-1 px-1 py-0.2 rounded-[2px] text-[9px] bg-[var(--ty-purple-light-color)] text-[var(--ty-purple-color)] border border-[var(--ty-purple-color)]/30 font-medium inline-block">
+                                  <span className="ml-1 px-1 py-0.2 rounded-[2px] text-ty-2xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-medium inline-block">
                                     已定制属性
                                   </span>
                                 )}

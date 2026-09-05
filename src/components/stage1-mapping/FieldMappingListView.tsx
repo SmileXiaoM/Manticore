@@ -216,7 +216,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       case 'BOTH':
         return <span className="font-semibold text-[var(--ty-font-main-color)] text-ty-xs">条件 + 全文</span>;
       case 'FULLTEXT_SEARCH':
-        return <span className="text-[var(--ty-purple-color)] text-ty-xs font-medium">全文大字段</span>;
+        return <span className="text-[var(--ty-primary-color)] text-ty-xs font-medium">全文大字段</span>;
       case 'QUERY_CONDITION':
         return <span className="text-[var(--ty-font-sub-color)] text-ty-xs">条件查询</span>;
       case 'NONE':

@@ -276,7 +276,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
       {/* 3. Manticore 底层配置 */}
       <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[8px] p-4 space-y-3.5 flex flex-col">
         <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
-          <div className="w-6 h-6 rounded-full bg-[var(--ty-purple-light-color)] text-[var(--ty-purple-color)] flex items-center justify-center font-bold text-ty-xs">
+          <div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">
             3
           </div>
           <div>
@@ -333,7 +333,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
         {/* 检索与展示能力配置 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 space-y-2.5 flex-1">
           <div className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] mb-1 flex items-center">
-            <Shield className="w-3.5 h-3.5 mr-1 text-[var(--ty-purple-color)]" />
+            <Shield className="w-3.5 h-3.5 mr-1 text-[var(--ty-primary-color)]" />
             检索、展示与超链接能力配置
           </div>
 
@@ -353,7 +353,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
                 type="checkbox"
                 checked={formData.isFulltextSearch}
                 onChange={e => onChange({ isFulltextSearch: e.target.checked })}
-                className="rounded text-[var(--ty-purple-color)] cursor-pointer"
+                className="rounded text-[var(--ty-primary-color)] cursor-pointer"
               />
               <span className="text-[var(--ty-font-main-color)]">加入全局全文分词检索</span>
             </label>

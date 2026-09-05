@@ -221,10 +221,11 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           <div className="w-full">
             <div className="flex items-center space-x-2">
               <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] flex items-center space-x-2">
-                <ShieldAlert className="w-5 h-5 text-[var(--ty-warning-color)]" />
+                <ShieldAlert className="w-5 h-5 text-[var(--ty-orange-color)]" />
                 <span>三化决策规则配置</span>
               </h1>
-              <span className="px-2 py-0.5 bg-[var(--ty-warning-light-color)] text-[var(--ty-warning-color)] rounded-[2px] text-ty-2xs font-semibold border border-[var(--ty-warning-color)]/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-[2px] text-ty-2xs font-semibold border border-[var(--ty-orange-color)]/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
                 三阶段后续概念原型
               </span>
             </div>
@@ -238,11 +239,12 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <li><strong className="text-[var(--ty-font-main-color)]">二阶段</strong>只输出相似度分数、命中原因和差异字段等证据；</li>
                 <li><strong className="text-[var(--ty-font-main-color)]">三阶段</strong>规则才输出建议复用、建议复核、允许新建、禁止复用等业务建议；</li>
                 <li>三阶段规则不参与二阶段字段相似度算分；</li>
-                <li className="text-[var(--ty-warning-color)] font-semibold">当前页面仅作为概念设计原型，不进入二阶段交付和验收基线。</li>
+                <li className="text-[var(--ty-orange-color)] font-semibold">当前页面仅作为概念设计原型，不进入二阶段交付和验收基线。</li>
               </ul>
             </div>
           </div>
-          <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-warning-color)] font-semibold bg-[var(--ty-warning-light-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-warning-color)]/30 shrink-0 self-start mt-1">
+          <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-main-light-color)] font-semibold bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-orange-color)]/30 shrink-0 self-start mt-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
             <span>参考规则集 V1.2.0（草案）</span>
           </div>
         </div>
@@ -304,7 +306,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         <div>
           <button
             onClick={() => handleAddNew(activeTab)}
-            className="flex items-center space-x-1.5 px-3.5 h-8 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-white-color)] rounded-[4px] text-ty-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center space-x-1.5 px-3.5 h-8 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] rounded-[4px] text-ty-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>
@@ -320,73 +322,78 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         {activeTab === 'threshold' && (
           <div className="space-y-4">
             <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden">
-              <table className="w-full text-left border-collapse text-ty-xs">
-                <thead>
-                  <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5">规则名称</th>
-                    <th className="px-4 py-2.5">适用对象类型</th>
-                    <th className="px-4 py-2.5">适用物料分类</th>
-                    <th className="px-4 py-2.5 text-[var(--ty-green-color)]">建议复用线</th>
-                    <th className="px-4 py-2.5 text-[var(--ty-warning-color)]">建议复核区间</th>
-                    <th className="px-4 py-2.5 text-[var(--ty-font-sub-color)]">允许新建线</th>
-                    <th className="px-4 py-2.5">状态</th>
-                    <th className="px-4 py-2.5">生效版本</th>
-                    <th className="px-4 py-2.5 text-center">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                  {filteredThresholds.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的阈值规则</td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[960px] text-left border-collapse text-ty-xs">
+                  <thead>
+                    <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                      <th className="px-4 py-2.5 whitespace-nowrap">规则名称</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">适用对象类型</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">适用物料分类</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-green-color)]">建议复用线</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-orange-color)]">建议复核区间</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-font-sub-color)]">允许新建线</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">生效版本</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
                     </tr>
-                  ) : (
-                    filteredThresholds.map(r => (
-                      <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</td>
-                        <td className="px-4 py-3">
-                          <span className="bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] px-1.5 py-0.5 rounded-[2px] text-ty-2xs">
-                            {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)]">{r.applicableCategory}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-[var(--ty-green-color)]">
-                          &gt;= {r.reuseThreshold}%
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-[var(--ty-warning-color)]">
-                          {r.reviewThresholdMin}% - {r.reviewThresholdMax}%
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)]">
-                          &lt; {r.reviewThresholdMin}%
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleStatusToggle('threshold', r)}
-                            title="点击快速启用/禁用"
-                            className="cursor-pointer"
-                          >
-                            <span className={`px-1.5 py-0.5 rounded-[2px] font-bold text-ty-2xs ${
-                              r.isEnabled ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
-                            }`}>
-                              {r.isEnabled ? '启用中' : '已停用'}
-                            </span>
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)]">{r.version}</td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center space-x-1.5">
-                            <button onClick={() => handleEdit('threshold', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑阈值">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete('threshold', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除阈值">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--ty-border-light-color)]">
+                    {filteredThresholds.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的阈值规则</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredThresholds.map(r => (
+                        <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] px-1.5 py-0.5 rounded-[2px] text-ty-2xs">
+                              {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">{r.applicableCategory}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-[var(--ty-green-color)] whitespace-nowrap">
+                            &gt;= {r.reuseThreshold}%
+                          </td>
+                          <td className="px-4 py-3 font-mono font-bold text-[var(--ty-orange-color)] whitespace-nowrap">
+                            {r.reviewThresholdMin}% - {r.reviewThresholdMax}%
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap">
+                            &lt; {r.reviewThresholdMin}%
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button
+                              onClick={() => handleStatusToggle('threshold', r)}
+                              title="点击快速启用/禁用"
+                              className="cursor-pointer"
+                            >
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] font-bold text-ty-2xs ${
+                                r.isEnabled
+                                  ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
+                                  : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${r.isEnabled ? 'bg-[var(--ty-green-color)]' : 'bg-[var(--ty-font-sub-light-color)]'}`} />
+                                {r.isEnabled ? '启用中' : '已停用'}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap">{r.version}</td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center space-x-1.5">
+                              <button onClick={() => handleEdit('threshold', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑阈值">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDelete('threshold', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除阈值">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -394,89 +401,100 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         {activeTab === 'hard' && (
           <div className="space-y-4">
             <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden">
-              <table className="w-full text-left border-collapse text-ty-xs">
-                <thead>
-                  <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5">强制/硬性控制规则名称</th>
-                    <th className="px-4 py-2.5">决策建议分类</th>
-                    <th className="px-4 py-2.5">适用物料分类</th>
-                    <th className="px-4 py-2.5">触发条件字段</th>
-                    <th className="px-4 py-2.5">判断触发逻辑</th>
-                    <th className="px-4 py-2.5">命中后强制转换流程动作</th>
-                    <th className="px-4 py-2.5">状态</th>
-                    <th className="px-4 py-2.5 text-center">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                  {filteredHardRules.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-left border-collapse text-ty-xs">
+                  <thead>
+                    <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                      <th className="px-4 py-2.5 whitespace-nowrap">强制/硬性控制规则名称</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">决策建议分类</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">适用物料分类</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">触发条件字段</th>
+                      <th className="px-4 py-2.5 min-w-[160px]">判断触发逻辑</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">命中后强制转换流程动作</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
                     </tr>
-                  ) : (
-                    filteredHardRules.map(r => (
-                      <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</div>
-                          <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">测试示例：{r.triggerExample}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {r.ruleType === 'FORCE_REVIEW' ? (
-                            <span className="bg-[var(--ty-warning-light-color)] text-[var(--ty-warning-color)] border border-[var(--ty-warning-color)]/30 px-2 py-0.5 rounded-[2px] text-ty-2xs font-bold">强制复核</span>
-                          ) : r.ruleType === 'NON_REUSABLE' ? (
-                            <span className="bg-[var(--ty-red-light-color)] text-[var(--ty-red-color)] border border-[var(--ty-red-color)]/30 px-2 py-0.5 rounded-[2px] text-ty-2xs font-bold">禁止复用</span>
-                          ) : (
-                            <span className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] px-2 py-0.5 rounded-[2px] text-ty-2xs">风险预警</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-medium">{r.applicableCategory}</td>
-                        <td className="px-4 py-3 font-mono text-[var(--ty-font-main-color)] font-semibold">{r.triggerField}</td>
-                        <td className="px-4 py-3 text-[var(--ty-font-sub-color)] max-w-xs truncate" title={r.triggerCondition}>{r.triggerCondition}</td>
-                        <td className="px-4 py-3">
-                          {r.actionAfterTrigger === 'RECOMMEND_REVIEW' ? (
-                            <span className="text-[var(--ty-warning-color)] font-bold flex items-center space-x-1">
-                              <AlertTriangle className="w-3.5 h-3.5 text-[var(--ty-warning-color)] shrink-0" />
-                              <span>降级强制复核建议</span>
-                            </span>
-                          ) : r.actionAfterTrigger === 'PROHIBIT_REUSE' ? (
-                            <span className="text-[var(--ty-red-color)] font-bold flex items-center space-x-1">
-                              <XCircle className="w-3.5 h-3.5 text-[var(--ty-red-color)] shrink-0" />
-                              <span className="text-[var(--ty-red-color)] font-bold">禁止复用建议</span>
-                            </span>
-                          ) : (
-                            <span className="text-[var(--ty-font-sub-color)] font-semibold flex items-center space-x-1">
-                              <Info className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)] shrink-0" />
-                              <span>仅输出高亮差异预警</span>
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleStatusToggle('hard', r)}
-                            title="点击启用/停用"
-                            className="cursor-pointer"
-                          >
-                            <span className={`px-1.5 py-0.5 rounded-[2px] text-ty-2xs font-bold ${
-                              r.isEnabled ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
-                            }`}>
-                              {r.isEnabled ? '已启动' : '已停用'}
-                            </span>
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center space-x-1.5">
-                            <button onClick={() => handleEdit('hard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑强控">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete('hard', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除强控">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--ty-border-light-color)]">
+                    {filteredHardRules.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredHardRules.map(r => (
+                        <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</div>
+                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">测试示例：{r.triggerExample}</div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {r.ruleType === 'FORCE_REVIEW' ? (
+                              <span className="bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-2 py-0.5 rounded-[2px] text-ty-2xs font-bold inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
+                                强制复核
+                              </span>
+                            ) : r.ruleType === 'NON_REUSABLE' ? (
+                              <span className="bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 px-2 py-0.5 rounded-[2px] text-ty-2xs font-bold inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-red-color)]" />
+                                禁止复用
+                              </span>
+                            ) : (
+                              <span className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] px-2 py-0.5 rounded-[2px] text-ty-2xs">风险预警</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-medium whitespace-nowrap">{r.applicableCategory}</td>
+                          <td className="px-4 py-3 font-mono text-[var(--ty-font-main-color)] font-semibold whitespace-nowrap">{r.triggerField}</td>
+                          <td className="px-4 py-3 text-[var(--ty-font-sub-color)] min-w-[160px] max-w-xs break-words" title={r.triggerCondition}>{r.triggerCondition}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {r.actionAfterTrigger === 'RECOMMEND_REVIEW' ? (
+                              <span className="text-[var(--ty-orange-color)] font-bold flex items-center space-x-1">
+                                <AlertTriangle className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
+                                <span>降级强制复核建议</span>
+                              </span>
+                            ) : r.actionAfterTrigger === 'PROHIBIT_REUSE' ? (
+                              <span className="text-[var(--ty-red-color)] font-bold flex items-center space-x-1">
+                                <XCircle className="w-3.5 h-3.5 text-[var(--ty-red-color)] shrink-0" />
+                                <span className="text-[var(--ty-red-color)] font-bold">禁止复用建议</span>
+                              </span>
+                            ) : (
+                              <span className="text-[var(--ty-font-sub-color)] font-semibold flex items-center space-x-1">
+                                <Info className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)] shrink-0" />
+                                <span>仅输出高亮差异预警</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button
+                              onClick={() => handleStatusToggle('hard', r)}
+                              title="点击启用/停用"
+                              className="cursor-pointer"
+                            >
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] text-ty-2xs font-bold ${
+                                r.isEnabled
+                                  ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
+                                  : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${r.isEnabled ? 'bg-[var(--ty-green-color)]' : 'bg-[var(--ty-font-sub-light-color)]'}`} />
+                                {r.isEnabled ? '已启动' : '已停用'}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center space-x-1.5">
+                              <button onClick={() => handleEdit('hard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑强控">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDelete('hard', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除强控">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -484,7 +502,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         {activeTab === 'coverage' && (
           <div className="space-y-4">
             {/* Category inheritance guidelines */}
-            <div className="bg-[var(--ty-green-light-color)] border border-[var(--ty-green-color)]/20 rounded-[4px] p-4 text-ty-xs">
+            <div className="bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 rounded-[4px] p-4 text-ty-xs">
               <span className="font-bold text-[var(--ty-font-main-color)] block mb-1">🌲 分类策略继承与差异化覆盖策略</span>
               <ul className="list-disc pl-4 space-y-1 text-[var(--ty-font-sub-color)] text-ty-2xs">
                 <li><strong className="text-[var(--ty-font-main-color)]">高阶大类直接继承</strong>：缺省配置下，所有子分类会自动继承父分类的相似度字段权重和决策阈值，避免配置雪崩。</li>
@@ -493,75 +511,80 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             </div>
 
             <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden">
-              <table className="w-full text-left border-collapse text-ty-xs">
-                <thead>
-                  <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5">分类层级路径</th>
-                    <th className="px-4 py-2.5">层级关系</th>
-                    <th className="px-4 py-2.5">绑定阈值规则</th>
-                    <th className="px-4 py-2.5">绑定白名单对照</th>
-                    <th className="px-4 py-2.5">绑定计算字段规则</th>
-                    <th className="px-4 py-2.5">核心权重覆盖详情描述</th>
-                    <th className="px-4 py-2.5">生效状态</th>
-                    <th className="px-4 py-2.5 text-center">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                  {filteredCoverages.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类覆盖绑定关系</td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px] text-left border-collapse text-ty-xs">
+                  <thead>
+                    <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                      <th className="px-4 py-2.5 whitespace-nowrap">分类层级路径</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">层级关系</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">绑定阈值规则</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">绑定白名单对照</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">绑定计算字段规则</th>
+                      <th className="px-4 py-2.5 min-w-[160px]">核心权重覆盖详情描述</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap">生效状态</th>
+                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
                     </tr>
-                  ) : (
-                    filteredCoverages.map(r => (
-                      <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] font-mono">{r.categoryPath}</td>
-                        <td className="px-4 py-3">
-                          {r.inheritParent ? (
-                            <span className="text-[var(--ty-green-color)] font-medium flex items-center space-x-1">
-                              <Check className="w-3.5 h-3.5" />
-                              <span>继承父级</span>
-                            </span>
-                          ) : (
-                            <span className="text-[var(--ty-warning-color)] font-bold flex items-center space-x-1 bg-[var(--ty-warning-light-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-warning-color)]/30 text-ty-2xs">
-                              <ToggleLeft className="w-3.5 h-3.5" />
-                              <span>首层策略重设</span>
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--ty-font-main-color)] font-medium">{r.thresholdRuleId}</td>
-                        <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-color)]">{r.whitelistId}</td>
-                        <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-mono">{r.similarityRuleSetId}</td>
-                        <td className="px-4 py-3 text-[var(--ty-font-sub-color)] max-w-xs truncate" title={r.weightOverrideInfo}>
-                          {r.weightOverrideInfo}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleStatusToggle('coverage', r)}
-                            title="点击启动/停用"
-                            className="cursor-pointer"
-                          >
-                            <span className={`px-1.5 py-0.5 rounded-[2px] text-ty-2xs font-bold ${
-                              r.isEnabled ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
-                            }`}>
-                              {r.isEnabled ? '绑定生效中' : '已停用'}
-                            </span>
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center space-x-1.5">
-                            <button onClick={() => handleEdit('coverage', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑覆盖绑定">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete('coverage', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除覆盖绑定">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--ty-border-light-color)]">
+                    {filteredCoverages.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类覆盖绑定关系</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredCoverages.map(r => (
+                        <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] font-mono whitespace-nowrap">{r.categoryPath}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {r.inheritParent ? (
+                              <span className="text-[var(--ty-green-color)] font-medium flex items-center space-x-1">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>继承父级</span>
+                              </span>
+                            ) : (
+                              <span className="text-[var(--ty-font-main-light-color)] font-bold flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] px-1.5 py-0.5 rounded-[2px] border border-[var(--ty-orange-color)]/30 text-ty-2xs">
+                                <ToggleLeft className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
+                                <span>首层策略重设</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">{r.thresholdRuleId}</td>
+                          <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-color)] whitespace-nowrap">{r.whitelistId}</td>
+                          <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-mono whitespace-nowrap">{r.similarityRuleSetId}</td>
+                          <td className="px-4 py-3 text-[var(--ty-font-sub-color)] min-w-[160px] max-w-xs break-words" title={r.weightOverrideInfo}>
+                            {r.weightOverrideInfo}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button
+                              onClick={() => handleStatusToggle('coverage', r)}
+                              title="点击启动/停用"
+                              className="cursor-pointer"
+                            >
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] text-ty-2xs font-bold ${
+                                r.isEnabled
+                                  ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
+                                  : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${r.isEnabled ? 'bg-[var(--ty-green-color)]' : 'bg-[var(--ty-font-sub-light-color)]'}`} />
+                                {r.isEnabled ? '绑定生效中' : '已停用'}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center space-x-1.5">
+                              <button onClick={() => handleEdit('coverage', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑覆盖绑定">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDelete('coverage', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-[2px] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除覆盖绑定">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -571,7 +594,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       {/* 业务指南 */}
       <div className="p-4 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-[4px] space-y-3">
         <div className="flex items-center space-x-2">
-          <span className="px-2 py-0.5 bg-[var(--ty-primary-color)] text-[var(--ty-white-color)] rounded-[2px] text-ty-2xs font-bold">
+          <span className="px-2 py-0.5 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] rounded-[2px] text-ty-2xs font-bold">
             业务指南
           </span>
           <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">三化决策规则与管理阈值说明</h4>
@@ -589,10 +612,12 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           <div className="pt-2 border-t border-[var(--ty-border-color)]">
             <span className="font-semibold text-[var(--ty-font-main-color)] block mb-1">📊 三化审核阈值口径划分（供参考）：</span>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="flex items-center space-x-1 bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-green-color)]/30 font-bold">
+              <span className="flex items-center space-x-1 bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-green-color)]/30 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)]" />
                 <span>建议复用: &gt;= 86%</span>
               </span>
-              <span className="flex items-center space-x-1 bg-[var(--ty-warning-light-color)] text-[var(--ty-warning-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-warning-color)]/30 font-bold">
+              <span className="flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-orange-color)]/30 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
                 <span>建议复核: 68% - 86%</span>
               </span>
               <span className="flex items-center space-x-1 bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-[2px] border border-[var(--ty-border-color)] font-bold">
@@ -607,11 +632,11 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
               <div className="bg-[var(--ty-fill-white-color)] p-2 rounded-[4px] border border-[var(--ty-border-color)]">
                 <span className="font-semibold text-[var(--ty-font-main-color)] block mb-0.5">材质大类不一致</span>
-                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-[var(--ty-warning-color)] font-medium">强制复核</strong></span>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-[var(--ty-orange-color)] font-medium">强制复核</strong></span>
               </div>
               <div className="bg-[var(--ty-fill-white-color)] p-2 rounded-[4px] border border-[var(--ty-border-color)]">
                 <span className="font-semibold text-[var(--ty-font-main-color)] block mb-0.5">公差尺寸溢出</span>
-                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">规格字段差异超限，强制判定为 <strong className="text-[var(--ty-warning-color)] font-medium">强制复核</strong></span>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">规格字段差异超限，强制判定为 <strong className="text-[var(--ty-orange-color)] font-medium">强制复核</strong></span>
               </div>
               <div className="bg-[var(--ty-fill-white-color)] p-2 rounded-[4px] border border-[var(--ty-border-color)]">
                 <span className="font-semibold text-[var(--ty-font-main-color)] block mb-0.5">候选件状态已作废</span>
@@ -619,7 +644,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
               </div>
               <div className="bg-[var(--ty-fill-white-color)] p-2 rounded-[4px] border border-[var(--ty-border-color)]">
                 <span className="font-semibold text-[var(--ty-font-main-color)] block mb-0.5">关键耐压/封装不同</span>
-                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">阻容感核心安全或核心字段属性冲突，强制判定为 <strong className="text-[var(--ty-warning-color)] font-medium">建议复核</strong></span>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">阻容感核心安全或核心字段属性冲突，强制判定为 <strong className="text-[var(--ty-orange-color)] font-medium">建议复核</strong></span>
               </div>
             </div>
           </div>
@@ -634,7 +659,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] rounded-t-[4px] shrink-0">
               <div className="flex items-center space-x-2">
-                <ShieldAlert className="w-4 h-4 text-[var(--ty-warning-color)]" />
+                <ShieldAlert className="w-4 h-4 text-[var(--ty-orange-color)]" />
                 <h3 className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
                   {editingRule.isNew ? '新建' : '编辑'}
                   {editingRule.type === 'threshold' ? '三化管理决策阈值线' : editingRule.type === 'hard' ? '强制复核与硬性控制规则' : '分类大类覆盖决策绑定'}
@@ -712,13 +737,13 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-[var(--ty-warning-color)] mb-1">复核区间下限 &gt;=</label>
+                        <label className="block font-semibold text-[var(--ty-orange-color)] mb-1">复核区间下限 &gt;=</label>
                         <input
                           type="number"
                           min="1" max="100"
                           value={editingRule.item.reviewThresholdMin}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reviewThresholdMin: parseInt(e.target.value) || 65 }})}
-                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-1.5 text-center text-ty-xs font-bold font-mono text-[var(--ty-warning-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
+                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-1.5 text-center text-ty-xs font-bold font-mono text-[var(--ty-orange-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
                         />
                       </div>
 
@@ -983,7 +1008,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-[4px] text-ty-xs font-semibold text-[var(--ty-white-color)] shadow-2xs transition-colors cursor-pointer"
+                className="px-4 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-[4px] text-ty-xs font-semibold text-[var(--ty-font-white-color)] shadow-2xs transition-colors cursor-pointer"
               >
                 保存规则 (立即生效)
               </button>

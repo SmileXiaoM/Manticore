@@ -106,15 +106,15 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </div>
 
           <div className="border-t border-[var(--ty-border-color)] pt-2 grid grid-cols-2 gap-2 text-ty-2xs">
-            <div className="bg-[var(--ty-orange-light-color)] p-2.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)]">
-              <div className="font-bold">数据影响变更: {dataImpactingCount} 项</div>
-              <div className="text-[10px] opacity-80 mt-0.5">
+            <div className="bg-[var(--ty-orange-lightest-color)] p-2.5 rounded-[4px] border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
+              <div className="font-bold text-[var(--ty-orange-color)]">数据影响变更: {dataImpactingCount} 项</div>
+              <div className="text-ty-2xs opacity-80 mt-0.5">
                 {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
               </div>
             </div>
-            <div className="bg-[var(--ty-green-light-color)] p-2.5 rounded-[4px] border border-[var(--ty-green-color)]/30 text-[var(--ty-green-color)]">
-              <div className="font-bold">纯展示变更: {displayOnlyCount} 项</div>
-              <div className="text-[10px] opacity-80 mt-0.5">即刻生效，无需同步</div>
+            <div className="bg-[var(--ty-green-lightest-color)] p-2.5 rounded-[4px] border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
+              <div className="font-bold text-[var(--ty-green-color)]">纯展示变更: {displayOnlyCount} 项</div>
+              <div className="text-ty-2xs opacity-80 mt-0.5">即刻生效，无需同步</div>
             </div>
           </div>
         </div>
@@ -576,7 +576,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
                 <span className="text-[var(--ty-font-sub-light-color)]">来源显示名:</span>{' '}
                 <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDisplayName}</span>
                 {field.isDisplayNameMissing && (
-                  <span className="ml-1 text-[9px] text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 rounded-[2px]">已兜底</span>
+                  <span className="ml-1 text-ty-2xs text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-[2px]">已兜底</span>
                 )}
               </div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">业务类型:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.sourceDataTypeLabel}</span></div>

@@ -772,7 +772,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               {gateRulesCount} 项
             </span>
           </div>
-          <span className="px-2 py-0.5 text-[10px] font-semibold bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] rounded-[4px] border border-[var(--ty-orange-color)]/30">
+          <span className="px-2 py-0.5 text-ty-2xs font-semibold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-[4px] border border-[var(--ty-orange-color)]/30">
             不满足即排除候选
           </span>
         </div>
@@ -789,10 +789,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </span>
           </div>
           <span
-            className={`px-2 py-0.5 text-[10px] font-semibold rounded-[4px] border ${
+            className={`px-2 py-0.5 text-ty-2xs font-semibold rounded-[4px] border ${
               totalScoreWeight === 100
-                ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30'
-                : 'bg-[var(--ty-red-light-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30'
+                ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
+                : 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-red-color)]/30'
             }`}
           >
             {totalScoreWeight === 100 ? '权重已配平' : '建议调整为 100%'}
@@ -908,7 +908,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <div className="font-bold text-[var(--ty-font-main-color)] flex items-center gap-1.5">
                           {rule.fieldName}
                           {rule.displayUnit && rule.displayUnit !== '无' && (
-                            <span className="text-[10px] font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1 rounded-[2px]">
+                            <span className="text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1 rounded-[2px]">
                               {rule.displayUnit}
                             </span>
                           )}
@@ -946,14 +946,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </span>
                           {isGate ? (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/40 rounded-[2px]"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/40 rounded-[2px]"
                               title="门槛字段：不满足时直接排除整个候选"
                             >
                               <ShieldAlert className="w-3 h-3 text-[var(--ty-orange-color)]" />
                               候选门槛 (不满足排除)
                             </span>
                           ) : (
-                            <span className="inline-block text-[10px] font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.2 rounded-[2px]">
+                            <span className="inline-block text-ty-2xs font-normal text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.2 rounded-[2px]">
                               记 0 分继续计算
                             </span>
                           )}

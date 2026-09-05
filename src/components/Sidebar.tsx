@@ -20,7 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   return (
     <aside className="w-64 bg-[var(--ty-font-main-color)] text-[var(--ty-font-placeholder-color)] border-r border-[var(--ty-fill-darkest-color)] flex flex-col shrink-0">
       {/* Platform Env tag */}
-      <div className="p-4 bg-[#01091a] border-b border-[var(--ty-fill-darkest-color)] flex items-center space-x-2">
+      <div className="p-4 bg-[var(--ty-font-main-color)] border-b border-[var(--ty-fill-darkest-color)] flex items-center space-x-2">
         <ShieldAlert className="w-4 h-4 text-[var(--ty-primary-color)]" />
         <span className="text-ty-xs font-semibold tracking-wider text-[var(--ty-font-white-color)]">PLM Manticore 管理控制台</span>
       </div>
@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-4 bg-[#01091a] border-t border-[var(--ty-fill-darkest-color)] text-ty-2xs text-[var(--ty-font-sub-color)] space-y-1">
+      <div className="p-4 bg-[var(--ty-font-main-color)] border-t border-[var(--ty-fill-darkest-color)] text-ty-2xs text-[var(--ty-font-sub-color)] space-y-1">
         <div className="font-semibold text-[var(--ty-font-placeholder-color)]">PLM Manticore Engine</div>
         <div>属性相似度检索与物料治理平台</div>
       </div>

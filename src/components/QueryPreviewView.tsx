@@ -482,7 +482,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     <span className="text-ty-xs font-mono px-2 py-0.5 bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-[2px] font-semibold">
                       {lastRunContext.searchResult.reference.objectId}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[2px] font-medium border border-[var(--ty-border-color)]">
+                    <span className="text-ty-2xs px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-[2px] font-medium border border-[var(--ty-border-color)]">
                       {lastRunContext.searchResult.baselineType === 'FORM_VALUES'
                         ? '表单录入基准'
                         : '已有件基准'}
@@ -536,7 +536,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             >
               <span>参与评分的候选</span>
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                className={`px-1.5 py-0.5 rounded-full text-ty-2xs ${
                   activeTab === 'SCORED' ? 'bg-[var(--ty-primary-lighter-color)]/50 text-[var(--ty-primary-color)]' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                 }`}
               >
@@ -558,8 +558,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 已排除候选 (门槛未满足)
               </span>
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                  activeTab === 'EXCLUDED' ? 'bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
+                className={`px-1.5 py-0.5 rounded-full text-ty-2xs ${
+                  activeTab === 'EXCLUDED' ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                 }`}
               >
                 {lastRunContext.searchResult.excludedCandidates.length}
@@ -639,7 +639,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                                 {cand.similarityScore.toFixed(2)}%
                               </span>
                             </div>
-                            <div className="text-[10px] text-[var(--ty-font-sub-light-color)] font-mono">
+                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">
                               原始: {cand.rawSimilarityScore.toFixed(4)}%
                             </div>
                           </td>
@@ -648,11 +648,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <td className="py-3 px-4">
                             <div className="flex flex-col gap-1 items-start">
                               <span
-                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded-[2px] ${
+                                className={`px-1.5 py-0.5 text-ty-2xs font-bold rounded-[2px] ${
                                   cand.similarityTier === '高相似'
-                                    ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30'
+                                    ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                     : cand.similarityTier === '中相似'
-                                    ? 'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)]'
+                                    ? 'bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30'
                                     : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                                 }`}
                               >
@@ -820,9 +820,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
-                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] font-mono">({f.fieldKey})</span>
+                          <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">({f.fieldKey})</span>
                           {isGate && (
-                            <span className="text-[10px] font-bold bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.2 rounded-[2px]">
+                            <span className="text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.2 rounded-[2px]">
                               门槛字段
                             </span>
                           )}
@@ -847,13 +847,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       {/* 源值 vs 候选值 */}
                       <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-2.5 rounded-[4px] border border-[var(--ty-border-color)]">
                         <div>
-                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] block mb-0.5">基准值 (源)</span>
+                          <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">基准值 (源)</span>
                           <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
                             {String(f.sourceValue ?? '--')}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-[var(--ty-font-sub-light-color)] block mb-0.5">候选值 (目标)</span>
+                          <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">候选值 (目标)</span>
                           <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
                             {String(f.candidateValue ?? '--')}
                           </span>
