@@ -95,42 +95,42 @@ export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
     case 'RUNNING':
       return {
         label: '同步中',
-        bgClass: 'bg-[var(--ty-blue-light-color)]',
-        textClass: 'text-[var(--ty-blue-color)]',
-        borderClass: 'border-blue-200',
+        bgClass: 'bg-[var(--ty-blue-lightest-color)]',
+        textClass: 'text-[var(--ty-font-main-light-color)]',
+        borderClass: 'border-[var(--ty-blue-color)]/30',
         dotClass: 'bg-[var(--ty-blue-color)]'
       };
     case 'SUCCESS':
       return {
         label: '同步完成',
-        bgClass: 'bg-[var(--ty-green-light-color)]',
-        textClass: 'text-[var(--ty-green-color)]',
-        borderClass: 'border-emerald-200',
+        bgClass: 'bg-[var(--ty-green-lightest-color)]',
+        textClass: 'text-[var(--ty-font-main-light-color)]',
+        borderClass: 'border-[var(--ty-green-color)]/30',
         dotClass: 'bg-[var(--ty-green-color)]'
       };
     case 'PARTIAL_SUCCESS':
       return {
         label: '同步完成（有异常）',
-        bgClass: 'bg-[var(--ty-orange-light-color)]',
-        textClass: 'text-[var(--ty-orange-color)]',
-        borderClass: 'border-amber-200',
+        bgClass: 'bg-[var(--ty-orange-lightest-color)]',
+        textClass: 'text-[var(--ty-font-main-light-color)]',
+        borderClass: 'border-[var(--ty-orange-color)]/30',
         dotClass: 'bg-[var(--ty-orange-color)]'
       };
     case 'FAILED':
       return {
         label: '同步失败',
-        bgClass: 'bg-[var(--ty-red-light-color)]',
-        textClass: 'text-[var(--ty-red-color)]',
-        borderClass: 'border-rose-200',
+        bgClass: 'bg-[var(--ty-red-lightest-color)]',
+        textClass: 'text-[var(--ty-font-main-light-color)]',
+        borderClass: 'border-[var(--ty-red-color)]/30',
         dotClass: 'bg-[var(--ty-red-color)]'
       };
     default:
       return {
         label: '未同步',
-        bgClass: 'bg-[var(--ty-fill-light-color)]',
+        bgClass: 'bg-[var(--ty-fill-color)]',
         textClass: 'text-[var(--ty-font-sub-color)]',
         borderClass: 'border-[var(--ty-border-light-color)]',
-        dotClass: 'bg-slate-400'
+        dotClass: 'bg-[var(--ty-font-sub-light-color)]'
       };
   }
 }

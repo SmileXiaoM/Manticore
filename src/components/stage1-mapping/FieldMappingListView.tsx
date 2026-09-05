@@ -133,15 +133,15 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       if (field.hasDraftModification) {
         return (
           <div className="space-y-1">
-            <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)]">
+            <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
               <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
               已配置
             </span>
-            <div className="text-ty-2xs text-[var(--ty-blue-color)] bg-[var(--ty-blue-light-color)] px-1.5 py-0.5 rounded-[2px] font-medium flex items-center whitespace-nowrap">
+            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-1.5 py-0.5 rounded-[2px] font-medium flex items-center whitespace-nowrap">
               <Clock className="w-2.5 h-2.5 mr-1 text-[var(--ty-blue-color)] shrink-0" />
               <span>有草稿修改</span>
               {field.isDataImpactingChange && (
-                <span className="ml-1 text-[9px] text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 rounded-[2px] font-normal shrink-0">
+                <span className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-[2px] font-normal shrink-0">
                   含数据影响
                 </span>
               )}
@@ -150,7 +150,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         );
       }
       return (
-        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)]">
+        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
           <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
           已配置
         </span>
@@ -158,12 +158,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     }
     return (
       <div className="space-y-1">
-        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]">
+        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
           <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
           草稿
         </span>
         {field.isDataImpactingChange && (
-          <div className="text-ty-2xs text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1.5 py-0.5 rounded-[2px] font-medium whitespace-nowrap">
+          <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.5 rounded-[2px] font-medium whitespace-nowrap">
             生效后需同步
           </div>
         )}
@@ -185,7 +185,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       if (field.hasDraftModification && field.isDataImpactingChange) {
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-blue-color)] bg-[var(--ty-blue-light-color)] px-2 py-0.5 rounded-[2px]">
+            <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-2 py-0.5 rounded-[2px]">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-blue-color)] mr-1.5 shrink-0"></span>
               已在正式底座
             </span>
@@ -196,7 +196,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         );
       }
       return (
-        <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-green-color)] bg-[var(--ty-green-light-color)] px-2 py-0.5 rounded-[2px]">
+        <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-font-main-light-color)] bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 px-2 py-0.5 rounded-[2px]">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1.5 shrink-0"></span>
           已在正式底座
         </span>
@@ -204,7 +204,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     }
 
     return (
-      <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]">
+      <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
         <AlertTriangle className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
         待进入正式底座
       </span>
@@ -360,7 +360,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <Send className="w-3.5 h-3.5 shrink-0" />
             <span className="whitespace-nowrap">生效配置</span>
             {totalDraftWorkItemCount > 0 && (
-              <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-semibold shrink-0">
+              <span className="bg-white/20 text-white text-ty-2xs px-1.5 py-0.2 rounded-full font-mono font-semibold shrink-0">
                 {totalDraftWorkItemCount}
               </span>
             )}
@@ -372,10 +372,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             onClick={onTriggerDataSync}
             disabled={!canTriggerSync}
             className={`h-8 px-3 rounded-[4px] text-ty-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-              isSyncFailed || isSyncError
-                ? 'bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 text-white shadow-2xs'
-                : hasPendingSync
-                ? 'bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 text-white shadow-2xs'
+              isSyncFailed || isSyncError || hasPendingSync
+                ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white shadow-2xs'
                 : canTriggerSync
                 ? 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
                 : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
@@ -414,7 +412,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       </div>
 
       {/* 筛选与搜索工具条 (统一 32px 控件高度) */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* 状态筛选 Tabs */}
           <div className="flex items-center bg-[var(--ty-fill-weak-dark-color)] p-0.5 rounded-[4px] text-ty-xs font-medium h-8">
@@ -484,9 +482,9 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       </div>
 
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[8px] overflow-hidden shadow-2xs">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-ty-xs">
+          <table className="w-full min-w-[1240px] text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
                 <th className="py-2.5 px-3 min-w-[150px] whitespace-nowrap">PLM 来源字段</th>
@@ -513,7 +511,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       <div className="text-ty-xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
                         <span>{field.sourceDisplayName}</span>
                         {field.isDisplayNameMissing && (
-                          <span className="ml-1 text-[9px] text-[var(--ty-orange-color)] bg-[var(--ty-orange-light-color)] px-1 rounded-[2px] font-normal" title="PLM 未返回显示名，已按字段名兜底">
+                          <span className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-[2px] font-normal" title="PLM 未返回显示名，已按字段名兜底">
                             显示名兜底
                           </span>
                         )}

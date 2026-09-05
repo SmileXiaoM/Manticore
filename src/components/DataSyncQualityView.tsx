@@ -320,17 +320,17 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
       {toastMessage && (
         <div className="fixed top-16 right-8 z-50 transition-all duration-300 transform translate-y-0">
           <div
-            className={`px-4 py-2.5 rounded-[4px] shadow-lg text-xs font-medium flex items-center space-x-2 border ${
+            className={`px-4 py-2.5 rounded-[4px] shadow-lg text-ty-xs font-medium flex items-center space-x-2 border ${
               toastMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
                 : toastMessage.type === 'warning'
-                ? 'bg-amber-50 text-amber-800 border-amber-300'
-                : 'bg-blue-50 text-blue-800 border-blue-300'
+                ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-orange-color)]/30'
+                : 'bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-blue-color)]/30'
             }`}
           >
-            {toastMessage.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
-            {toastMessage.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />}
-            {toastMessage.type === 'info' && <Info className="w-4 h-4 text-blue-600 shrink-0" />}
+            {toastMessage.type === 'success' && <CheckCircle2 className="w-4 h-4 text-[var(--ty-green-color)] shrink-0" />}
+            {toastMessage.type === 'warning' && <AlertTriangle className="w-4 h-4 text-[var(--ty-orange-color)] shrink-0" />}
+            {toastMessage.type === 'info' && <Info className="w-4 h-4 text-[var(--ty-blue-color)] shrink-0" />}
             <span>{toastMessage.text}</span>
           </div>
         </div>
@@ -460,15 +460,15 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
         {/* 批次表格卡片：表头与主要信息默认 14px，辅助信息 12px */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-[4px] shadow-2xs overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[760px]">
+            <table className="w-full text-left border-collapse min-w-[1100px]">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-sm font-semibold border-b border-[var(--ty-border-color)]">
-                  <th className="py-3 px-4 w-[250px]">同步批次</th>
-                  <th className="py-3 px-3 w-[160px]">根类型</th>
-                  <th className="py-3 px-3 w-[180px]">同步时间</th>
-                  <th className="py-3 px-3">数据结果</th>
-                  <th className="py-3 px-3 w-[150px]">同步状态</th>
-                  <th className="py-3 px-4 text-right w-[140px]">操作</th>
+                  <th className="py-3 px-4 min-w-[240px]">同步批次</th>
+                  <th className="py-3 px-3 min-w-[160px]">根类型</th>
+                  <th className="py-3 px-3 min-w-[180px]">同步时间</th>
+                  <th className="py-3 px-3 min-w-[260px]">数据结果</th>
+                  <th className="py-3 px-3 min-w-[150px] whitespace-nowrap">同步状态</th>
+                  <th className="py-3 px-4 text-right min-w-[110px] whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -509,7 +509,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                 {batch.id}
                               </span>
                               {batch.triggerType === 'RETRY' && (
-                                <span className="text-[10px] px-1.5 py-0.2 rounded-[2px] bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] font-semibold">
+                                <span className="text-ty-2xs px-1.5 py-0.2 rounded-[2px] bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] font-semibold whitespace-nowrap">
                                   重试批次
                                 </span>
                               )}
@@ -584,9 +584,9 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </td>
 
                         {/* 5. 同步状态：规范状态标签 12px */}
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium border ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-ty-xs font-medium border whitespace-nowrap ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${statusMeta.dotClass}`}></span>
                             {statusMeta.label}
@@ -1091,7 +1091,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   <button
                     onClick={handleExecuteRetry}
                     disabled={isRetrying}
-                    className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-[4px] bg-[var(--ty-red-color)] text-white hover:opacity-90 active:opacity-100 transition-all shadow-xs cursor-pointer"
+                    className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-[4px] bg-[var(--ty-primary-color)] text-white hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] transition-all shadow-xs cursor-pointer"
                   >
                     {isRetrying ? (
                       <>

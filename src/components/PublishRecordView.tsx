@@ -89,17 +89,17 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-ty-xs">
+          <table className="w-full min-w-[980px] text-left border-collapse text-ty-xs">
             <thead>
               <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                <th className="px-4 py-2.5 w-1/6">对象类型</th>
-                <th className="px-4 py-2.5 w-24">配置版本</th>
-                <th className="px-3 py-2.5 text-center w-20">操作类型</th>
-                <th className="px-5 py-2.5">变更摘要</th>
-                <th className="px-4 py-2.5 w-40">操作人</th>
-                <th className="px-4 py-2.5 w-36">操作时间</th>
-                <th className="px-3 py-2.5 text-center w-24">执行结果</th>
-                <th className="px-4 py-2.5 w-1/5">失败原因</th>
+                <th className="px-4 py-2.5 min-w-[150px]">对象类型</th>
+                <th className="px-4 py-2.5 min-w-[90px] whitespace-nowrap">配置版本</th>
+                <th className="px-3 py-2.5 text-center min-w-[80px] whitespace-nowrap">操作类型</th>
+                <th className="px-5 py-2.5 min-w-[280px]">变更摘要</th>
+                <th className="px-4 py-2.5 min-w-[100px] whitespace-nowrap">操作人</th>
+                <th className="px-4 py-2.5 min-w-[140px] whitespace-nowrap">操作时间</th>
+                <th className="px-3 py-2.5 text-center min-w-[90px] whitespace-nowrap">执行结果</th>
+                <th className="px-4 py-2.5 min-w-[160px]">失败原因</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -107,28 +107,29 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
                 filteredRecords.map((rec) => (
                   <tr key={rec.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
                     {/* Object Type */}
-                    <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)]">
+                    <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">
                       {rec.objectType}
                     </td>
 
                     {/* Config Version */}
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--ty-font-main-color)]">
+                    <td className="px-4 py-3 font-mono font-bold text-[var(--ty-font-main-color)] whitespace-nowrap">
                       {rec.configVersion}
                     </td>
 
                     {/* Operation Type */}
-                    <td className="px-3 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-[2px] text-[10px] font-bold ${
-                        rec.operationType === '启用' ? 'bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30' :
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded-[2px] text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
+                        rec.operationType === '启用' ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30' :
                         rec.operationType === '停用' ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]' :
-                        'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)]'
+                        'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-lighter-color)]'
                       }`}>
-                        {rec.operationType}
+                        {rec.operationType === '启用' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1 shrink-0"></span>}
+                        <span>{rec.operationType}</span>
                       </span>
                     </td>
 
                     {/* Change Summary */}
-                    <td className="px-5 py-3 text-[var(--ty-font-sub-color)] leading-relaxed font-medium text-ty-xs">
+                    <td className="px-5 py-3 text-[var(--ty-font-sub-color)] leading-relaxed font-medium text-ty-xs min-w-[280px]">
                       {rec.summary}
                     </td>
 
@@ -143,7 +144,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
                     </td>
 
                     {/* Execution Result */}
-                    <td className="px-3 py-3 text-center">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
                       {rec.result === 'SUCCESS' ? (
                         <span className="text-[var(--ty-green-color)] font-semibold flex items-center justify-center space-x-1 text-ty-xs">
                           <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />
@@ -160,7 +161,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
                     {/* Failure Reason */}
                     <td className="px-4 py-3 text-[var(--ty-font-sub-color)] leading-normal">
                       {rec.failureReason ? (
-                        <span className="text-[var(--ty-red-color)] font-medium text-ty-2xs bg-[var(--ty-red-light-color)] px-2 py-1 rounded-[2px] border border-[var(--ty-red-color)]/30 block">
+                        <span className="text-[var(--ty-font-main-light-color)] font-medium text-ty-2xs bg-[var(--ty-red-lightest-color)] px-2 py-1 rounded-[2px] border border-[var(--ty-red-color)]/30 block">
                           {rec.failureReason}
                         </span>
                       ) : (

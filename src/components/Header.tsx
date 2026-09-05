@@ -51,12 +51,12 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* User profile */}
         <div className="flex items-center space-x-2 border-l border-[var(--ty-border-color)] pl-4">
-          <div className="w-7 h-7 bg-[var(--ty-fill-weak-dark-color)] rounded-full flex items-center justify-center text-[var(--ty-font-sub-color)] font-semibold text-xs border border-[var(--ty-border-color)]">
+          <div className="w-7 h-7 bg-[var(--ty-fill-weak-dark-color)] rounded-full flex items-center justify-center text-[var(--ty-font-sub-color)] font-semibold text-ty-xs border border-[var(--ty-border-color)]">
             <User className="w-4 h-4 text-[var(--ty-icon-color)]" />
           </div>
           <div className="hidden md:flex flex-col">
-            <span className="text-xs font-medium text-[var(--ty-font-main-color)]">李晓华</span>
-            <span className="text-[10px] text-[var(--ty-font-sub-color)] leading-none">数据标准管理员</span>
+            <span className="text-ty-xs font-medium text-[var(--ty-font-main-color)]">李晓华</span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-none">数据标准管理员</span>
           </div>
         </div>
       </div>

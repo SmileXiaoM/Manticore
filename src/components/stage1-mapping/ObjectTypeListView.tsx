@@ -201,21 +201,21 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     switch (status) {
       case 'CONFIGURED':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)] shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 shrink-0">
             <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
             已配置
           </span>
         );
       case 'CONFIGURED_WITH_DRAFT':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-light-color)] text-[var(--ty-blue-color)] shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 shrink-0">
             <Clock className="w-3 h-3 mr-1 text-[var(--ty-blue-color)] shrink-0" />
             已配置（有草稿）
           </span>
         );
       case 'DRAFTING':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)] shrink-0">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 shrink-0">
             <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
             草稿中
           </span>
@@ -236,7 +236,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-light-color)] text-[var(--ty-green-color)]">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1.5 shrink-0"></span>
               已同步
             </span>
@@ -250,7 +250,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'COMPLETED_WITH_ERRORS':
         return (
           <div className="space-y-1">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
               <AlertTriangle className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
               同步完成（有异常）
             </span>
@@ -271,7 +271,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'PENDING':
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-light-color)] text-[var(--ty-orange-color)]">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
               <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
               待同步
             </span>
@@ -282,7 +282,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         );
       case 'RUNNING':
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-light-color)] text-[var(--ty-blue-color)]">
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30">
             <RefreshCw className="w-3 h-3 mr-1.5 animate-spin text-[var(--ty-blue-color)] shrink-0" />
             同步执行中...
           </span>
@@ -291,7 +291,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         return (
           <div className="space-y-0.5">
             <span
-              className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-red-light-color)] text-[var(--ty-red-color)]"
+              className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30"
               title={root.lastSyncErrorMsg}
             >
               <AlertOctagon className="w-3 h-3 mr-1 text-[var(--ty-red-color)] shrink-0" />
@@ -648,7 +648,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           disabled={root.syncStatus === 'RUNNING'}
                           className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-[4px] font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                             root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
-                              ? 'bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 text-white shadow-2xs'
+                              ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white shadow-2xs'
                               : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
                           }`}
                           title={
@@ -736,7 +736,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                   onTriggerSync(viewingErrorsRootType.id, 'NORMAL');
                   setViewingErrorsRootType(null);
                 }}
-                className="px-3 py-1.5 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 text-white rounded-[4px] text-ty-xs font-semibold flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-white rounded-[4px] text-ty-xs font-semibold flex items-center space-x-1.5 cursor-pointer shadow-2xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>重试全部异常记录</span>
