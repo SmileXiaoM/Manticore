@@ -39,6 +39,8 @@ export interface ConsistencyCheckPlan {
   focusCriteria: FocusCriteriaType;     // 重点依据 (仅组合策略生效)
   focusQuota: number;                   // 重点样本配额，如 100
   randomQuota: number;                  // 随机样本配额，如 100
+  selectedScopeId?: string;             // 针对指定范围全量核验时选中的预设范围ID
+  selectedScopeName?: string;           // 针对指定范围全量核验时选中的范围名称
   targetFields: Array<{
     fieldCode: string;
     fieldName: string;
