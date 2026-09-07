@@ -188,7 +188,6 @@ export default function App() {
               <DataSyncQualityView
                 initialSelectedBatchId={selectedSyncBatchId}
                 onClearSelectedBatchId={() => setSelectedSyncBatchId(null)}
-                onNavigateToConsistencyCheck={() => handleNavigate('data-consistency-check')}
               />
             )}
 

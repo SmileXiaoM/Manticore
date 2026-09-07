@@ -112,3 +112,26 @@ export interface ConsistencyBatchRecord {
   
   status: 'COMPLETED' | 'RUNNING';
 }
+
+/**
+ * 统一本地时间格式化函数
+ * 使用浏览器本地时区格式化输出 YYYY-MM-DD HH:mm:ss，杜绝 toISOString() 导致的 8 小时 UTC 时差
+ */
+export function formatLocalDateTime(date: Date = new Date()): string {
+  const pad = (num: number) => String(num).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * 统一按本地日期生成批次号日期代码 YYYYMMDD
+ */
+export function formatLocalDateCode(date: Date = new Date()): string {
+  const pad = (num: number) => String(num).padStart(2, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+}

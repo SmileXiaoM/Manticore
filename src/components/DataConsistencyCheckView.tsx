@@ -1,40 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
+  FileCheck2,
+  Calendar,
+  Sliders,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
   Clock,
-  RefreshCw,
-  Sliders,
-  Database,
-  ArrowRight,
-  Info,
-  Eye,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
   X,
   Play,
-  Check,
-  AlertCircle,
-  FileSearch,
-  ShieldCheck,
-  ShieldAlert,
+  RotateCcw,
+  Info,
   Layers,
-  HelpCircle,
-  Sparkles,
-  Search
+  ArrowRight
 } from 'lucide-react';
 import {
   ConsistencyCheckPlan,
   ConsistencyBatchRecord,
   ConsistencyObjectResult,
-  ConsistencyStrategyType,
-  FocusCriteriaType,
-  ConsistencyItemStatus
+  formatLocalDateTime,
+  formatLocalDateCode
 } from '../types/consistencyCheck';
 import {
   initialConsistencyPlan,
   initialConsistencyBatches,
-  pendingConfirmations,
-  coverageBoundaries,
   demoObjectResults
 } from '../data/consistencyCheckData';
 
@@ -42,25 +33,37 @@ interface DataConsistencyCheckViewProps {
   onNavigateToSyncQuality?: () => void;
 }
 
+// 模拟限定范围选项（临时核验-指定范围）
+const SCOPE_OPTIONS = [
+  { id: 'SCOPE_BOLT', name: '标准件 > 紧固件 > 螺栓 (最近7天)', count: 36, isOverLimit: false },
+  { id: 'SCOPE_GEAR', name: '传动系统 > 齿轮箱部件 (最近7天)', count: 24, isOverLimit: false },
+  { id: 'SCOPE_SEAL', name: '密封与弹性元件 (最近14天)', count: 18, isOverLimit: false },
+  { id: 'SCOPE_ALL', name: '全品类零部件全量范围 (最近30天)', count: 128, isOverLimit: true }
+];
+
 export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> = ({
   onNavigateToSyncQuality
 }) => {
-  // 1. 当前检查计划 (保存在本地演示状态，明确提示仅本地演示)
+  // 核心状态
   const [plan, setPlan] = useState<ConsistencyCheckPlan>(initialConsistencyPlan);
   const [batches, setBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
-
-  // 2. 交互状态
-  const [activeTab, setActiveTab] = useState<'BY_PLAN' | 'CUSTOM_ID'>('BY_PLAN');
-  const [customIdsInput, setCustomIdsInput] = useState<string>('P-30001, P-30002, P-30003, P-30004, P-30005, P-30001');
-  const [isRunning, setIsRunning] = useState(false);
-  const [runningStepText, setRunningStepText] = useState<string>('');
-  
-  // 3. 抽屉与弹窗控制
-  const [isPlanDrawerOpen, setIsPlanDrawerOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<ConsistencyBatchRecord | null>(null);
   const [selectedObjectForCompare, setSelectedObjectForCompare] = useState<ConsistencyObjectResult | null>(null);
-  
-  // 4. Toast / 通知
+
+  // 抽屉与折叠状态
+  const [isPlanDrawerOpen, setIsPlanDrawerOpen] = useState(false);
+  const [draftPlan, setDraftPlan] = useState<ConsistencyCheckPlan>(initialConsistencyPlan);
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false); // 默认收起
+  const [isFieldsTooltipOpen, setIsFieldsTooltipOpen] = useState(false);
+  const [isFrozenIdsExpanded, setIsFrozenIdsExpanded] = useState(false);
+
+  // 立即核验区交互状态
+  const [activeCheckTab, setActiveCheckTab] = useState<'BY_PLAN' | 'CUSTOM'>('BY_PLAN');
+  const [customCheckSubMode, setCustomCheckSubMode] = useState<'SPECIFIC_IDS' | 'SPECIFIC_SCOPE'>('SPECIFIC_IDS');
+  const [inputManualIds, setInputManualIds] = useState<string>('P-30001, P-30002, P-30003, P-30004, P-30005');
+  const [selectedScopeId, setSelectedScopeId] = useState<string>('SCOPE_BOLT');
+
+  // 轻量提示消息
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'info' | 'warning' = 'info') => {
@@ -70,722 +73,896 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     }, 4000);
   };
 
-  // 5. 计划编辑抽屉的临时表单状态
-  const [draftPlan, setDraftPlan] = useState<ConsistencyCheckPlan>(plan);
+  // 解析手动输入的 ID，严格去重并限制上限 50
+  const parsedManualIds = React.useMemo(() => {
+    const rawList = inputManualIds
+      .split(/[\n,，\s]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    const uniqueList = Array.from(new Set(rawList));
+    const duplicateCount = rawList.length - uniqueList.length;
+    return {
+      rawCount: rawList.length,
+      uniqueIds: uniqueList,
+      duplicateCount,
+      isExceeded: uniqueList.length > 50
+    };
+  }, [inputManualIds]);
 
+  // 生成确定性核验批次（严格保证实际样本数 = 冻结 ID 数 = 明细行数 = 状态分布合计）
+  const generateBatchFromPlan = (
+    targetPlan: ConsistencyCheckPlan,
+    batchNum: number,
+    triggerType: 'SCHEDULED' | 'MANUAL_BY_PLAN' = 'MANUAL_BY_PLAN'
+  ): ConsistencyBatchRecord => {
+    const now = new Date();
+    const dateCode = formatLocalDateCode(now);
+    const timeStr = formatLocalDateTime(now);
+    const batchId = `CC-${dateCode}-${String(batchNum).padStart(3, '0')}`;
+
+    const limit = Math.max(1, targetPlan.maxSampleLimit);
+    let plannedCount = limit;
+    let deduplicatedCount = 0;
+    let focusCount = 0;
+    let randomCount = 0;
+    let strategySummary = '';
+
+    if (targetPlan.strategy === 'FOCUS_AND_RANDOM') {
+      const desiredFocus = Math.min(targetPlan.focusQuota, plannedCount);
+      deduplicatedCount = limit > 50 ? 2 : (limit > 10 ? 1 : 0);
+      const actualTotal = Math.max(1, plannedCount - deduplicatedCount);
+      focusCount = Math.min(desiredFocus, actualTotal);
+      randomCount = actualTotal - focusCount;
+      strategySummary = `重点＋随机 (高频重点 ${focusCount} + 合格随机 ${randomCount}，去重剔除 ${deduplicatedCount} 个)`;
+    } else if (targetPlan.strategy === 'RANDOM_SAMPLE') {
+      deduplicatedCount = 0;
+      focusCount = 0;
+      randomCount = limit;
+      strategySummary = `纯随机抽查 (全量随机 ${limit} 个，不设重点配额)`;
+    } else {
+      // EXHAUSTIVE_SCOPE
+      deduplicatedCount = 0;
+      focusCount = 0;
+      randomCount = 0;
+      strategySummary = `指定范围全部核验 (限定范围内合格对象共 ${limit} 个)`;
+    }
+
+    const actualCount = focusCount + randomCount || limit;
+
+    // 状态精确分布
+    let diffCount = 0;
+    let pendingCount = 0;
+    let incompleteCount = 0;
+
+    if (actualCount === 1) {
+      diffCount = 1;
+    } else if (actualCount === 2) {
+      diffCount = 1;
+    } else if (actualCount === 3) {
+      diffCount = 1;
+      pendingCount = 1;
+    } else if (actualCount === 4) {
+      diffCount = 1;
+      pendingCount = 1;
+      incompleteCount = 1;
+    } else {
+      diffCount = Math.max(1, Math.min(2, Math.floor(actualCount * 0.05)));
+      pendingCount = 1;
+      incompleteCount = 1;
+    }
+    const consistentCount = actualCount - diffCount - pendingCount - incompleteCount;
+
+    // 生成对象明细
+    const objectResults: ConsistencyObjectResult[] = [];
+    const statusPool: { status: 'DIFFERENCE_FOUND' | 'PENDING_RECHECK' | 'INCOMPLETE' | 'CONSISTENT'; isTargetMissing?: boolean }[] = [];
+
+    for (let i = 0; i < diffCount; i++) {
+      statusPool.push({ status: 'DIFFERENCE_FOUND', isTargetMissing: i === 1 });
+    }
+    for (let i = 0; i < pendingCount; i++) {
+      statusPool.push({ status: 'PENDING_RECHECK' });
+    }
+    for (let i = 0; i < incompleteCount; i++) {
+      statusPool.push({ status: 'INCOMPLETE' });
+    }
+    for (let i = 0; i < consistentCount; i++) {
+      statusPool.push({ status: 'CONSISTENT' });
+    }
+
+    for (let i = 0; i < actualCount; i++) {
+      const itemStatus = statusPool[i] || { status: 'CONSISTENT' };
+      let obj: ConsistencyObjectResult;
+
+      if (i < demoObjectResults.length && demoObjectResults[i].status === itemStatus.status) {
+        obj = { ...demoObjectResults[i] };
+      } else {
+        const objId = `P-${30000 + i + 1}`;
+        const reason = targetPlan.strategy === 'RANDOM_SAMPLE'
+          ? 'RANDOM_SAMPLE'
+          : (i < focusCount ? 'HIGH_FREQUENCY' : 'RANDOM_SAMPLE');
+
+        let statusDetail = '核验通过：PLM 预期值与 Manticore 实际值逐字段一致';
+        let differenceFields: string[] = [];
+        let incompleteReason: string | undefined;
+        let recheckReason: string | undefined;
+
+        if (itemStatus.status === 'DIFFERENCE_FOUND') {
+          if (itemStatus.isTargetMissing) {
+            statusDetail = '发现差异：PLM 源端已存在发布记录，但 Manticore 目标索引库未检索到对应主键';
+            differenceFields = ['版本/迭代与生命周期', '物料名称', '主要材质'];
+          } else {
+            statusDetail = '发现字段差异：PLM 版本为 Rev 8/已发布，而 Manticore 实际为 Rev 7/工作中';
+            differenceFields = ['版本/迭代与生命周期'];
+          }
+        } else if (itemStatus.status === 'PENDING_RECHECK') {
+          statusDetail = '待复查：PLM 源端 2 分钟前仍有活动修改，处于演示同步延迟窗口期 (5分钟演示阈值 / 待确认)';
+          differenceFields = ['版本/迭代与生命周期'];
+          recheckReason = 'PLM 最后变更时间距核验时刻小于 5 分钟演示缓冲阈值(待确认)';
+        } else if (itemStatus.status === 'INCOMPLETE') {
+          statusDetail = '检查未完成：PLM 源端批量只读接口握手超时 (504 Gateway Timeout)，无法判定一致性';
+          differenceFields = ['全部待检字段'];
+          incompleteReason = 'PLM 源端数据服务在批量取数时发生连接中断或超时';
+        }
+
+        obj = {
+          objectId: objId,
+          objectName: `零部件物料 ${objId}`,
+          rootTypeCode: 'PART',
+          selectedReason: reason,
+          modifyCount: reason === 'HIGH_FREQUENCY' ? 12 : undefined,
+          lastModifiedAt: formatLocalDateTime(new Date(Date.now() - (i + 1) * 3600000)),
+          status: itemStatus.status,
+          statusDetail,
+          differenceFields,
+          isTargetMissing: itemStatus.isTargetMissing,
+          incompleteReason,
+          recheckReason,
+          fields: [
+            {
+              fieldCode: 'version_lifecycle',
+              fieldName: '版本/迭代与生命周期',
+              plmRawValue: itemStatus.status === 'INCOMPLETE' ? null : 'Rev 2 / 已发布',
+              mappedExpectedValue: itemStatus.status === 'INCOMPLETE' ? null : 'Rev 2 / 已发布',
+              manticoreActualValue: itemStatus.status === 'INCOMPLETE' ? 'Rev 2 / 已发布' : (itemStatus.status === 'DIFFERENCE_FOUND' ? 'Rev 1 / 工作中' : (itemStatus.isTargetMissing ? null : 'Rev 2 / 已发布')),
+              matchStatus: itemStatus.status === 'INCOMPLETE' ? 'UNVERIFIABLE' : (itemStatus.status === 'DIFFERENCE_FOUND' ? (itemStatus.isTargetMissing ? 'TARGET_MISSING' : 'MISMATCH') : 'MATCH')
+            },
+            {
+              fieldCode: 'part_name',
+              fieldName: '物料名称',
+              plmRawValue: itemStatus.status === 'INCOMPLETE' ? null : `零部件物料 ${objId}`,
+              mappedExpectedValue: itemStatus.status === 'INCOMPLETE' ? null : `零部件物料 ${objId}`,
+              manticoreActualValue: itemStatus.isTargetMissing ? null : `零部件物料 ${objId}`,
+              matchStatus: itemStatus.status === 'INCOMPLETE' ? 'UNVERIFIABLE' : (itemStatus.isTargetMissing ? 'TARGET_MISSING' : 'MATCH')
+            },
+            {
+              fieldCode: 'primary_material',
+              fieldName: '主要材质',
+              plmRawValue: itemStatus.status === 'INCOMPLETE' ? null : 'Q235-B',
+              mappedExpectedValue: itemStatus.status === 'INCOMPLETE' ? null : '碳素结构钢 (Q235-B)',
+              manticoreActualValue: itemStatus.isTargetMissing ? null : '碳素结构钢 (Q235-B)',
+              matchStatus: itemStatus.status === 'INCOMPLETE' ? 'UNVERIFIABLE' : (itemStatus.isTargetMissing ? 'TARGET_MISSING' : 'MATCH')
+            },
+            {
+              fieldCode: 'classification_path',
+              fieldName: '分类路径',
+              plmRawValue: itemStatus.status === 'INCOMPLETE' ? null : '零件 > 通用机械件',
+              mappedExpectedValue: itemStatus.status === 'INCOMPLETE' ? null : '标准零件 > 通用机械件',
+              manticoreActualValue: itemStatus.isTargetMissing ? null : '标准零件 > 通用机械件',
+              matchStatus: itemStatus.status === 'INCOMPLETE' ? 'UNVERIFIABLE' : (itemStatus.isTargetMissing ? 'TARGET_MISSING' : 'MATCH')
+            }
+          ]
+        };
+      }
+
+      objectResults.push(obj);
+    }
+
+    const frozenObjectIds = objectResults.map(o => o.objectId);
+
+    // 重新根据实际明细统计数量，确保恒等式
+    const finalConsistentCount = objectResults.filter(o => o.status === 'CONSISTENT').length;
+    const finalDifferenceCount = objectResults.filter(o => o.status === 'DIFFERENCE_FOUND').length;
+    const finalPendingRecheckCount = objectResults.filter(o => o.status === 'PENDING_RECHECK').length;
+    const finalIncompleteCount = objectResults.filter(o => o.status === 'INCOMPLETE').length;
+
+    return {
+      id: batchId,
+      planId: targetPlan.id,
+      planName: targetPlan.name,
+      triggerType,
+      rootTypeCode: targetPlan.rootTypeCode,
+      rootTypeName: targetPlan.rootTypeName,
+      scopeDescription: `最近 ${targetPlan.timeWindowDays} 天有变更的合格零部件对象`,
+      strategySummary,
+      executedAt: timeStr,
+      plmReadTime: `${timeStr} (固定演示)`,
+      manticoreReadTime: `${timeStr} (固定演示)`,
+      benchmarkSource: '固定演示数据（真实取数待接入）',
+      plannedCount,
+      actualCount,
+      focusCount,
+      randomCount,
+      manualCount: 0,
+      deduplicatedCount,
+      quotaSupplementInfo: targetPlan.strategy === 'FOCUS_AND_RANDOM'
+        ? `重点样本 ${focusCount} 个；随机样本 ${randomCount} 个，剔除重叠 ${deduplicatedCount} 个，有效样本 ${actualCount} 个`
+        : `全量样本 ${actualCount} 个，按当前计划参数执行`,
+      consistentCount: finalConsistentCount,
+      differenceCount: finalDifferenceCount,
+      pendingRecheckCount: finalPendingRecheckCount,
+      incompleteCount: finalIncompleteCount,
+      frozenObjectIds,
+      objectResults,
+      status: 'COMPLETED'
+    };
+  };
+
+  // 生成临时指定核验批次
+  const generateManualBatch = (
+    mode: 'SPECIFIC_IDS' | 'SPECIFIC_SCOPE',
+    ids: string[],
+    scopeName?: string,
+    batchNum: number = batches.length + 1
+  ): ConsistencyBatchRecord => {
+    const now = new Date();
+    const dateCode = formatLocalDateCode(now);
+    const timeStr = formatLocalDateTime(now);
+    const batchId = `CC-${dateCode}-${String(batchNum).padStart(3, '0')}`;
+
+    const actualCount = ids.length;
+    const objectResults: ConsistencyObjectResult[] = [];
+
+    // 根据输入的 ID 生成对应的结果对象，前 5 项若匹配 demoObjectResults 则复用
+    const demoMap = new Map(demoObjectResults.map(item => [item.objectId, item]));
+
+    ids.forEach((id, idx) => {
+      if (demoMap.has(id)) {
+        objectResults.push({ ...demoMap.get(id)! });
+      } else {
+        objectResults.push({
+          objectId: id,
+          objectName: `临时指定物料 ${id} (演示占位)`,
+          rootTypeCode: 'PART',
+          selectedReason: 'MANUAL_SPECIFIED',
+          lastModifiedAt: formatLocalDateTime(new Date(Date.now() - (idx + 1) * 7200000)),
+          status: 'INCOMPLETE',
+          statusDetail: '检查未完成：当前演示数据未配置真实 PLM 记录 (演示占位)',
+          differenceFields: ['全部待检字段'],
+          incompleteReason: '当前为本地候选演示原型，该指定 ID 未在预置演示库中配置映射比对数据',
+          fields: [
+            {
+              fieldCode: 'version_lifecycle',
+              fieldName: '版本/迭代与生命周期',
+              plmRawValue: null,
+              mappedExpectedValue: null,
+              manticoreActualValue: null,
+              matchStatus: 'UNVERIFIABLE',
+              note: '本地演示原型未接入真实 PLM 取数'
+            },
+            {
+              fieldCode: 'part_name',
+              fieldName: '物料名称',
+              plmRawValue: null,
+              mappedExpectedValue: null,
+              manticoreActualValue: null,
+              matchStatus: 'UNVERIFIABLE'
+            },
+            {
+              fieldCode: 'primary_material',
+              fieldName: '主要材质',
+              plmRawValue: null,
+              mappedExpectedValue: null,
+              manticoreActualValue: null,
+              matchStatus: 'UNVERIFIABLE'
+            },
+            {
+              fieldCode: 'classification_path',
+              fieldName: '分类路径',
+              plmRawValue: null,
+              mappedExpectedValue: null,
+              manticoreActualValue: null,
+              matchStatus: 'UNVERIFIABLE'
+            }
+          ]
+        });
+      }
+    });
+
+    const finalConsistentCount = objectResults.filter(o => o.status === 'CONSISTENT').length;
+    const finalDifferenceCount = objectResults.filter(o => o.status === 'DIFFERENCE_FOUND').length;
+    const finalPendingRecheckCount = objectResults.filter(o => o.status === 'PENDING_RECHECK').length;
+    const finalIncompleteCount = objectResults.filter(o => o.status === 'INCOMPLETE').length;
+
+    const strategySummary = mode === 'SPECIFIC_IDS'
+      ? `临时指定对象 ID (指定 ${actualCount} 个对象)`
+      : `临时指定范围核验 (${scopeName || '指定范围'}，共 ${actualCount} 个对象)`;
+
+    return {
+      id: batchId,
+      planName: '临时手动核验',
+      triggerType: 'MANUAL_CUSTOM',
+      rootTypeCode: 'PART',
+      rootTypeName: '零部件 (Part)',
+      scopeDescription: mode === 'SPECIFIC_IDS' ? `手动临时指定 ${actualCount} 个对象 ID` : `临时指定范围：${scopeName}`,
+      strategySummary,
+      executedAt: timeStr,
+      plmReadTime: `${timeStr} (固定演示)`,
+      manticoreReadTime: `${timeStr} (固定演示)`,
+      benchmarkSource: '固定演示数据（真实取数待接入）',
+      plannedCount: actualCount,
+      actualCount,
+      focusCount: 0,
+      randomCount: 0,
+      manualCount: actualCount,
+      deduplicatedCount: mode === 'SPECIFIC_IDS' ? parsedManualIds.duplicateCount : 0,
+      quotaSupplementInfo: mode === 'SPECIFIC_IDS'
+        ? `手动指定 ${actualCount} 个对象 ID，已完成解析并冻结清单`
+        : `临时指定范围限定 ${actualCount} 个对象，不影响已保存计划`,
+      consistentCount: finalConsistentCount,
+      differenceCount: finalDifferenceCount,
+      pendingRecheckCount: finalPendingRecheckCount,
+      incompleteCount: finalIncompleteCount,
+      frozenObjectIds: [...ids],
+      objectResults,
+      status: 'COMPLETED'
+    };
+  };
+
+  // 立即执行：按当前计划 (同步生成，无假定时器)
+  const handleExecuteByPlan = () => {
+    const newBatch = generateBatchFromPlan(plan, batches.length + 1, 'MANUAL_BY_PLAN');
+    setBatches([newBatch, ...batches]);
+    setSelectedBatch(newBatch);
+    showToast(`已生成核验批次：${newBatch.id}（固定演示数据 / 非真实执行）`, 'success');
+  };
+
+  // 立即执行：临时核验
+  const handleExecuteCustomCheck = () => {
+    if (customCheckSubMode === 'SPECIFIC_IDS') {
+      if (parsedManualIds.uniqueIds.length === 0) {
+        showToast('请输入至少 1 个有效的对象 ID', 'warning');
+        return;
+      }
+      if (parsedManualIds.isExceeded) {
+        showToast('超过单次手动指定 50 个上限，无法执行', 'warning');
+        return;
+      }
+      const newBatch = generateManualBatch('SPECIFIC_IDS', parsedManualIds.uniqueIds, undefined, batches.length + 1);
+      setBatches([newBatch, ...batches]);
+      setSelectedBatch(newBatch);
+      showToast(`已生成指定 ID 核验批次：${newBatch.id}（固定演示数据 / 非真实执行）`, 'success');
+    } else {
+      // 指定范围
+      const selectedScope = SCOPE_OPTIONS.find(s => s.id === selectedScopeId);
+      if (!selectedScope) return;
+      if (selectedScope.isOverLimit) {
+        showToast('当前指定范围超过单次上限 50 个，无法执行', 'warning');
+        return;
+      }
+      // 为该范围生成指定数量的 mock ID
+      const scopeIds = Array.from({ length: selectedScope.count }, (_, i) => `P-3000${i + 1}`);
+      const newBatch = generateManualBatch('SPECIFIC_SCOPE', scopeIds, selectedScope.name, batches.length + 1);
+      setBatches([newBatch, ...batches]);
+      setSelectedBatch(newBatch);
+      showToast(`已生成指定范围核验批次：${newBatch.id}（固定演示数据 / 非真实执行）`, 'success');
+    }
+  };
+
+  // 打开计划编辑
   const handleOpenPlanDrawer = () => {
     setDraftPlan({ ...plan });
     setIsPlanDrawerOpen(true);
   };
 
+  // 保存计划配置
   const handleSavePlan = () => {
-    setPlan({
+    const updated = {
       ...draftPlan,
-      updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
-    });
-    setIsPlanDrawerOpen(false);
-    showToast('检查计划已更新 (仅保存在当前本地演示环境，未接入后台定时任务)', 'success');
-  };
-
-  // 6. 手动临时指定 ID 解析与去重计算
-  const parsedCustomIds = useMemo(() => {
-    const rawList = customIdsInput
-      .split(/[\n,;\s]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-    const uniqueSet = Array.from(new Set(rawList));
-    const duplicatesCount = rawList.length - uniqueSet.length;
-    return {
-      rawCount: rawList.length,
-      uniqueIds: uniqueSet,
-      duplicatesCount,
-      isExceeded: uniqueSet.length > 50
+      updatedAt: formatLocalDateTime(new Date())
     };
-  }, [customIdsInput]);
-
-  // 7. 执行核验逻辑 (模拟过程，可解释、不伪造)
-  const handleRunCheck = (isCustom: boolean) => {
-    if (isCustom && parsedCustomIds.isExceeded) {
-      showToast('单次指定对象数量不能超过 50 个上限，请缩减后重试', 'warning');
-      return;
-    }
-    if (isCustom && parsedCustomIds.uniqueIds.length === 0) {
-      showToast('请输入至少一个有效的对象唯一标识', 'warning');
-      return;
-    }
-
-    setIsRunning(true);
-    setRunningStepText('步骤 1/4: 从 PLM 源端查询候选唯一标识并按策略冻结名单...');
-
-    setTimeout(() => {
-      setRunningStepText('步骤 2/4: 按唯一标识分别批量读取 PLM 当前值与 Manticore 实际数据...');
-    }, 400);
-
-    setTimeout(() => {
-      setRunningStepText('步骤 3/4: 执行一阶段字段映射规则转换与比对分析...');
-    }, 800);
-
-    setTimeout(() => {
-      setRunningStepText('步骤 4/4: 排除合理延迟窗口，生成核验结果记录...');
-      
-      const now = new Date();
-      const nowStr = now.toISOString().replace('T', ' ').substring(0, 19);
-      const batchId = `CC-${now.toISOString().substring(0, 10).replace(/-/g, '')}-${String(batches.length + 1).padStart(3, '0')}`;
-      
-      let newBatch: ConsistencyBatchRecord;
-
-      if (isCustom) {
-        // 临时指定模式
-        const customObjResults: ConsistencyObjectResult[] = parsedCustomIds.uniqueIds.slice(0, 5).map((id, index) => {
-          const matchDemo = demoObjectResults.find(d => d.objectId === id);
-          if (matchDemo) {
-            return { ...matchDemo, selectedReason: 'MANUAL_SPECIFIED' };
-          }
-          return {
-            ...demoObjectResults[index % demoObjectResults.length],
-            objectId: id,
-            selectedReason: 'MANUAL_SPECIFIED'
-          };
-        });
-
-        newBatch = {
-          id: batchId,
-          planName: '手动临时指定核验',
-          triggerType: 'MANUAL_CUSTOM',
-          rootTypeCode: plan.rootTypeCode,
-          rootTypeName: plan.rootTypeName,
-          scopeDescription: `定向指定 ${parsedCustomIds.uniqueIds.length} 个对象 ID`,
-          strategySummary: `手动临时指定 (去重后共 ${parsedCustomIds.uniqueIds.length} 个，不参与随机抽查)`,
-          executedAt: nowStr,
-          plmReadTime: `${nowStr} (耗时 0.8s)`,
-          manticoreReadTime: `${nowStr} (耗时 0.4s)`,
-          benchmarkSource: 'PLM 源端实时主记录',
-          plannedCount: parsedCustomIds.uniqueIds.length,
-          actualCount: parsedCustomIds.uniqueIds.length,
-          focusCount: 0,
-          randomCount: 0,
-          manualCount: parsedCustomIds.uniqueIds.length,
-          deduplicatedCount: parsedCustomIds.duplicatesCount,
-          quotaSupplementInfo: `本次为纯手动定向指定，输入去重前 ${parsedCustomIds.rawCount} 项，去除重复项 ${parsedCustomIds.duplicatesCount} 个`,
-          consistentCount: customObjResults.filter(o => o.status === 'CONSISTENT').length,
-          differenceCount: customObjResults.filter(o => o.status === 'DIFFERENCE_FOUND').length,
-          pendingRecheckCount: customObjResults.filter(o => o.status === 'PENDING_RECHECK').length,
-          incompleteCount: customObjResults.filter(o => o.status === 'INCOMPLETE').length,
-          frozenObjectIds: parsedCustomIds.uniqueIds,
-          objectResults: customObjResults,
-          status: 'COMPLETED'
-        };
-      } else {
-        // 按计划执行模式
-        newBatch = {
-          id: batchId,
-          planId: plan.id,
-          planName: plan.name,
-          triggerType: 'MANUAL_BY_PLAN',
-          rootTypeCode: plan.rootTypeCode,
-          rootTypeName: plan.rootTypeName,
-          scopeDescription: `最近 ${plan.timeWindowDays} 天有变更的合格 ${plan.rootTypeName} 对象`,
-          strategySummary: `${plan.strategy === 'FOCUS_AND_RANDOM' ? '重点＋随机' : plan.strategy === 'RANDOM_SAMPLE' ? '随机抽查' : '指定范围全部核验'} (高频前 ${plan.focusQuota} + 随机 ${plan.randomQuota})`,
-          executedAt: nowStr,
-          plmReadTime: `${nowStr} (耗时 2.0s)`,
-          manticoreReadTime: `${nowStr} (耗时 1.0s)`,
-          benchmarkSource: 'PLM 源端实时主记录 (只读镜像)',
-          plannedCount: plan.maxSampleLimit,
-          actualCount: plan.maxSampleLimit - 2,
-          focusCount: plan.focusQuota,
-          randomCount: plan.randomQuota - 2,
-          manualCount: 0,
-          deduplicatedCount: 2,
-          quotaSupplementInfo: `高频修改筛选 ${plan.focusQuota} 个；合格随机样本提取 ${plan.randomQuota} 个，去重剔除 2 个重叠对象，实际样本 ${plan.maxSampleLimit - 2} 个`,
-          consistentCount: 194,
-          differenceCount: 2,
-          pendingRecheckCount: 1,
-          incompleteCount: 1,
-          frozenObjectIds: ['P-30001', 'P-30002', 'P-30003', 'P-30004', 'P-30005'],
-          objectResults: demoObjectResults,
-          status: 'COMPLETED'
-        };
-      }
-
-      setBatches([newBatch, ...batches]);
-      setIsRunning(false);
-      setSelectedBatch(newBatch);
-      showToast(`核验完成，批次号：${newBatch.id}，已冻结 ${newBatch.actualCount} 个核验对象`, 'success');
-    }, 1200);
+    setPlan(updated);
+    setIsPlanDrawerOpen(false);
+    showToast('核验计划参数已更新并在前端生效（本地演示）', 'success');
   };
 
-  // 最近一次批次摘要
   const latestBatch = batches[0];
 
   return (
     <div className="space-y-5" id="data-consistency-check-container">
       {/* Toast 提示框 */}
       {toastMessage && (
-        <div className="fixed top-4 right-6 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-2">
           <div className={`px-4 py-2.5 rounded-ty-sm shadow-ty-lg border flex items-center space-x-2 text-ty-xs font-medium ${
             toastMessage.type === 'success'
-              ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
+              ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30'
               : toastMessage.type === 'warning'
-              ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-orange-color)]/30'
+              ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30'
               : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] border-[var(--ty-border-color)]'
           }`}>
-            {toastMessage.type === 'success' && <CheckCircle2 className="w-4 h-4 text-[var(--ty-green-color)]" />}
-            {toastMessage.type === 'warning' && <AlertTriangle className="w-4 h-4 text-[var(--ty-orange-color)]" />}
-            {toastMessage.type === 'info' && <Info className="w-4 h-4 text-[var(--ty-primary-color)]" />}
+            <Info className="w-4 h-4 shrink-0" />
             <span>{toastMessage.text}</span>
           </div>
         </div>
       )}
 
-      {/* 1. 顶部明确提示横幅与边界声明 */}
-      <div className="bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/30 rounded-ty-lg p-4 space-y-2 shadow-ty-sm" id="consistency-boundary-banner">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] flex items-center justify-center shrink-0 mt-0.5">
-              <FileSearch className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2.5">
-                <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                  PLM — Manticore 数据一致性核验
-                </h2>
-                <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-2xs font-semibold tracking-wider">
-                  候选原型 / 本地模拟 / 待接入
-                </span>
-                <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-white-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] text-ty-2xs font-mono">
-                  链路: PLM 源端 → Manticore 实际存储
-                </span>
-              </div>
-              <p className="text-ty-xs text-[var(--ty-font-main-light-color)] mt-1 leading-relaxed">
-                <strong className="text-[var(--ty-primary-color)]">核心定位：</strong>
-                本页核验 PLM 源端与 Manticore 实际数据是否一致，与“中间表 → Manticore 主表”的同步任务、失败记录及重试分开。
-                核验名单直接源自 PLM 业务范围，用于主动发现属性字段差异、源端存在但目标缺失等静默不同步问题。
-              </p>
-            </div>
+      {/* 区域 1: 页面标题区 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-[var(--ty-border-color)]">
+        <div>
+          <div className="flex items-center space-x-2.5">
+            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)]">数据一致性核验</h1>
+            <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] text-ty-2xs font-normal">
+              候选原型 / 本地演示
+            </span>
           </div>
-          {onNavigateToSyncQuality && (
-            <button
-              onClick={onNavigateToSyncQuality}
-              className="px-3 py-1.5 rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] text-ty-xs font-medium flex items-center space-x-1.5 shrink-0 transition-colors cursor-pointer"
-              title="跳转至中间表同步任务记录"
-            >
-              <Database className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
-              <span>查看中间表同步记录</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">
+            核验 PLM 源端 → Manticore 实际数据，与中间表同步记录分开。
+          </p>
         </div>
+        {onNavigateToSyncQuality && (
+          <button
+            onClick={onNavigateToSyncQuality}
+            className="inline-flex items-center text-ty-xs text-[var(--ty-primary-color)] hover:underline self-start sm:self-auto cursor-pointer"
+            id="link-to-sync-quality"
+          >
+            <span>查看数据同步记录</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+          </button>
+        )}
       </div>
 
-      {/* 2. 检查计划摘要 + 立即核验操作区 (Grid 双列布局) */}
+      {/* 区域 2 & 区域 3: 检查计划摘要 & 立即核验区 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* 左侧：已保存检查计划摘要卡片 (7 Cols) */}
-        <div className="lg:col-span-7 bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-5 space-y-4 shadow-ty-xs flex flex-col justify-between" id="consistency-plan-summary-card">
+        {/* 区域 2: 检查计划摘要 (lg:col-span-7) */}
+        <div className="lg:col-span-7 bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-5 space-y-4 shadow-sm flex flex-col justify-between" id="consistency-plan-summary-card">
           <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-[var(--ty-border-color)] pb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-4 bg-[var(--ty-primary-color)] rounded-ty-2xs"></div>
-                <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                  检查计划摘要：{plan.name}
-                </h3>
-                <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs font-medium">
-                  演示参数 / 待确认
+                <div className="w-2 h-4 bg-[var(--ty-primary-color)] rounded-ty-xs"></div>
+                <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">检查计划摘要</h2>
+                <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] text-ty-2xs font-medium border border-[var(--ty-primary-color)]/20">
+                  {plan.name}
                 </span>
-                {plan.enabled ? (
-                  <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 text-ty-2xs font-semibold flex items-center space-x-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)]"></span>
-                    <span>运行中</span>
+              </div>
+              <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] font-medium border border-[var(--ty-green-color)]/20">
+                计划已启用（本地演示）
+              </span>
+            </div>
+
+            {/* 计划关键信息指标网格 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] text-ty-xs">
+              <div>
+                <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">核验根类型</span>
+                <span className="font-semibold text-[var(--ty-font-main-color)] mt-0.5 block">{plan.rootTypeName}</span>
+              </div>
+              <div>
+                <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">执行频率 / 时间</span>
+                <span className="font-semibold text-[var(--ty-font-main-color)] mt-0.5 block">{plan.frequencyLabel} {plan.scheduledTime}</span>
+              </div>
+              <div>
+                <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">当前选数策略</span>
+                <span className="font-semibold text-[var(--ty-font-main-color)] mt-0.5 block">
+                  {plan.strategy === 'FOCUS_AND_RANDOM' && '重点＋随机'}
+                  {plan.strategy === 'RANDOM_SAMPLE' && '随机抽查'}
+                  {plan.strategy === 'EXHAUSTIVE_SCOPE' && '指定范围全部核验'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">单次样本上限</span>
+                <span className="font-mono font-bold text-[var(--ty-primary-color)] mt-0.5 block">{plan.maxSampleLimit} 个</span>
+              </div>
+            </div>
+
+            {/* 策略具体参数与核验字段 */}
+            <div className="flex flex-wrap items-center justify-between text-ty-xs gap-2 pt-1">
+              <div className="flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
+                <span>策略参数：</span>
+                {plan.strategy === 'FOCUS_AND_RANDOM' ? (
+                  <span className="text-[var(--ty-font-main-color)] font-medium">
+                    重点配额 {plan.focusQuota} 个 ({plan.focusCriteria === 'HIGH_FREQUENCY' ? '高频修改' : '近期修改'}) + 随机配额 {plan.randomQuota} 个
+                  </span>
+                ) : plan.strategy === 'RANDOM_SAMPLE' ? (
+                  <span className="text-[var(--ty-font-main-color)] font-medium">
+                    时间窗口 {plan.timeWindowDays} 天内纯随机提取
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] text-ty-2xs font-medium">
-                    已暂停
+                  <span className="text-[var(--ty-font-main-color)] font-medium">
+                    指定范围全量核验，超限则阻止
                   </span>
                 )}
               </div>
-              <button
-                onClick={handleOpenPlanDrawer}
-                className="px-3 py-1.5 bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 rounded-ty-sm text-ty-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
-                id="btn-edit-plan"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>配置计划</span>
-              </button>
-            </div>
 
-            {/* 参数矩阵 */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[var(--ty-fill-weak-dark-color)] p-3.5 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs">
-              <div>
-                <span className="text-[var(--ty-font-sub-color)] block">对象根类型</span>
-                <span className="font-bold text-[var(--ty-font-main-color)] mt-0.5 block">{plan.rootTypeName}</span>
-              </div>
-              <div>
-                <span className="text-[var(--ty-font-sub-color)] block">执行频率/时间</span>
-                <span className="font-bold text-[var(--ty-font-main-color)] mt-0.5 block">{plan.frequencyLabel} {plan.scheduledTime}</span>
-              </div>
-              <div>
-                <span className="text-[var(--ty-font-sub-color)] block">统计时间窗口</span>
-                <span className="font-bold text-[var(--ty-font-main-color)] mt-0.5 block">最近 {plan.timeWindowDays} 天有变更</span>
-              </div>
-              <div>
-                <span className="text-[var(--ty-font-sub-color)] block">单次样本上限</span>
-                <span className="font-bold text-[var(--ty-primary-color)] font-mono mt-0.5 block">{plan.maxSampleLimit} 个</span>
-              </div>
-            </div>
+              {/* 核验字段轻量悬浮提示 */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsFieldsTooltipOpen(!isFieldsTooltipOpen)}
+                  className="text-ty-xs text-[var(--ty-primary-color)] hover:underline inline-flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>核验字段：{plan.targetFields.length} 项</span>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
 
-            {/* 策略与配额说明 */}
-            <div className="space-y-1.5 text-ty-xs">
-              <div className="flex items-center space-x-1.5 font-medium text-[var(--ty-font-main-color)]">
-                <span className="text-[var(--ty-font-sub-color)]">选数策略：</span>
-                <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 font-semibold">
-                  重点＋随机组合策略
-                </span>
-                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                  (高频修改前 {plan.focusQuota} 个 ＋ 其余合格对象随机 {plan.randomQuota} 个)
-                </span>
-              </div>
-
-              <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2.5 text-ty-2xs text-[var(--ty-font-sub-color)] space-y-1">
-                <div className="flex items-center space-x-1 text-[var(--ty-font-main-light-color)] font-medium">
-                  <Info className="w-3 h-3 text-[var(--ty-primary-color)] shrink-0" />
-                  <span>内置选数与配额规则说明：</span>
-                </div>
-                <p>
-                  1. 先按有效修改频次降序选出重点样本前 100 个，再从其余合格对象中随机选样 100 个。<br />
-                  2. 系统在提取后<strong>内置唯一 ID 去重</strong>，确保最终核验样本总数严格不超过 200 个。<br />
-                  3. 若高频对象不足 100 个，系统自动从其余合格对象中补足；总体合格对象不足时按实际可用数量核验。
-                </p>
-              </div>
-
-              {/* 字段集合 */}
-              <div className="pt-1">
-                <span className="text-[var(--ty-font-sub-color)] text-ty-2xs block mb-1">本次核验字段集合 (4项)：</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {plan.targetFields.map(f => (
-                    <span
-                      key={f.fieldCode}
-                      className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-border-color)] text-ty-2xs font-mono"
-                      title={f.description}
-                    >
-                      {f.fieldName} ({f.fieldCode})
-                    </span>
-                  ))}
-                </div>
+                {isFieldsTooltipOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 z-20 w-64 p-3 bg-[var(--ty-fill-white-color)] rounded-ty-sm shadow-ty-lg border border-[var(--ty-border-color)] text-ty-2xs space-y-1.5 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="font-bold text-[var(--ty-font-main-color)] pb-1 border-b border-[var(--ty-border-color)] flex items-center justify-between">
+                      <span>核验字段清单</span>
+                      <button onClick={() => setIsFieldsTooltipOpen(false)} className="text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {plan.targetFields.map(field => (
+                      <div key={field.fieldCode} className="flex flex-col">
+                        <span className="font-semibold text-[var(--ty-font-main-color)]">{field.fieldName}</span>
+                        <span className="text-[var(--ty-font-sub-color)]">{field.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[var(--ty-border-color)] flex items-center justify-between text-ty-2xs text-[var(--ty-font-sub-color)]">
-            <span>最后更新时间：{plan.updatedAt}</span>
-            <span className="text-[var(--ty-font-sub-color)]">提示：本地演示状态，不创建真实后台 Cron 任务</span>
+          <div className="pt-3 border-t border-[var(--ty-border-color)] flex items-center justify-between">
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+              最后修改: {plan.updatedAt}
+            </span>
+            <button
+              onClick={handleOpenPlanDrawer}
+              className="px-3.5 py-1.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+              id="btn-configure-plan"
+            >
+              <Sliders className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+              <span>配置计划</span>
+            </button>
           </div>
         </div>
 
-        {/* 右侧：“立即核验”触发操作区 (5 Cols) */}
-        <div className="lg:col-span-5 bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-5 space-y-4 shadow-ty-xs flex flex-col justify-between" id="consistency-run-trigger-card">
+        {/* 区域 3: 立即核验区 (lg:col-span-5) */}
+        <div className="lg:col-span-5 bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-5 space-y-4 shadow-sm flex flex-col justify-between" id="consistency-run-trigger-card">
           <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-[var(--ty-border-color)] pb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Play className="w-4 h-4 text-[var(--ty-green-color)]" />
-                <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                  执行数据核验 (主动抽样)
-                </h3>
+                <div className="w-2 h-4 bg-[var(--ty-primary-color)] rounded-ty-xs"></div>
+                <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">立即核验</h2>
               </div>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">自动抽查 ≠ 自动修复</span>
+              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                固定演示数据 / 非真实执行
+              </span>
             </div>
 
-            {/* 触发方式选项卡 */}
+            {/* 核验方式双页签 */}
             <div className="flex rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] p-1 border border-[var(--ty-border-color)] text-ty-xs">
               <button
                 type="button"
-                onClick={() => setActiveTab('BY_PLAN')}
-                className={`flex-1 py-1.5 rounded-ty-xs font-semibold text-center transition-colors cursor-pointer ${
-                  activeTab === 'BY_PLAN'
-                    ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] shadow-ty-xs'
+                onClick={() => setActiveCheckTab('BY_PLAN')}
+                className={`flex-1 py-1 px-2.5 rounded-ty-xs font-medium text-center transition-all cursor-pointer ${
+                  activeCheckTab === 'BY_PLAN'
+                    ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] shadow-sm font-semibold'
                     : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
                 }`}
               >
-                方式一：按已保存计划执行
+                按当前计划
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('CUSTOM_ID')}
-                className={`flex-1 py-1.5 rounded-ty-xs font-semibold text-center transition-colors cursor-pointer ${
-                  activeTab === 'CUSTOM_ID'
-                    ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] shadow-ty-xs'
+                onClick={() => setActiveCheckTab('CUSTOM')}
+                className={`flex-1 py-1 px-2.5 rounded-ty-xs font-medium text-center transition-all cursor-pointer ${
+                  activeCheckTab === 'CUSTOM'
+                    ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] shadow-sm font-semibold'
                     : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
                 }`}
               >
-                方式二：临时指定对象 ID
+                临时核验
               </button>
             </div>
 
-            {/* 选项卡一：按计划执行 */}
-            {activeTab === 'BY_PLAN' && (
-              <div className="space-y-3 text-ty-xs">
-                <div className="p-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-[var(--ty-font-main-color)]">计划名称：{plan.name}</span>
-                    <span className="text-ty-2xs text-[var(--ty-primary-color)] font-mono">上限 200 样本</span>
+            {/* 页签 1 内容: 按当前计划 */}
+            {activeCheckTab === 'BY_PLAN' && (
+              <div className="space-y-3 py-1">
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
+                  按计划参数即时核验。将从预置演示数据中依据当前选数策略提取样本并进行字段比对。
+                </p>
+                <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] text-ty-2xs space-y-1">
+                  <div className="flex justify-between text-[var(--ty-font-main-color)]">
+                    <span>计划单次样本：</span>
+                    <span className="font-mono font-bold">{plan.maxSampleLimit} 个</span>
                   </div>
-                  <p className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed">
-                    复用当前保存的抽样策略，即时从 PLM 抽取高频与随机样本，生成全新冻结核验批次，并在列表与详情中呈现比对结果。
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleRunCheck(false)}
-                  disabled={isRunning}
-                  className={`w-full py-2.5 rounded-ty-sm text-ty-xs font-bold flex items-center justify-center space-x-2 transition-colors cursor-pointer ${
-                    isRunning
-                      ? 'bg-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] cursor-not-allowed'
-                      : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] shadow-ty-xs'
-                  }`}
-                  id="btn-run-by-plan"
-                >
-                  {isRunning ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>正在执行模拟核验...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 fill-current" />
-                      <span>按当前计划立即模拟执行一次</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* 选项卡二：临时指定对象 ID */}
-            {activeTab === 'CUSTOM_ID' && (
-              <div className="space-y-3 text-ty-xs">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-ty-2xs font-semibold text-[var(--ty-font-main-color)]">
-                      输入对象唯一标识列表 (支持换行/逗号分隔)：
-                    </label>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-mono">
-                      去重后: {parsedCustomIds.uniqueIds.length} / 上限 50
+                  <div className="flex justify-between text-[var(--ty-font-main-color)]">
+                    <span>计划采用策略：</span>
+                    <span className="font-medium">
+                      {plan.strategy === 'FOCUS_AND_RANDOM' ? '重点＋随机 (组合)' : plan.strategy === 'RANDOM_SAMPLE' ? '随机抽查' : '指定范围全量'}
                     </span>
                   </div>
-                  <textarea
-                    rows={3}
-                    value={customIdsInput}
-                    onChange={(e) => setCustomIdsInput(e.target.value)}
-                    placeholder="例如: P-30001, P-30002, P-30003"
-                    className="w-full px-3 py-2 text-ty-xs font-mono bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm focus:outline-hidden focus:border-[var(--ty-primary-color)] transition-colors"
-                  />
-                  {parsedCustomIds.duplicatesCount > 0 && (
-                    <div className="mt-1 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>输入中检测到 {parsedCustomIds.duplicatesCount} 个重复 ID，系统已自动完成去重处理。</span>
-                    </div>
-                  )}
-                  {parsedCustomIds.isExceeded && (
-                    <div className="mt-1 text-ty-2xs text-[var(--ty-red-color)] flex items-center space-x-1 font-semibold">
-                      <XCircle className="w-3 h-3" />
-                      <span>超出单次手动指定 50 个上限，当前输入 {parsedCustomIds.uniqueIds.length} 个，无法执行。</span>
-                    </div>
-                  )}
                 </div>
-
-                <div className="bg-[var(--ty-fill-weak-dark-color)] p-2 rounded-ty-sm text-ty-2xs text-[var(--ty-font-sub-color)]">
-                  提示：临时指定仅对本次核验生效，<strong>不会修改已保存的自动检查计划</strong>，所指定的 ID 不再参与随机抽样。
-                </div>
-
                 <button
                   type="button"
-                  onClick={() => handleRunCheck(true)}
-                  disabled={isRunning || parsedCustomIds.isExceeded || parsedCustomIds.uniqueIds.length === 0}
-                  className={`w-full py-2.5 rounded-ty-sm text-ty-xs font-bold flex items-center justify-center space-x-2 transition-colors cursor-pointer ${
-                    isRunning || parsedCustomIds.isExceeded || parsedCustomIds.uniqueIds.length === 0
-                      ? 'bg-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] cursor-not-allowed'
-                      : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] shadow-ty-xs'
-                  }`}
-                  id="btn-run-custom-id"
+                  onClick={handleExecuteByPlan}
+                  className="w-full py-2 px-4 rounded-ty-sm bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold flex items-center justify-center space-x-2 transition-colors cursor-pointer shadow-sm"
+                  id="btn-execute-by-plan"
                 >
-                  {isRunning ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>正在定向核验...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileSearch className="w-4 h-4" />
-                      <span>对指定 {parsedCustomIds.uniqueIds.length} 个对象执行定向核验</span>
-                    </>
-                  )}
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>按当前计划执行 (演示)</span>
                 </button>
               </div>
             )}
 
-            {/* 执行中状态浮层 */}
-            {isRunning && (
-              <div className="p-2.5 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] space-y-1 animate-pulse">
-                <div className="flex items-center space-x-1.5 font-bold text-[var(--ty-primary-color)]">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>核验执行流程：</span>
+            {/* 页签 2 内容: 临时核验 */}
+            {activeCheckTab === 'CUSTOM' && (
+              <div className="space-y-3 py-1 text-ty-xs">
+                {/* 临时核验内部二选一 */}
+                <div className="flex items-center space-x-4 border-b border-[var(--ty-border-color)] pb-2 text-ty-2xs">
+                  <label className="flex items-center space-x-1.5 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="custom-sub-mode"
+                      checked={customCheckSubMode === 'SPECIFIC_IDS'}
+                      onChange={() => setCustomCheckSubMode('SPECIFIC_IDS')}
+                    />
+                    <span className={customCheckSubMode === 'SPECIFIC_IDS' ? 'text-[var(--ty-primary-color)] font-bold' : 'text-[var(--ty-font-main-color)]'}>
+                      指定对象 ID
+                    </span>
+                  </label>
+                  <label className="flex items-center space-x-1.5 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="custom-sub-mode"
+                      checked={customCheckSubMode === 'SPECIFIC_SCOPE'}
+                      onChange={() => setCustomCheckSubMode('SPECIFIC_SCOPE')}
+                    />
+                    <span className={customCheckSubMode === 'SPECIFIC_SCOPE' ? 'text-[var(--ty-primary-color)] font-bold' : 'text-[var(--ty-font-main-color)]'}>
+                      指定范围
+                    </span>
+                  </label>
                 </div>
-                <p className="text-ty-2xs font-mono">{runningStepText}</p>
+
+                {/* 子模式 1: 指定对象 ID */}
+                {customCheckSubMode === 'SPECIFIC_IDS' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-ty-2xs">
+                      <label className="text-[var(--ty-font-main-color)] font-medium">
+                        输入对象 ID（逗号/换行分隔，上限 50 个）：
+                      </label>
+                      <span className={`font-mono ${parsedManualIds.isExceeded ? 'text-[var(--ty-red-color)] font-bold' : 'text-[var(--ty-font-sub-color)]'}`}>
+                        已识别 {parsedManualIds.uniqueIds.length} / 50
+                      </span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={inputManualIds}
+                      onChange={(e) => setInputManualIds(e.target.value)}
+                      placeholder="例如: P-30001, P-30002, P-30003"
+                      className="w-full px-3 py-2 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono bg-[var(--ty-fill-white-color)] focus:outline-none focus:border-[var(--ty-primary-color)]"
+                    />
+
+                    {parsedManualIds.isExceeded && (
+                      <div className="p-2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] text-ty-2xs border border-[var(--ty-red-color)]/30 flex items-center space-x-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>超出单次手动指定 50 个上限，当前输入 {parsedManualIds.uniqueIds.length} 个，无法执行。</span>
+                      </div>
+                    )}
+
+                    {parsedManualIds.duplicateCount > 0 && !parsedManualIds.isExceeded && (
+                      <p className="text-ty-2xs text-[var(--ty-orange-color)]">
+                        已自动去重并剔除 {parsedManualIds.duplicateCount} 个重复 ID
+                      </p>
+                    )}
+
+                    <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      说明：临时指定仅对本次核验生效，不影响已保存计划。
+                    </p>
+
+                    <button
+                      type="button"
+                      disabled={parsedManualIds.uniqueIds.length === 0 || parsedManualIds.isExceeded}
+                      onClick={handleExecuteCustomCheck}
+                      className={`w-full py-2 px-4 rounded-ty-sm text-ty-xs font-semibold flex items-center justify-center space-x-2 transition-colors ${
+                        parsedManualIds.uniqueIds.length === 0 || parsedManualIds.isExceeded
+                          ? 'bg-[var(--ty-fill-darkest-color)]/20 text-[var(--ty-font-sub-color)] cursor-not-allowed'
+                          : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] cursor-pointer shadow-sm'
+                      }`}
+                      id="btn-execute-custom-ids"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>执行指定 ID 核验 ({parsedManualIds.uniqueIds.length} 个)</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* 子模式 2: 指定范围 */}
+                {customCheckSubMode === 'SPECIFIC_SCOPE' && (
+                  <div className="space-y-2">
+                    <label className="text-[var(--ty-font-main-color)] font-medium text-ty-2xs block">
+                      选择限定范围（受单次 50 个上限约束）：
+                    </label>
+                    <select
+                      value={selectedScopeId}
+                      onChange={(e) => setSelectedScopeId(e.target.value)}
+                      className="w-full px-3 py-2 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-[var(--ty-fill-white-color)] focus:outline-none focus:border-[var(--ty-primary-color)]"
+                    >
+                      {SCOPE_OPTIONS.map(opt => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.name} ({opt.count} 个对象 {opt.isOverLimit ? '- 超限' : ''})
+                        </option>
+                      ))}
+                    </select>
+
+                    {SCOPE_OPTIONS.find(s => s.id === selectedScopeId)?.isOverLimit && (
+                      <div className="p-2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] text-ty-2xs border border-[var(--ty-red-color)]/30 flex items-center space-x-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>当前指定范围内对象数 (128 个) 超过单次临时核验上限 (50 个)，必须缩减范围后方可执行，系统不会静默随机截断。</span>
+                      </div>
+                    )}
+
+                    <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      说明：限定范围核验仅对本次执行生效，严格受 50 个上限约束，超限必须阻止。
+                    </p>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(SCOPE_OPTIONS.find(s => s.id === selectedScopeId)?.isOverLimit)}
+                      onClick={handleExecuteCustomCheck}
+                      className={`w-full py-2 px-4 rounded-ty-sm text-ty-xs font-semibold flex items-center justify-center space-x-2 transition-colors ${
+                        SCOPE_OPTIONS.find(s => s.id === selectedScopeId)?.isOverLimit
+                          ? 'bg-[var(--ty-fill-darkest-color)]/20 text-[var(--ty-font-sub-color)] cursor-not-allowed'
+                          : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] cursor-pointer shadow-sm'
+                      }`}
+                      id="btn-execute-custom-scope"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>执行指定范围核验 ({SCOPE_OPTIONS.find(s => s.id === selectedScopeId)?.count} 个)</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-
-          <div className="pt-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
-            <span>安全约束：核验操作仅为只读抽检比对，绝不向 PLM 源端或 Manticore 写入变更。</span>
-          </div>
         </div>
       </div>
 
-      {/* 3. 取数与判断全链路可解释路径卡片 */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 shadow-ty-xs space-y-3" id="consistency-explanation-flow-card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-[var(--ty-primary-color)]" />
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
-              核验取数与比对分析路径 (完整可解释链路)
-            </h4>
-          </div>
-          <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-            Manticore 查询口径：按对象唯一标识查询目标实际存储字段 (严禁关键词模糊猜测)
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 text-ty-2xs">
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">1. 源端选数</span>
-            <p className="text-[var(--ty-font-sub-color)]">从 PLM 源端查询符合范围的业务对象唯一标识。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">2. 策略筛选</span>
-            <p className="text-[var(--ty-font-sub-color)]">按高频修改/近期修改/随机样本确定名单。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">3. 样本去重冻结</span>
-            <p className="text-[var(--ty-font-sub-color)]">去重并固化本次批次的对象唯一 ID 清单。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">4. 分别批量读取</span>
-            <p className="text-[var(--ty-font-sub-color)]">按相同 ID 分别读取 PLM 当前值与 Manticore 存储值。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">5. 规则映射转换</span>
-            <p className="text-[var(--ty-font-sub-color)]">根据一阶段字段规则把 PLM 原始值转换为目标预期值。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">6. 精准逐字段比对</span>
-            <p className="text-[var(--ty-font-sub-color)]">将映射预期值与实际值比较，发现值差异或目标缺失。</p>
-          </div>
-          <div className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-            <span className="font-bold text-[var(--ty-primary-color)] block">7. 排除合理延迟</span>
-            <p className="text-[var(--ty-font-sub-color)]">排除仍在编辑期或合理同步窗口延迟，标记待复查。</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. 最近一次核验结果摘要大卡片 */}
+      {/* 区域 4: 最近结果摘要条 */}
       {latestBatch && (
-        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-5 space-y-4 shadow-ty-xs" id="consistency-latest-summary-card">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--ty-border-color)] pb-3">
-            <div className="flex items-center space-x-2.5">
-              <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-2xs font-bold">
-                最近一次核验
-              </span>
-              <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] font-mono">
-                批次号: {latestBatch.id}
-              </h4>
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                ({latestBatch.planName} · 执行于 {latestBatch.executedAt})
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setSelectedBatch(latestBatch)}
-                className="px-3 py-1 bg-[var(--ty-primary-lightest-color)] hover:bg-[var(--ty-primary-color)] hover:text-[var(--ty-font-white-color)] text-[var(--ty-primary-color)] rounded-ty-sm text-ty-xs font-semibold border border-[var(--ty-primary-color)]/30 transition-colors cursor-pointer"
-                id="btn-view-latest-batch-detail"
-              >
-                查看批次结果详情
-              </button>
-            </div>
-          </div>
-
-          {/* 状态统计 4 大指标卡 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* 1. 一致 */}
-            <div className="p-3 rounded-ty-sm bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ty-xs font-medium text-[var(--ty-font-main-light-color)]">一致 (通过)</span>
-                <CheckCircle2 className="w-4 h-4 text-[var(--ty-green-color)]" />
-              </div>
-              <div className="text-ty-xl font-bold font-mono text-[var(--ty-font-main-color)]">
-                {latestBatch.consistentCount}
-                <span className="text-ty-2xs font-normal text-[var(--ty-font-sub-color)] ml-1">
-                  / {latestBatch.actualCount}
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 shadow-sm" id="consistency-latest-summary-card">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-ty-xs">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-[var(--ty-font-main-color)]">最近核验结果：</span>
+                <span className="font-mono font-semibold text-[var(--ty-primary-color)]">{latestBatch.id}</span>
+                <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] text-ty-2xs border border-[var(--ty-border-color)]">
+                  {latestBatch.triggerType === 'MANUAL_CUSTOM' ? '临时核验' : '按计划'}
                 </span>
               </div>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">
-                映射后与实际值完全吻合
-              </span>
+              <div className="text-[var(--ty-font-sub-color)] text-ty-2xs">
+                执行时间: <span className="font-mono">{latestBatch.executedAt}</span>
+              </div>
+              <div className="text-[var(--ty-font-sub-color)] text-ty-2xs">
+                样本: <span className="font-mono font-bold text-[var(--ty-font-main-color)]">{latestBatch.actualCount}</span> / {latestBatch.plannedCount}
+              </div>
             </div>
 
-            {/* 2. 发现差异 */}
-            <div className="p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ty-xs font-medium text-[var(--ty-font-main-light-color)]">发现差异</span>
-                <XCircle className="w-4 h-4 text-[var(--ty-red-color)]" />
+            {/* 状态徽章条 */}
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5 text-ty-2xs">
+                <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] font-bold">
+                  一致 {latestBatch.consistentCount}
+                </span>
+                <span className={`px-2 py-0.5 rounded-ty-xs font-bold ${
+                  latestBatch.differenceCount > 0
+                    ? 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)]'
+                    : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                }`}>
+                  差异 {latestBatch.differenceCount}
+                </span>
+                <span className={`px-2 py-0.5 rounded-ty-xs font-bold ${
+                  latestBatch.pendingRecheckCount > 0
+                    ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)]'
+                    : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                }`}>
+                  待复查 {latestBatch.pendingRecheckCount}
+                </span>
+                <span className={`px-2 py-0.5 rounded-ty-xs font-bold ${
+                  latestBatch.incompleteCount > 0
+                    ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                    : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                }`}>
+                  未完成 {latestBatch.incompleteCount}
+                </span>
               </div>
-              <div className="text-ty-xl font-bold font-mono text-[var(--ty-red-color)]">
-                {latestBatch.differenceCount}
-              </div>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">
-                含字段差异或疑似目标缺失
-              </span>
-            </div>
-
-            {/* 3. 待复查 */}
-            <div className="p-3 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ty-xs font-medium text-[var(--ty-font-main-light-color)]">待复查 (延迟期)</span>
-                <Clock className="w-4 h-4 text-[var(--ty-orange-color)]" />
-              </div>
-              <div className="text-ty-xl font-bold font-mono text-[var(--ty-font-main-color)]">
-                {latestBatch.pendingRecheckCount}
-              </div>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">
-                仍在编辑期或处同步延迟窗
-              </span>
-            </div>
-
-            {/* 4. 检查未完成 */}
-            <div className="p-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ty-xs font-medium text-[var(--ty-font-main-light-color)]">检查未完成</span>
-                <AlertCircle className="w-4 h-4 text-[var(--ty-font-sub-color)]" />
-              </div>
-              <div className="text-ty-xl font-bold font-mono text-[var(--ty-font-main-color)]">
-                {latestBatch.incompleteCount}
-              </div>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">
-                读取超时或权限受限 (非错误)
-              </span>
-            </div>
-          </div>
-
-          {/* 样本分布与去重信息 */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] text-ty-xs">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[var(--ty-font-sub-color)]">选数结构：</span>
-              <span className="font-semibold text-[var(--ty-font-main-color)]">
-                高频修改: <strong className="font-mono text-[var(--ty-primary-color)]">{latestBatch.focusCount}</strong>
-              </span>
-              <span className="font-semibold text-[var(--ty-font-main-color)]">
-                随机样本: <strong className="font-mono text-[var(--ty-primary-color)]">{latestBatch.randomCount}</strong>
-              </span>
-              <span className="font-semibold text-[var(--ty-font-main-color)]">
-                去重剔除: <strong className="font-mono text-[var(--ty-orange-color)]">{latestBatch.deduplicatedCount}</strong>
-              </span>
-              <span className="font-semibold text-[var(--ty-font-main-color)]">
-                实际核验: <strong className="font-mono text-[var(--ty-font-main-color)]">{latestBatch.actualCount}</strong>
-              </span>
-            </div>
-            <div className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-              {latestBatch.quotaSupplementInfo}
+              <button
+                type="button"
+                onClick={() => setSelectedBatch(latestBatch)}
+                className="px-3 py-1.5 rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-xs font-semibold cursor-pointer transition-colors"
+                id="btn-view-latest-batch-detail"
+              >
+                查看详情
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 5. 历史核验记录列表表格 (支持窄屏横向平滑滚动) */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-xs overflow-hidden" id="consistency-batch-table-card">
+      {/* 区域 5: 核验历史记录表 */}
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-sm overflow-hidden" id="consistency-batch-table-card">
         <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Database className="w-4 h-4 text-[var(--ty-primary-color)]" />
-            <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-              核验历史记录列表 ({batches.length} 个批次)
-            </h4>
+            <div className="w-2 h-4 bg-[var(--ty-primary-color)] rounded-ty-xs"></div>
+            <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">核验历史记录</h2>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+              (共 {batches.length} 次批次执行)
+            </span>
           </div>
           <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-            单向抽检无法发现目标端已删残留数据 · 抽样无差异不代表全库绝对一致
+            数据来源: 固定演示数据（真实取数待接入）
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-ty-xs min-w-[860px]">
+          <table className="w-full text-left border-collapse text-ty-xs">
             <thead>
               <tr className="border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] font-semibold text-ty-2xs">
-                <th className="py-2.5 px-4">批次号</th>
+                <th className="py-2.5 px-3">批次号</th>
                 <th className="py-2.5 px-3">触发方式</th>
-                <th className="py-2.5 px-3">对象类型</th>
+                <th className="py-2.5 px-3">根类型</th>
                 <th className="py-2.5 px-3">选数策略摘要</th>
-                <th className="py-2.5 px-3 text-center">样本配比 (实际/计划)</th>
-                <th className="py-2.5 px-3 text-center">核验结果分布</th>
+                <th className="py-2.5 px-3 text-center">样本数</th>
+                <th className="py-2.5 px-3">结果分布 (一致 / 差异 / 待复查 / 未完成)</th>
                 <th className="py-2.5 px-3">执行时间</th>
-                <th className="py-2.5 px-4 text-center">操作</th>
+                <th className="py-2.5 px-3 text-center">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-color)]">
-              {batches.map(b => (
-                <tr key={b.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-[var(--ty-font-main-color)]">
-                    {b.id}
+              {batches.map(batch => (
+                <tr key={batch.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                  <td className="py-3 px-3 font-mono font-bold text-[var(--ty-primary-color)]">
+                    {batch.id}
                   </td>
                   <td className="py-3 px-3">
-                    {b.triggerType === 'SCHEDULED' && (
-                      <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] text-ty-2xs">
-                        自动定时计划
-                      </span>
-                    )}
-                    {b.triggerType === 'MANUAL_BY_PLAN' && (
-                      <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-2xs font-medium">
-                        手动按计划
-                      </span>
-                    )}
-                    {b.triggerType === 'MANUAL_CUSTOM' && (
-                      <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs font-medium">
-                        手动临时指定
-                      </span>
-                    )}
+                    <span className="px-2 py-0.5 rounded-ty-xs text-ty-2xs font-medium border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)]">
+                      {batch.triggerType === 'SCHEDULED' && '计划执行'}
+                      {batch.triggerType === 'MANUAL_BY_PLAN' && '按计划执行'}
+                      {batch.triggerType === 'MANUAL_CUSTOM' && '临时手动'}
+                    </span>
                   </td>
-                  <td className="py-3 px-3 text-[var(--ty-font-main-color)]">
-                    {b.rootTypeName}
+                  <td className="py-3 px-3 font-medium text-[var(--ty-font-main-color)]">
+                    {batch.rootTypeName}
                   </td>
-                  <td className="py-3 px-3 text-[var(--ty-font-sub-color)] max-w-xs truncate" title={b.strategySummary}>
-                    {b.strategySummary}
+                  <td className="py-3 px-3 text-ty-2xs text-[var(--ty-font-main-light-color)] max-w-xs truncate" title={batch.strategySummary}>
+                    {batch.strategySummary}
                   </td>
-                  <td className="py-3 px-3 text-center font-mono">
-                    <span className="font-bold text-[var(--ty-font-main-color)]">{b.actualCount}</span>
-                    <span className="text-[var(--ty-font-sub-color)]"> / {b.plannedCount}</span>
-                    {b.deduplicatedCount > 0 && (
-                      <span className="ml-1 text-ty-2xs text-[var(--ty-orange-color)]" title={`内置去重剔除 ${b.deduplicatedCount} 个重复 ID`}>
-                        (-{b.deduplicatedCount}重)
-                      </span>
-                    )}
+                  <td className="py-3 px-3 text-center font-mono font-bold text-[var(--ty-font-main-color)]">
+                    {batch.actualCount}
                   </td>
-                  <td className="py-3 px-3 text-center">
-                    <div className="inline-flex items-center gap-1.5 text-ty-2xs">
-                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] font-mono font-bold" title="一致数量">
-                        {b.consistentCount}
+                  <td className="py-3 px-3">
+                    <div className="flex items-center space-x-1.5 text-ty-2xs">
+                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] font-bold">
+                        {batch.consistentCount}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] font-mono font-bold" title="差异数量">
-                        {b.differenceCount}
+                      <span className={`px-1.5 py-0.5 rounded-ty-xs font-bold ${
+                        batch.differenceCount > 0
+                          ? 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)]'
+                          : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                      }`}>
+                        {batch.differenceCount}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] font-mono font-bold" title="待复查">
-                        {b.pendingRecheckCount}
+                      <span className={`px-1.5 py-0.5 rounded-ty-xs font-bold ${
+                        batch.pendingRecheckCount > 0
+                          ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)]'
+                          : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]'
+                      }`}>
+                        {batch.pendingRecheckCount}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] font-mono font-bold" title="未完成">
-                        {b.incompleteCount}
+                      <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] font-bold">
+                        {batch.incompleteCount}
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-3 font-mono text-[var(--ty-font-sub-color)] text-ty-2xs">
-                    {b.executedAt}
+                  <td className="py-3 px-3 font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
+                    {batch.executedAt}
                   </td>
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-3 px-3 text-center">
                     <button
-                      onClick={() => setSelectedBatch(b)}
-                      className="px-2.5 py-1 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] hover:bg-[var(--ty-primary-color)] hover:text-[var(--ty-font-white-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-xs font-semibold transition-colors cursor-pointer"
+                      type="button"
+                      onClick={() => setSelectedBatch(batch)}
+                      className="px-2.5 py-1 rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-2xs font-semibold transition-colors cursor-pointer"
                     >
                       查看详情
                     </button>
@@ -797,58 +974,96 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         </div>
       </div>
 
-      {/* 6. 底部权威帮助说明：待确认真实能力 & 覆盖边界与审计责任 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2" id="consistency-footer-info-grid">
-        {/* 5 项真实能力待确认说明卡片 */}
-        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 space-y-3 shadow-ty-xs">
-          <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
-            <AlertTriangle className="w-4 h-4 text-[var(--ty-orange-color)]" />
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
-              真实环境能力待确认清单 (当前仅为本地原型)
-            </h4>
+      {/* 默认收起的折叠组件：「核验口径与边界说明」 */}
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] overflow-hidden shadow-sm">
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen(!isExplanationOpen)}
+          className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors cursor-pointer"
+          id="toggle-explanation-section"
+        >
+          <div className="space-y-0.5">
+            <div className="flex items-center space-x-2">
+              <Info className="w-4 h-4 text-[var(--ty-primary-color)]" />
+              <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">核验口径与边界说明</h3>
+            </div>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+              核验机制基于 PLM 单向抽样比对实际存储字段；包含 5 项待确认工程能力与 4 项覆盖边界，点击展开详情。
+            </p>
           </div>
-          <div className="space-y-2 text-ty-2xs">
-            {pendingConfirmations.map((item, idx) => (
-              <div key={idx} className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[var(--ty-font-main-color)]">{idx + 1}. {item.title}</span>
-                  <span className="px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 font-medium">
-                    {item.status}
-                  </span>
-                </div>
-                <p className="text-[var(--ty-font-sub-color)]">{item.description}</p>
-              </div>
-            ))}
+          <div className="flex items-center space-x-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+            <span>{isExplanationOpen ? '收起说明' : '展开说明'}</span>
+            {isExplanationOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </div>
-        </div>
+        </button>
 
-        {/* 覆盖边界与审计合规卡片 */}
-        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 space-y-3 shadow-ty-xs">
-          <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
-            <ShieldCheck className="w-4 h-4 text-[var(--ty-primary-color)]" />
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
-              覆盖边界与审计合规约束 (业务必读)
-            </h4>
-          </div>
-          <div className="space-y-2 text-ty-2xs">
-            {coverageBoundaries.map((item, idx) => (
-              <div key={idx} className="p-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] space-y-0.5">
-                <div className="flex items-center space-x-1.5 font-semibold text-[var(--ty-font-main-color)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-primary-color)]"></span>
-                  <span>{item.title}</span>
-                </div>
-                <p className="text-[var(--ty-font-sub-color)] leading-relaxed">{item.content}</p>
+        {isExplanationOpen && (
+          <div className="p-5 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/40 space-y-4 text-ty-xs animate-in fade-in duration-150">
+            {/* 核心比对机制 */}
+            <div className="p-3 bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] space-y-1">
+              <span className="font-bold text-[var(--ty-font-main-color)] text-ty-xs block">
+                核心比对机制：
+              </span>
+              <p className="text-ty-2xs text-[var(--ty-font-main-light-color)] leading-relaxed">
+                每次核验从 PLM 源端按策略抽取样本主键后，先通过业务有效映射规则转换为目标预期字段值，再向 Manticore 检索实际存储值进行逐字段比对。若 PLM 变更在演示同步延迟窗口内（5分钟演示阈值/待确认），标记为待复查；若发生超时握手异常，判定为检查未完成。
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 5 项未确认的工程能力 */}
+              <div className="bg-[var(--ty-fill-white-color)] p-4 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2.5">
+                <h4 className="font-bold text-[var(--ty-font-main-color)] text-ty-xs flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
+                  <span>待确认工程能力清单 (真实接入前需确认)</span>
+                </h4>
+                <ul className="space-y-2 text-ty-2xs text-[var(--ty-font-main-light-color)] list-disc list-inside">
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">1. PLM 源端读取通道：</strong>直连只读镜像库 vs 批量导出 vs 微服务接口，需确认连接模式与鉴权。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">2. 唯一业务标识口径：</strong>物料编码 + 版本号 + 生命周期状态的三元联合主键在各端的映射一致性。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">3. 批量查询与性能配额：</strong>低峰期执行时的批量并发量约束，防大事务锁表与超时机制。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">4. 高频修改定义与变更审计源：</strong>需明确是依据变更历史表还是活动更新频次判定重点对象。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">5. 同步时延与状态快照：</strong>设置 5 分钟演示缓冲阈值（待确认），避免将管道在途数据误报为故障。
+                  </li>
+                </ul>
               </div>
-            ))}
+
+              {/* 4 项覆盖边界与合规约束 */}
+              <div className="bg-[var(--ty-fill-white-color)] p-4 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2.5">
+                <h4 className="font-bold text-[var(--ty-font-main-color)] text-ty-xs flex items-center space-x-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+                  <span>覆盖边界与审计约束</span>
+                </h4>
+                <ul className="space-y-2 text-ty-2xs text-[var(--ty-font-main-light-color)] list-disc list-inside">
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">1. 单向核验范围：</strong>仅核验 PLM 样本在 Manticore 是否一致，无法直接发现 Manticore 中已孤立的残留脏数据。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">2. 抽样非全库：</strong>抽查样本一致性通过不代表全量数据库 100% 绝对一致。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">3. 严禁自动删除：</strong>核验只输出评审报告与告警，严禁自动执行物理修改或数据删除。
+                  </li>
+                  <li>
+                    <strong className="text-[var(--ty-font-main-color)]">4. 脏数据处理：</strong>发现差异后由人工复核或专门的数据同步重试管道修复，核验不直接修改生产数据。
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ----------------- 弹窗与抽屉 ----------------- */}
-
-      {/* 抽屉 1: 检查计划配置抽屉 */}
+      {/* 抽屉 1: 检查计划配置抽屉 (渐进展开) */}
       {isPlanDrawerOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden" id="plan-drawer-overlay">
+        <div className="fixed inset-0 z-50 overflow-hidden" id="plan-config-drawer-overlay">
           <div
             className="absolute inset-0 bg-ty-overlay backdrop-blur-xs transition-opacity"
             onClick={() => setIsPlanDrawerOpen(false)}
@@ -856,92 +1071,44 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <div className="fixed inset-y-0 right-0 max-w-xl w-full bg-[var(--ty-fill-white-color)] shadow-ty-lg flex flex-col z-10 animate-in slide-in-from-right duration-200">
             {/* 抽屉头部 */}
             <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)]">
-              <div className="flex items-center space-x-2">
-                <Sliders className="w-4 h-4 text-[var(--ty-primary-color)]" />
-                <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                  配置数据一致性核验计划 (本地演示)
-                </h3>
+              <div>
+                <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">配置数据一致性核验计划</h3>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                  配置对象范围、执行周期与选数策略（当前为本地演示原型）
+                </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPlanDrawerOpen(false)}
-                className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-darkest-color)]/10 transition-colors cursor-pointer"
+                className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 抽屉表单内容 */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 text-ty-xs">
-              <div className="p-3 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs text-[var(--ty-font-main-light-color)] space-y-1">
-                <div className="flex items-center space-x-1 font-semibold text-[var(--ty-orange-color)]">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>本地演示原型提示：</span>
-                </div>
-                <p>
-                  此处修改仅保存在浏览器当前运行状态中，用于业务评审页面配置字段与策略联动逻辑，<strong>不会在后台真实创建定时任务</strong>。
-                </p>
-              </div>
-
-              {/* 计划名称 */}
               <div className="space-y-1">
                 <label className="font-semibold text-[var(--ty-font-main-color)]">计划名称</label>
                 <input
                   type="text"
                   value={draftPlan.name}
                   onChange={(e) => setDraftPlan({ ...draftPlan, name: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-[var(--ty-border-color)] rounded-ty-sm focus:outline-hidden focus:border-[var(--ty-primary-color)]"
+                  className="w-full px-3 py-1.5 border border-[var(--ty-border-color)] rounded-ty-sm"
                 />
               </div>
 
-              {/* 对象根类型 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-[var(--ty-font-main-color)]">对象根类型</label>
-                  <select
-                    value={draftPlan.rootTypeCode}
-                    onChange={(e) => {
-                      const code = e.target.value;
-                      const name = code === 'PART' ? '零部件 (Part)' : code === 'FASTENER' ? '紧固件 (Fastener)' : '电气件 (Electrical)';
-                      setDraftPlan({ ...draftPlan, rootTypeCode: code, rootTypeName: name });
-                    }}
-                    className="w-full px-3 py-1.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"
-                  >
-                    <option value="PART">零部件 (Part)</option>
-                    <option value="FASTENER">紧固件 (Fastener)</option>
-                    <option value="ELECTRICAL">电气元器件 (Electrical)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-[var(--ty-font-main-color)]">是否启用</label>
-                  <div className="pt-1 flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="draft-plan-enabled"
-                      checked={draftPlan.enabled}
-                      onChange={(e) => setDraftPlan({ ...draftPlan, enabled: e.target.checked })}
-                      className="rounded-ty-xs text-[var(--ty-primary-color)] focus:ring-[var(--ty-primary-color)] w-4 h-4 cursor-pointer"
-                    />
-                    <label htmlFor="draft-plan-enabled" className="text-[var(--ty-font-main-color)] cursor-pointer">
-                      启用此自动检查计划
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* 执行频率与低峰时间 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-[var(--ty-font-main-color)]">执行频率</label>
+                  <label className="font-semibold text-[var(--ty-font-main-color)]">执行周期</label>
                   <select
                     value={draftPlan.frequency}
                     onChange={(e) => {
-                      const f = e.target.value as any;
+                      const val = e.target.value as any;
                       setDraftPlan({
                         ...draftPlan,
-                        frequency: f,
-                        frequencyLabel: f === 'DAILY' ? '每天 (低峰期)' : f === 'WEEKLY' ? '每周' : '每月'
+                        frequency: val,
+                        frequencyLabel: val === 'DAILY' ? '每天 (低峰期)' : val === 'WEEKLY' ? '每周 (低峰期)' : '每月 (低峰期)'
                       });
                     }}
                     className="w-full px-3 py-1.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"
@@ -962,80 +1129,65 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </div>
               </div>
 
-              {/* 选数策略 (联动控制) */}
+              {/* 选数策略 (三选一单选) */}
               <div className="space-y-2 border-t border-[var(--ty-border-color)] pt-3">
-                <label className="font-semibold text-[var(--ty-font-main-color)] block">选数策略 (三选一)</label>
-                <div className="space-y-2">
-                  {/* 策略一：随机抽查 */}
-                  <label className={`p-3 rounded-ty-sm border flex items-start space-x-2.5 cursor-pointer transition-colors ${
-                    draftPlan.strategy === 'RANDOM_SAMPLE'
-                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/40'
-                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)]'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="plan-strategy"
-                      checked={draftPlan.strategy === 'RANDOM_SAMPLE'}
-                      onChange={() => setDraftPlan({ ...draftPlan, strategy: 'RANDOM_SAMPLE' })}
-                      className="mt-1"
-                    />
-                    <div>
-                      <span className="font-bold text-[var(--ty-font-main-color)] block">策略一：随机抽查</span>
-                      <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                        从指定时间窗口内合格对象中纯随机选样。不设重点配额，单次样本上限即为计划样本数。
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* 策略二：重点＋随机 (组合) */}
-                  <label className={`p-3 rounded-ty-sm border flex items-start space-x-2.5 cursor-pointer transition-colors ${
+                <label className="font-semibold text-[var(--ty-font-main-color)] block">选数策略</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className={`p-2.5 rounded-ty-sm border flex flex-col items-center text-center cursor-pointer transition-colors ${
                     draftPlan.strategy === 'FOCUS_AND_RANDOM'
-                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/40'
-                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)]'
+                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/30 font-bold text-[var(--ty-primary-color)]'
+                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]'
                   }`}>
                     <input
                       type="radio"
                       name="plan-strategy"
                       checked={draftPlan.strategy === 'FOCUS_AND_RANDOM'}
                       onChange={() => setDraftPlan({ ...draftPlan, strategy: 'FOCUS_AND_RANDOM' })}
-                      className="mt-1"
+                      className="sr-only"
                     />
-                    <div>
-                      <span className="font-bold text-[var(--ty-font-main-color)] block">策略二：重点＋随机 (组合策略 - 推荐)</span>
-                      <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                        优先选出重点关注对象（如高频修改或近期修改），剩余配额从其他合格对象中随机抽样，系统自动完成唯一 ID 去重与不足补齐。
-                      </p>
-                    </div>
+                    <span>重点＋随机</span>
+                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal mt-0.5">组合推荐</span>
                   </label>
 
-                  {/* 策略三：指定范围全部核验 */}
-                  <label className={`p-3 rounded-ty-sm border flex items-start space-x-2.5 cursor-pointer transition-colors ${
+                  <label className={`p-2.5 rounded-ty-sm border flex flex-col items-center text-center cursor-pointer transition-colors ${
+                    draftPlan.strategy === 'RANDOM_SAMPLE'
+                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/30 font-bold text-[var(--ty-primary-color)]'
+                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="plan-strategy"
+                      checked={draftPlan.strategy === 'RANDOM_SAMPLE'}
+                      onChange={() => setDraftPlan({ ...draftPlan, strategy: 'RANDOM_SAMPLE' })}
+                      className="sr-only"
+                    />
+                    <span>随机抽查</span>
+                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal mt-0.5">全量随机</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded-ty-sm border flex flex-col items-center text-center cursor-pointer transition-colors ${
                     draftPlan.strategy === 'EXHAUSTIVE_SCOPE'
-                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/40'
-                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)]'
+                      ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]/30 font-bold text-[var(--ty-primary-color)]'
+                      : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]'
                   }`}>
                     <input
                       type="radio"
                       name="plan-strategy"
                       checked={draftPlan.strategy === 'EXHAUSTIVE_SCOPE'}
                       onChange={() => setDraftPlan({ ...draftPlan, strategy: 'EXHAUSTIVE_SCOPE' })}
-                      className="mt-1"
+                      className="sr-only"
                     />
-                    <div>
-                      <span className="font-bold text-[var(--ty-font-main-color)] block">策略三：指定范围全部核验 (专项排查)</span>
-                      <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                        用于特定批次或专项范围的穷举全量比对。严格受对象数量上限约束，若范围内超出上限将报错提示，不静默降级为抽样。
-                      </p>
-                    </div>
+                    <span>指定范围全量</span>
+                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal mt-0.5">专项排查</span>
                   </label>
                 </div>
               </div>
 
-              {/* 联动配置区域 */}
+              {/* 渐进展开：选数策略联动配置 */}
               {draftPlan.strategy === 'FOCUS_AND_RANDOM' && (
-                <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] space-y-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-[var(--ty-font-main-color)]">重点依据选择 (二选一)</label>
+                <div className="p-3.5 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[var(--ty-font-main-color)] text-ty-2xs">重点依据选择</label>
                     <div className="grid grid-cols-2 gap-2">
                       <label className={`p-2 rounded-ty-xs border text-ty-2xs flex items-center space-x-1.5 cursor-pointer ${
                         draftPlan.focusCriteria === 'HIGH_FREQUENCY'
@@ -1048,7 +1200,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                           checked={draftPlan.focusCriteria === 'HIGH_FREQUENCY'}
                           onChange={() => setDraftPlan({ ...draftPlan, focusCriteria: 'HIGH_FREQUENCY' })}
                         />
-                        <span>高频修改 (变更历史/审计)</span>
+                        <span>高频修改 (变更历史审计)</span>
                       </label>
                       <label className={`p-2 rounded-ty-xs border text-ty-2xs flex items-center space-x-1.5 cursor-pointer ${
                         draftPlan.focusCriteria === 'RECENT_MODIFIED'
@@ -1063,9 +1215,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                         />
                         <span>近期修改 (最后修改时间)</span>
                       </label>
-                    </div>
-                    <div className="p-2 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] text-ty-2xs border border-[var(--ty-orange-color)]/30">
-                      <strong>业务口径提示：</strong>“近期修改过”不等于“修改频次高”。高频修改需依据 PLM 审计记录与有效修改次数，当前高频修改能力待真实环境接入，仅使用演示数据。
                     </div>
                   </div>
 
@@ -1092,7 +1241,19 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </div>
               )}
 
-              {/* 单次对象数量上限 */}
+              {draftPlan.strategy === 'RANDOM_SAMPLE' && (
+                <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] text-ty-2xs text-[var(--ty-font-sub-color)]">
+                  随机抽查策略将按单次样本上限在时间窗口内纯随机取样，不设定重点修改配额。
+                </div>
+              )}
+
+              {draftPlan.strategy === 'EXHAUSTIVE_SCOPE' && (
+                <div className="p-3 bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] text-ty-2xs text-[var(--ty-font-sub-color)]">
+                  指定范围全量核验将对选定范围内的所有合格对象进行穷举比对。若超出单次样本上限，系统将直接报错提示，不会静默截断。
+                </div>
+              )}
+
+              {/* 样本上限与时间窗口 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-[var(--ty-font-main-color)]">单次对象数量上限</label>
@@ -1117,7 +1278,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
             {/* 抽屉底部 */}
             <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后即时在前端状态中生效</span>
+              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后在前端状态即时生效</span>
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
@@ -1129,7 +1290,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 <button
                   type="button"
                   onClick={handleSavePlan}
-                  className="px-4 py-1.5 rounded-ty-sm bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold cursor-pointer shadow-ty-xs"
+                  className="px-4 py-1.5 rounded-ty-sm bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold cursor-pointer shadow-sm"
                   id="btn-save-plan"
                 >
                   保存计划 (演示)
@@ -1164,20 +1325,20 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </span>
               </div>
               <div className="flex items-center space-x-2">
+                {/* 禁用按同一批 ID 复查按钮 */}
                 <button
-                  onClick={() => {
-                    showToast(`正在对批次 ${selectedBatch.id} 冻结的 ${selectedBatch.frozenObjectIds.length} 个 ID 发起复查 (本地模拟 / 待接入)`, 'info');
-                  }}
-                  className="px-3 py-1.5 rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
-                  title="使用同一批冻结的 ID 重新核验比对"
+                  type="button"
+                  disabled={true}
+                  className="px-3 py-1.5 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] text-ty-xs font-semibold flex items-center space-x-1.5 opacity-60 cursor-not-allowed"
+                  title="未接入真实取数环境，此功能暂不可用"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>按同一批 ID 复查 (模拟/待接入)</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>按同一批 ID 复查 (待接入)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedBatch(null)}
-                  className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-darkest-color)]/10 transition-colors cursor-pointer"
+                  className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1189,62 +1350,75 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               {/* 批次元数据横条 */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)]">
                 <div>
-                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">PLM 读取耗时</span>
-                  <span className="font-mono font-bold text-[var(--ty-font-main-color)] text-ty-xs mt-0.5 block">
-                    {selectedBatch.plmReadTime}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">Manticore 读取耗时</span>
-                  <span className="font-mono font-bold text-[var(--ty-font-main-color)] text-ty-xs mt-0.5 block">
-                    {selectedBatch.manticoreReadTime}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">样本有效数/计划上限</span>
+                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">样本有效数 / 计划上限</span>
                   <span className="font-mono font-bold text-[var(--ty-primary-color)] text-ty-xs mt-0.5 block">
                     {selectedBatch.actualCount} / {selectedBatch.plannedCount}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">内置去重剔除</span>
+                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">一致通过数</span>
+                  <span className="font-mono font-bold text-[var(--ty-green-color)] text-ty-xs mt-0.5 block">
+                    {selectedBatch.consistentCount} 个
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">发现差异数</span>
+                  <span className="font-mono font-bold text-[var(--ty-red-color)] text-ty-xs mt-0.5 block">
+                    {selectedBatch.differenceCount} 个
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[var(--ty-font-sub-color)] block text-ty-2xs">待复查 / 检查未完成</span>
                   <span className="font-mono font-bold text-[var(--ty-orange-color)] text-ty-xs mt-0.5 block">
-                    {selectedBatch.deduplicatedCount} 个重叠 ID
+                    {selectedBatch.pendingRecheckCount} / {selectedBatch.incompleteCount}
                   </span>
                 </div>
               </div>
 
-              {/* 冻结 ID 与复查说明 */}
-              <div className="p-3 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/30 text-ty-2xs text-[var(--ty-font-main-light-color)] space-y-1">
-                <div className="flex items-center space-x-1.5 font-bold text-[var(--ty-primary-color)]">
-                  <Info className="w-3.5 h-3.5" />
-                  <span>样本冻结与复查机制：</span>
+              {/* 冻结清单折叠展示 */}
+              <div className="p-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] text-ty-2xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[var(--ty-font-main-color)]">
+                    本次核验冻结 ID 清单 (共 {selectedBatch.frozenObjectIds.length} 个对象)：
+                  </span>
+                  {selectedBatch.frozenObjectIds.length > 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsFrozenIdsExpanded(!isFrozenIdsExpanded)}
+                      className="text-[var(--ty-primary-color)] hover:underline cursor-pointer"
+                    >
+                      {isFrozenIdsExpanded ? '收起部分' : `展开全部 (${selectedBatch.frozenObjectIds.length} 个)`}
+                    </button>
+                  )}
                 </div>
-                <p>
-                  本次执行已将 {selectedBatch.frozenObjectIds.length} 个对象 ID 进行清单冻结。
-                  “再次复查”功能将严格使用该批冻结 ID 进行二次验证，确保核验结果可复现、问题可定位；
-                  “新的抽查”才会基于策略重新生成新样本。冻结 ID 不代表创建自动同步修复任务。
-                </p>
-                <div className="pt-1 flex flex-wrap gap-1 font-mono">
-                  {selectedBatch.frozenObjectIds.map(id => (
-                    <span key={id} className="px-1.5 py-0.2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-primary-color)]/30 text-[var(--ty-font-main-color)] rounded-ty-xs">
+                <div className="flex flex-wrap gap-1 font-mono">
+                  {(isFrozenIdsExpanded
+                    ? selectedBatch.frozenObjectIds
+                    : selectedBatch.frozenObjectIds.slice(0, 10)
+                  ).map(id => (
+                    <span key={id} className="px-1.5 py-0.5 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)] rounded-ty-xs">
                       {id}
                     </span>
                   ))}
+                  {!isFrozenIdsExpanded && selectedBatch.frozenObjectIds.length > 10 && (
+                    <span className="px-1.5 py-0.5 text-[var(--ty-font-sub-color)]">
+                      ... 等共 {selectedBatch.frozenObjectIds.length} 个
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* 对象核验明细列表 (包含 5 项确定演示数据) */}
+              {/* 对象核验明细列表 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-[var(--ty-font-main-color)] text-ty-xs flex items-center space-x-1.5">
                     <span>对象核验比对明细</span>
                     <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal">
-                      (共 {selectedBatch.objectResults.length} 条详细记录)
+                      (共 {selectedBatch.objectResults.length} 条记录)
                     </span>
                   </h4>
                   <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                    点击“查看对比”展开 PLM 原始值、预期值与实际值
+                    点击“查看对比”展开字段逐项比对详情
                   </span>
                 </div>
 
@@ -1272,7 +1446,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                           <td className="py-3 px-3 text-ty-2xs">
                             {obj.selectedReason === 'HIGH_FREQUENCY' && (
                               <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 font-medium">
-                                高频修改 ({obj.modifyCount || 10}次)
+                                高频修改 {obj.modifyCount ? `(${obj.modifyCount}次)` : ''}
                               </span>
                             )}
                             {obj.selectedReason === 'RANDOM_SAMPLE' && (
@@ -1281,7 +1455,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                               </span>
                             )}
                             {obj.selectedReason === 'MANUAL_SPECIFIED' && (
-                              <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 font-medium">
+                              <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 font-medium">
                                 手动指定
                               </span>
                             )}
@@ -1317,6 +1491,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                           </td>
                           <td className="py-3 px-3 text-center">
                             <button
+                              type="button"
                               onClick={() => setSelectedObjectForCompare(obj)}
                               className="px-2 py-1 rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-2xs font-semibold transition-colors cursor-pointer"
                             >
@@ -1397,7 +1572,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </button>
             </div>
 
-            {/* 判定提示说明 */}
+            {/* 判定说明 */}
             <div className={`p-2.5 rounded-ty-sm text-ty-2xs border ${
               selectedObjectForCompare.status === 'CONSISTENT'
                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
