@@ -10,7 +10,8 @@ import {
   FieldMappingItem,
   QueryBaseSnapshot,
   Stage1PreviewRecord,
-  SyncErrorRecord
+  SyncErrorRecord,
+  ResetAuditRecord
 } from './stage1MappingTypes';
 
 // 1. 来源系统适配器
@@ -47,6 +48,7 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     configuredFieldCount: 5,
     formalQueryableFieldCount: 5,
     draftFieldCount: 2, // 1 个纯草稿 + 1 个已配置字段的草稿修改
+    manticoreDocCount: 38400, // 当前 Manticore 检索底座中的索引记录总数
     configStatus: 'CONFIGURED_WITH_DRAFT',
     syncStatus: 'COMPLETED',
     lastSyncedAt: '2026-08-28 14:35:12',
@@ -54,6 +56,8 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     lastSyncSuccessCount: 38400,
     lastSyncErrorCount: 0,
     lastSyncErrorRecords: [],
+    lastSyncExecutionStrategy: 'INCREMENTAL_REFRESH',
+    lastSyncStrategyReason: '当前配置稳定且底座正常，基于最新变更水位执行日常增量刷新。',
     hasPendingSyncChanges: false
   },
   {
@@ -66,12 +70,15 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     configuredFieldCount: 4,
     formalQueryableFieldCount: 4,
     draftFieldCount: 0,
+    manticoreDocCount: 12480,
     configStatus: 'CONFIGURED',
     syncStatus: 'COMPLETED_WITH_ERRORS',
     lastSyncedAt: '2026-08-22 11:20:00',
     lastSyncBatchId: 'BATCH-20260822-001',
     lastSyncSuccessCount: 12480,
     lastSyncErrorCount: 3,
+    lastSyncExecutionStrategy: 'RETRY_COMPENSATION',
+    lastSyncStrategyReason: '上一同步批次存在 3 条记录级异常，需针对异常数据执行补偿重试。',
     lastSyncErrorRecords: [
       {
         id: 'ERR-DOC-001',
@@ -122,6 +129,7 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     configuredFieldCount: 0,
     formalQueryableFieldCount: 0,
     draftFieldCount: 2,
+    manticoreDocCount: 0,
     configStatus: 'DRAFTING',
     syncStatus: 'NOT_SYNCED',
     lastSyncedAt: undefined,
@@ -129,7 +137,31 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     lastSyncSuccessCount: 0,
     lastSyncErrorCount: 0,
     lastSyncErrorRecords: [],
+    lastSyncExecutionStrategy: 'INITIAL_REBUILD',
+    lastSyncStrategyReason: '当前根类型未曾同步底座，需执行首次初始化全量构建。',
     hasPendingSyncChanges: false
+  }
+];
+
+// 重置接入初始审计历史记录（真实可溯源审计）
+export const initialResetAuditRecords: ResetAuditRecord[] = [
+  {
+    id: 'RESET-20260710-001',
+    rootTypeId: 'PROCESS',
+    rootTypeName: '工艺路线 (Process)',
+    operator: '张建国 (系统架构师)',
+    initiatedAt: '2026-07-10 16:20:11',
+    completedAt: '2026-07-10 16:20:18',
+    status: 'SUCCESS',
+    confirmedInputCode: 'PROCESS',
+    isInputCodeMatched: true,
+    beforeConfiguredCount: 2,
+    beforeDraftCount: 0,
+    beforeFormalQueryableCount: 2,
+    beforeDocCount: 1520,
+    deletedDocCount: 1520,
+    retainedDraftCount: 2,
+    manticoreSchemaRetentionNote: '待确认'
   }
 ];
 

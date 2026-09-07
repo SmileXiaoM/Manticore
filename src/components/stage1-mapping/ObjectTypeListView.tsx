@@ -15,13 +15,17 @@ import {
   AlertOctagon,
   RotateCcw,
   X,
-  Sparkles
+  Sparkles,
+  MoreHorizontal,
+  ShieldAlert,
+  History
 } from 'lucide-react';
 import {
   MappingObjectType,
   SourceSystemInfo,
   SyncErrorRecord,
-  formatRootTypeDisplayName
+  formatRootTypeDisplayName,
+  SYNC_STRATEGY_LABELS
 } from '../../stage1MappingTypes';
 
 interface ObjectTypeListViewProps {
@@ -30,6 +34,9 @@ interface ObjectTypeListViewProps {
   onSelectRootType: (rootTypeId: string) => void;
   onOpenQueryPreview: (rootTypeId: string) => void;
   onTriggerSync: (rootTypeId: string, mode?: 'NORMAL' | 'WITH_ERRORS' | 'FATAL_FAIL') => void;
+  onResetAccess: (rootTypeId: string) => void;
+  onOpenResetAudit?: (rootTypeId: string) => void;
+  onSimulateFatalFail?: (rootTypeId: string) => void;
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
 }
@@ -40,6 +47,9 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   onSelectRootType,
   onOpenQueryPreview,
   onTriggerSync,
+  onResetAccess,
+  onOpenResetAudit,
+  onSimulateFatalFail,
   onNavigateToSyncQuality,
   hasPermission = true
 }) => {
@@ -47,6 +57,19 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   const [selectedSystemId, setSelectedSystemId] = useState<string>('ALL');
   const [showLifecycleGuide, setShowLifecycleGuide] = useState(false);
   const [viewingErrorsRootType, setViewingErrorsRootType] = useState<MappingObjectType | null>(null);
+  const [openDropdownRootId, setOpenDropdownRootId] = useState<string | null>(null);
+
+  // 点击外部关闭更多操作下拉菜单
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.row-more-menu-container')) {
+        setOpenDropdownRootId(null);
+      }
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   // 过滤后的根类型列表
   const filteredRootTypes = useMemo(() => {
@@ -125,8 +148,8 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     lastSyncTime: 94
   };
 
-  const expandedActionWidth = 240;
-  const compactActionWidth = 116;
+  const expandedActionWidth = 264;
+  const compactActionWidth = 124;
 
   const baseContentWidth = Object.values(baseColumns).reduce(
     (sum, width) => sum + width,
@@ -287,6 +310,13 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
             同步执行中...
           </span>
         );
+      case 'RESETTING':
+        return (
+          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 animate-pulse">
+            <RefreshCw className="w-3 h-3 mr-1.5 animate-spin text-[var(--ty-orange-color)] shrink-0" />
+            重置接入中...
+          </span>
+        );
       case 'FAILED':
         return (
           <div className="space-y-0.5">
@@ -310,9 +340,16 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
       case 'NOT_SYNCED':
       default:
         return (
-          <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
-            未同步
-          </span>
+          <div className="space-y-0.5">
+            <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
+              未同步
+            </span>
+            {root.manticoreDocCount === 0 && (
+              <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] whitespace-nowrap">
+                物理索引为空
+              </div>
+            )}
+          </div>
         );
     }
   };
@@ -605,7 +642,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       {renderSyncedAt(root.lastSyncedAt)}
                     </td>
 
-                    {/* 操作列 (1440/1920px 展开文字且严格锁宽 240px；1280/820px 纯图标且锁定 116px) */}
+                    {/* 操作列 (1440/1920px 展开文字且严格锁宽 264px；1280/820px 纯图标且锁定 124px) */}
                     <td
                       style={{
                         width: colWidths.actions,
@@ -641,30 +678,115 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           )}
                         </button>
 
-                        {/* 数据同步触发与调试操作 */}
+                        {/* 数据同步触发：统一文案为“同步数据”，系统自动判定执行方式 */}
                         <button
                           type="button"
                           onClick={() => onTriggerSync(root.id, 'NORMAL')}
-                          disabled={root.syncStatus === 'RUNNING'}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
-                            root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
-                              ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
-                              : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
+                          disabled={
+                            root.syncStatus === 'RUNNING' ||
+                            root.syncStatus === 'RESETTING' ||
+                            root.configuredFieldCount === 0 ||
+                            !hasPermission
+                          }
+                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 whitespace-nowrap shrink-0 ${
+                            root.configuredFieldCount === 0 || !hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'
+                              ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
+                              : root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
+                              ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)] cursor-pointer'
+                              : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] cursor-pointer'
                           }`}
                           title={
-                            root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS'
-                              ? '重试同步 (重试数据同步至 Manticore)'
-                              : '数据同步 (触发根类型数据同步至 Manticore)'
+                            root.configuredFieldCount === 0
+                              ? '当前根类型没有已生效字段，无法同步数据'
+                              : !hasPermission
+                              ? '无数据同步权限'
+                              : root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'
+                              ? '任务正在执行中，无法重复触发'
+                              : '按当前已生效字段同步当前根类型的数据，系统将自动选择执行方式'
                           }
-                          aria-label={root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试数据同步' : '数据同步'}
+                          aria-label="同步数据"
                         >
                           <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${root.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
                           {isExpandedActions && (
-                            <span className="whitespace-nowrap">
-                              {root.syncStatus === 'FAILED' || root.syncStatus === 'COMPLETED_WITH_ERRORS' ? '重试同步' : '同步'}
-                            </span>
+                            <span className="whitespace-nowrap">同步数据</span>
                           )}
                         </button>
+
+                        {/* 更多操作下拉菜单 (重置接入 / 审计记录 / 模拟系统失败) */}
+                        <div className="relative row-more-menu-container">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownRootId(openDropdownRootId === root.id ? null : root.id);
+                            }}
+                            className={`h-7.5 w-7.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                              openDropdownRootId === root.id
+                                ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)]'
+                                : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
+                            }`}
+                            title="更多操作 (重置接入、审计留痕等)"
+                            aria-label="更多操作"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+
+                          {openDropdownRootId === root.id && (
+                            <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-30 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownRootId(null);
+                                  onResetAccess(root.id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] flex items-center space-x-2 cursor-pointer transition-colors"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
+                                <div className="leading-tight">
+                                  <div className="font-semibold">重置接入</div>
+                                  <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空索引并转为草稿</div>
+                                </div>
+                              </button>
+
+                              {onOpenResetAudit && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownRootId(null);
+                                    onOpenResetAudit(root.id);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
+                                >
+                                  <History className="w-3.5 h-3.5 shrink-0 text-[var(--ty-icon-color)]" />
+                                  <div className="leading-tight">
+                                    <div className="font-medium">重置接入审计记录</div>
+                                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">查看历史重置轨迹</div>
+                                  </div>
+                                </button>
+                              )}
+
+                              {onSimulateFatalFail && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownRootId(null);
+                                    onSimulateFatalFail(root.id);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[var(--ty-font-sub-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
+                                >
+                                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-[var(--ty-orange-color)]" />
+                                  <div className="leading-tight">
+                                    <div className="font-medium">模拟失败 (底座保护)</div>
+                                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">验证失败不影响底座</div>
+                                  </div>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

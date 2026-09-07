@@ -17,7 +17,10 @@ import {
   Info,
   RotateCcw,
   AlertCircle,
-  Link
+  Link,
+  MoreHorizontal,
+  ShieldAlert,
+  History
 } from 'lucide-react';
 import {
   FieldMappingItem,
@@ -36,6 +39,9 @@ interface FieldMappingListViewProps {
   onViewFieldDetail: (field: FieldMappingItem) => void;
   onPublishConfig: () => void;
   onTriggerDataSync: () => void;
+  onResetAccess: () => void;
+  onOpenResetAudit: () => void;
+  onSimulateFatalFail?: () => void;
   onOpenQueryPreview: () => void;
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
@@ -51,6 +57,9 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onViewFieldDetail,
   onPublishConfig,
   onTriggerDataSync,
+  onResetAccess,
+  onOpenResetAudit,
+  onSimulateFatalFail,
   onOpenQueryPreview,
   onNavigateToSyncQuality,
   hasPermission = true
@@ -59,6 +68,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONFIGURED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
 
   // 分页状态
@@ -366,36 +376,35 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             )}
           </button>
 
-          {/* 3. 数据同步触发 */}
+          {/* 3. 数据同步触发：统一文案为“同步数据”，系统自动判定执行方式 */}
           <button
             type="button"
             onClick={onTriggerDataSync}
-            disabled={!canTriggerSync}
-            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-              isSyncFailed || isSyncError || hasPendingSync
-                ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
-                : canTriggerSync
-                ? 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]'
-                : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
+            disabled={
+              currentRootType.configuredFieldCount === 0 ||
+              !hasPermission ||
+              currentRootType.syncStatus === 'RUNNING' ||
+              currentRootType.syncStatus === 'RESETTING'
+            }
+            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-colors whitespace-nowrap ${
+              currentRootType.configuredFieldCount === 0 || !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
+                ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
+                : isSyncFailed || isSyncError || hasPendingSync
+                ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)] cursor-pointer'
+                : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] cursor-pointer'
             }`}
             title={
-              !canTriggerSync
-                ? '当前根类型无已配置字段或正处于同步中'
-                : isSyncFailed
-                ? '上一同步批次存在致命失败，点击重试'
-                : isSyncError
-                ? '上一同步有异常记录，点击重试同步'
-                : hasPendingSync
-                ? '存在待同步的数据影响变更'
-                : '按当前生效配置执行数据同步'
+              currentRootType.configuredFieldCount === 0
+                ? '当前根类型没有已生效字段，无法同步数据'
+                : !hasPermission
+                ? '无数据同步权限'
+                : currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
+                ? '任务正在执行中，无法重复触发'
+                : '按当前已生效字段同步当前根类型的数据，系统将自动选择执行方式'
             }
           >
-            {isSyncFailed || isSyncError ? (
-              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-            ) : (
-              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-            )}
-            <span className="whitespace-nowrap">{isSyncFailed || isSyncError ? '重试数据同步' : '数据同步'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${currentRootType.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
+            <span className="whitespace-nowrap">同步数据</span>
             {hasPendingSync && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-0.5 shrink-0"></span>}
           </button>
 
@@ -408,6 +417,74 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <Eye className="w-3.5 h-3.5 text-[var(--ty-icon-color)] shrink-0" />
             <span className="whitespace-nowrap">查询预览</span>
           </button>
+
+          {/* 5. 更多操作下拉菜单 (重置接入 / 审计记录 / 模拟系统失败) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMoreDropdown(!showMoreDropdown)}
+              className={`h-8 w-8 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                showMoreDropdown
+                  ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)]'
+                  : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
+              }`}
+              title="更多操作 (重置接入、审计留痕等)"
+              aria-label="更多操作"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+
+            {showMoreDropdown && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-30 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreDropdown(false);
+                    onResetAccess();
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] flex items-center space-x-2 cursor-pointer transition-colors"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
+                  <div className="leading-tight">
+                    <div className="font-semibold">重置接入</div>
+                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空索引并转为草稿</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreDropdown(false);
+                    onOpenResetAudit();
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
+                >
+                  <History className="w-3.5 h-3.5 shrink-0 text-[var(--ty-icon-color)]" />
+                  <div className="leading-tight">
+                    <div className="font-medium">重置接入审计记录</div>
+                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">查看历史重置轨迹</div>
+                  </div>
+                </button>
+
+                {onSimulateFatalFail && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreDropdown(false);
+                      onSimulateFatalFail();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--ty-font-sub-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-[var(--ty-orange-color)]" />
+                    <div className="leading-tight">
+                      <div className="font-medium">模拟失败 (底座保护)</div>
+                      <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">验证失败不影响底座</div>
+                    </div>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

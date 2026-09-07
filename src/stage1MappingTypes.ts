@@ -31,9 +31,50 @@ export type RootTypeSyncStatus =
   | 'NOT_SYNCED' // 未同步 (从未完成过同步)
   | 'PENDING' // 待同步 (数据影响配置已生效但尚未同步)
   | 'RUNNING' // 同步中 (任务正在执行)
+  | 'RESETTING' // 重置中 (正在执行接入重置与索引清理)
   | 'COMPLETED' // 已同步 (任务执行结束，异常记录数为 0)
   | 'COMPLETED_WITH_ERRORS' // 同步完成（有异常） (任务执行结束，存在记录级错误，未中止)
   | 'FAILED'; // 同步失败 (任务未启动成功或被系统级致命错误中止)
+
+// 实际同步执行策略（后台自动判定，写入审计与任务记录，前端不提供选择）
+export type SyncExecutionStrategy =
+  | 'INITIAL_REBUILD' // 初始化重建 (首次同步或重置后首次)
+  | 'INCREMENTAL_REFRESH' // 增量刷新 (日常水位增量)
+  | 'HISTORY_BACKFILL' // 历史回填 (数据影响变更生效后补齐历史底座数据)
+  | 'RETRY_COMPENSATION'; // 补偿重试 (针对上一任务记录级异常或失败重试)
+
+// 执行策略中文标签映射
+export const SYNC_STRATEGY_LABELS: Record<SyncExecutionStrategy, string> = {
+  INITIAL_REBUILD: '初始化重建',
+  INCREMENTAL_REFRESH: '增量刷新',
+  HISTORY_BACKFILL: '历史回填',
+  RETRY_COMPENSATION: '补偿重试'
+};
+
+// 重置接入审计记录
+export interface ResetAuditRecord {
+  id: string; // 任务流水号，如 'RESET-20260907-001'
+  rootTypeId: string; // 根类型稳定 ID，如 'PART'
+  rootTypeName: string; // 显示名称，如 '零部件 (Part)'
+  operator: string; // 操作人
+  initiatedAt: string; // 发起时间
+  completedAt?: string; // 完成时间
+  status: 'RESETTING' | 'SUCCESS' | 'FAILED'; // 最终状态
+  confirmedInputCode: string; // 用户输入的确认编码
+  isInputCodeMatched: boolean; // 是否完全匹配
+
+  beforeConfiguredCount: number; // 操作前已生效字段数
+  beforeDraftCount: number; // 操作前草稿数
+  beforeFormalQueryableCount: number; // 操作前正式可查字段数
+  beforeDocCount: number; // 操作前索引数据量
+
+  deletedDocCount: number; // 实际删除的索引数据量
+  retainedDraftCount: number; // 保留并转草稿的字段映射数量
+
+  failureStage?: string; // 失败阶段 (若失败)
+  failureReason?: string; // 失败原因 (若失败)
+  manticoreSchemaRetentionNote: '待确认'; // 标记为待确认
+}
 
 // 异常记录条目定义
 export interface SyncErrorRecord {
@@ -63,6 +104,9 @@ export interface MappingObjectType {
   formalQueryableFieldCount: number; // 正式可查字段数 (当前底座快照中的字段数)
   draftFieldCount: number; // 草稿字段数 (纯新建草稿 + 生效字段的草稿修改)
 
+  // Manticore 物理索引数据量 (确定性数据，无法获取时显示待获取)
+  manticoreDocCount?: number;
+
   // 状态
   configStatus: RootTypeConfigStatus;
   syncStatus: RootTypeSyncStatus;
@@ -74,6 +118,9 @@ export interface MappingObjectType {
   lastSyncErrorCount?: number; // 异常记录数 e.g. 3
   lastSyncErrorRecords?: SyncErrorRecord[]; // 异常记录明细
   lastSyncErrorMsg?: string; // 致命失败原因 (仅当 syncStatus === 'FAILED' 时)
+
+  lastSyncExecutionStrategy?: SyncExecutionStrategy; // 系统自动判定的执行方式
+  lastSyncStrategyReason?: string; // 判定依据与说明
 
   hasPendingSyncChanges?: boolean; // 是否有待同步的数据影响变更
 }
@@ -386,6 +433,57 @@ export interface PublishImpactSummary {
   dataImpactingCount: number; // 数据影响变更数 (生效后需触发数据同步)
   displayOnlyCount: number; // 纯展示变更数 (无需同步)
   targetRootTypeName: string;
+}
+
+// 自动判定实际执行方式（确定性逻辑，无随机数）
+export function determineSyncStrategy(
+  rootType: MappingObjectType,
+  fields: FieldMappingItem[]
+): {
+  strategy: SyncExecutionStrategy;
+  strategyLabel: string;
+  reason: string;
+} {
+  // 1. 从未成功同步过，或重置接入后首次同步 (lastSyncedAt 为空或状态为未同步)
+  if (rootType.syncStatus === 'NOT_SYNCED' || !rootType.lastSyncedAt) {
+    return {
+      strategy: 'INITIAL_REBUILD',
+      strategyLabel: SYNC_STRATEGY_LABELS.INITIAL_REBUILD,
+      reason: '当前根类型未曾同步底座或刚执行重置接入，系统自动执行初始化全量构建。'
+    };
+  }
+
+  // 2. 上次任务失败或存在记录级异常，需要对失败/异常数据进行补偿处理
+  if (
+    rootType.syncStatus === 'FAILED' ||
+    rootType.syncStatus === 'COMPLETED_WITH_ERRORS' ||
+    (rootType.lastSyncErrorCount !== undefined && rootType.lastSyncErrorCount > 0)
+  ) {
+    return {
+      strategy: 'RETRY_COMPENSATION',
+      strategyLabel: SYNC_STRATEGY_LABELS.RETRY_COMPENSATION,
+      reason: '上一同步批次存在失败记录或异常条目，系统自动对异常数据执行补偿重试。'
+    };
+  }
+
+  // 3. 存在已生效的数据影响变更，需要补齐历史数据
+  const hasUnsyncedDataImpactingField = fields.some(
+    f => f.rootTypeId === rootType.id && f.configStatus === 'CONFIGURED' && !f.isInFormalQueryBase
+  );
+  if (rootType.hasPendingSyncChanges || hasUnsyncedDataImpactingField) {
+    return {
+      strategy: 'HISTORY_BACKFILL',
+      strategyLabel: SYNC_STRATEGY_LABELS.HISTORY_BACKFILL,
+      reason: '检测到数据影响配置已生效但尚未进入底座，系统自动对历史数据进行回填。'
+    };
+  }
+
+  // 4. 已有正式查询底座，日常数据变化
+  return {
+    strategy: 'INCREMENTAL_REFRESH',
+    strategyLabel: SYNC_STRATEGY_LABELS.INCREMENTAL_REFRESH,
+    reason: '当前配置稳定且底座正常，系统基于最新变更水位执行日常增量刷新。'
+  };
 }
 
 // 一阶段查询预览模拟样本数据

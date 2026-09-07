@@ -3,14 +3,17 @@ import {
   MappingObjectType,
   FieldMappingItem,
   SourceFieldMeta,
-  RootTypeConfigStatus
+  RootTypeConfigStatus,
+  ResetAuditRecord,
+  determineSyncStrategy
 } from '../stage1MappingTypes';
 import {
   initialSourceSystems,
   initialMappingObjectTypes,
   initialFieldMappings,
   mockSourceFieldMetas,
-  mockStage1PreviewRecords
+  mockStage1PreviewRecords,
+  initialResetAuditRecords
 } from '../stage1MappingData';
 import { ObjectTypeListView } from './stage1-mapping/ObjectTypeListView';
 import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
@@ -20,7 +23,10 @@ import {
   PublishConfigModal,
   TriggerSyncModal,
   Stage1QueryPreviewModal,
-  FieldDetailModal
+  FieldDetailModal,
+  ResetAccessModal,
+  ResetBlockModal,
+  ResetAuditModal
 } from './stage1-mapping/Stage1Modals';
 
 interface Stage1MappingConfigViewProps {
@@ -38,6 +44,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   const [fieldMappings, setFieldMappings] = useState<FieldMappingItem[]>(
     () => Object.values(initialFieldMappings).flat()
   );
+  const [resetAuditRecords, setResetAuditRecords] = useState<ResetAuditRecord[]>(initialResetAuditRecords);
 
   // 2. 当前视图层级 (OVERVIEW: 根类型总览入口, DETAIL: 根类型字段配置列表)
   const [currentLevel, setCurrentLevel] = useState<'OVERVIEW' | 'DETAIL'>('OVERVIEW');
@@ -55,8 +62,15 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   const [isTriggerSyncModalOpen, setIsTriggerSyncModalOpen] = useState(false);
   const [isQueryPreviewOpen, setIsQueryPreviewOpen] = useState(false);
 
+  // 重置相关模态框状态
+  const [isResetAccessModalOpen, setIsResetAccessModalOpen] = useState(false);
+  const [isResetBlockModalOpen, setIsResetBlockModalOpen] = useState(false);
+  const [isResetAuditModalOpen, setIsResetAuditModalOpen] = useState(false);
+  const [resetTargetRootTypeId, setResetTargetRootTypeId] = useState<string>('PART');
+
   // 4. 当前上下文对应的根类型实体
   const currentRootType = mappingObjects.find(r => r.id === selectedRootTypeId) || mappingObjects[0];
+  const resetTargetRoot = mappingObjects.find(r => r.id === resetTargetRootTypeId) || currentRootType;
 
   // 来源元数据池
   const availablePlmFields: SourceFieldMeta[] =
@@ -174,7 +188,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             ...f,
             configStatus: 'CONFIGURED' as const,
             hasDraftModification: false,
-            // 纯草稿未同步前，不进入正式查询底座
             isInFormalQueryBase: false,
             updatedAt: nowTime,
             updatedBy: '当前用户 (生效发布)'
@@ -189,7 +202,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             ...f.draftData,
             hasDraftModification: false,
             draftData: undefined,
-            // 如果改动了核心物理结构，等待下一次同步进入最新底座
             isInFormalQueryBase: f.isDataImpactingChange ? false : f.isInFormalQueryBase,
             updatedAt: nowTime,
             updatedBy: '当前用户 (生效发布)'
@@ -221,31 +233,37 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsPublishModalOpen(false);
   };
 
-  // 执行手工数据同步 (以根类型为权威实体，单条数据异常不中断整体任务)
-  const handleConfirmDataSync = (syncScope: 'INCREMENTAL' | 'FULL') => {
+  // 执行数据同步 (系统自动选择实际执行方式，单条数据异常不中断整体任务)
+  const handleConfirmDataSync = () => {
     setIsTriggerSyncModalOpen(false);
+    const target = currentRootType;
 
-    // 1. 设置为正在运行
+    // 系统自动确定同步执行方式与原因
+    const { strategy, reason } = determineSyncStrategy(target, fieldMappings);
+
+    // 1. 设置为正在运行，记录当前策略
     setMappingObjects(prev =>
       prev.map(root => {
-        if (root.id !== currentRootType.id) return root;
+        if (root.id !== target.id) return root;
         return {
           ...root,
-          syncStatus: 'RUNNING'
+          syncStatus: 'RUNNING',
+          lastSyncExecutionStrategy: strategy,
+          lastSyncStrategyReason: reason
         };
       })
     );
 
     // 2. 1.2 秒后模拟同步完成
     setTimeout(() => {
-      const nowTime = '2026-09-02 10:35:00';
-      const batchId = `SYNC-BATCH-${Date.now().toString().slice(-6)}`;
+      const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const batchId = `SYNC-${target.id}-${Date.now().toString().slice(-6)}`;
 
       // 所有当前已配置的字段正式进入查询底座
       let nextFields: FieldMappingItem[] = [];
       setFieldMappings(prev => {
         nextFields = prev.map(f => {
-          if (f.rootTypeId !== currentRootType.id) return f;
+          if (f.rootTypeId !== target.id) return f;
           if (f.configStatus === 'CONFIGURED') {
             return {
               ...f,
@@ -262,13 +280,22 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
       // 更新根类型状态 (只更新数据状态、正式可查字段数、最近同步时间，并清空待同步状态，绝不含版本)
       setMappingObjects(prev =>
         prev.map(root => {
-          if (root.id !== currentRootType.id) return root;
+          if (root.id !== target.id) return root;
           const formalCount = nextFields.filter(
             f => f.rootTypeId === root.id && f.configStatus === 'CONFIGURED' && f.isInFormalQueryBase && f.isDisplayInResult
           ).length;
 
-          // 模拟若有异常数据则标记为 COMPLETED_WITH_ERRORS，否则 COMPLETED
-          const hasMinorErrors = root.id === 'DOCUMENT'; // 模拟 Document 含有部分单条异常
+          // 模拟若有记录级异常（如 DOCUMENT 含有部分异常）
+          const hasMinorErrors = root.id === 'DOCUMENT';
+
+          const restoredDocCount =
+            root.manticoreDocCount === 0 || !root.manticoreDocCount
+              ? root.id === 'PART'
+                ? 38400
+                : root.id === 'DOCUMENT'
+                ? 52000
+                : 19200
+              : root.manticoreDocCount;
 
           return {
             ...root,
@@ -277,6 +304,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             lastSyncBatchId: batchId,
             formalQueryableFieldCount: formalCount,
             hasPendingSyncChanges: false,
+            manticoreDocCount: restoredDocCount,
             lastSyncErrorRecords: hasMinorErrors ? root.lastSyncErrorRecords : []
           };
         })
@@ -284,7 +312,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     }, 1200);
   };
 
-  // 打开正式查询底座预览 (支持传入指定 rootTypeId，先切换根类型，再打开模态框)
+  // 打开正式查询底座预览
   const handleOpenQueryPreview = (rootTypeId?: string) => {
     if (rootTypeId) {
       setSelectedRootTypeId(rootTypeId);
@@ -292,10 +320,125 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsQueryPreviewOpen(true);
   };
 
-  // 触发单根类型快速同步
+  // 触发根类型同步弹窗
   const handleTriggerQuickSync = (rootId: string) => {
     setSelectedRootTypeId(rootId);
     setIsTriggerSyncModalOpen(true);
+  };
+
+  // 发起重置接入请求（带阻断前置校验）
+  const handleRequestResetAccess = (rootId: string) => {
+    const target = mappingObjects.find(r => r.id === rootId);
+    if (!target) return;
+    setResetTargetRootTypeId(rootId);
+
+    // 阻断检查：若任务正在执行中（RUNNING / RESETTING），严禁进行重置
+    if (target.syncStatus === 'RUNNING' || target.syncStatus === 'RESETTING') {
+      setIsResetBlockModalOpen(true);
+      return;
+    }
+
+    setIsResetAccessModalOpen(true);
+  };
+
+  // 查看重置接入审计记录
+  const handleOpenResetAudit = (rootId: string) => {
+    setResetTargetRootTypeId(rootId);
+    setIsResetAuditModalOpen(true);
+  };
+
+  // 模拟致命失败（用于检验底座保护机制）
+  const handleSimulateFatalFail = (rootId: string) => {
+    setMappingObjects(prev =>
+      prev.map(root => {
+        if (root.id !== rootId) return root;
+        return {
+          ...root,
+          syncStatus: 'FAILED',
+          lastSyncErrorMsg: 'PLM 中间库 CDC 二进制日志同步断开，任务中止 (正式底座已受保护)'
+        };
+      })
+    );
+  };
+
+  // 确认执行重置接入
+  const handleConfirmReset = (confirmedCode: string) => {
+    const rootId = resetTargetRootTypeId;
+    const target = mappingObjects.find(r => r.id === rootId);
+    if (!target) return;
+
+    const beforeDocCount = target.manticoreDocCount ?? 38400;
+    const targetFields = fieldMappings.filter(f => f.rootTypeId === rootId);
+
+    // 1. 关闭弹窗并标记根类型状态为 RESETTING
+    setIsResetAccessModalOpen(false);
+    setMappingObjects(prev =>
+      prev.map(r => (r.id === rootId ? { ...r, syncStatus: 'RESETTING' } : r))
+    );
+
+    // 2. 模拟异步重置过程（1 秒后完成物理索引清空与草稿转换）
+    setTimeout(() => {
+      const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const auditBatchId = `RESET-${Date.now().toString().slice(-8)}`;
+
+      // 字段映射全部保留，但转为草稿（退出正式查询底座）
+      setFieldMappings(prev =>
+        prev.map(f => {
+          if (f.rootTypeId !== rootId) return f;
+          return {
+            ...f,
+            configStatus: 'DRAFT',
+            hasDraftModification: false,
+            isInFormalQueryBase: false,
+            isDataImpactingChange: true,
+            updatedAt: '刚刚 (重置转草稿)',
+            updatedBy: '接入管理员 (重置)'
+          };
+        })
+      );
+
+      // 根类型更新：物理索引清空，已配置为0，草稿为保留字段数，数据状态为未同步
+      setMappingObjects(prev =>
+        prev.map(r => {
+          if (r.id !== rootId) return r;
+          return {
+            ...r,
+            configStatus: targetFields.length > 0 ? 'DRAFTING' : 'NOT_CONFIGURED',
+            configuredFieldCount: 0,
+            formalQueryableFieldCount: 0,
+            draftFieldCount: targetFields.length,
+            syncStatus: 'NOT_SYNCED',
+            manticoreDocCount: 0,
+            hasPendingSyncChanges: false,
+            lastSyncedAt: undefined,
+            lastSyncBatchId: undefined,
+            lastSyncErrorRecords: []
+          };
+        })
+      );
+
+      // 新增一条不可篡改的审计留痕记录
+      const newAuditRecord: ResetAuditRecord = {
+        id: auditBatchId,
+        rootTypeId: rootId,
+        rootTypeName: target.name,
+        operator: '当前用户 (接入管理员)',
+        initiatedAt: nowTime,
+        completedAt: nowTime,
+        status: 'SUCCESS',
+        confirmedInputCode: confirmedCode,
+        isInputCodeMatched: true,
+        beforeConfiguredCount: target.configuredFieldCount,
+        beforeDraftCount: target.draftFieldCount,
+        beforeFormalQueryableCount: target.formalQueryableFieldCount,
+        beforeDocCount: beforeDocCount,
+        deletedDocCount: beforeDocCount,
+        retainedDraftCount: targetFields.length,
+        manticoreSchemaRetentionNote: '待确认'
+      };
+
+      setResetAuditRecords(prev => [newAuditRecord, ...prev]);
+    }, 1000);
   };
 
   return (
@@ -307,6 +450,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           mappingObjects={mappingObjects}
           onSelectRootType={handleSelectRootType}
           onTriggerSync={handleTriggerQuickSync}
+          onResetAccess={handleRequestResetAccess}
+          onOpenResetAudit={handleOpenResetAudit}
+          onSimulateFatalFail={handleSimulateFatalFail}
           onOpenQueryPreview={handleOpenQueryPreview}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
           hasPermission={hasPermission}
@@ -322,6 +468,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onViewFieldDetail={handleViewFieldDetail}
           onPublishConfig={() => setIsPublishModalOpen(true)}
           onTriggerDataSync={() => setIsTriggerSyncModalOpen(true)}
+          onResetAccess={() => handleRequestResetAccess(currentRootType.id)}
+          onOpenResetAudit={() => handleOpenResetAudit(currentRootType.id)}
+          onSimulateFatalFail={() => handleSimulateFatalFail(currentRootType.id)}
           onOpenQueryPreview={() => handleOpenQueryPreview(currentRootType.id)}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
           hasPermission={hasPermission}
@@ -361,16 +510,17 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         onConfirmPublish={handleConfirmPublish}
       />
 
-      {/* 模态框 4：手工发起数据同步 */}
+      {/* 模态框 4：发起数据同步 (系统自动选择执行策略) */}
       <TriggerSyncModal
         isOpen={isTriggerSyncModalOpen}
         onClose={() => setIsTriggerSyncModalOpen(false)}
         currentRootType={currentRootType}
+        fields={fieldMappings}
         onConfirmSync={handleConfirmDataSync}
         onNavigateToSyncQuality={onNavigateToSyncQuality}
       />
 
-      {/* 模态框 5：一阶段正式查询预览 */}
+      {/* 模态框 5：一阶段正式查询预览 (正式底座快照保护) */}
       <Stage1QueryPreviewModal
         isOpen={isQueryPreviewOpen}
         onClose={() => setIsQueryPreviewOpen(false)}
@@ -386,6 +536,30 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         field={detailTargetField}
+      />
+
+      {/* 模态框 7：重置接入高危二次确认 */}
+      <ResetAccessModal
+        isOpen={isResetAccessModalOpen}
+        onClose={() => setIsResetAccessModalOpen(false)}
+        currentRootType={resetTargetRoot}
+        fields={fieldMappings}
+        onConfirmReset={handleConfirmReset}
+      />
+
+      {/* 模态框 8：正在执行任务时的重置阻断提示 */}
+      <ResetBlockModal
+        isOpen={isResetBlockModalOpen}
+        onClose={() => setIsResetBlockModalOpen(false)}
+        currentRootType={resetTargetRoot}
+      />
+
+      {/* 模态框 9：重置接入操作审计轨迹 */}
+      <ResetAuditModal
+        isOpen={isResetAuditModalOpen}
+        onClose={() => setIsResetAuditModalOpen(false)}
+        currentRootTypeId={resetTargetRoot.id}
+        auditRecords={resetAuditRecords}
       />
     </div>
   );
