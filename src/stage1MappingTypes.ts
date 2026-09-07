@@ -51,31 +51,6 @@ export const SYNC_STRATEGY_LABELS: Record<SyncExecutionStrategy, string> = {
   RETRY_COMPENSATION: '补偿重试'
 };
 
-// 重置接入审计记录
-export interface ResetAuditRecord {
-  id: string; // 任务流水号，如 'RESET-20260907-001'
-  rootTypeId: string; // 根类型稳定 ID，如 'PART'
-  rootTypeName: string; // 显示名称，如 '零部件 (Part)'
-  operator: string; // 操作人
-  initiatedAt: string; // 发起时间
-  completedAt?: string; // 完成时间
-  status: 'RESETTING' | 'SUCCESS' | 'FAILED'; // 最终状态
-  confirmedInputCode: string; // 用户输入的确认编码
-  isInputCodeMatched: boolean; // 是否完全匹配
-
-  beforeConfiguredCount: number; // 操作前已生效字段数
-  beforeDraftCount: number; // 操作前草稿数
-  beforeFormalQueryableCount: number; // 操作前正式可查字段数
-  beforeDocCount: number; // 操作前索引数据量
-
-  deletedDocCount: number; // 实际删除的索引数据量
-  retainedDraftCount: number; // 保留并转草稿的字段映射数量
-
-  failureStage?: string; // 失败阶段 (若失败)
-  failureReason?: string; // 失败原因 (若失败)
-  manticoreSchemaRetentionNote: '待确认'; // 标记为待确认
-}
-
 // 异常记录条目定义
 export interface SyncErrorRecord {
   id: string;

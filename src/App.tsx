@@ -23,6 +23,8 @@ import {
   initialHardRules,
   initialCategoryCoverages
 } from './data';
+import { initialSyncBatches } from './syncQualityData';
+import { SyncBatch } from './syncQualityTypes';
 
 import {
   FieldSimilarityRule,
@@ -118,6 +120,7 @@ export default function App() {
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
+  const [syncBatches, setSyncBatches] = useState<SyncBatch[]>(initialSyncBatches);
 
   const handleNavigate = (newView: string) => {
     // R10-BLK-04: strict unsaved changes guard using the shared comparison function
@@ -175,6 +178,8 @@ export default function App() {
           <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
+                batches={syncBatches}
+                onUpdateBatches={setSyncBatches}
                 onNavigateToSyncQuality={(batchId) => {
                   if (batchId) {
                     setSelectedSyncBatchId(batchId);
@@ -186,6 +191,8 @@ export default function App() {
 
             {currentView === 'data-sync-quality' && (
               <DataSyncQualityView
+                batches={syncBatches}
+                onUpdateBatches={setSyncBatches}
                 initialSelectedBatchId={selectedSyncBatchId}
                 onClearSelectedBatchId={() => setSelectedSyncBatchId(null)}
               />

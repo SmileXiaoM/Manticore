@@ -26,7 +26,6 @@ import {
   FieldMappingItem,
   MappingObjectType,
   Stage1PreviewRecord,
-  ResetAuditRecord,
   formatRootTypeDisplayName,
   determineSyncStrategy,
   SYNC_STRATEGY_LABELS
@@ -162,7 +161,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   );
 };
 
-// ==================== 2. 手工发起数据同步模态框 (统一简化入口，取消技术方式选择) ====================
+// ==================== 2. 手工发起数据同步模态框 (精简业务确认) ====================
 interface TriggerSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -177,13 +176,9 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
   onClose,
   currentRootType,
   fields,
-  onConfirmSync,
-  onNavigateToSyncQuality
+  onConfirmSync
 }) => {
   if (!isOpen) return null;
-
-  // 系统自动判定实际执行方式与原因，无随机数，前端不提供选择
-  const { strategyLabel, reason } = determineSyncStrategy(currentRootType, fields);
 
   // 检查是否有待同步的数据影响变更
   const hasPendingChanges = Boolean(
@@ -191,9 +186,11 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
     fields.some(f => f.rootTypeId === currentRootType.id && f.configStatus === 'CONFIGURED' && !f.isInFormalQueryBase)
   );
 
+  const previousErrorCount = currentRootType.lastSyncErrorRecords?.length ?? 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 rounded-ty-sm border bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-color)]/30">
@@ -203,9 +200,6 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
               <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
                 确认同步“{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}”数据？
               </h3>
-              <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                按当前已生效字段同步当前根类型的数据，系统将自动选择执行方式。
-              </p>
             </div>
           </div>
           <button
@@ -217,29 +211,8 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           </button>
         </div>
 
-        {/* 异常提示 (如果上一批次存在未中断整体任务的记录级异常) */}
-        {currentRootType.lastSyncErrorRecords && currentRootType.lastSyncErrorRecords.length > 0 && (
-          <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-3 text-ty-xs text-[var(--ty-font-main-light-color)] space-y-1.5">
-            <div className="font-bold flex items-center text-[var(--ty-orange-color)]">
-              <AlertTriangle className="w-3.5 h-3.5 mr-1 text-[var(--ty-orange-color)]" />
-              上一批次同步有 {currentRootType.lastSyncErrorRecords.length} 条异常记录 (本次同步将自动执行补偿处理):
-            </div>
-            <div className="max-h-20 overflow-y-auto space-y-1 text-ty-2xs font-mono text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-white-color)]/80 p-1.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30">
-              {currentRootType.lastSyncErrorRecords.map(err => (
-                <div key={err.id}>• [{err.recordKey}] {err.errorField || '未知字段'}: {err.errorMsg}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 确认核心信息卡片 */}
+        {/* 核心信息卡片 */}
         <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2.5 text-ty-xs">
-          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
-            <span>当前根类型：</span>
-            <span className="font-bold text-[var(--ty-font-main-color)]">
-              {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
-            </span>
-          </div>
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>当前已生效字段数：</span>
             <span className="font-mono font-bold text-[var(--ty-green-color)]">
@@ -247,72 +220,59 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
             </span>
           </div>
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
-            <span>当前正式可查字段数：</span>
-            <span className="font-mono font-bold text-[var(--ty-primary-color)]">
-              {currentRootType.formalQueryableFieldCount} 个
+            <span>当前草稿字段数：</span>
+            <span className="font-mono font-medium text-[var(--ty-orange-color)]">
+              {currentRootType.draftFieldCount} 个
             </span>
           </div>
-          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
-            <span>当前草稿字段数：</span>
-            <span className="font-mono font-medium text-[var(--ty-orange-color)] flex items-center space-x-1">
-              <span>{currentRootType.draftFieldCount} 个</span>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal">（草稿字段不参与本次同步）</span>
-            </span>
+          <div className="text-ty-2xs text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] p-2 rounded-ty-xs border border-[var(--ty-border-light-color)]">
+            当前有 {currentRootType.draftFieldCount} 个草稿字段，草稿不参与本次同步。
           </div>
 
           {/* 若存在待同步的数据影响变更 */}
           {hasPendingChanges && (
             <div className="bg-[var(--ty-primary-lightest-color)]/60 border border-[var(--ty-primary-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-primary-color)] flex items-center space-x-1.5 font-medium">
               <Info className="w-3.5 h-3.5 shrink-0" />
-              <span>检测到存在待同步的数据影响变更，同步成功后更新正式查询底座。</span>
+              <span>同步成功后更新正式查询底座。</span>
             </div>
           )}
 
-          {/* 系统自动判定执行策略展示 */}
-          <div className="border-t border-[var(--ty-border-color)] pt-2.5 space-y-1">
-            <div className="flex items-center justify-between text-ty-xs">
-              <span className="text-[var(--ty-font-sub-color)]">系统判定执行方式：</span>
-              <span className="px-2 py-0.5 rounded-ty-sm text-ty-2xs font-bold bg-[var(--ty-primary-color)]/10 text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30">
-                {strategyLabel}
-              </span>
+          {/* 上次同步异常简短提示 */}
+          {previousErrorCount > 0 && (
+            <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-1.5 font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>上次同步有 {previousErrorCount} 条异常，本次将由系统自动处理。</span>
             </div>
-            <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed">
-              原因：{reason}
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-            注：单条数据异常不中止同步任务
-          </span>
-          <div className="flex items-center space-x-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onConfirmSync();
-                onClose();
-              }}
-              className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>开始同步</span>
-            </button>
-          </div>
+        {/* 底部按钮 */}
+        <div className="flex justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onConfirmSync();
+              onClose();
+            }}
+            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>开始同步</span>
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// ==================== 2.1 重置接入危险确认弹窗 (低频危险操作) ====================
+// ==================== 2.1 重置接入危险确认弹窗 (精简四层信息) ====================
 interface ResetAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -330,7 +290,6 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
 }) => {
   const [confirmInput, setConfirmInput] = useState('');
 
-  // 弹窗打开或根类型切换时清空输入
   useEffect(() => {
     if (isOpen) {
       setConfirmInput('');
@@ -343,26 +302,24 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
   const targetCode = currentRootType.id; // PART / DOCUMENT / PROCESS
   const isCodeMatched = confirmInput.trim() === targetCode;
 
-  const docCountText = currentRootType.manticoreDocCount !== undefined
+  // 未知值必须保持未知并显示“待获取”，严禁虚构 38400
+  const docCountText = currentRootType.manticoreDocCount !== undefined && currentRootType.manticoreDocCount !== null
     ? `${currentRootType.manticoreDocCount.toLocaleString()} 条`
     : '待获取';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-danger-color)]/30 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
-        {/* 头部危险警示 */}
-        <div className="flex items-start justify-between border-b border-[var(--ty-danger-color)]/20 pb-3">
+      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-red-color)]/30 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+        {/* 1. 标题 */}
+        <div className="flex items-start justify-between border-b border-[var(--ty-red-color)]/20 pb-3">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-ty-sm border bg-[var(--ty-danger-lightest-color)] text-[var(--ty-danger-color)] border-[var(--ty-danger-color)]/30">
+            <div className="p-2 rounded-ty-sm border bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-danger-color)]">
+              <h3 className="text-ty-sm font-bold text-[var(--ty-red-color)]">
                 确认重置“{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}”接入？
               </h3>
-              <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                高危管理操作：重置当前根类型在检索底座的数据与配置状态
-              </p>
             </div>
           </div>
           <button
@@ -374,74 +331,77 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
           </button>
         </div>
 
-        {/* 影响说明 */}
-        <div className="bg-[var(--ty-danger-lightest-color)]/40 border border-[var(--ty-danger-color)]/20 rounded-ty-sm p-3.5 space-y-2 text-ty-xs">
-          <div className="font-bold text-[var(--ty-danger-color)] flex items-center space-x-1">
+        {/* 2. 合并后的影响说明 */}
+        <div className="bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/20 rounded-ty-sm p-3.5 space-y-2 text-ty-xs">
+          <div className="font-bold text-[var(--ty-red-color)] flex items-center space-x-1">
             <AlertOctagon className="w-4 h-4 mr-1 shrink-0" />
             <span>执行重置将产生以下影响（本操作不可撤销）：</span>
           </div>
           <ul className="space-y-1.5 text-[var(--ty-font-main-color)] pl-5 list-disc leading-relaxed text-ty-xs">
             <li>
-              将<strong>清空并删除</strong>当前根类型在 Manticore 中的{' '}
-              <strong className="text-[var(--ty-danger-color)] font-mono">{docCountText}</strong> 索引数据。
+              删除当前根类型索引数据（当前索引量：<strong className="text-[var(--ty-red-color)] font-mono">{docCountText}</strong>）。
             </li>
             <li>
-              将<strong>保留已有的 {currentFields.length} 个字段映射定义</strong>，但全部转为<strong>草稿状态</strong>（已生效变为 0，正式可查变为 0）。
+              保留当前已有的 {currentFields.length} 个字段映射定义，但全部转为草稿状态。
             </li>
             <li>
-              当前根类型将<strong>立即停止参与正式查询</strong>。
+              暂停当前根类型的正式查询。
             </li>
             <li className="text-[var(--ty-font-sub-color)]">
-              不会删除 PLM 源系统数据，也不会删除中间表数据，历史同步与审计记录完整保留。
+              不删除 PLM 源数据和中间表数据。
             </li>
           </ul>
         </div>
 
-        {/* 架构说明与恢复路径 */}
-        <div className="space-y-2 text-ty-xs">
-          <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2.5 text-ty-2xs space-y-1.5">
-            <div className="text-[var(--ty-font-sub-color)] flex items-center space-x-1 font-medium">
-              <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
-              <span>恢复路径：</span>
-            </div>
-            <div className="text-[var(--ty-font-main-color)] pl-4">
-              重置完成后，需要重新检查并<strong>生效字段配置</strong>，再执行“<strong>同步数据</strong>”，才能重新生成索引并恢复查询。
-            </div>
-            <div className="text-[var(--ty-font-sub-color)] pl-4 border-t border-[var(--ty-border-light-color)] pt-1 text-[var(--ty-font-sub-light-color)]">
-              架构说明：重置后 Manticore 物理列、物理表结构或 Schema 是否保留，当前标记为「<strong>待确认</strong>」（尚未接入底层 DDL 删除接口）。
-            </div>
-          </div>
+        {/* 3. 一句恢复路径 */}
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2.5 text-ty-xs flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
+          <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
+          <span>恢复路径：重新检查并生效字段配置后，再执行“同步数据”。</span>
         </div>
 
-        {/* 输入确认验证 */}
+        {/* 4. 输入稳定根类型编码并确认 */}
         <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-3 bg-[var(--ty-fill-white-color)] space-y-2">
-          <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
-            安全验证：请输入根类型编码 <span className="font-mono text-[var(--ty-danger-color)] font-bold">{targetCode}</span> 以确认
-          </label>
+          <div className="flex items-center justify-between text-ty-xs">
+            <label className="font-semibold text-[var(--ty-font-main-color)]">
+              安全验证：请输入根类型编码 <span className="font-mono text-[var(--ty-red-color)] font-bold">{targetCode}</span> 以确认
+            </label>
+            <button
+              type="button"
+              onClick={() => setConfirmInput(targetCode)}
+              className="text-ty-2xs text-[var(--ty-primary-color)] hover:underline cursor-pointer font-mono font-medium"
+              title="点击快速填入安全验证码"
+            >
+              填入 {targetCode}
+            </button>
+          </div>
           <input
             type="text"
             value={confirmInput}
             onChange={(e) => setConfirmInput(e.target.value)}
             placeholder={`请输入 ${targetCode}`}
-            className="w-full h-8 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono focus:border-[var(--ty-danger-color)] focus:ring-1 focus:ring-[var(--ty-danger-color)] outline-none"
+            className="w-full h-8 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono focus:border-[var(--ty-red-color)] focus:ring-1 focus:ring-[var(--ty-red-color)] outline-none"
             autoFocus
           />
           <div className="flex items-center justify-between text-ty-2xs">
             <span className={isCodeMatched ? 'text-[var(--ty-green-color)] font-medium flex items-center' : 'text-[var(--ty-font-sub-color)]'}>
               {isCodeMatched ? (
                 <>
-                  <Check className="w-3 h-3 mr-0.5" /> 编码验证匹配通过
+                  <Check className="w-3 h-3 mr-0.5" /> 编码验证匹配通过，可执行重置
                 </>
               ) : (
                 '输入必须完全匹配且区分大小写'
               )}
             </span>
-            <span className="text-[var(--ty-danger-color)] font-medium">不可撤销</span>
+            {!isCodeMatched && (
+              <span className="text-[var(--ty-font-sub-light-color)]">
+                未验证通过前确定按钮保持置灰
+              </span>
+            )}
           </div>
         </div>
 
-        {/* 底部按钮 */}
-        <div className="flex justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
+        {/* 底部按钮栏：明确提供【取消】与【确定重置接入】按钮 */}
+        <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
           <button
             type="button"
             onClick={onClose}
@@ -458,14 +418,19 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
                 onClose();
               }
             }}
-            className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-colors ${
+            title={
+              !isCodeMatched
+                ? `请输入根类型编码 ${targetCode} 后方可确认重置`
+                : '立即执行重置操作'
+            }
+            className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-all ${
               isCodeMatched
-                ? 'bg-[var(--ty-danger-color)] hover:opacity-90 text-[var(--ty-font-white-color)] cursor-pointer'
-                : 'bg-[var(--ty-danger-color)]/30 text-[var(--ty-font-white-color)]/60 cursor-not-allowed'
+                ? 'bg-[var(--ty-red-color)] hover:opacity-90 active:opacity-100 text-[var(--ty-font-white-color)] cursor-pointer shadow-xs'
+                : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed select-none'
             }`}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>重置接入</span>
+            <Trash2 className={`w-3.5 h-3.5 ${isCodeMatched ? 'text-[var(--ty-font-white-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`} />
+            <span>确定重置接入</span>
           </button>
         </div>
       </div>
@@ -473,7 +438,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
   );
 };
 
-// ==================== 2.2 重置阻断提示弹窗 (存在运行中任务时) ====================
+// ==================== 2.2 重置阻断提示弹窗 (精简信息) ====================
 interface ResetBlockModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -498,14 +463,10 @@ export const ResetBlockModal: React.FC<ResetBlockModalProps> = ({
             <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
               当前无法重置“{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}”接入
             </h3>
-            <p className="text-ty-xs text-[var(--ty-danger-color)] font-semibold">
-              当前有 1 个同步任务正在执行，请等待任务结束后再重置。
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
+              当前根类型有同步或重置任务正在执行，请等待任务结束后再重置。
             </p>
           </div>
-        </div>
-
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
-          为保证数据完整性与检索底座并发安全，禁止在数据同步或历史任务执行期间重置接入。其他根类型的独立配置与同步不受影响。
         </div>
 
         <div className="flex justify-end pt-2">
@@ -515,143 +476,6 @@ export const ResetBlockModal: React.FC<ResetBlockModalProps> = ({
             className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer transition-colors"
           >
             我知道了
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== 2.3 重置接入审计记录弹窗 ====================
-interface ResetAuditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  auditRecords: ResetAuditRecord[];
-  currentRootTypeId?: string;
-}
-
-export const ResetAuditModal: React.FC<ResetAuditModalProps> = ({
-  isOpen,
-  onClose,
-  auditRecords,
-  currentRootTypeId
-}) => {
-  if (!isOpen) return null;
-
-  const displayedRecords = currentRootTypeId
-    ? auditRecords.filter(r => r.rootTypeId === currentRootTypeId)
-    : auditRecords;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-3xl w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4 max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-[var(--ty-border-light-color)] pb-3">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-ty-sm border bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border-[var(--ty-border-color)]">
-              <FileText className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                重置接入操作审计记录
-              </h3>
-              <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                严格留痕：记录每次重置接入操作人、影响数据量、字段状态变更与执行结果
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 space-y-3 pr-1">
-          {displayedRecords.length === 0 ? (
-            <div className="py-12 text-center text-[var(--ty-font-sub-color)] text-ty-xs">
-              暂无重置接入审计记录
-            </div>
-          ) : (
-            displayedRecords.map(record => (
-              <div
-                key={record.id}
-                className="border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 bg-[var(--ty-fill-weak-dark-color)] space-y-2 text-ty-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono font-bold text-[var(--ty-font-main-color)]">
-                      {record.id}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-ty-sm font-medium bg-[var(--ty-primary-color)]/10 text-[var(--ty-primary-color)] text-ty-2xs">
-                      {record.rootTypeName}
-                    </span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-ty-sm text-ty-2xs font-bold ${
-                    record.status === 'SUCCESS'
-                      ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30'
-                      : record.status === 'RESETTING'
-                      ? 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 animate-pulse'
-                      : 'bg-[var(--ty-danger-lightest-color)] text-[var(--ty-danger-color)] border border-[var(--ty-danger-color)]/30'
-                  }`}>
-                    {record.status === 'SUCCESS' ? '重置成功' : record.status === 'RESETTING' ? '重置执行中' : '重置失败'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-ty-2xs bg-[var(--ty-fill-white-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-light-color)]">
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">操作人：</span>
-                    <span className="font-medium text-[var(--ty-font-main-color)]">{record.operator}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">发起时间：</span>
-                    <span className="font-mono text-[var(--ty-font-main-color)]">{record.initiatedAt}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">完成时间：</span>
-                    <span className="font-mono text-[var(--ty-font-main-color)]">{record.completedAt || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">安全编码校验：</span>
-                    <span className="font-mono text-[var(--ty-green-color)] font-bold">
-                      {record.confirmedInputCode} (通过)
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-ty-2xs">
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">已删除底座索引数据：</span>
-                    <span className="font-mono font-bold text-[var(--ty-danger-color)]">
-                      {record.deletedDocCount.toLocaleString()} 条
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">保留并转草稿字段数：</span>
-                    <span className="font-mono font-bold text-[var(--ty-orange-color)]">
-                      {record.retainedDraftCount} 个
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--ty-font-sub-color)]">物理列/Schema 保留状态：</span>
-                    <span className="font-bold text-[var(--ty-font-sub-color)]">
-                      {record.manticoreSchemaRetentionNote}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="flex justify-end pt-2 border-t border-[var(--ty-border-light-color)]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 px-4 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer transition-colors"
-          >
-            关闭
           </button>
         </div>
       </div>

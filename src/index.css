@@ -57,10 +57,13 @@
   --ty-orange-light-color: #ffd8a9;
   --ty-orange-lightest-color: #fff7ed;
 
-  /* 错误 */
+  /* 错误与高危危险 */
   --ty-red-color: #f73c4b;
   --ty-red-light-color: #ffc8cc;
   --ty-red-lightest-color: #fff1f2;
+  --ty-danger-color: #f73c4b;
+  --ty-danger-light-color: #ffc8cc;
+  --ty-danger-lightest-color: #fff1f2;
 
   /* 信息 */
   --ty-blue-color: #0955eb;

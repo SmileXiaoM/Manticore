@@ -56,10 +56,30 @@ export interface HandlingNote {
   createdAt: string;
 }
 
+// 任务类型：数据同步 vs 重置接入
+export type TaskType = 'SYNC' | 'RESET';
+
+// 重置接入专属审计与详情（统一收回数据同步记录，不建平行页面）
+export interface ResetAuditDetail {
+  operator: string;
+  confirmedInputCode: string;
+  beforeConfiguredCount: number;
+  beforeDraftCount: number;
+  beforeFormalQueryableCount: number;
+  beforeDocCount?: number;
+  deletedDocCount?: number;
+  retainedDraftCount: number;
+  failureStage?: string;
+  failureReason?: string;
+  needsAdminIntervention?: boolean;
+  manticoreSchemaRetentionNote?: string;
+}
+
 // 同步批次
 export interface SyncBatch {
-  id: string; // 批次编号，如 SYNC-20260825-010
-  jobName: string; // 任务名称，如 零件增量同步任务
+  id: string; // 批次编号，如 SYNC-20260825-010 或 RESET-20260907-001
+  jobName: string; // 任务名称，如 零件增量同步任务 或 零部件接入重置任务
+  taskType?: TaskType; // 任务类型：默认为 'SYNC'，重置时为 'RESET'
   parentBatchId?: string; // 关联原批次编号（用于重试留痕，如原批次 SYNC-20260825-010）
   rootTypes: SyncRootType[]; // 涉及的根类型列表
   syncMethod: SyncMethod; // 同步方式
@@ -79,6 +99,13 @@ export interface SyncBatch {
   taskFailureDetail?: TaskFailureDetail; // 任务级失败根因详情（仅用于任务级失败 FAILED）
   handlingNotes?: HandlingNote[]; // 人工处理说明历史
   statusNote?: string; // 批次执行情况简要说明
+
+  // 任务详情承接的执行方式与判定原因（用户发起前无需选择，详情中展示）
+  actualStrategy?: string; // 实际执行方式：初始化重建 / 增量刷新 / 历史回填 / 补偿重试
+  strategyReason?: string; // 判定原因
+
+  // 重置任务专属详情
+  resetAuditDetail?: ResetAuditDetail;
 }
 
 // 状态元数据工具函数

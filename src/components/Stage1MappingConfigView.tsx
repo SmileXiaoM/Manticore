@@ -4,7 +4,6 @@ import {
   FieldMappingItem,
   SourceFieldMeta,
   RootTypeConfigStatus,
-  ResetAuditRecord,
   determineSyncStrategy
 } from '../stage1MappingTypes';
 import {
@@ -12,9 +11,10 @@ import {
   initialMappingObjectTypes,
   initialFieldMappings,
   mockSourceFieldMetas,
-  mockStage1PreviewRecords,
-  initialResetAuditRecords
+  mockStage1PreviewRecords
 } from '../stage1MappingData';
+import { SyncBatch } from '../syncQualityTypes';
+import { initialSyncBatches } from '../syncQualityData';
 import { ObjectTypeListView } from './stage1-mapping/ObjectTypeListView';
 import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
 import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
@@ -25,16 +25,19 @@ import {
   Stage1QueryPreviewModal,
   FieldDetailModal,
   ResetAccessModal,
-  ResetBlockModal,
-  ResetAuditModal
+  ResetBlockModal
 } from './stage1-mapping/Stage1Modals';
 
 interface Stage1MappingConfigViewProps {
+  batches?: SyncBatch[];
+  onUpdateBatches?: React.Dispatch<React.SetStateAction<SyncBatch[]>> | ((updater: SyncBatch[] | ((prev: SyncBatch[]) => SyncBatch[])) => void);
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
 }
 
 export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = ({
+  batches,
+  onUpdateBatches,
   onNavigateToSyncQuality,
   hasPermission = true
 }) => {
@@ -44,7 +47,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   const [fieldMappings, setFieldMappings] = useState<FieldMappingItem[]>(
     () => Object.values(initialFieldMappings).flat()
   );
-  const [resetAuditRecords, setResetAuditRecords] = useState<ResetAuditRecord[]>(initialResetAuditRecords);
+  const [internalBatches, setInternalBatches] = useState<SyncBatch[]>(initialSyncBatches);
+  const currentBatches = batches || internalBatches;
+  const updateBatches = onUpdateBatches || setInternalBatches;
 
   // 2. 当前视图层级 (OVERVIEW: 根类型总览入口, DETAIL: 根类型字段配置列表)
   const [currentLevel, setCurrentLevel] = useState<'OVERVIEW' | 'DETAIL'>('OVERVIEW');
@@ -65,7 +70,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   // 重置相关模态框状态
   const [isResetAccessModalOpen, setIsResetAccessModalOpen] = useState(false);
   const [isResetBlockModalOpen, setIsResetBlockModalOpen] = useState(false);
-  const [isResetAuditModalOpen, setIsResetAuditModalOpen] = useState(false);
   const [resetTargetRootTypeId, setResetTargetRootTypeId] = useState<string>('PART');
 
   // 4. 当前上下文对应的根类型实体
@@ -341,10 +345,13 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsResetAccessModalOpen(true);
   };
 
-  // 查看重置接入审计记录
+  // 查看重置接入审计记录（统一定位至数据同步与质量中心）
   const handleOpenResetAudit = (rootId: string) => {
-    setResetTargetRootTypeId(rootId);
-    setIsResetAuditModalOpen(true);
+    // 优先定位该根类型的最新重置记录
+    const latestResetBatch = currentBatches.find(
+      b => b.taskType === 'RESET' && b.rootTypes.includes(rootId as any)
+    );
+    onNavigateToSyncQuality(latestResetBatch?.id);
   };
 
   // 模拟致命失败（用于检验底座保护机制）
@@ -417,27 +424,46 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         })
       );
 
-      // 新增一条不可篡改的审计留痕记录
-      const newAuditRecord: ResetAuditRecord = {
+      // 新增一条不可篡改的统一 SyncBatch 审计记录 (taskType: 'RESET')
+      const newResetBatch: SyncBatch = {
         id: auditBatchId,
-        rootTypeId: rootId,
-        rootTypeName: target.name,
-        operator: '当前用户 (接入管理员)',
-        initiatedAt: nowTime,
-        completedAt: nowTime,
-        status: 'SUCCESS',
-        confirmedInputCode: confirmedCode,
-        isInputCodeMatched: true,
-        beforeConfiguredCount: target.configuredFieldCount,
-        beforeDraftCount: target.draftFieldCount,
-        beforeFormalQueryableCount: target.formalQueryableFieldCount,
-        beforeDocCount: beforeDocCount,
-        deletedDocCount: beforeDocCount,
-        retainedDraftCount: targetFields.length,
-        manticoreSchemaRetentionNote: '待确认'
+        taskType: 'RESET',
+        jobName: `接入重置 - ${target.name} 底座清理与草稿归档`,
+        rootTypes: [rootId as any],
+        syncMethod: 'FULL',
+        triggerType: 'MANUAL',
+        startTime: nowTime,
+        endTime: nowTime,
+        durationText: '1.2s',
+        executionStatus: 'SUCCESS',
+        sourceDataCount: beforeDocCount,
+        successCount: beforeDocCount,
+        failedCount: 0,
+        skippedCount: 0,
+        statusNote: `高危二次校验输入确认码【${confirmedCode}】校验通过，物理索引清空（${beforeDocCount.toLocaleString()} 条已清空），保留 ${targetFields.length} 个字段映射转为草稿态。`,
+        failedRecords: [],
+        handlingNotes: [
+          {
+            id: `note-${Date.now()}`,
+            content: `执行人完成接入重置，已清空检索底座，保留${targetFields.length}个配置字段为草稿状态。`,
+            operator: '当前用户 (接入管理员)',
+            createdAt: nowTime
+          }
+        ],
+        resetAuditDetail: {
+          operator: '当前用户 (接入管理员)',
+          confirmedInputCode: confirmedCode,
+          beforeConfiguredCount: target.configuredFieldCount,
+          beforeDraftCount: target.draftFieldCount,
+          beforeFormalQueryableCount: target.formalQueryableFieldCount,
+          beforeDocCount: beforeDocCount,
+          deletedDocCount: beforeDocCount,
+          retainedDraftCount: targetFields.length,
+          manticoreSchemaRetentionNote: '保持底座表结构完整，TRUNCATE 清空已有文档'
+        }
       };
 
-      setResetAuditRecords(prev => [newAuditRecord, ...prev]);
+      updateBatches(prev => [newResetBatch, ...prev]);
     }, 1000);
   };
 
@@ -552,14 +578,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         isOpen={isResetBlockModalOpen}
         onClose={() => setIsResetBlockModalOpen(false)}
         currentRootType={resetTargetRoot}
-      />
-
-      {/* 模态框 9：重置接入操作审计轨迹 */}
-      <ResetAuditModal
-        isOpen={isResetAuditModalOpen}
-        onClose={() => setIsResetAuditModalOpen(false)}
-        currentRootTypeId={resetTargetRoot.id}
-        auditRecords={resetAuditRecords}
       />
     </div>
   );

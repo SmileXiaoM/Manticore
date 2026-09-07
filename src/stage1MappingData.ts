@@ -10,8 +10,7 @@ import {
   FieldMappingItem,
   QueryBaseSnapshot,
   Stage1PreviewRecord,
-  SyncErrorRecord,
-  ResetAuditRecord
+  SyncErrorRecord
 } from './stage1MappingTypes';
 
 // 1. 来源系统适配器
@@ -140,28 +139,6 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     lastSyncExecutionStrategy: 'INITIAL_REBUILD',
     lastSyncStrategyReason: '当前根类型未曾同步底座，需执行首次初始化全量构建。',
     hasPendingSyncChanges: false
-  }
-];
-
-// 重置接入初始审计历史记录（真实可溯源审计）
-export const initialResetAuditRecords: ResetAuditRecord[] = [
-  {
-    id: 'RESET-20260710-001',
-    rootTypeId: 'PROCESS',
-    rootTypeName: '工艺路线 (Process)',
-    operator: '张建国 (系统架构师)',
-    initiatedAt: '2026-07-10 16:20:11',
-    completedAt: '2026-07-10 16:20:18',
-    status: 'SUCCESS',
-    confirmedInputCode: 'PROCESS',
-    isInputCodeMatched: true,
-    beforeConfiguredCount: 2,
-    beforeDraftCount: 0,
-    beforeFormalQueryableCount: 2,
-    beforeDocCount: 1520,
-    deletedDocCount: 1520,
-    retainedDraftCount: 2,
-    manticoreSchemaRetentionNote: '待确认'
   }
 ];
 
