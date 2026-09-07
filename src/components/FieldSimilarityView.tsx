@@ -998,7 +998,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           </button>
                           <button
                             onClick={() => handleDeleteRule(rule.id)}
-                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-light-color)] rounded-ty-sm transition-colors cursor-pointer"
+                            className="p-1.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] rounded-ty-sm transition-colors cursor-pointer"
                             title="删除规则"
                             id={`delete-rule-${rule.id}`}
                           >

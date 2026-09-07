@@ -602,7 +602,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   e.stopPropagation();
                                   setSelectedBatchId(batch.id);
                                 }}
-                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-red-color)] bg-[var(--ty-red-lightest-color)] hover:bg-[var(--ty-red-light-color)] rounded-ty-sm border border-[var(--ty-red-color)]/30 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] bg-[var(--ty-red-lightest-color)] hover:bg-[var(--ty-red-light-color)] rounded-ty-sm border border-[var(--ty-red-color)]/30 transition-colors cursor-pointer"
                               >
                                 查看失败
                               </button>
@@ -612,7 +612,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   e.stopPropagation();
                                   setSelectedBatchId(batch.id);
                                 }}
-                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] hover:bg-[var(--ty-orange-light-color)] rounded-ty-sm border border-[var(--ty-orange-color)]/30 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] hover:bg-[var(--ty-orange-light-color)] rounded-ty-sm border border-[var(--ty-orange-color)]/30 transition-colors cursor-pointer"
                               >
                                 查看异常
                               </button>

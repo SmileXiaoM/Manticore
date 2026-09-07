@@ -1003,7 +1003,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleJumpToEditField(c.existingFieldId)}
-                                  className="h-7 px-2 bg-[var(--ty-orange-light-color)] hover:opacity-90 text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm text-ty-2xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
+                                  className="h-7 px-2 bg-[var(--ty-orange-lightest-color)] hover:bg-[var(--ty-orange-light-color)]/50 text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm text-ty-2xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
                                   title="已存在草稿无法重复导入，点击直接继续编辑现有草稿"
                                 >
                                   <Clock className="w-3 h-3 text-[var(--ty-orange-color)]" />
