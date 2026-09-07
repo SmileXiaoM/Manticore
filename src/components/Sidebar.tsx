@@ -8,7 +8,8 @@ import {
   ShieldAlert,
   Grid,
   Settings,
-  Database
+  Database,
+  FileSearch
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -56,6 +57,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               <Database className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>数据同步记录</span>
               {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
+            </button>
+
+            <button
+              onClick={() => onNavigate('data-consistency-check')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+                currentView === 'data-consistency-check'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
+                  : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
+              }`}
+              id="sidebar-nav-data-consistency-check"
+            >
+              <FileSearch className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
+              <span className="flex-1 flex items-center justify-between">
+                <span>数据一致性核验</span>
+                <span className="px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs font-medium">
+                  候选
+                </span>
+              </span>
+              {currentView === 'data-consistency-check' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-1"></span>}
             </button>
           </div>
         </div>

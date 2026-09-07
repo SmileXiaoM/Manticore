@@ -11,6 +11,7 @@ import { ClientFindSimilarView } from './components/ClientFindSimilarView';
 import { DataProcessingView } from './components/DataProcessingView';
 import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
 import { DataSyncQualityView } from './components/DataSyncQualityView';
+import { DataConsistencyCheckView } from './components/DataConsistencyCheckView';
 
 // Data
 import {
@@ -187,6 +188,13 @@ export default function App() {
               <DataSyncQualityView
                 initialSelectedBatchId={selectedSyncBatchId}
                 onClearSelectedBatchId={() => setSelectedSyncBatchId(null)}
+                onNavigateToConsistencyCheck={() => handleNavigate('data-consistency-check')}
+              />
+            )}
+
+            {currentView === 'data-consistency-check' && (
+              <DataConsistencyCheckView
+                onNavigateToSyncQuality={() => handleNavigate('data-sync-quality')}
               />
             )}
 

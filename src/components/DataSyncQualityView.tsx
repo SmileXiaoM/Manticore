@@ -15,7 +15,8 @@ import {
   Info,
   Layers,
   Database,
-  ArrowRight
+  ArrowRight,
+  FileSearch
 } from 'lucide-react';
 import {
   SyncBatch,
@@ -34,11 +35,13 @@ import { initialSyncBatches } from '../syncQualityData';
 interface DataSyncQualityViewProps {
   initialSelectedBatchId?: string | null;
   onClearSelectedBatchId?: () => void;
+  onNavigateToConsistencyCheck?: () => void;
 }
 
 export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
   initialSelectedBatchId,
-  onClearSelectedBatchId
+  onClearSelectedBatchId,
+  onNavigateToConsistencyCheck
 }) => {
   // 批次数据状态（支持新增重试批次）
   const [batches, setBatches] = useState<SyncBatch[]>(initialSyncBatches);
@@ -352,6 +355,19 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               查看每次同步是否完成、成功和异常数量，以及需要重试的失败数据。单条数据异常不会中断整个批次；只有任务无法继续执行时才标记为同步失败。
             </p>
           </div>
+
+          {onNavigateToConsistencyCheck && (
+            <button
+              onClick={onNavigateToConsistencyCheck}
+              className="px-3 py-2 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] hover:bg-[var(--ty-primary-color)] hover:text-[var(--ty-font-white-color)] text-[var(--ty-primary-color)] border border-[var(--ty-primary-color)]/30 text-ty-xs font-semibold flex items-center space-x-1.5 shrink-0 transition-colors cursor-pointer"
+              title="前往 PLM 与 Manticore 实际数据一致性核验 (候选原型)"
+              id="btn-goto-consistency-check"
+            >
+              <FileSearch className="w-3.5 h-3.5" />
+              <span>数据一致性核验 [候选]</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
         {/* 顶部紧凑指标摘要：一行展示 4 个关键指标 */}
