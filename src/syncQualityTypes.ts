@@ -72,7 +72,6 @@ export interface ResetAuditDetail {
   failureStage?: string;
   failureReason?: string;
   needsAdminIntervention?: boolean;
-  manticoreSchemaRetentionNote?: string;
 }
 
 // 同步批次
@@ -117,11 +116,12 @@ export interface StatusMeta {
   dotClass: string;
 }
 
-export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
+export function getSyncStatusMeta(status: SyncStatus, taskType?: TaskType): StatusMeta {
+  const isReset = taskType === 'RESET';
   switch (status) {
     case 'RUNNING':
       return {
-        label: '同步中',
+        label: isReset ? '重置中' : '同步中',
         bgClass: 'bg-[var(--ty-blue-lightest-color)]',
         textClass: 'text-[var(--ty-font-main-light-color)]',
         borderClass: 'border-[var(--ty-blue-color)]/30',
@@ -129,7 +129,7 @@ export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
       };
     case 'SUCCESS':
       return {
-        label: '同步完成',
+        label: isReset ? '重置完成' : '同步完成',
         bgClass: 'bg-[var(--ty-green-lightest-color)]',
         textClass: 'text-[var(--ty-font-main-light-color)]',
         borderClass: 'border-[var(--ty-green-color)]/30',
@@ -145,7 +145,7 @@ export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
       };
     case 'FAILED':
       return {
-        label: '同步失败',
+        label: isReset ? '重置失败' : '同步失败',
         bgClass: 'bg-[var(--ty-red-lightest-color)]',
         textClass: 'text-[var(--ty-font-main-light-color)]',
         borderClass: 'border-[var(--ty-red-color)]/30',
@@ -162,13 +162,29 @@ export function getSyncStatusMeta(status: SyncStatus): StatusMeta {
   }
 }
 
-export function getRootTypeDisplayName(rootType: SyncRootType): string {
-  switch (rootType) {
-    case 'Part':
+/**
+ * 集中、双向、类型安全的根类型转换函数
+ * 一阶段使用 PART / DOCUMENT / PROCESS，数据同步记录使用 Part / Document / Process
+ */
+export function toSyncRootType(id: string): SyncRootType {
+  const upper = (id || '').toUpperCase();
+  if (upper === 'DOCUMENT') return 'Document';
+  if (upper === 'PROCESS') return 'Process';
+  return 'Part';
+}
+
+export function toStage1RootTypeId(rootType: SyncRootType | string): string {
+  return (rootType || '').toUpperCase();
+}
+
+export function getRootTypeDisplayName(rootType: SyncRootType | string): string {
+  const upper = (rootType || '').toUpperCase();
+  switch (upper) {
+    case 'PART':
       return '零部件';
-    case 'Document':
+    case 'DOCUMENT':
       return '文档';
-    case 'Process':
+    case 'PROCESS':
       return '工艺路线';
     default:
       return rootType;

@@ -67,9 +67,8 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
     }
   };
 
-  // 筛选条件：根类型、任务类型、同步状态、批次号或任务名称搜索、重置
+  // 筛选条件：根类型、执行状态、任务编号或任务名称搜索、重置
   const [selectedRootType, setSelectedRootType] = useState<string>(initialRootTypeFilter || 'ALL');
-  const [selectedTaskType, setSelectedTaskType] = useState<'ALL' | 'SYNC' | 'RESET'>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
@@ -117,28 +116,20 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
   // 重置筛选条件
   const handleResetFilters = () => {
     setSelectedRootType('ALL');
-    setSelectedTaskType('ALL');
     setSelectedStatus('ALL');
     setSearchKeyword('');
   };
 
-  // 过滤后的批次列表
+  // 过滤后的任务列表
   const filteredBatches = useMemo(() => {
     return batches.filter(batch => {
-      // 任务类型筛选 (SYNC vs RESET)
-      if (selectedTaskType !== 'ALL') {
-        const batchType = batch.taskType || 'SYNC';
-        if (batchType !== selectedTaskType) {
-          return false;
-        }
-      }
       // 根类型筛选
       if (selectedRootType !== 'ALL') {
         if (!batch.rootTypes.includes(selectedRootType as SyncRootType)) {
           return false;
         }
       }
-      // 同步状态筛选
+      // 执行状态筛选
       if (selectedStatus !== 'ALL') {
         if (batch.executionStatus !== selectedStatus) {
           return false;
@@ -155,16 +146,16 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
       }
       return true;
     });
-  }, [batches, selectedTaskType, selectedRootType, selectedStatus, searchKeyword]);
+  }, [batches, selectedRootType, selectedStatus, searchKeyword]);
 
-  // 顶部一行紧凑统计
+  // 顶部关键指标收敛为 3 个：任务总数 / 进行中 / 待处理异常
   const summaryMetrics = useMemo(() => {
     const total = batches.length;
     const running = batches.filter(b => b.executionStatus === 'RUNNING').length;
-    const partialSuccess = batches.filter(b => b.executionStatus === 'PARTIAL_SUCCESS').length;
-    const failed = batches.filter(b => b.executionStatus === 'FAILED').length;
-    const resetCount = batches.filter(b => b.taskType === 'RESET').length;
-    return { total, running, partialSuccess, failed, resetCount };
+    const pendingIssues = batches.filter(
+      b => b.executionStatus === 'FAILED' || b.executionStatus === 'PARTIAL_SUCCESS'
+    ).length;
+    return { total, running, pendingIssues };
   }, [batches]);
 
   // 当前选中的批次对象
@@ -372,81 +363,52 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
       {/* 主页面工作区 */}
       <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 space-y-4">
-        {/* 顶部标题与简要说明 */}
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center space-x-2">
-              <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              <h1 className="text-ty-md font-semibold text-[var(--ty-font-main-color)]">数据同步记录</h1>
-              <span className="text-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
-                一阶段检索底座
-              </span>
-            </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1.5 leading-relaxed">
-              查看每次同步是否完成、成功和异常数量，以及需要重试的失败数据。单条数据异常不会中断整个批次；只有任务无法继续执行时才标记为同步失败。
-            </p>
+        {/* 顶部标题 */}
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
+            <h1 className="text-ty-md font-semibold text-[var(--ty-font-main-color)]">数据同步记录</h1>
+            <span className="text-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
+              一阶段检索底座
+            </span>
           </div>
         </div>
 
-        {/* 顶部紧凑指标摘要：一行展示 4 个关键指标 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
+        {/* 顶部紧凑指标摘要：收敛为 3 个关键指标 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center justify-between">
             <div>
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">批次总数</span>
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">任务总数</span>
               <span className="text-ty-xl font-bold text-[var(--ty-font-main-color)] mt-0.5 block">{summaryMetrics.total}</span>
             </div>
-            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-fill-color)] flex items-center justify-center text-[var(--ty-font-sub-color)]">
+            <div className="w-9 h-9 rounded-ty-sm bg-[var(--ty-fill-color)] flex items-center justify-center text-[var(--ty-font-sub-color)]">
               <Layers className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center justify-between">
             <div>
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步中数量</span>
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">进行中</span>
               <span className="text-ty-xl font-bold text-[var(--ty-primary-color)] mt-0.5 block">{summaryMetrics.running}</span>
             </div>
-            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-primary-lighter-color)]/30 flex items-center justify-center text-[var(--ty-primary-color)]">
+            <div className="w-9 h-9 rounded-ty-sm bg-[var(--ty-primary-lighter-color)]/30 flex items-center justify-center text-[var(--ty-primary-color)]">
               <RefreshCw className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
+          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center justify-between">
             <div>
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步完成（有异常）</span>
-              <span className="text-ty-xl font-bold text-[var(--ty-orange-color)] mt-0.5 block">{summaryMetrics.partialSuccess}</span>
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">待处理异常</span>
+              <span className="text-ty-xl font-bold text-[var(--ty-orange-color)] mt-0.5 block">{summaryMetrics.pendingIssues}</span>
             </div>
-            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 flex items-center justify-center text-[var(--ty-orange-color)]">
+            <div className="w-9 h-9 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 flex items-center justify-center text-[var(--ty-orange-color)]">
               <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between">
-            <div>
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步失败数量</span>
-              <span className="text-ty-xl font-bold text-[var(--ty-red-color)] mt-0.5 block">{summaryMetrics.failed}</span>
-            </div>
-            <div className="w-8 h-8 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 flex items-center justify-center text-[var(--ty-red-color)]">
-              <XCircle className="w-4 h-4" />
             </div>
           </div>
         </div>
 
-        {/* 筛选条件栏：根类型、任务类型、状态、搜索框与重置 */}
+        {/* 筛选条件栏：根类型、执行状态、搜索框与重置 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex flex-wrap items-center gap-3">
-          {/* 任务类型筛选 */}
-          <div className="flex items-center space-x-1.5 text-ty-xs">
-            <span className="text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">任务类型:</span>
-            <select
-              value={selectedTaskType}
-              onChange={e => setSelectedTaskType(e.target.value as 'ALL' | 'SYNC' | 'RESET')}
-              className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-            >
-              <option value="ALL">全部类型</option>
-              <option value="SYNC">常规数据同步</option>
-              <option value="RESET">接入重置操作</option>
-            </select>
-          </div>
-
           {/* 根类型筛选 */}
           <div className="flex items-center space-x-1.5 text-ty-xs">
             <span className="text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">根类型:</span>
@@ -462,16 +424,16 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             </select>
           </div>
 
-          {/* 同步状态筛选 */}
+          {/* 执行状态筛选 */}
           <div className="flex items-center space-x-1.5 text-ty-xs">
-            <span className="text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">同步状态:</span>
+            <span className="text-[var(--ty-font-main-color)] font-medium whitespace-nowrap">执行状态:</span>
             <select
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
               className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 py-1 text-ty-xs text-[var(--ty-font-main-color)] hover:border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
             >
               <option value="ALL">全部状态</option>
-              <option value="RUNNING">同步中</option>
+              <option value="RUNNING">进行中</option>
               <option value="SUCCESS">同步完成</option>
               <option value="PARTIAL_SUCCESS">同步完成（有异常）</option>
               <option value="FAILED">同步失败</option>
@@ -483,7 +445,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             <Search className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="搜索批次编号或任务名称..."
+              placeholder="搜索任务编号或任务名称..."
               value={searchKeyword}
               onChange={e => setSearchKeyword(e.target.value)}
               className="w-full pl-8 pr-3 py-1 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm focus:outline-hidden focus:border-[var(--ty-primary-color)] text-[var(--ty-font-main-color)] placeholder:text-[var(--ty-font-placeholder-color)] bg-[var(--ty-fill-white-color)]"
@@ -501,28 +463,27 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
           {/* 结果条数提示 */}
           <div className="ml-auto text-ty-xs text-[var(--ty-font-sub-color)]">
-            共 <span className="font-medium text-[var(--ty-font-main-color)]">{filteredBatches.length}</span> 条批次记录
+            共 <span className="font-medium text-[var(--ty-font-main-color)]">{filteredBatches.length}</span> 条任务记录
           </div>
         </div>
 
-        {/* 批次表格卡片：表头与主要信息默认 14px，辅助信息 12px */}
+        {/* 任务表格卡片：1280px 首屏完整可见，无需横向滚动 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1100px]">
+            <table className="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-sm font-semibold border-b border-[var(--ty-border-color)]">
-                  <th className="py-3 px-4 min-w-[240px]">同步批次</th>
-                  <th className="py-3 px-3 min-w-[160px]">根类型</th>
-                  <th className="py-3 px-3 min-w-[180px]">操作时间</th>
-                  <th className="py-3 px-3 min-w-[260px]">数据结果 / 影响</th>
-                  <th className="py-3 px-3 min-w-[150px] whitespace-nowrap">执行状态</th>
-                  <th className="py-3 px-4 text-right min-w-[110px] whitespace-nowrap">操作</th>
+                  <th className="py-3 px-4 min-w-[280px]">任务编号 / 任务名称</th>
+                  <th className="py-3 px-3 w-[170px] min-w-[150px]">操作时间</th>
+                  <th className="py-3 px-3 w-[220px] min-w-[190px]">数据结果 / 影响</th>
+                  <th className="py-3 px-3 w-[120px] min-w-[110px] whitespace-nowrap">执行状态</th>
+                  <th className="py-3 px-4 w-[90px] min-w-[80px] text-right whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                 {filteredBatches.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                    <td colSpan={5} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <Info className="w-8 h-8 text-[var(--ty-font-sub-light-color)]" />
                         <span className="text-ty-sm font-medium">未找到符合筛选条件的同步记录</span>
@@ -537,7 +498,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   </tr>
                 ) : (
                   filteredBatches.map(batch => {
-                    const statusMeta = getSyncStatusMeta(batch.executionStatus);
+                    const statusMeta = getSyncStatusMeta(batch.executionStatus, batch.taskType);
                     const isSelected = selectedBatchId === batch.id;
                     const isNewlyCreated = lastGeneratedBatchId === batch.id;
                     const isResetBatch = batch.taskType === 'RESET';
@@ -550,42 +511,50 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           isSelected ? 'bg-[var(--ty-primary-lighter-color)]/20' : ''
                         } ${isNewlyCreated ? 'bg-[var(--ty-green-light-color)]/20' : ''}`}
                       >
-                        {/* 1. 同步批次：批次编号 14px 加粗，任务名称 14px */}
+                        {/* 1. 任务编号 / 任务名称：合并展示根类型与轻量标签 */}
                         <td className="py-3 px-4">
                           <div className="flex flex-col">
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] hover:text-[var(--ty-primary-color)] transition-colors">
+                            <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                              <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] hover:text-[var(--ty-primary-color)] transition-colors font-mono">
                                 {batch.id}
                               </span>
+                              {batch.rootTypes.map(rt => (
+                                <span
+                                  key={rt}
+                                  className="inline-flex items-center px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-2xs font-medium border border-[var(--ty-border-color)]"
+                                >
+                                  {getRootTypeDisplayName(rt)}
+                                </span>
+                              ))}
                               {isResetBatch ? (
                                 <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold whitespace-nowrap">
                                   接入重置
                                 </span>
                               ) : batch.triggerType === 'RETRY' ? (
                                 <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold whitespace-nowrap">
-                                  重试批次
+                                  重试任务
                                 </span>
                               ) : null}
                             </div>
                             <span className="text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 line-clamp-1">
                               {batch.jobName}
                             </span>
-                            <div className="flex items-center space-x-1.5 mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">
+                            <div className="flex items-center space-x-1.5 mt-0.5 text-ty-xs text-[var(--ty-font-sub-color)]">
                               {isResetBatch ? (
                                 <>
-                                  <span className="text-[var(--ty-red-color)] font-medium">重置清空底座</span>
+                                  <span className="text-[var(--ty-red-color)] font-medium">清空检索底座</span>
                                   <span>·</span>
                                   <span>保留映射转草稿</span>
                                 </>
                               ) : (
                                 <>
-                                  <span>{getSyncMethodLabel(batch.syncMethod)}</span>
+                                  <span>{batch.actualStrategy || getSyncMethodLabel(batch.syncMethod)}</span>
                                   <span>·</span>
                                   <span>{getTriggerTypeLabel(batch.triggerType)}</span>
                                   {batch.parentBatchId && (
                                     <>
                                       <span>·</span>
-                                      <span className="text-[var(--ty-font-sub-light-color)]">关联原批次: {batch.parentBatchId}</span>
+                                      <span className="text-[var(--ty-font-sub-light-color)]">原任务: {batch.parentBatchId}</span>
                                     </>
                                   )}
                                 </>
@@ -594,21 +563,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           </div>
                         </td>
 
-                        {/* 2. 根类型：标签展示 */}
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {batch.rootTypes.map(rt => (
-                              <span
-                                key={rt}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-xs font-medium border border-[var(--ty-border-color)]"
-                              >
-                                {getRootTypeDisplayName(rt)}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* 3. 同步时间：12px 说明 */}
+                        {/* 2. 操作时间 */}
                         <td className="py-3 px-3">
                           <div className="flex flex-col text-ty-xs">
                             <span className="text-[var(--ty-font-main-color)] font-mono">{batch.startTime}</span>
@@ -619,13 +574,17 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           </div>
                         </td>
 
-                        {/* 4. 数据结果：如果是重置，显示清空索引量与草稿保留数 */}
+                        {/* 3. 数据结果 / 影响 */}
                         <td className="py-3 px-3">
                           {isResetBatch ? (
                             <div className="flex flex-col">
                               <div className="flex items-center space-x-2 text-ty-sm">
                                 <span className="text-[var(--ty-font-main-color)]">
-                                  清空索引: <strong className="text-[var(--ty-red-color)] font-semibold">{(batch.resetAuditDetail?.deletedDocCount ?? 0).toLocaleString()}</strong> 条
+                                  清空底座: <strong className="text-[var(--ty-red-color)] font-semibold">
+                                    {batch.resetAuditDetail?.deletedDocCount !== undefined && batch.resetAuditDetail?.deletedDocCount !== null
+                                      ? `${batch.resetAuditDetail.deletedDocCount.toLocaleString()} 条`
+                                      : '待获取'}
+                                  </strong>
                                 </span>
                               </div>
                               <span className="text-[var(--ty-font-sub-color)] text-ty-xs mt-0.5">
@@ -643,13 +602,11 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                   </span>
                                 )}
                               </div>
-                              {/* 运行中展示正在处理数 */}
                               {batch.executionStatus === 'RUNNING' && (
                                 <span className="text-[var(--ty-primary-color)] text-ty-xs mt-0.5">
-                                  正在处理 {batch.sourceDataCount - batch.successCount - batch.failedCount - batch.skippedCount} 条
+                                  正在处理 {Math.max(0, batch.sourceDataCount - batch.successCount - batch.failedCount - batch.skippedCount)} 条
                                 </span>
                               )}
-                              {/* 跳过数不计为异常提示 */}
                               {batch.skippedCount > 0 && (
                                 <span className="text-[var(--ty-font-sub-color)] text-ty-xs mt-0.5">
                                   跳过 {batch.skippedCount} 条，不计为同步异常
@@ -659,7 +616,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           )}
                         </td>
 
-                        {/* 5. 同步状态：规范状态标签 12px */}
+                        {/* 4. 执行状态 */}
                         <td className="py-3 px-3 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border whitespace-nowrap ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
@@ -669,7 +626,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           </span>
                         </td>
 
-                        {/* 6. 操作按钮 */}
+                        {/* 5. 操作 */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
                             {isResetBatch ? (
@@ -680,7 +637,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                                 }}
                                 className="px-2.5 py-1 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm border border-[var(--ty-border-color)] transition-colors cursor-pointer"
                               >
-                                查看审计
+                                查看详情
                               </button>
                             ) : batch.executionStatus === 'FAILED' ? (
                               <button
@@ -740,14 +697,14 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                 <div>
                   <div className="flex items-center space-x-2">
                     <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                      {activeBatch.taskType === 'RESET' ? '接入重置审计详情' : '同步批次详情'}
+                      {activeBatch.taskType === 'RESET' ? '接入重置任务详情' : '同步任务详情'}
                     </h2>
                     <span className="text-ty-xs font-mono font-medium text-[var(--ty-font-main-color)]">
                       {activeBatch.id}
                     </span>
                     {activeBatch.taskType === 'RESET' ? (
                       <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold">
-                        重置归档
+                        接入重置
                       </span>
                     ) : activeBatch.parentBatchId ? (
                       <span className="text-ty-xs text-[var(--ty-font-sub-light-color)]">
@@ -770,43 +727,16 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             {/* 抽屉内容主体区：自上而下顺序展示 */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 text-ty-sm text-[var(--ty-font-main-color)]">
               {activeBatch.taskType === 'RESET' ? (
-                /* === 接入重置专属审计详情 === */
-                <div className="space-y-5">
-                  {/* 1. 重置影响结果 */}
-                  <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">重置执行影响</h3>
-                      <span className="text-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-ty-xs font-medium border border-[var(--ty-green-color)]/30 flex items-center space-x-1">
-                        <CheckCircle2 className="w-3 h-3 text-[var(--ty-green-color)]" />
-                        <span>底座清空已生效</span>
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
-                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">物理底座索引清空</span>
-                        <span className="text-ty-md font-bold text-[var(--ty-red-color)] mt-0.5 block">
-                          {(activeBatch.resetAuditDetail?.deletedDocCount ?? 0).toLocaleString()} 条
-                        </span>
-                      </div>
-                      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
-                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">已配置映射转草稿</span>
-                        <span className="text-ty-md font-bold text-[var(--ty-primary-color)] mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.retainedDraftCount ?? 0} 个字段
-                        </span>
-                      </div>
-                      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center col-span-2 sm:col-span-1">
-                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">高危凭证二次校验</span>
-                        <span className="text-ty-md font-bold text-[var(--ty-green-color)] mt-0.5 block">
-                          输入匹配 ({activeBatch.resetAuditDetail?.confirmedInputCode || 'PART'})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2. 审计溯源信息 */}
+                /* === 接入重置详情 (严格精简版) === */
+                <div className="space-y-4">
+                  {/* 1. 重置基本信息 */}
                   <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3">
-                    <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">审计溯源信息</h3>
+                    <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">重置任务信息</h3>
                     <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-ty-xs">
+                      <div>
+                        <span className="text-[var(--ty-font-sub-color)] block">任务编号:</span>
+                        <span className="text-[var(--ty-font-main-color)] font-mono font-medium mt-0.5 block">{activeBatch.id}</span>
+                      </div>
                       <div>
                         <span className="text-[var(--ty-font-sub-color)] block">目标根类型:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -818,86 +748,86 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </div>
                       </div>
                       <div>
-                        <span className="text-[var(--ty-font-sub-color)] block">操作执行人:</span>
+                        <span className="text-[var(--ty-font-sub-color)] block">执行状态:</span>
+                        <div className="mt-1">
+                          {(() => {
+                            const meta = getSyncStatusMeta(activeBatch.executionStatus, activeBatch.taskType);
+                            return (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border ${meta.bgClass} ${meta.textClass} ${meta.borderClass}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${meta.dotClass}`}></span>
+                                {meta.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[var(--ty-font-sub-color)] block">操作人:</span>
                         <span className="text-[var(--ty-font-main-color)] font-medium mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.operator || 'admin'}
+                          {activeBatch.resetAuditDetail?.operator || '接入管理员'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[var(--ty-font-sub-color)] block">触发时间:</span>
+                        <span className="text-[var(--ty-font-sub-color)] block">开始时间:</span>
                         <span className="text-[var(--ty-font-main-color)] font-mono mt-0.5 block">{activeBatch.startTime}</span>
                       </div>
                       <div>
-                        <span className="text-[var(--ty-font-sub-color)] block">完成时间:</span>
-                        <span className="text-[var(--ty-font-main-color)] font-mono mt-0.5 block">{activeBatch.endTime || '已完成'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[var(--ty-font-sub-color)] block">执行耗时:</span>
-                        <span className="text-[var(--ty-font-main-color)] mt-0.5 block">{activeBatch.durationText || '3.2s'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[var(--ty-font-sub-color)] block">底座表结构处理:</span>
-                        <span className="text-[var(--ty-font-main-color)] mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.manticoreSchemaRetentionNote || '保持表结构完整，TRUNCATE 清空已有文档'}
-                        </span>
-                      </div>
-                    </div>
-                    {activeBatch.statusNote && (
-                      <div className="pt-2 border-t border-[var(--ty-border-light-color)] text-ty-xs text-[var(--ty-font-main-color)] leading-relaxed">
-                        <span className="text-[var(--ty-font-sub-color)]">操作说明:</span> {activeBatch.statusNote}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 3. 重置前状态快照 */}
-                  <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-2.5">
-                    <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">重置前状态快照（基线）</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-ty-xs">
-                      <div className="bg-[var(--ty-fill-color)] p-2 rounded-ty-sm border border-[var(--ty-border-light-color)]">
-                        <span className="text-[var(--ty-font-sub-color)] block">重置前已生效字段</span>
-                        <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.beforeConfiguredCount ?? 0} 个
-                        </span>
-                      </div>
-                      <div className="bg-[var(--ty-fill-color)] p-2 rounded-ty-sm border border-[var(--ty-border-light-color)]">
-                        <span className="text-[var(--ty-font-sub-color)] block">重置前草稿字段</span>
-                        <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.beforeDraftCount ?? 0} 个
-                        </span>
-                      </div>
-                      <div className="bg-[var(--ty-fill-color)] p-2 rounded-ty-sm border border-[var(--ty-border-light-color)]">
-                        <span className="text-[var(--ty-font-sub-color)] block">重置前正式可查</span>
-                        <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 block">
-                          {activeBatch.resetAuditDetail?.beforeFormalQueryableCount ?? 0} 个
-                        </span>
-                      </div>
-                      <div className="bg-[var(--ty-fill-color)] p-2 rounded-ty-sm border border-[var(--ty-border-light-color)]">
-                        <span className="text-[var(--ty-font-sub-color)] block">重置前底座数据量</span>
-                        <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 block">
-                          {(activeBatch.resetAuditDetail?.beforeDocCount ?? 0).toLocaleString()} 条
-                        </span>
+                        <span className="text-[var(--ty-font-sub-color)] block">结束时间:</span>
+                        <span className="text-[var(--ty-font-main-color)] font-mono mt-0.5 block">{activeBatch.endTime || '正在重置中'}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* 4. 资产安全与恢复指引 */}
-                  <div className="bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 rounded-ty-sm p-4 space-y-2">
-                    <div className="flex items-center space-x-2 text-[var(--ty-font-main-light-color)] font-medium text-ty-xs">
-                      <ShieldCheck className="w-4 h-4 text-[var(--ty-blue-color)] shrink-0" />
-                      <span>资产安全与恢复指南</span>
+                  {/* 2. 实际清理与保留结果 */}
+                  <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-2.5">
+                    <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">执行影响与处理结果</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-3 text-center">
+                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">已清空检索底座数据</span>
+                        <span className="text-ty-md font-bold text-[var(--ty-red-color)] mt-1 block">
+                          {activeBatch.resetAuditDetail?.deletedDocCount !== undefined && activeBatch.resetAuditDetail?.deletedDocCount !== null
+                            ? `${activeBatch.resetAuditDetail.deletedDocCount.toLocaleString()} 条`
+                            : '待获取'}
+                        </span>
+                      </div>
+                      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-3 text-center">
+                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">保留转草稿字段数</span>
+                        <span className="text-ty-md font-bold text-[var(--ty-primary-color)] mt-1 block">
+                          {activeBatch.resetAuditDetail?.retainedDraftCount ?? 0} 个
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-ty-xs text-[var(--ty-font-main-color)] leading-relaxed">
-                      接入重置仅清空了检索底座物理索引并将已配置字段恢复为<strong>草稿状态</strong>，未物理删除字段映射规则。
-                    </p>
-                    <div className="text-ty-xs text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-light-color)] space-y-1">
-                      <span className="font-medium text-[var(--ty-font-main-color)]">恢复检索能力指引：</span>
-                      <ol className="list-decimal list-inside space-y-0.5 text-[var(--ty-font-sub-color)] pl-1">
-                        <li>前往「对象类型映射」配置页面，核对草稿字段规则</li>
-                        <li>点击「发布配置」使字段映射重新生效</li>
-                        <li>点击「同步数据」触发新批次，检索底座即可重新全量建立</li>
-                      </ol>
+                    {/* 一句恢复路径 */}
+                    <div className="pt-2 text-ty-xs text-[var(--ty-font-sub-color)] flex items-center space-x-1.5">
+                      <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
+                      <span>恢复路径：重新生效字段配置并同步成功后恢复查询。</span>
                     </div>
                   </div>
+
+                  {/* 3. 若重置失败，展示失败阶段、原因与管理员介入标识 */}
+                  {activeBatch.executionStatus === 'FAILED' && (
+                    <div className="border border-[var(--ty-red-color)]/30 bg-[var(--ty-red-lightest-color)] rounded-ty-sm p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-ty-xs font-bold text-[var(--ty-red-color)] flex items-center space-x-1.5">
+                          <XCircle className="w-4 h-4 text-[var(--ty-red-color)] shrink-0" />
+                          <span>重置执行失败</span>
+                        </h3>
+                        <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-red-color)] text-[var(--ty-font-white-color)] font-semibold">
+                          需要系统管理员介入
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)]">
+                        <div>
+                          <span className="text-[var(--ty-font-sub-color)]">失败阶段:</span>{' '}
+                          <span className="font-medium">{activeBatch.taskFailureDetail?.failureStage || '清理物理索引阶段'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--ty-font-sub-color)]">失败原因:</span>{' '}
+                          <span className="font-medium">{activeBatch.taskFailureDetail?.failureReason || activeBatch.statusNote || 'Manticore 检索底层节点响应超时，已自动回滚'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -942,12 +872,12 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                 )}
               </div>
 
-              {/* 2. 同步基本信息：无软类型无版本概念 */}
+              {/* 2. 同步基本信息：含实际执行方式与判定原因 */}
               <div className="border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3">
-                <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">同步基本信息</h3>
+                <h3 className="text-ty-xs font-bold text-[var(--ty-font-main-color)] uppercase tracking-wider">同步任务信息</h3>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-ty-xs">
                   <div>
-                    <span className="text-[var(--ty-font-sub-color)] block">根类型:</span>
+                    <span className="text-[var(--ty-font-sub-color)] block">目标根类型:</span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {activeBatch.rootTypes.map(rt => (
                         <span
@@ -961,10 +891,10 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[var(--ty-font-sub-color)] block">同步状态:</span>
+                    <span className="text-[var(--ty-font-sub-color)] block">执行状态:</span>
                     <div className="mt-1">
                       {(() => {
-                        const meta = getSyncStatusMeta(activeBatch.executionStatus);
+                        const meta = getSyncStatusMeta(activeBatch.executionStatus, activeBatch.taskType);
                         return (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border ${meta.bgClass} ${meta.textClass} ${meta.borderClass}`}
@@ -990,14 +920,23 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[var(--ty-font-sub-color)] block">同步方式:</span>
-                    <span className="text-[var(--ty-font-main-color)] mt-0.5 block">{getSyncMethodLabel(activeBatch.syncMethod)}</span>
+                    <span className="text-[var(--ty-font-sub-color)] block">实际执行方式:</span>
+                    <span className="text-[var(--ty-font-main-color)] font-medium mt-0.5 block">
+                      {activeBatch.actualStrategy || (activeBatch.syncMethod === 'FULL' ? '全量重建' : '增量追平')}
+                    </span>
                   </div>
 
                   <div>
                     <span className="text-[var(--ty-font-sub-color)] block">触发方式:</span>
                     <span className="text-[var(--ty-font-main-color)] mt-0.5 block">{getTriggerTypeLabel(activeBatch.triggerType)}</span>
                   </div>
+
+                  {activeBatch.strategyReason && (
+                    <div className="col-span-2 bg-[var(--ty-fill-weak-dark-color)] p-2 rounded-ty-sm border border-[var(--ty-border-light-color)]">
+                      <span className="text-[var(--ty-font-sub-color)] block">判定原因:</span>
+                      <span className="text-[var(--ty-font-main-color)] mt-0.5 block">{activeBatch.strategyReason}</span>
+                    </div>
+                  )}
                 </div>
 
                 {activeBatch.statusNote && (
@@ -1302,9 +1241,9 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
             <div className="px-5 py-3.5 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] flex items-center justify-between shrink-0">
               <div className="text-ty-xs text-[var(--ty-font-sub-color)]">
                 {activeBatch.taskType === 'RESET' ? (
-                  <span className="text-[var(--ty-green-color)] font-medium flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ty-green-color)] shrink-0" />
-                    <span>重置审计记录已永久归档，物理索引已清空，配置字段保留为草稿态</span>
+                  <span className="text-[var(--ty-font-sub-color)] flex items-center space-x-1">
+                    <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
+                    <span>恢复路径：重新生效字段配置并同步成功后恢复查询。</span>
                   </span>
                 ) : activeBatch.executionStatus === 'FAILED' ? (
                   <span>任务级中断，支持重新执行整个同步任务</span>

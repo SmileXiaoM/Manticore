@@ -18,9 +18,7 @@ import {
   RotateCcw,
   AlertCircle,
   Link,
-  MoreHorizontal,
-  ShieldAlert,
-  History
+  MoreHorizontal
 } from 'lucide-react';
 import {
   FieldMappingItem,
@@ -40,8 +38,6 @@ interface FieldMappingListViewProps {
   onPublishConfig: () => void;
   onTriggerDataSync: () => void;
   onResetAccess: () => void;
-  onOpenResetAudit: () => void;
-  onSimulateFatalFail?: () => void;
   onOpenQueryPreview: () => void;
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
@@ -58,8 +54,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onPublishConfig,
   onTriggerDataSync,
   onResetAccess,
-  onOpenResetAudit,
-  onSimulateFatalFail,
   onOpenQueryPreview,
   onNavigateToSyncQuality,
   hasPermission = true
@@ -435,53 +429,29 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             </button>
 
             {showMoreDropdown && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-30 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1 w-48 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-40 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100"
+              >
                 <button
                   type="button"
+                  disabled={!hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'}
                   onClick={() => {
                     setShowMoreDropdown(false);
                     onResetAccess();
                   }}
-                  className="w-full text-left px-3 py-2 text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] flex items-center space-x-2 cursor-pointer transition-colors"
+                  className={`w-full text-left px-3 py-2 flex items-center space-x-2 transition-colors ${
+                    !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
+                      ? 'opacity-50 cursor-not-allowed text-[var(--ty-font-sub-light-color)]'
+                      : 'text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer'
+                  }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
                   <div className="leading-tight">
                     <div className="font-semibold">重置接入</div>
-                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空索引并转为草稿</div>
+                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空正式查询数据并转为草稿</div>
                   </div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMoreDropdown(false);
-                    onOpenResetAudit();
-                  }}
-                  className="w-full text-left px-3 py-2 text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
-                >
-                  <History className="w-3.5 h-3.5 shrink-0 text-[var(--ty-icon-color)]" />
-                  <div className="leading-tight">
-                    <div className="font-medium">重置接入审计记录</div>
-                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">查看历史重置轨迹</div>
-                  </div>
-                </button>
-
-                {onSimulateFatalFail && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMoreDropdown(false);
-                      onSimulateFatalFail();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--ty-font-sub-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-[var(--ty-orange-color)]" />
-                    <div className="leading-tight">
-                      <div className="font-medium">模拟失败 (底座保护)</div>
-                      <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">验证失败不影响底座</div>
-                    </div>
-                  </button>
-                )}
               </div>
             )}
           </div>

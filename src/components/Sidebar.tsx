@@ -69,13 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               id="sidebar-nav-data-consistency-check"
             >
               <FileSearch className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
-              <span className="flex-1 flex items-center justify-between">
-                <span>数据一致性核验</span>
-                <span className="px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs font-medium">
-                  候选
-                </span>
-              </span>
-              {currentView === 'data-consistency-check' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-1"></span>}
+              <span>数据一致性核验</span>
+              {currentView === 'data-consistency-check' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
           </div>
         </div>

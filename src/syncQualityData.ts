@@ -589,35 +589,5 @@ export const initialSyncBatches: SyncBatch[] = [
         createdAt: '2026-08-25 00:30:00'
       }
     ]
-  },
-
-  // 9. 接入维护历史记录（RESET：重置接入任务）
-  {
-    id: 'RESET-20260710-001',
-    jobName: '工艺路线接入重置任务',
-    taskType: 'RESET',
-    rootTypes: ['Process'],
-    syncMethod: 'FULL',
-    triggerType: 'MANUAL',
-    startTime: '2026-07-10 16:20:11',
-    endTime: '2026-07-10 16:20:18',
-    durationText: '7秒',
-    sourceDataCount: 0,
-    successCount: 0,
-    failedCount: 0,
-    skippedCount: 0,
-    executionStatus: 'SUCCESS',
-    statusNote: '已完成工艺路线接入重置：清空索引数据 1,520 条，保留 2 个字段映射并转为草稿状态。',
-    failedRecords: [],
-    resetAuditDetail: {
-      operator: '系统管理员',
-      confirmedInputCode: 'PROCESS',
-      beforeConfiguredCount: 2,
-      beforeDraftCount: 0,
-      beforeFormalQueryableCount: 2,
-      beforeDocCount: 1520,
-      deletedDocCount: 1520,
-      retainedDraftCount: 2
-    }
   }
 ];

@@ -181,9 +181,9 @@ export const demoObjectResults: ConsistencyObjectResult[] = [
     modifyCount: 8,
     lastModifiedAt: '2026-09-06 22:28:40',
     status: 'PENDING_RECHECK',
-    statusDetail: '待复查：PLM 源端 2 分钟前仍有活动修改，处于演示同步延迟窗口期 (5分钟演示阈值 / 待确认)',
-    differenceFields: ['版本/迭代与生命周期'],
-    recheckReason: 'PLM 最后变更时间距核验时刻小于 5 分钟演示缓冲阈值(待确认)，同步管道可能仍在处理中，不应判定为静默故障',
+    statusDetail: '待复查：PLM 源端活动变更在途，同步尚未到达',
+    differenceFields: ['版本与生命周期状态'],
+    recheckReason: 'PLM 源端近期发生变更，数据处于同步流转期间，暂不判定为异常',
     fields: [
       {
         fieldCode: 'version_lifecycle',
@@ -314,54 +314,5 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
       demoObjectResults[4]
     ],
     status: 'COMPLETED'
-  }
-];
-
-// 5 项未确认的真实能力待确认说明
-export const pendingConfirmations = [
-  {
-    title: 'PLM 源端读取通道',
-    description: 'PLM 是通过标准化 REST/Web 接口还是直连只读镜像数据库批量提取，尚未最终敲定。',
-    status: '待确认'
-  },
-  {
-    title: '对象唯一标识格式与版本语义',
-    description: '对象唯一标识是否包含主版本（如 P-10001-A）与小迭代，亦或仅包含基础物料号，需业务口径确认。',
-    status: '待确认'
-  },
-  {
-    title: 'Manticore 批量查询接口',
-    description: 'Manticore 底座是否支持按对象唯一标识列表（Batch ID List）高效批量获取目标实际存储字段。',
-    status: '待确认'
-  },
-  {
-    title: '高频修改统计数据源',
-    description: '高频修改统计是否可直接从 PLM 变更历史、审计流或事件中心获取有效变更频次（当前仅为演示数据）。',
-    status: '待接入'
-  },
-  {
-    title: '两端时间快照一致性',
-    description: '源端读取与 Manticore 读取之间是否存在不可消除的网络与传输时延快照偏差，需设定合理延迟排查窗口。',
-    status: '待确认'
-  }
-];
-
-// 覆盖边界与审计说明
-export const coverageBoundaries = [
-  {
-    title: 'PLM 单向选样的可发现范围',
-    content: '从 PLM 单向选样并比对，能可靠发现“字段属性不一致”以及“PLM 源端应该存在但在 Manticore 实际数据中按唯一标识查询不到”的漏同步问题。'
-  },
-  {
-    title: '单向抽样的固有局限',
-    content: '单向抽查无法发现“PLM 源端已被物理删除，但 Manticore 底座中仍有残留数据”的孤儿垃圾数据，此类情况需由反向审计模块处理。'
-  },
-  {
-    title: '严禁单向自动删除目标数据',
-    content: '若某次单向核验中源端读取不到某条记录，绝不能自动删除 Manticore 目标数据，必须人工排查是否属于源端网络抖动或临时归档。'
-  },
-  {
-    title: '抽样一致性不代表全库一致',
-    content: '本次抽检样本未发现差异，仅说明“在本次抽取的样本内及核验的特定字段集合上未发现不一致”，绝不能宣传为“全库完全无静默不一致”。'
   }
 ];

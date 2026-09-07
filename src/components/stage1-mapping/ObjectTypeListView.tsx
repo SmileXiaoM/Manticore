@@ -16,9 +16,7 @@ import {
   RotateCcw,
   X,
   Sparkles,
-  MoreHorizontal,
-  ShieldAlert,
-  History
+  MoreHorizontal
 } from 'lucide-react';
 import {
   MappingObjectType,
@@ -35,8 +33,6 @@ interface ObjectTypeListViewProps {
   onOpenQueryPreview: (rootTypeId: string) => void;
   onTriggerSync: (rootTypeId: string, mode?: 'NORMAL' | 'WITH_ERRORS' | 'FATAL_FAIL') => void;
   onResetAccess: (rootTypeId: string) => void;
-  onOpenResetAudit?: (rootTypeId: string) => void;
-  onSimulateFatalFail?: (rootTypeId: string) => void;
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
 }
@@ -48,14 +44,11 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   onOpenQueryPreview,
   onTriggerSync,
   onResetAccess,
-  onOpenResetAudit,
-  onSimulateFatalFail,
   onNavigateToSyncQuality,
   hasPermission = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSystemId, setSelectedSystemId] = useState<string>('ALL');
-  const [showLifecycleGuide, setShowLifecycleGuide] = useState(false);
   const [viewingErrorsRootType, setViewingErrorsRootType] = useState<MappingObjectType | null>(null);
   const [openDropdownRootId, setOpenDropdownRootId] = useState<string | null>(null);
 
@@ -344,11 +337,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
             <span className="min-h-[22px] inline-flex items-center px-1.5 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
               未同步
             </span>
-            {root.manticoreDocCount === 0 && (
-              <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] whitespace-nowrap">
-                物理索引为空
-              </div>
-            )}
           </div>
         );
     }
@@ -395,44 +383,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
         </div>
       </div>
 
-      {/* 2. 权威生命周期与底座规则说明 (默认折叠) */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3 text-ty-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
-            <span className="font-semibold text-[var(--ty-font-main-color)] text-ty-xs">
-              一阶段根类型映射与正式查询底座生命周期规范
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowLifecycleGuide(!showLifecycleGuide)}
-            className="text-[var(--ty-primary-color)] hover:text-[var(--ty-primary-hover-color)] font-medium flex items-center space-x-1 cursor-pointer text-ty-xs"
-          >
-            <span>{showLifecycleGuide ? '收起说明' : '展开业务规则说明'}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${showLifecycleGuide ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-
-        {showLifecycleGuide && (
-          <div className="mt-2.5 pt-2.5 border-t border-[var(--ty-border-light-color)] text-ty-xs leading-relaxed text-[var(--ty-font-sub-color)] space-y-1.5 bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-ty-sm">
-            <p>
-              1. <strong>根类型作用域</strong>：一阶段直接按 Part、Document、Process 三个根类型维护字段映射，不存在软类型管理概念。
-            </p>
-            <p>
-              2. <strong>正式查询底座</strong>：不维护配置版本号。数据影响变更生效后，根类型进入「待同步」；数据同步成功后更新可查数据底座。
-            </p>
-            <p>
-              3. <strong>容错与异常记录</strong>：单条数据转换错误仅记录异常并继续处理，任务最终呈现「同步完成（有异常）」，底座数据正常更新，异常数据可单独补偿重试。
-            </p>
-            <p>
-              4. <strong>正式查询底座隔离</strong>：查询预览严格读取该根类型当前已同步的底座数据，即使修改了草稿或发生同步失败，也绝不影响线上既有可查字段。
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 3. 筛选工具栏 (统一 32px 控件高度) */}
+      {/* 2. 筛选工具栏 (统一 32px 控件高度) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           <div className="flex items-center space-x-2 text-ty-xs">
@@ -649,7 +600,9 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         minWidth: colWidths.actions,
                         maxWidth: colWidths.actions
                       }}
-                      className="py-2.5 px-1 text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] z-10 whitespace-nowrap"
+                      className={`py-2.5 px-1 text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] whitespace-nowrap ${
+                        openDropdownRootId === root.id ? 'z-30' : 'z-10'
+                      }`}
                     >
                       <div className="flex items-center justify-center space-x-1 whitespace-nowrap">
                         <button
@@ -712,7 +665,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           )}
                         </button>
 
-                        {/* 更多操作下拉菜单 (重置接入 / 审计记录 / 模拟系统失败) */}
+                        {/* 更多操作下拉菜单 (只保留重置接入) */}
                         <div className="relative row-more-menu-container">
                           <button
                             type="button"
@@ -725,65 +678,37 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                                 ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)]'
                                 : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
                             }`}
-                            title="更多操作 (重置接入、审计留痕等)"
+                            title="更多操作"
                             aria-label="更多操作"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
 
                           {openDropdownRootId === root.id && (
-                            <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-30 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 top-full mt-1 w-48 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-40 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100"
+                            >
                               <button
                                 type="button"
+                                disabled={!hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenDropdownRootId(null);
                                   onResetAccess(root.id);
                                 }}
-                                className="w-full text-left px-3 py-2 text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] flex items-center space-x-2 cursor-pointer transition-colors"
+                                className={`w-full text-left px-3 py-2 flex items-center space-x-2 transition-colors ${
+                                  !hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'
+                                    ? 'opacity-50 cursor-not-allowed text-[var(--ty-font-sub-light-color)]'
+                                    : 'text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer'
+                                }`}
                               >
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
                                 <div className="leading-tight">
                                   <div className="font-semibold">重置接入</div>
-                                  <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空索引并转为草稿</div>
+                                  <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空正式查询数据并转为草稿</div>
                                 </div>
                               </button>
-
-                              {onOpenResetAudit && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdownRootId(null);
-                                    onOpenResetAudit(root.id);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
-                                >
-                                  <History className="w-3.5 h-3.5 shrink-0 text-[var(--ty-icon-color)]" />
-                                  <div className="leading-tight">
-                                    <div className="font-medium">重置接入审计记录</div>
-                                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">查看历史重置轨迹</div>
-                                  </div>
-                                </button>
-                              )}
-
-                              {onSimulateFatalFail && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdownRootId(null);
-                                    onSimulateFatalFail(root.id);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-[var(--ty-font-sub-color)] hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer transition-colors border-t border-[var(--ty-border-light-color)]"
-                                >
-                                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-[var(--ty-orange-color)]" />
-                                  <div className="leading-tight">
-                                    <div className="font-medium">模拟失败 (底座保护)</div>
-                                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">验证失败不影响底座</div>
-                                  </div>
-                                </button>
-                              )}
                             </div>
                           )}
                         </div>

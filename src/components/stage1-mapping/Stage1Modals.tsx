@@ -356,7 +356,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
         {/* 3. 一句恢复路径 */}
         <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2.5 text-ty-xs flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
           <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
-          <span>恢复路径：重新检查并生效字段配置后，再执行“同步数据”。</span>
+          <span>重新生效字段配置并同步成功后恢复查询。</span>
         </div>
 
         {/* 4. 输入稳定根类型编码并确认 */}
@@ -365,14 +365,6 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             <label className="font-semibold text-[var(--ty-font-main-color)]">
               安全验证：请输入根类型编码 <span className="font-mono text-[var(--ty-red-color)] font-bold">{targetCode}</span> 以确认
             </label>
-            <button
-              type="button"
-              onClick={() => setConfirmInput(targetCode)}
-              className="text-ty-2xs text-[var(--ty-primary-color)] hover:underline cursor-pointer font-mono font-medium"
-              title="点击快速填入安全验证码"
-            >
-              填入 {targetCode}
-            </button>
           </div>
           <input
             type="text"
@@ -394,13 +386,13 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             </span>
             {!isCodeMatched && (
               <span className="text-[var(--ty-font-sub-light-color)]">
-                未验证通过前确定按钮保持置灰
+                未验证通过前重置按钮保持置灰
               </span>
             )}
           </div>
         </div>
 
-        {/* 底部按钮栏：明确提供【取消】与【确定重置接入】按钮 */}
+        {/* 底部按钮栏：明确提供【取消】与【重置接入】按钮 */}
         <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
           <button
             type="button"
@@ -421,7 +413,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             title={
               !isCodeMatched
                 ? `请输入根类型编码 ${targetCode} 后方可确认重置`
-                : '立即执行重置操作'
+                : '立即执行重置接入操作'
             }
             className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-all ${
               isCodeMatched
@@ -430,7 +422,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             }`}
           >
             <Trash2 className={`w-3.5 h-3.5 ${isCodeMatched ? 'text-[var(--ty-font-white-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`} />
-            <span>确定重置接入</span>
+            <span>重置接入</span>
           </button>
         </div>
       </div>
