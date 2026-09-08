@@ -1,4 +1,9 @@
 import './components/data-consistency-check.css';
+import './components/operations.css';
+import { OperationsDashboard } from './components/OperationsDashboard';
+import { ExecutionScheduleDialog } from './components/ExecutionScheduleDialog';
+import { TargetPresenceView } from './components/TargetPresenceView';
+import { ExecutionSchedule } from './data/operations';
 import { useState, useMemo, useCallback, type SetStateAction } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -25,7 +30,7 @@ import {
   initialCategoryCoverages
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
-import { SyncBatch } from './syncQualityTypes';
+import { SyncBatch, toSyncRootType } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
 import { initialConsistencyBatches } from './data/consistencyCheckData';
@@ -122,7 +127,10 @@ export default function App() {
   const [activeObjectType, setActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
 
   // View Router State
-  const [currentView, setCurrentView] = useState<string>('field-rules');
+  const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [selectedRootFilter, setSelectedRootFilter] = useState<string>('ALL');
+  const [schedules, setSchedules] = useState<ExecutionSchedule[]>([]);
+  const [scheduleTarget, setScheduleTarget] = useState<{ kind: ExecutionSchedule['kind']; root: string } | null>(null);
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
@@ -210,6 +218,18 @@ export default function App() {
 
           {/* Dynamic View Dispatcher */}
           <main className="flex-1 min-w-0 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
+            {scheduleTarget && <ExecutionScheduleDialog kind={scheduleTarget.kind} rootTypeCode={scheduleTarget.root}
+              roots={mappingObjects} plans={consistencyPlans} schedules={schedules}
+              onSave={value => setSchedules(previous => [...previous.filter(item => item.kind !== value.kind || item.rootTypeCode !== value.rootTypeCode), value])}
+              onClose={() => setScheduleTarget(null)} />}
+            {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} syncs={syncBatches} checks={consistencyBatches} schedules={schedules}
+              onSync={(root, batchId) => { setSelectedRootFilter(root || 'ALL'); setSelectedSyncBatchId(batchId || null); handleNavigate('data-sync-quality'); }}
+              onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
+              onPresence={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }}
+              onSchedule={(kind, root) => setScheduleTarget({ kind, root })} />}
+            {currentView === 'target-presence' && <TargetPresenceView roots={mappingObjects} initialRoot={selectedRootFilter === 'ALL' ? 'PART' : selectedRootFilter}
+              onBack={() => handleNavigate('data-consistency-check')}
+              onSync={root => { setSelectedRootFilter(root); setSelectedSyncBatchId(null); handleNavigate('data-sync-quality'); }} />}
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
                 batches={syncBatches}
@@ -228,6 +248,8 @@ export default function App() {
 
             {currentView === 'data-sync-quality' && (
               <DataSyncQualityView
+                initialRootTypeFilter={toSyncRootType(selectedRootFilter) || 'ALL'}
+                onConfigureSchedule={root => setScheduleTarget({ kind: 'SYNC', root: root || 'PART' })}
                 batches={syncBatches}
                 onUpdateBatches={setSyncBatches}
                 initialSelectedBatchId={selectedSyncBatchId}
@@ -237,6 +259,9 @@ export default function App() {
 
             {currentView === 'data-consistency-check' && (
               <DataConsistencyCheckView
+                initialRootTypeFilter={selectedRootFilter}
+                onConfigureSchedule={root => setScheduleTarget({ kind: 'VERIFY', root: root || 'PART' })}
+                onInspectTarget={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }}
                 mappingObjects={mappingObjects}
                 fieldMappings={groupedFieldMappings}
                 syncBatches={syncBatches}

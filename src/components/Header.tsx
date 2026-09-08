@@ -11,8 +11,9 @@ export const Header: React.FC<HeaderProps> = ({
   currentView = 'field-rules'
 }) => {
   const getStageBadge = () => {
+    if (currentView === 'dashboard') return '运行看板';
     if (
-      currentView === 'data-sync-quality' ||
+      currentView === 'data-sync-quality' || currentView === 'target-presence' ||
       currentView === 'stage1-mapping-config' ||
       currentView === 'data-consistency-check'
     ) {

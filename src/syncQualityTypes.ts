@@ -76,6 +76,7 @@ export interface ResetAuditDetail {
 
 // 同步批次
 export interface SyncBatch {
+  stageLogs?: import('./data/operations').SyncStageLog[];
   id: string; // 批次编号，如 SYNC-20260825-010 或 RESET-20260907-001
   jobName: string; // 任务名称，如 零件增量同步任务 或 零部件接入重置任务
   taskType?: TaskType; // 任务类型：默认为 'SYNC'，重置时为 'RESET'

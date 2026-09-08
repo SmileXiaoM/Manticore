@@ -30,6 +30,9 @@ import { MappingObjectType, FieldMappingItem } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
 
 interface DataConsistencyCheckViewProps {
+  initialRootTypeFilter?: string;
+  onConfigureSchedule?: (root?: string) => void;
+  onInspectTarget?: (root?: string) => void;
   mappingObjects?: MappingObjectType[];
   fieldMappings?: Record<string, FieldMappingItem[]>;
   syncBatches?: SyncBatch[];
@@ -96,6 +99,9 @@ function SnapshotSummary({ snapshot }: { snapshot: ComparisonFieldSnapshot }) {
 }
 
 export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> = ({
+  initialRootTypeFilter = 'ALL',
+  onConfigureSchedule,
+  onInspectTarget,
   mappingObjects = initialMappingObjectTypes,
   fieldMappings = initialFieldMappings,
   syncBatches,
@@ -113,6 +119,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const updateBatches = onUpdateBatches ?? setInternalBatches;
   const updatePlans = onUpdatePlans ?? setInternalPlans;
   const [runOpen, setRunOpen] = useState(false);
+  const [rootFilter, setRootFilter] = useState(initialRootTypeFilter);
   const [draft, setDraft] = useState<ConsistencyPlan | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [mode, setMode] = useState<ConsistencyStrategyType>('RANDOM_SAMPLE');
@@ -161,7 +168,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     : {};
   const running = batches.some((batch) => batch.status === 'RUNNING');
   const runError = running ? '已有核验正在执行，请等待完成' : !selectedPlan ? '请先选择核验方案' : prepared.error;
-  const latest = batches[0];
+  const visiblePlans = plans.filter((plan) => rootFilter === 'ALL' || plan.rootTypeCode === rootFilter);
+  const visibleBatches = batches.filter((batch) => rootFilter === 'ALL' || batch.rootTypeCode === rootFilter);
+  const latest = visibleBatches[0];
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId);
   const selectedObject = selectedBatch?.objectResults.find((object) => object.objectId === objectId);
   const filteredObjects =
@@ -248,9 +257,19 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <p className="muted">管理核验方案，查看 PLM 与检索底座的比对结果。</p>
         </div>
         <div className="page-actions">
+          {onConfigureSchedule && (
+            <button onClick={() => onConfigureSchedule(rootFilter === 'ALL' ? undefined : rootFilter)}>
+              核验频率设置
+            </button>
+          )}
+          {onInspectTarget && (
+            <button onClick={() => onInspectTarget(rootFilter === 'ALL' ? undefined : rootFilter)}>
+              目标多余数据排查
+            </button>
+          )}
           <button
             onClick={() => {
-              setDraft(newPlan(''));
+              setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
               setNotice('');
             }}
           >
@@ -261,7 +280,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             className="primary"
             disabled={running}
             onClick={() => {
-              choosePlan(plans.length === 1 ? plans[0].id : '');
+              choosePlan(visiblePlans.length === 1 ? visiblePlans[0].id : '');
               setRunOpen(true);
             }}
           >
@@ -270,6 +289,25 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </button>
         </div>
       </header>
+      <label className="root-filter">
+        对象类型
+        <select
+          aria-label="核验对象类型筛选"
+          value={rootFilter}
+          onChange={(event) => {
+            setRootFilter(event.target.value);
+            setSelectedBatchId(null);
+            choosePlan('');
+          }}
+        >
+          <option value="ALL">全部类型</option>
+          {mappingObjects.map((root) => (
+            <option key={root.id} value={root.id}>
+              {root.name}
+            </option>
+          ))}
+        </select>
+      </label>
       {notice && (
         <p role="status" className="notice">
           {notice}
@@ -281,9 +319,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <h2>核验方案</h2>
             <p className="muted">不同根类型分别建立方案。</p>
           </div>
-          <span className="muted">{plans.length} 个方案</span>
+          <span className="muted">{visiblePlans.length} 个方案</span>
         </div>
-        {plans.length ? (
+        {visiblePlans.length ? (
           <div className="table-scroll">
             <table>
               <thead>
@@ -297,7 +335,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </tr>
               </thead>
               <tbody>
-                {plans.map((plan) => (
+                {visiblePlans.map((plan) => (
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
                     <td>{rootName(plan.rootTypeCode)}</td>
@@ -339,7 +377,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       <section className="panel" aria-label="核验结果">
         <div className="section-heading">
           <h2>核验记录</h2>
-          <span className="muted">{batches.length} 次记录</span>
+          <span className="muted">{visibleBatches.length} 次记录</span>
         </div>
         {latest ? (
           <div className="latest-summary">
@@ -369,7 +407,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </tr>
             </thead>
             <tbody>
-              {batches.map((batch) => (
+              {visibleBatches.map((batch) => (
                 <tr key={batch.id}>
                   <td>
                     <strong>{batch.planName}</strong>
@@ -400,7 +438,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </td>
                 </tr>
               ))}
-              {!batches.length && (
+              {!visibleBatches.length && (
                 <tr>
                   <td colSpan={7} className="empty-state">
                     暂无核验记录
@@ -431,14 +469,14 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   onChange={(event) => choosePlan(event.target.value)}
                 >
                   <option value="">请选择核验方案</option>
-                  {plans.map((plan) => (
+                  {visiblePlans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
                       {plan.name}
                     </option>
                   ))}
                 </select>
               </label>
-              {!plans.length && (
+              {!visiblePlans.length && (
                 <div className="empty-state">
                   暂无可选方案。
                   <button
@@ -446,7 +484,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     className="text-button"
                     onClick={() => {
                       setRunOpen(false);
-                      setDraft(newPlan(''));
+                      setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
                     }}
                   >
                     新建方案

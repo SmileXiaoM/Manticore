@@ -28,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <button onClick={() => onNavigate('dashboard')} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium text-left ${currentView === 'dashboard' ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]' : 'text-[var(--ty-font-placeholder-color)] hover:bg-[var(--ty-fill-darkest-color)]'}`}><Grid className="w-3.5 h-3.5" />运行看板</button>
 
         {/* Section 0: 一阶段：检索底座 */}
         <div>
