@@ -184,31 +184,6 @@
   font-weight: 600;
   margin-bottom: 8px;
 }
-.data-consistency-check .field-options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-.data-consistency-check .field-option {
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 12px;
-  border: 1px solid var(--ty-border-light-color);
-  border-radius: var(--ty-ui-border-radius-normal);
-  padding: 12px;
-  cursor: pointer;
-}
-.data-consistency-check .field-option:has(input:checked) {
-  border-color: var(--ty-primary-color);
-  background: var(--ty-primary-lightest-color);
-}
-.data-consistency-check .field-option input {
-  margin-top: 4px;
-}
-.data-consistency-check .field-option strong {
-  font-weight: 500;
-}
 .data-consistency-check .mode-options {
   display: flex;
   gap: 16px 24px;
@@ -413,9 +388,6 @@
   .data-consistency-check {
     padding: 16px;
   }
-  .data-consistency-check .field-options {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .data-consistency-check .panel {
     padding: 16px;
   }
@@ -430,5 +402,167 @@
   .data-consistency-check .detail-dialog {
     padding: 16px;
     max-height: calc(100dvh - 16px);
+  }
+}
+
+.data-consistency-check .plan-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(800px, calc(100vw - 48px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ty-fill-white-color);
+  color: var(--ty-font-main-color);
+  box-shadow: var(--ty-shadow-lg);
+  overflow: visible;
+}
+.data-consistency-check .plan-dialog::backdrop {
+  background: color-mix(in srgb, var(--ty-fill-darkest-color) 32%, transparent);
+}
+.data-consistency-check .plan-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.data-consistency-check .plan-dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--ty-border-light-color);
+}
+.data-consistency-check .plan-dialog-heading h2 {
+  font-size: var(--ty-font-lg-size);
+}
+.data-consistency-check .plan-dialog-heading button {
+  border: 0;
+  padding: 4px;
+  color: var(--ty-icon-color);
+}
+.data-consistency-check .plan-dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.data-consistency-check .plan-dialog-body {
+  padding: 20px 24px;
+  overflow: auto;
+  min-height: 0;
+}
+.data-consistency-check .plan-dialog .form-footer {
+  padding: 16px 24px;
+  margin: 0;
+  flex-shrink: 0;
+  border-top: 1px solid var(--ty-border-light-color);
+}
+.data-consistency-check .plan-dialog .form-grid {
+  gap: 16px 24px;
+}
+.data-consistency-check .plan-dialog fieldset {
+  margin-top: 20px;
+}
+.data-consistency-check select:disabled {
+  background: var(--ty-fill-color);
+  color: var(--ty-font-placeholder-color);
+  cursor: not-allowed;
+}
+.data-consistency-check .field-select {
+  margin-top: 12px;
+}
+.data-consistency-check .field-select-trigger {
+  width: 100%;
+  justify-content: space-between;
+  padding: 8px 12px;
+  text-align: left;
+  white-space: normal;
+}
+.data-consistency-check .field-select-popup {
+  position: fixed;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--ty-fill-white-color);
+  border: 1px solid var(--ty-border-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+  box-shadow: var(--ty-shadow-md);
+  overflow: hidden;
+}
+.data-consistency-check .field-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ty-border-light-color);
+  color: var(--ty-icon-color);
+}
+.data-consistency-check .field-search input[type='search'] {
+  padding: 4px;
+  border: 0;
+}
+.data-consistency-check .field-select-options {
+  overflow: auto;
+  min-height: 0;
+  padding: 4px;
+}
+.data-consistency-check .field-select-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 400;
+}
+.data-consistency-check .field-select-option:hover {
+  background: var(--ty-fill-color);
+}
+.data-consistency-check .field-select-option:has(input:checked) {
+  background: var(--ty-primary-lightest-color);
+}
+.data-consistency-check .field-select-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  border-top: 1px solid var(--ty-border-light-color);
+  flex-shrink: 0;
+}
+.data-consistency-check .field-select-empty {
+  padding: 12px;
+  color: var(--ty-font-sub-color);
+}
+.data-consistency-check .selected-field-list {
+  margin-top: 12px;
+  border: 1px solid var(--ty-border-light-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+}
+.data-consistency-check .selected-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.data-consistency-check .selected-field-row + .selected-field-row {
+  border-top: 1px solid var(--ty-border-light-color);
+}
+.data-consistency-check .selected-field-row button {
+  border: 0;
+  padding: 4px;
+  color: var(--ty-icon-color);
+}
+@media (max-width: 640px) {
+  .data-consistency-check .plan-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .data-consistency-check .plan-dialog-heading,
+  .data-consistency-check .plan-dialog-body,
+  .data-consistency-check .plan-dialog .form-footer {
+    padding: 16px;
   }
 }

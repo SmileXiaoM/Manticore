@@ -1,3 +1,5 @@
+import { ConsistencyPlanDialog } from './ConsistencyPlanDialog';
+import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
 import React, { useMemo, useRef, useState } from 'react';
 import { Play, Plus, X, Loader2 } from 'lucide-react';
 import {
@@ -258,233 +260,68 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         <section className="panel" aria-label="核验方案定义">
           <div className="section-heading">
             <div>
-              <h2>{draft ? (plans.some((plan) => plan.id === draft.id) ? '编辑方案' : '新建方案') : '核验方案'}</h2>
-              {!draft && <p className="muted">不同根类型分别建立方案。</p>}
+              <h2>核验方案</h2>
+              <p className="muted">不同根类型分别建立方案。</p>
             </div>
-            {!draft && (
-              <button
-                className="primary"
-                onClick={() => {
-                  setDraft(newPlan(mappingObjects[0]?.id || 'PART'));
-                  setNotice('');
-                }}
-              >
-                <Plus size={16} />
-                新建方案
-              </button>
-            )}
-          </div>
-          {!draft ? (
-            plans.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>方案名称</th>
-                      <th>适用根类型</th>
-                      <th>范围规则</th>
-                      <th>固定核验属性</th>
-                      <th>默认运行方式</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plans.map((plan) => (
-                      <tr key={plan.id}>
-                        <td>{plan.name}</td>
-                        <td>{rootName(plan.rootTypeCode)}</td>
-                        <td>{scopeLabel(plan.scopeRule)}</td>
-                        <td>{plan.comparisonFieldKeys.length} 项</td>
-                        <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
-                        <td>
-                          <div className="actions">
-                            <button
-                              onClick={() => {
-                                setDraft(structuredClone(plan));
-                                setNotice('');
-                              }}
-                            >
-                              编辑
-                            </button>
-                            <button
-                              onClick={() => {
-                                choosePlan(plan.id);
-                                setTab('run');
-                              }}
-                            >
-                              发起核验
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state">暂无核验方案，请新建方案并选择核验属性。</div>
-            )
-          ) : (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                savePlan();
+            <button
+              className="primary"
+              onClick={() => {
+                setDraft(newPlan(''));
+                setNotice('');
               }}
             >
-              <div className="form-grid">
-                <label>
-                  方案名称
-                  <input
-                    aria-label="方案名称"
-                    maxLength={80}
-                    value={draft.name}
-                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                    placeholder="例如：零部件日常核验"
-                  />
-                </label>
-                <label>
-                  适用根类型
-                  <select
-                    aria-label="适用根类型"
-                    value={draft.rootTypeCode}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        rootTypeCode: event.target.value,
-                        uniqueKeyFieldKey: '',
-                        comparisonFieldKeys: [],
-                      })
-                    }
-                  >
-                    {mappingObjects.map((root) => (
-                      <option key={root.id} value={root.id}>
-                        {root.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  核验范围规则
-                  <select
-                    aria-label="核验范围规则"
-                    value={draft.scopeRule}
-                    onChange={(event) =>
-                      setDraft({ ...draft, scopeRule: event.target.value as ConsistencyPlan['scopeRule'] })
-                    }
-                  >
-                    <option value="ALL_ROOT">根类型全部对象</option>
-                    <option value="PLM_SCOPE">PLM 分类/业务范围</option>
-                  </select>
-                </label>
-                <label>
-                  唯一标识属性
-                  <select
-                    aria-label="唯一标识属性"
-                    value={draft.uniqueKeyFieldKey}
-                    onChange={(event) => setDraft({ ...draft, uniqueKeyFieldKey: event.target.value })}
-                  >
-                    <option value="">请选择唯一标识属性</option>
-                    {draftFormal.snapshot && (
-                      <option value={draftFormal.snapshot.uniqueKeyField.sourceFieldKey}>
-                        {draftFormal.snapshot.uniqueKeyField.displayName}
-                        {draftFormal.snapshot.uniqueKeyField.isDisplayNameMissing ? '（显示名缺失）' : ''}
-                      </option>
-                    )}
-                  </select>
-                  <small className="muted">用于定位对象，独立于逐字段比对。</small>
-                </label>
-              </div>
-              {draft.scopeRule === 'PLM_SCOPE' && <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>}
-              <fieldset>
-                <legend>固定核验属性</legend>
-                <p className="muted">选择用于逐字段比对的正式属性。标准化与比较方式沿用字段映射。</p>
-                {draftFormal.snapshot ? (
-                  <div className="field-options">
-                    {draftFormal.snapshot.includedFields.map((field) => (
-                      <label className="field-option" key={field.sourceFieldKey}>
-                        <input
-                          type="checkbox"
-                          checked={draft.comparisonFieldKeys.includes(field.sourceFieldKey)}
-                          onChange={(event) =>
-                            setDraft({
-                              ...draft,
-                              comparisonFieldKeys: event.target.checked
-                                ? [...draft.comparisonFieldKeys, field.sourceFieldKey]
-                                : draft.comparisonFieldKeys.filter((key) => key !== field.sourceFieldKey),
-                            })
-                          }
-                        />
-                        <span>
-                          <strong>
-                            <FieldName field={field} />
-                          </strong>
-                          <code>{field.sourceFieldKey}</code>
-                          <small className="muted">{field.comparisonMethod}</small>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="validation">{draftFormal.uniqueKeyError || draftFormal.fieldsError}</p>
-                )}
-              </fieldset>
-              <fieldset>
-                <legend>允许的运行方式</legend>
-                <div className="mode-options">
-                  {modes.map((item) => (
-                    <label key={item}>
-                      <input
-                        type="checkbox"
-                        checked={draft.allowedModes.includes(item)}
-                        onChange={(event) => {
-                          const allowedModes = event.target.checked
-                            ? [...draft.allowedModes, item]
-                            : draft.allowedModes.filter((value) => value !== item);
-                          setDraft({
-                            ...draft,
-                            allowedModes,
-                            defaultMode: allowedModes.includes(draft.defaultMode)
-                              ? draft.defaultMode
-                              : allowedModes[0] || 'RANDOM_SAMPLE',
-                          });
-                        }}
-                      />
-                      {CONSISTENCY_MODE_LABELS[item]}
-                    </label>
+              <Plus size={16} />
+              新建方案
+            </button>
+          </div>
+          {plans.length ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>方案名称</th>
+                    <th>适用根类型</th>
+                    <th>范围规则</th>
+                    <th>固定核验属性</th>
+                    <th>默认运行方式</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td>{plan.name}</td>
+                      <td>{rootName(plan.rootTypeCode)}</td>
+                      <td>{scopeLabel(plan.scopeRule)}</td>
+                      <td>{plan.comparisonFieldKeys.length} 项</td>
+                      <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
+                      <td>
+                        <div className="actions">
+                          <button
+                            onClick={() => {
+                              setDraft(structuredClone(plan));
+                              setNotice('');
+                            }}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={() => {
+                              choosePlan(plan.id);
+                              setTab('run');
+                            }}
+                          >
+                            发起核验
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-                <label className="default-mode">
-                  默认运行方式
-                  <select
-                    aria-label="默认运行方式"
-                    value={draft.allowedModes.length ? draft.defaultMode : ''}
-                    onChange={(event) =>
-                      setDraft({ ...draft, defaultMode: event.target.value as ConsistencyStrategyType })
-                    }
-                  >
-                    {!draft.allowedModes.length && <option value="">请先选择允许的运行方式</option>}
-                    {draft.allowedModes.map((item) => (
-                      <option key={item} value={item}>
-                        {CONSISTENCY_MODE_LABELS[item]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </fieldset>
-              <div className="form-footer">
-                <span className="validation" id="plan-error">
-                  {draftError}
-                </span>
-                <div className="actions">
-                  <button type="button" onClick={() => setDraft(null)}>
-                    取消
-                  </button>
-                  <button className="primary" type="submit" disabled={!!draftError} aria-describedby="plan-error">
-                    保存方案
-                  </button>
-                </div>
-              </div>
-            </form>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">暂无核验方案，请新建方案并选择核验属性。</div>
           )}
         </section>
       ) : (
@@ -510,7 +347,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 className="text-button"
                 onClick={() => {
                   setTab('plans');
-                  setDraft(newPlan(mappingObjects[0]?.id || 'PART'));
+                  setDraft(newPlan(''));
                 }}
               >
                 新建方案
@@ -670,6 +507,161 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </table>
         </div>
       </section>
+
+      {draft && (
+        <ConsistencyPlanDialog
+          title={plans.some((plan) => plan.id === draft.id) ? '编辑方案' : '新建方案'}
+          onDismiss={() => setDraft(null)}
+        >
+          <form
+            className="plan-dialog-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              savePlan();
+            }}
+          >
+            <div className="plan-dialog-body">
+              <div className="form-grid">
+                <label>
+                  方案名称
+                  <input
+                    data-autofocus
+                    aria-label="方案名称"
+                    maxLength={80}
+                    value={draft.name}
+                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                    placeholder="例如：零部件日常核验"
+                  />
+                </label>
+                <label>
+                  适用根类型
+                  <select
+                    aria-label="适用根类型"
+                    value={draft.rootTypeCode}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        rootTypeCode: event.target.value,
+                        uniqueKeyFieldKey: '',
+                        comparisonFieldKeys: [],
+                      })
+                    }
+                  >
+                    <option value="">请选择根类型</option>
+                    {mappingObjects.map((root) => (
+                      <option key={root.id} value={root.id}>
+                        {root.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  核验范围规则
+                  <select
+                    aria-label="核验范围规则"
+                    value={draft.scopeRule}
+                    onChange={(event) =>
+                      setDraft({ ...draft, scopeRule: event.target.value as ConsistencyPlan['scopeRule'] })
+                    }
+                  >
+                    <option value="ALL_ROOT">根类型全部对象</option>
+                    <option value="PLM_SCOPE">PLM 分类/业务范围</option>
+                  </select>
+                </label>
+                <label>
+                  唯一标识属性
+                  <select
+                    aria-label="唯一标识属性"
+                    disabled={!draftFormal.snapshot}
+                    value={draft.uniqueKeyFieldKey}
+                    onChange={(event) => setDraft({ ...draft, uniqueKeyFieldKey: event.target.value })}
+                  >
+                    <option value="">请选择唯一标识属性</option>
+                    {draftFormal.snapshot && (
+                      <option value={draftFormal.snapshot.uniqueKeyField.sourceFieldKey}>
+                        {draftFormal.snapshot.uniqueKeyField.displayName}
+                        {draftFormal.snapshot.uniqueKeyField.isDisplayNameMissing ? '（显示名缺失）' : ''}
+                      </option>
+                    )}
+                  </select>
+                  <small className="muted">用于定位对象，独立于逐字段比对。</small>
+                </label>
+              </div>
+              {draft.scopeRule === 'PLM_SCOPE' && <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>}
+              <fieldset>
+                <legend>固定核验属性</legend>
+                <p className="muted">选择用于逐字段比对的正式属性。标准化与比较方式沿用字段映射。</p>
+                <ConsistencyFieldSelect
+                  key={draft.rootTypeCode}
+                  fields={draftFormal.snapshot?.includedFields || []}
+                  value={draft.comparisonFieldKeys}
+                  disabled={!draftFormal.snapshot}
+                  onChange={(comparisonFieldKeys) => setDraft({ ...draft, comparisonFieldKeys })}
+                />
+                {draft.rootTypeCode && !draftFormal.snapshot && (
+                  <p className="validation">{draftFormal.uniqueKeyError || draftFormal.fieldsError}</p>
+                )}
+              </fieldset>
+              <fieldset>
+                <legend>允许的运行方式</legend>
+                <div className="mode-options">
+                  {modes.map((item) => (
+                    <label key={item}>
+                      <input
+                        type="checkbox"
+                        checked={draft.allowedModes.includes(item)}
+                        onChange={(event) => {
+                          const allowedModes = event.target.checked
+                            ? [...draft.allowedModes, item]
+                            : draft.allowedModes.filter((value) => value !== item);
+                          setDraft({
+                            ...draft,
+                            allowedModes,
+                            defaultMode: allowedModes.includes(draft.defaultMode)
+                              ? draft.defaultMode
+                              : allowedModes[0] || 'RANDOM_SAMPLE',
+                          });
+                        }}
+                      />
+                      {CONSISTENCY_MODE_LABELS[item]}
+                    </label>
+                  ))}
+                </div>
+                <label className="default-mode">
+                  默认运行方式
+                  <select
+                    aria-label="默认运行方式"
+                    value={draft.allowedModes.length ? draft.defaultMode : ''}
+                    onChange={(event) =>
+                      setDraft({ ...draft, defaultMode: event.target.value as ConsistencyStrategyType })
+                    }
+                  >
+                    {!draft.allowedModes.length && <option value="">请先选择允许的运行方式</option>}
+                    {draft.allowedModes.map((item) => (
+                      <option key={item} value={item}>
+                        {CONSISTENCY_MODE_LABELS[item]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </fieldset>
+            </div>
+            <div className="form-footer">
+              <span className="validation" id="plan-error">
+                {draftError}
+              </span>
+              <div className="actions">
+                <button type="button" onClick={() => setDraft(null)}>
+                  取消
+                </button>
+                <button className="primary" type="submit" disabled={!!draftError} aria-describedby="plan-error">
+                  保存方案
+                </button>
+              </div>
+            </div>
+          </form>
+        </ConsistencyPlanDialog>
+      )}
 
       {selectedBatch && (
         <div
