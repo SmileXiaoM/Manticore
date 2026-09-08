@@ -18,6 +18,7 @@ export function ConsistencyFieldSelect({
   const [query, setQuery] = useState('');
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 280 });
   const trigger = useRef<HTMLButtonElement>(null);
+  const control = useRef<HTMLDivElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const id = useId();
   const selected = fields.filter((field) => value.includes(field.sourceFieldKey));
@@ -32,8 +33,8 @@ export function ConsistencyFieldSelect({
   useLayoutEffect(() => {
     if (!open) return;
     const update = () => {
-      const rect = trigger.current!.getBoundingClientRect();
-      const body = trigger.current!.closest('.plan-dialog-body')?.getBoundingClientRect();
+      const rect = control.current!.getBoundingClientRect();
+      const body = control.current!.closest('.plan-dialog-body')?.getBoundingClientRect();
       if (body && (rect.bottom < body.top || rect.top > body.bottom)) {
         close();
         return;
@@ -65,35 +66,48 @@ export function ConsistencyFieldSelect({
     if (!open) return;
     popup.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
     const outside = (event: PointerEvent) => {
-      if (!popup.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) close();
+      if (!popup.current?.contains(event.target as Node) && !control.current?.contains(event.target as Node)) close();
     };
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
   }, [open]);
   return (
     <div className="field-select">
-      <button
-        ref={trigger}
-        type="button"
-        className="field-select-trigger"
-        aria-label="固定核验属性"
-        aria-expanded={open}
-        aria-controls={id}
-        disabled={disabled}
-        onClick={() => {
-          setOpen(!open);
-          setQuery('');
-        }}
-      >
-        <span className={selected.length ? '' : 'muted'}>
-          {selected.length
-            ? `已选择 ${selected.length} 项属性`
-            : disabled
-              ? '请先选择有正式字段的根类型'
-              : '请选择核验属性，可搜索多选'}
-        </span>
-        <ChevronDown size={16} />
-      </button>
+      <div ref={control} className="field-select-control" data-disabled={disabled || undefined}>
+        {selected.map((field) => (
+          <span key={field.sourceFieldKey} className="selected-field-tag">
+            <span title={field.sourceFieldKey}>
+              {field.displayName || field.sourceFieldKey}
+              {field.isDisplayNameMissing && <small className="missing-name">显示名缺失</small>}
+            </span>
+            <button
+              type="button"
+              aria-label={`移除 ${field.displayName || field.sourceFieldKey}`}
+              onClick={() => onChange(value.filter((key) => key !== field.sourceFieldKey))}
+            >
+              <X size={14} />
+            </button>
+          </span>
+        ))}
+        <button
+          ref={trigger}
+          type="button"
+          className="field-select-trigger"
+          aria-label="固定核验属性"
+          aria-expanded={open}
+          aria-controls={id}
+          disabled={disabled}
+          onClick={() => {
+            setOpen(!open);
+            setQuery('');
+          }}
+        >
+          <span className={selected.length ? '' : 'muted'}>
+            {selected.length ? '添加属性' : disabled ? '请先选择有正式字段的根类型' : '请选择核验属性，可搜索多选'}
+          </span>
+          <ChevronDown size={16} />
+        </button>
+      </div>
       {open && (
         <div
           ref={popup}
@@ -166,26 +180,16 @@ export function ConsistencyFieldSelect({
         </div>
       )}
       {!!selected.length && (
-        <div className="selected-field-list">
-          {selected.map((field) => (
-            <div key={field.sourceFieldKey} className="selected-field-row">
-              <div>
-                <span>
-                  {field.displayName || field.sourceFieldKey}
-                  {field.isDisplayNameMissing && <small className="missing-name">显示名缺失</small>}
-                </span>
-                <small className="muted">{field.comparisonMethod}</small>
-              </div>
-              <button
-                type="button"
-                aria-label={`移除 ${field.displayName || field.sourceFieldKey}`}
-                onClick={() => onChange(value.filter((key) => key !== field.sourceFieldKey))}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <details className="compact-details field-rules">
+          <summary>比较规则</summary>
+          <ul className="rule-list">
+            {selected.map((field) => (
+              <li key={field.sourceFieldKey}>
+                {field.displayName || field.sourceFieldKey}：{field.comparisonMethod}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );

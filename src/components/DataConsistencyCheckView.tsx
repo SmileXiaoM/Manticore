@@ -439,17 +439,28 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               )}
               {selectedPlan && (
                 <>
-                  <div className="run-summary">
-                    <div className="summary-line">
-                      <strong>{rootName(selectedPlan.rootTypeCode)}</strong>
-                      <span>{scopeLabel(selectedPlan.scopeRule)}</span>
-                      <span className="muted">本次核验口径 · 只读</span>
-                    </div>
+                  <div className="run-summary" aria-label="方案摘要">
+                    <p className="muted">
+                      {rootName(selectedPlan.rootTypeCode)} · {scopeLabel(selectedPlan.scopeRule)}
+                    </p>
                     {selectedSnapshot.snapshot ? (
-                      <>
-                        <SnapshotSummary snapshot={selectedSnapshot.snapshot} />
-                        <p className="muted">发起时保存字段和比较规则快照，方案后续修改不影响历史任务。</p>
-                      </>
+                      <dl className="run-field-summary">
+                        <dt>唯一标识</dt>
+                        <dd title={selectedSnapshot.snapshot.uniqueKeyField.sourceFieldKey}>
+                          <FieldName field={selectedSnapshot.snapshot.uniqueKeyField} />
+                        </dd>
+                        <dt>核验属性</dt>
+                        <dd>
+                          {selectedSnapshot.snapshot.includedFields.map((field, index) => (
+                            <React.Fragment key={field.sourceFieldKey}>
+                              {index > 0 && '、'}
+                              <span title={field.sourceFieldKey}>
+                                <FieldName field={field} />
+                              </span>
+                            </React.Fragment>
+                          ))}
+                        </dd>
+                      </dl>
                     ) : (
                       <p className="validation">{selectedSnapshot.error}</p>
                     )}
@@ -569,19 +580,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     ))}
                   </select>
                 </label>
-                <label>
-                  核验范围规则
-                  <select
-                    aria-label="核验范围规则"
-                    value={draft.scopeRule}
-                    onChange={(event) =>
-                      setDraft({ ...draft, scopeRule: event.target.value as ConsistencyPlan['scopeRule'] })
-                    }
-                  >
-                    <option value="ALL_ROOT">根类型全部对象</option>
-                    <option value="PLM_SCOPE">PLM 分类/业务范围</option>
-                  </select>
-                </label>
+
                 <label>
                   唯一标识属性
                   <select
@@ -601,10 +600,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   <small className="muted">用于定位对象，独立于逐字段比对。</small>
                 </label>
               </div>
-              {draft.scopeRule === 'PLM_SCOPE' && <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>}
               <fieldset>
                 <legend>固定核验属性</legend>
-                <p className="muted">选择用于逐字段比对的正式属性。标准化与比较方式沿用字段映射。</p>
+                <p className="muted">选择需要逐字段比对的属性。</p>
                 <ConsistencyFieldSelect
                   key={draft.rootTypeCode}
                   fields={draftFormal.snapshot?.includedFields || []}
@@ -659,6 +657,25 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </select>
                 </label>
               </fieldset>
+              <details className="compact-details scope-settings">
+                <summary>
+                  更多设置<span className="muted">范围：{scopeLabel(draft.scopeRule)}</span>
+                </summary>
+                <label>
+                  核验范围规则
+                  <select
+                    aria-label="核验范围规则"
+                    value={draft.scopeRule}
+                    onChange={(event) =>
+                      setDraft({ ...draft, scopeRule: event.target.value as ConsistencyPlan['scopeRule'] })
+                    }
+                  >
+                    <option value="ALL_ROOT">根类型全部对象</option>
+                    <option value="PLM_SCOPE">PLM 分类/业务范围</option>
+                  </select>
+                </label>
+                {draft.scopeRule === 'PLM_SCOPE' && <p className="muted">分类范围未加载，暂不能发起核验。</p>}
+              </details>
             </div>
             <div className="form-footer">
               <span className="validation" id="plan-error">
