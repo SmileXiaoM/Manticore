@@ -332,7 +332,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
     frozenObjectIds: ['P-30001', 'P-30002', 'P-30003', 'P-30004', 'P-30005'],
     objectResults: initialDemoPartObjects,
     sourceSyncBatchId: 'SYNC-20260825-001',
-    status: 'COMPLETED'
+    status: 'COMPLETED_WITH_ERRORS'
   },
   {
     id: 'CC-20260905-001',
@@ -387,30 +387,12 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
       initialDemoPartObjects[3],
       initialDemoPartObjects[4]
     ],
-    status: 'COMPLETED'
+    status: 'COMPLETED_WITH_ERRORS'
   }
 ];
 
-// 各根类型可用的指定分类范围选项（严格隔离，绝不串类型）
-export const ROOT_TYPE_SCOPE_OPTIONS: Record<string, Array<{ id: string; label: string; count: number }>> = {
-  PART: [
-    { id: 'SCOPE_PART_FASTENER', label: '标准件 > 紧固件 > 螺栓 (36 个对象)', count: 36 },
-    { id: 'SCOPE_PART_TRANSMISSION', label: '传动系统 > 齿轮箱部件 (24 个对象)', count: 24 },
-    { id: 'SCOPE_PART_SEAL', label: '密封件与弹性元件 (18 个对象)', count: 18 },
-    { id: 'SCOPE_PART_HYDRAULIC', label: '液压动力与控制阀组 (42 个对象)', count: 42 }
-  ],
-  DOCUMENT: [
-    { id: 'SCOPE_DOC_DRAWING', label: '技术图纸 > 二维装配工程图 (28 篇文档)', count: 28 },
-    { id: 'SCOPE_DOC_SPEC', label: '技术规范与设计标准说明书 (32 篇文档)', count: 32 },
-    { id: 'SCOPE_DOC_TEST_REPORT', label: '试验验证与质量检测报告 (20 篇文档)', count: 20 },
-    { id: 'SCOPE_DOC_CAD_MODEL', label: '三维模型与设计规格书 (25 篇文档)', count: 25 }
-  ],
-  PROCESS: [
-    { id: 'SCOPE_PROC_MACHINING', label: '机械加工工艺路线 (15 条路线)', count: 15 },
-    { id: 'SCOPE_PROC_ASSEMBLY', label: '装配与调试工艺路线 (22 条路线)', count: 22 },
-    { id: 'SCOPE_PROC_SURFACE', label: '表面处理与热处理工艺 (12 条路线)', count: 12 }
-  ]
-};
+// 当前原型尚未接入 PLM 分类/业务范围读取。禁止在此提供虚构分类和数量。
+export const PLM_SCOPE_UNAVAILABLE = '尚未加载分类范围，需从 PLM 读取当前根类型的分类/业务范围。对象数量：待获取。';
 
 // 指定对象输入框提示语（随根类型动态变化）
 export const ROOT_TYPE_OBJECT_ID_PLACEHOLDER: Record<string, string> = {
@@ -460,7 +442,7 @@ export function buildComparisonFieldSnapshot(
     if (f.isUniqueKey) return;
 
     // 排除草稿或未入正式查询底座
-    if (!f.isInFormalQueryBase || f.configStatus === 'DRAFT') {
+    if (!f.isInFormalQueryBase || f.configStatus !== 'CONFIGURED') {
       excludedCandidates.push({
         sourceFieldKey: f.sourceFieldKey || f.id,
         fieldName: resolveFieldDisplayName(f),
@@ -499,6 +481,7 @@ export function buildComparisonFieldSnapshot(
       sourceFieldKey: f.sourceFieldKey,
       manticoreField: f.manticoreField,
       displayName: resolveFieldDisplayName(f),
+      isDisplayNameMissing: !f.sourceDisplayName?.trim(),
       dataType: f.sourceDataType || 'TEXT',
       manticoreType: f.manticoreType || cap.manticoreType,
       comparisonMethod: cap.comparisonMethod
@@ -515,6 +498,7 @@ export function buildComparisonFieldSnapshot(
       sourceFieldKey: uField.sourceFieldKey.trim(),
       manticoreField: uField.manticoreField.trim(),
       displayName: resolveFieldDisplayName(uField),
+      isDisplayNameMissing: !uField.sourceDisplayName?.trim(),
       sourceDataType: uField.sourceDataType || 'STRING',
       manticoreType: uField.manticoreType || 'STRING'
     },
@@ -613,22 +597,24 @@ export function executeConsistencyRun(
 ): ConsistencyBatchRecord {
   const batchId = batchIdOverride || createConsistencyBatchId();
   const nowStr = formatLocalDateTime();
-  const { rootTypeCode, rootTypeName, scopeMode, comparisonFieldSnapshot } = req;
+  const { rootTypeCode, rootTypeName, scopeMode } = req;
+  const comparisonFieldSnapshot = structuredClone(req.comparisonFieldSnapshot);
+  const planSnapshot = req.planSnapshot ? structuredClone(req.planSnapshot) : undefined;
   const idsAreValid = req.requestedObjectIds === undefined || (Array.isArray(req.requestedObjectIds) &&
     req.requestedObjectIds.every(id => typeof id === 'string'));
   const uniqueIds = idsAreValid ? Array.from(new Set((req.requestedObjectIds || []).map(id => id.trim()).filter(Boolean))) : [];
   const countIsValid = typeof req.sampleCount === 'number' && Number.isSafeInteger(req.sampleCount) && req.sampleCount > 0;
   let validationError: string | undefined;
-  if (!Object.hasOwn(ROOT_TYPE_SCOPE_OPTIONS, rootTypeCode)) {
+  if (!['PART', 'DOCUMENT', 'PROCESS'].includes(rootTypeCode)) {
     validationError = `未知根类型 [${rootTypeCode}]，无法确定核验范围`;
   } else if (!['RANDOM_SAMPLE', 'EXHAUSTIVE_SCOPE', 'SPECIFIC_IDS'].includes(scopeMode)) {
     validationError = '不支持的核验范围模式';
+  } else if (scopeMode === 'EXHAUSTIVE_SCOPE' || planSnapshot?.scopeRule === 'PLM_SCOPE') {
+    validationError = PLM_SCOPE_UNAVAILABLE;
   } else if (scopeMode === 'SPECIFIC_IDS') {
     if (!idsAreValid || uniqueIds.length === 0) validationError = '指定对象核验必须提供至少一个有效的对象唯一标识';
   } else if (!countIsValid) {
     validationError = '核验样本数必须为大于 0 的安全整数';
-  } else if (scopeMode === 'EXHAUSTIVE_SCOPE' && !ROOT_TYPE_SCOPE_OPTIONS[rootTypeCode].some(scope => scope.id === req.scopeId)) {
-    validationError = '指定分类范围不存在或不属于当前根类型';
   }
   if (!validationError && (!comparisonFieldSnapshot || comparisonFieldSnapshot.rootTypeCode !== rootTypeCode ||
       !comparisonFieldSnapshot.uniqueKeyField?.sourceFieldKey?.trim() || !comparisonFieldSnapshot.uniqueKeyField?.manticoreField?.trim() ||
@@ -636,13 +622,21 @@ export function executeConsistencyRun(
     validationError = '当前根类型缺少有效的业务唯一键或正式核验字段快照';
   }
 
+  if (!validationError && planSnapshot && (planSnapshot.rootTypeCode !== rootTypeCode ||
+      !planSnapshot.allowedModes.includes(scopeMode) || planSnapshot.uniqueKeyFieldKey !== comparisonFieldSnapshot.uniqueKeyField.sourceFieldKey ||
+      planSnapshot.comparisonFieldKeys.length !== comparisonFieldSnapshot.includedFields.length ||
+      comparisonFieldSnapshot.includedFields.some(field => !planSnapshot.comparisonFieldKeys.includes(field.sourceFieldKey)))) {
+    validationError = '方案与本次核验快照不一致';
+  }
+
   // 1. 测试失败分支：通过参数显式注入 simulateFailure 触发，杜绝从用户业务输入中嗅探暗号
   if (validationError || req.simulateFailure) {
     const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
     return {
       id: batchId,
-      planName: `${rootTypeName} ${modeLabel}批次`,
-      triggerType: 'MANUAL_CUSTOM',
+      planName: planSnapshot?.name || `${rootTypeName} ${modeLabel}批次`,
+      planSnapshot,
+      triggerType: planSnapshot ? 'MANUAL_BY_PLAN' : 'MANUAL_CUSTOM',
       rootTypeCode,
       rootTypeName,
       scopeMode,
@@ -707,35 +701,6 @@ export function executeConsistencyRun(
         isTargetMissing
       });
     });
-  } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
-    const count = req.sampleCount;
-    const prefix = rootTypeCode === 'PART' ? 'P' : rootTypeCode === 'DOCUMENT' ? 'DOC' : 'PR';
-    const startNum = rootTypeCode === 'PART' ? 32000 : rootTypeCode === 'DOCUMENT' ? 52000 : 72000;
-    const sampleNames = rootTypeCode === 'PART'
-      ? ['法兰面锁紧螺栓', '内六角圆柱头螺钉', '双头耐热螺柱', '沉头螺钉', '自锁螺母', '球面垫圈']
-      : rootTypeCode === 'DOCUMENT'
-      ? ['总体装配设计图纸', '零部件技术规范书', '出厂试验合格报告', '有限元计算说明书', '工艺检验规程']
-      : ['精密端面车削工艺', '内外圆磨削工艺路线', '高频感应淬火工艺', '氮化表面处理工艺'];
-
-    for (let i = 0; i < count; i++) {
-      const oid = `${prefix}-${startNum + i + 1}`;
-      let plannedStatus: ConsistencyItemStatus = 'CONSISTENT';
-      let isTargetMissing = false;
-      if (i === 1) {
-        plannedStatus = 'INCONSISTENT';
-      } else if (i === 4 && count > 10) {
-        plannedStatus = 'PENDING_RECHECK';
-      } else if (i === 7 && count > 15) {
-        plannedStatus = 'UNABLE_TO_COMPARE';
-      }
-      targetSpecs.push({
-        objectId: oid,
-        objectName: `${sampleNames[i % sampleNames.length]} ${oid}`,
-        selectedReason: 'SCOPE_EXHAUSTIVE',
-        plannedStatus,
-        isTargetMissing
-      });
-    }
   } else {
     // RANDOM_SAMPLE
     const count = req.sampleCount;
@@ -786,69 +751,21 @@ export function executeConsistencyRun(
   targetSpecs.forEach(spec => {
     const { objectId, objectName, selectedReason, plannedStatus, isTargetMissing } = spec;
 
-    if (plannedStatus === 'CONSISTENT') {
-      consistentCount++;
-      const fields = comparisonFieldSnapshot.includedFields.map(f => {
-        const val = getRealisticFieldValue(f, objectId, objectName, 'MATCH');
-        return {
-          fieldCode: f.sourceFieldKey,
-          fieldName: f.displayName,
-          plmRawValue: val.plm,
-          mappedExpectedValue: val.expected,
-          manticoreActualValue: val.actual,
-          matchStatus: 'MATCH' as const,
-          note: val.note
-        };
-      });
-
-      objectResults.push({
-        objectId,
-        objectName,
-        rootTypeCode,
-        selectedReason,
-        status: 'CONSISTENT',
-        statusDetail: '全部核验字段一致：业务唯一键匹配，核验字段经映射后与检索底座完全一致',
-        differenceFields: [],
-        fields
-      });
-    } else if (plannedStatus === 'INCONSISTENT') {
-      differenceCount++;
-      if (isTargetMissing) {
-        const uField = comparisonFieldSnapshot.uniqueKeyField;
-        objectResults.push({
-          objectId,
-          objectName,
-          rootTypeCode,
-          selectedReason,
-          status: 'INCONSISTENT',
-          statusDetail: `发现不一致：目标记录缺失 (源端业务唯一键 ${objectId} 存在，Manticore 未检索到实际记录)`,
-          differenceFields: ['目标对象唯一标识 (缺失)'],
-          isTargetMissing: true,
-          fields: [
-            {
-              fieldCode: uField.sourceFieldKey,
-              fieldName: uField.displayName,
-              plmRawValue: objectId,
-              mappedExpectedValue: objectId,
-              manticoreActualValue: null,
-              matchStatus: 'TARGET_MISSING',
-              note: '源端存在有效主记录，Manticore 未检索到对应记录'
-            }
-          ]
-        });
-      } else {
-        const diffField = comparisonFieldSnapshot.includedFields[0];
-        const fields = comparisonFieldSnapshot.includedFields.map((f, idx) => {
-          const isDiff = idx === 0;
-          const val = getRealisticFieldValue(f, objectId, objectName, isDiff ? 'MISMATCH' : 'MATCH');
+    try {
+      if (req.simulateObjectErrorIds?.includes(objectId)) throw new Error('源端对象读取失败');
+      if (plannedStatus === 'CONSISTENT') {
+        consistentCount++;
+        const fields = comparisonFieldSnapshot.includedFields.map(f => {
+          const val = getRealisticFieldValue(f, objectId, objectName, 'MATCH');
           return {
             fieldCode: f.sourceFieldKey,
             fieldName: f.displayName,
+            isDisplayNameMissing: f.isDisplayNameMissing,
             plmRawValue: val.plm,
             mappedExpectedValue: val.expected,
             manticoreActualValue: val.actual,
-            matchStatus: isDiff ? ('MISMATCH' as const) : ('MATCH' as const),
-            note: isDiff ? val.note || '源端字段值经映射后与底座存储值不一致' : val.note
+            matchStatus: 'MATCH' as const,
+            note: val.note
           };
         });
 
@@ -857,64 +774,129 @@ export function executeConsistencyRun(
           objectName,
           rootTypeCode,
           selectedReason,
-          status: 'INCONSISTENT',
-          statusDetail: `发现不一致：${diffField?.displayName || '字段'} 存储值与映射预期值不符`,
-          differenceFields: [diffField?.displayName || '业务属性差异'],
+          status: 'CONSISTENT',
+          statusDetail: '全部核验字段一致：业务唯一键匹配，核验字段经映射后与检索底座完全一致',
+          differenceFields: [],
+          fields
+        });
+      } else if (plannedStatus === 'INCONSISTENT') {
+        differenceCount++;
+        if (isTargetMissing) {
+          const uField = comparisonFieldSnapshot.uniqueKeyField;
+          objectResults.push({
+            objectId,
+            objectName,
+            rootTypeCode,
+            selectedReason,
+            status: 'INCONSISTENT',
+            statusDetail: `发现不一致：目标记录缺失 (源端业务唯一键 ${objectId} 存在，Manticore 未检索到实际记录)`,
+            differenceFields: ['目标对象唯一标识 (缺失)'],
+            isTargetMissing: true,
+            fields: [
+              {
+                fieldCode: uField.sourceFieldKey,
+                fieldName: uField.displayName,
+                isDisplayNameMissing: uField.isDisplayNameMissing,
+                plmRawValue: objectId,
+                mappedExpectedValue: objectId,
+                manticoreActualValue: null,
+                matchStatus: 'TARGET_MISSING',
+                note: '源端存在有效主记录，Manticore 未检索到对应记录'
+              }
+            ]
+          });
+        } else {
+          const diffField = comparisonFieldSnapshot.includedFields[0];
+          const fields = comparisonFieldSnapshot.includedFields.map((f, idx) => {
+            const isDiff = idx === 0;
+            const val = getRealisticFieldValue(f, objectId, objectName, isDiff ? 'MISMATCH' : 'MATCH');
+            return {
+              fieldCode: f.sourceFieldKey,
+              fieldName: f.displayName,
+            isDisplayNameMissing: f.isDisplayNameMissing,
+              plmRawValue: val.plm,
+              mappedExpectedValue: val.expected,
+              manticoreActualValue: val.actual,
+              matchStatus: isDiff ? ('MISMATCH' as const) : ('MATCH' as const),
+              note: isDiff ? val.note || '源端字段值经映射后与底座存储值不一致' : val.note
+            };
+          });
+
+          objectResults.push({
+            objectId,
+            objectName,
+            rootTypeCode,
+            selectedReason,
+            status: 'INCONSISTENT',
+            statusDetail: `发现不一致：${diffField?.displayName || '字段'} 存储值与映射预期值不符`,
+            differenceFields: [diffField?.displayName || '业务属性差异'],
+            fields
+          });
+        }
+      } else if (plannedStatus === 'PENDING_RECHECK') {
+        pendingRecheckCount++;
+        const fields = comparisonFieldSnapshot.includedFields.map(f => {
+          const val = getRealisticFieldValue(f, objectId, objectName, 'PENDING');
+          return {
+            fieldCode: f.sourceFieldKey,
+            fieldName: f.displayName,
+            isDisplayNameMissing: f.isDisplayNameMissing,
+            plmRawValue: val.plm,
+            mappedExpectedValue: val.expected,
+            manticoreActualValue: val.actual,
+            matchStatus: 'UNVERIFIABLE' as const,
+            note: '源端近期变更处于同步延迟管道中'
+          };
+        });
+
+        objectResults.push({
+          objectId,
+          objectName,
+          rootTypeCode,
+          selectedReason,
+          status: 'PENDING_RECHECK',
+          statusDetail: '待复查：PLM 源端近期发生变更，数据处于同步流转管道中，暂不进入不一致分母',
+          differenceFields: [],
+          recheckReason: 'PLM 源端最近变更在途，数据处于同步流转期间，待下一个核验窗口复查',
+          fields
+        });
+      } else {
+        // UNABLE_TO_COMPARE
+        incompleteCount++;
+        const fields = comparisonFieldSnapshot.includedFields.map(f => ({
+          fieldCode: f.sourceFieldKey,
+          fieldName: f.displayName,
+            isDisplayNameMissing: f.isDisplayNameMissing,
+          plmRawValue: null,
+          mappedExpectedValue: null,
+          manticoreActualValue: '未知',
+          matchStatus: 'UNVERIFIABLE' as const,
+          note: '源端取数超时或不可读'
+        }));
+
+        objectResults.push({
+          objectId,
+          objectName,
+          rootTypeCode,
+          selectedReason,
+          status: 'UNABLE_TO_COMPARE',
+          statusDetail: '无法比对：PLM 源端只读数据接口响应超时或单条对象唯一键缺失',
+          differenceFields: [],
+          unableToCompareReason: '源端记录唯一键值缺失或取数超时，无法进行确定性比对',
           fields
         });
       }
-    } else if (plannedStatus === 'PENDING_RECHECK') {
-      pendingRecheckCount++;
-      const fields = comparisonFieldSnapshot.includedFields.map(f => {
-        const val = getRealisticFieldValue(f, objectId, objectName, 'PENDING');
-        return {
-          fieldCode: f.sourceFieldKey,
-          fieldName: f.displayName,
-          plmRawValue: val.plm,
-          mappedExpectedValue: val.expected,
-          manticoreActualValue: val.actual,
-          matchStatus: 'UNVERIFIABLE' as const,
-          note: '源端近期变更处于同步延迟管道中'
-        };
-      });
-
-      objectResults.push({
-        objectId,
-        objectName,
-        rootTypeCode,
-        selectedReason,
-        status: 'PENDING_RECHECK',
-        statusDetail: '待复查：PLM 源端近期发生变更，数据处于同步流转管道中，暂不进入不一致分母',
-        differenceFields: [],
-        recheckReason: 'PLM 源端最近变更在途，数据处于同步流转期间，待下一个核验窗口复查',
-        fields
-      });
-    } else {
-      // UNABLE_TO_COMPARE
-      incompleteCount++;
-      const fields = comparisonFieldSnapshot.includedFields.map(f => ({
-        fieldCode: f.sourceFieldKey,
-        fieldName: f.displayName,
-        plmRawValue: null,
-        mappedExpectedValue: null,
-        manticoreActualValue: '未知',
-        matchStatus: 'UNVERIFIABLE' as const,
-        note: '源端取数超时或不可读'
-      }));
-
-      objectResults.push({
-        objectId,
-        objectName,
-        rootTypeCode,
-        selectedReason,
-        status: 'UNABLE_TO_COMPARE',
-        statusDetail: '无法比对：PLM 源端只读数据接口响应超时或单条对象唯一键缺失',
-        differenceFields: [],
-        unableToCompareReason: '源端记录唯一键值缺失或取数超时，无法进行确定性比对',
-        fields
-      });
+    } catch (error) {
+      objectResults.push({ objectId, objectName, rootTypeCode, selectedReason, status: 'UNABLE_TO_COMPARE',
+        statusDetail: error instanceof Error ? error.message : '对象比对异常', differenceFields: [], fields: [],
+        unableToCompareReason: '对象读取或比对异常，已继续处理其余对象' });
     }
   });
+  // 从实际结果聚合，单条错误不会中断后续对象，也不会污染已完成统计。
+  consistentCount = objectResults.filter(o => o.status === 'CONSISTENT').length;
+  differenceCount = objectResults.filter(o => o.status === 'INCONSISTENT').length;
+  pendingRecheckCount = objectResults.filter(o => o.status === 'PENDING_RECHECK').length;
+  incompleteCount = objectResults.filter(o => o.status === 'UNABLE_TO_COMPARE').length;
 
   const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
   const scopeDesc = scopeMode === 'RANDOM_SAMPLE'
@@ -925,8 +907,9 @@ export function executeConsistencyRun(
 
   return {
     id: batchId,
-    planName: `${rootTypeName} ${modeLabel}批次`,
-    triggerType: 'MANUAL_CUSTOM',
+    planName: planSnapshot?.name || `${rootTypeName} ${modeLabel}批次`,
+    planSnapshot,
+    triggerType: planSnapshot ? 'MANUAL_BY_PLAN' : 'MANUAL_CUSTOM',
     rootTypeCode,
     rootTypeName,
     scopeMode,
@@ -944,7 +927,7 @@ export function executeConsistencyRun(
     objectResults,
     requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? uniqueIds : undefined,
     sourceSyncBatchId: req.sourceSyncBatchId,
-    status: 'COMPLETED'
+    status: incompleteCount > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED'
   };
 }
 

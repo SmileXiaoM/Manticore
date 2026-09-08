@@ -91,16 +91,18 @@ test('specific IDs remain exact after trimming and deduplication; failure keeps 
   assert.deepEqual(failure.objectResults, []);
 });
 
-test('exhaustive runs retain the requested scope reason, and pending states stay outside the rate', () => {
+test('unloaded PLM scopes never generate objects, and pending states stay outside the rate', () => {
   const exhaustive = executeConsistencyRun(request({ scopeMode: 'EXHAUSTIVE_SCOPE', sampleCount: 28, scopeId: 'SCOPE_DOC_DRAWING' }));
-  assert.equal(exhaustive.status, 'COMPLETED');
-  assert.equal(exhaustive.actualCount, 28);
-  assert.ok(exhaustive.objectResults.every(object => object.selectedReason === 'SCOPE_EXHAUSTIVE'));
+  assert.equal(exhaustive.status, 'FAILED');
+  assert.match(exhaustive.failedReason!, /需从 PLM 读取/);
+  assert.equal(exhaustive.actualCount, 0);
+  assert.deepEqual(exhaustive.objectResults, []);
   const result = executeConsistencyRun(request({ scopeMode: 'SPECIFIC_IDS', requestedObjectIds: ['DOC-OK', 'DOC-DIFF', 'DOC-MISS', 'DOC-PENDING', 'DOC-UNABLE'] }));
   assert.equal(calculateConsistencyStats(result).rateDisplay, '33.3%（1 / 3）');
   assert.equal(result.objectResults.find(object => object.objectId === 'DOC-MISS')?.status, 'INCONSISTENT');
   assert.equal(result.pendingRecheckCount, 1);
   assert.equal(result.incompleteCount, 1);
+  assert.equal(result.status, 'COMPLETED_WITH_ERRORS');
 });
 
 test('sync association picks the latest reliable completed same-root sync, regardless of array order', () => {

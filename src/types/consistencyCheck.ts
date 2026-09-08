@@ -14,6 +14,7 @@ export type ConsistencyItemStatus =
 export type ConsistencyTaskStatus = 
   | 'RUNNING'             // 核验中
   | 'COMPLETED'           // 核验完成
+  | 'COMPLETED_WITH_ERRORS' // 完成但有对象级异常
   | 'FAILED';             // 核验失败
 
 export type ConsistencyStrategyType = 
@@ -31,6 +32,7 @@ export type ObjectSelectedReason =
 export interface ConsistencyFieldComparison {
   fieldCode: string;
   fieldName: string;
+  isDisplayNameMissing?: boolean;
   plmRawValue: string | number | null;
   mappedExpectedValue: string | number | null; // 经字段映射规则转换后的预期值
   manticoreActualValue: string | number | null; // Manticore实际存储值
@@ -59,6 +61,7 @@ export interface ComparisonFieldItem {
   sourceFieldKey: string;
   manticoreField: string;
   displayName: string;
+  isDisplayNameMissing?: boolean;
   dataType: string;
   manticoreType: string;
   comparisonMethod: string;
@@ -80,6 +83,7 @@ export interface ComparisonFieldSnapshot {
     sourceFieldKey: string;
     manticoreField: string;
     displayName: string;
+    isDisplayNameMissing?: boolean;
     sourceDataType?: string;
     manticoreType?: string;
   };
@@ -91,6 +95,7 @@ export interface ComparisonFieldSnapshot {
 export interface ConsistencyBatchRecord {
   id: string;                           // 批次号，如 CC-20260907-001
   planName: string;
+  planSnapshot?: ConsistencyPlan;
   triggerType: 'SCHEDULED' | 'MANUAL_BY_PLAN' | 'MANUAL_CUSTOM';
   rootTypeCode: string;
   rootTypeName: string;
@@ -294,21 +299,31 @@ export function getComparisonCapability(sourceDataType?: string, actualManticore
   };
 }
 
-/**
- * 统一显示名解析函数（全站唯一兜底顺序）
- * trim(displayTitle) -> trim(sourceDisplayName) -> trim(sourceFieldName) -> trim(sourceFieldKey) -> 未命名属性
- */
+/** 来源显示名缺失时使用稳定字段编码，不能被自定义标题掩盖。 */
 export function resolveFieldDisplayName(field: {
-  displayTitle?: string | null;
   sourceDisplayName?: string | null;
-  sourceFieldName?: string | null;
   sourceFieldKey?: string | null;
 }): string {
-  if (field.displayTitle && field.displayTitle.trim()) return field.displayTitle.trim();
-  if (field.sourceDisplayName && field.sourceDisplayName.trim()) return field.sourceDisplayName.trim();
-  if (field.sourceFieldName && field.sourceFieldName.trim()) return field.sourceFieldName.trim();
-  if (field.sourceFieldKey && field.sourceFieldKey.trim()) return field.sourceFieldKey.trim();
-  return '未命名属性';
+  return field.sourceDisplayName?.trim() || field.sourceFieldKey?.trim() || '未命名属性';
+}
+
+export const CONSISTENCY_MODE_LABELS: Record<ConsistencyStrategyType, string> = {
+  RANDOM_SAMPLE: '抽样核验',
+  EXHAUSTIVE_SCOPE: '指定范围全量核验',
+  SPECIFIC_IDS: '指定对象 ID'
+};
+
+export interface ConsistencyPlan {
+  id: string;
+  name: string;
+  rootTypeCode: string;
+  scopeRule: 'ALL_ROOT' | 'PLM_SCOPE';
+  uniqueKeyFieldKey: string;
+  comparisonFieldKeys: string[];
+  // 采用正式字段的同步标准化规则和确定性比较规则，禁止另造转换口径。
+  comparisonRule: 'FORMAL_MAPPING';
+  allowedModes: ConsistencyStrategyType[];
+  defaultMode: ConsistencyStrategyType;
 }
 
 /**
@@ -353,6 +368,8 @@ export interface ConsistencyCheckRequest {
   comparisonFieldSnapshot: ComparisonFieldSnapshot;
   sourceSyncBatchId?: string;
   simulateFailure?: boolean;
+  simulateObjectErrorIds?: string[];
+  planSnapshot?: ConsistencyPlan;
 }
 
 /**
@@ -409,7 +426,7 @@ export function calculateConsistencyStats(batch: {
       ratePercentOnly: '--',
       fractionDisplay: '（0 / 0）',
       fractionWithoutParens: '0 / 0',
-      rateDisplay: '--（0 / 0）',
+      rateDisplay: '--',
       rateText: '--',
       fractionText: '（0 / 0）'
     };

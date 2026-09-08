@@ -1,3 +1,4 @@
+import './components/data-consistency-check.css';
 import { useState, useMemo, useCallback, type SetStateAction } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -28,7 +29,7 @@ import { SyncBatch } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
 import { initialConsistencyBatches } from './data/consistencyCheckData';
-import { ConsistencyBatchRecord } from './types/consistencyCheck';
+import { ConsistencyBatchRecord, ConsistencyPlan } from './types/consistencyCheck';
 import { Stage1RuntimeState } from './stage1SyncExecution';
 
 import {
@@ -126,6 +127,8 @@ export default function App() {
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
+
+  const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>([]);
 
   // Shared Stage 1 Mapping state across Stage 1 Config and Data Consistency Check
   const [stage1State, setStage1State] = useState<Stage1RuntimeState>(() => ({
@@ -237,6 +240,8 @@ export default function App() {
                 mappingObjects={mappingObjects}
                 fieldMappings={groupedFieldMappings}
                 syncBatches={syncBatches}
+                plans={consistencyPlans}
+                onUpdatePlans={setConsistencyPlans}
                 batches={consistencyBatches}
                 onUpdateBatches={setConsistencyBatches}
                 onNavigateToSyncQuality={(batchId) => {
