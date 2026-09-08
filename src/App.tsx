@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, type SetStateAction } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 
@@ -29,6 +29,7 @@ import { initialMappingObjectTypes, initialFieldMappings } from './stage1Mapping
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
 import { initialConsistencyBatches } from './data/consistencyCheckData';
 import { ConsistencyBatchRecord } from './types/consistencyCheck';
+import { Stage1RuntimeState } from './stage1SyncExecution';
 
 import {
   FieldSimilarityRule,
@@ -124,14 +125,24 @@ export default function App() {
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
-  const [syncBatches, setSyncBatches] = useState<SyncBatch[]>(initialSyncBatches);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
 
   // Shared Stage 1 Mapping state across Stage 1 Config and Data Consistency Check
-  const [mappingObjects, setMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
-  const [flatFieldMappings, setFlatFieldMappings] = useState<FieldMappingItem[]>(
-    () => Object.values(initialFieldMappings).flat()
-  );
+  const [stage1State, setStage1State] = useState<Stage1RuntimeState>(() => ({
+    mappingObjects: initialMappingObjectTypes,
+    fieldMappings: Object.values(initialFieldMappings).flat(),
+    batches: initialSyncBatches
+  }));
+  const { mappingObjects, fieldMappings: flatFieldMappings, batches: syncBatches } = stage1State;
+  const setMappingObjects = useCallback((updater: SetStateAction<MappingObjectType[]>) => {
+    setStage1State(prev => ({ ...prev, mappingObjects: typeof updater === 'function' ? updater(prev.mappingObjects) : updater }));
+  }, []);
+  const setFlatFieldMappings = useCallback((updater: SetStateAction<FieldMappingItem[]>) => {
+    setStage1State(prev => ({ ...prev, fieldMappings: typeof updater === 'function' ? updater(prev.fieldMappings) : updater }));
+  }, []);
+  const setSyncBatches = useCallback((updater: SetStateAction<SyncBatch[]>) => {
+    setStage1State(prev => ({ ...prev, batches: typeof updater === 'function' ? updater(prev.batches) : updater }));
+  }, []);
 
   const groupedFieldMappings = useMemo(() => {
     const map: Record<string, FieldMappingItem[]> = {};
@@ -195,7 +206,7 @@ export default function App() {
           <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
           {/* Dynamic View Dispatcher */}
-          <main className="flex-1 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
+          <main className="flex-1 min-w-0 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
                 batches={syncBatches}
@@ -204,10 +215,9 @@ export default function App() {
                 onUpdateMappingObjects={setMappingObjects}
                 fieldMappings={flatFieldMappings}
                 onUpdateFieldMappings={setFlatFieldMappings}
+                onCommitStage1State={setStage1State}
                 onNavigateToSyncQuality={(batchId) => {
-                  if (batchId) {
-                    setSelectedSyncBatchId(batchId);
-                  }
+                  setSelectedSyncBatchId(batchId ?? null);
                   handleNavigate('data-sync-quality');
                 }}
               />
@@ -230,9 +240,7 @@ export default function App() {
                 batches={consistencyBatches}
                 onUpdateBatches={setConsistencyBatches}
                 onNavigateToSyncQuality={(batchId) => {
-                  if (batchId) {
-                    setSelectedSyncBatchId(batchId);
-                  }
+                  setSelectedSyncBatchId(batchId ?? null);
                   handleNavigate('data-sync-quality');
                 }}
               />

@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   MappingObjectType,
   FieldMappingItem,
   SourceFieldMeta,
-  RootTypeConfigStatus,
-  determineSyncStrategy,
-  SYNC_STRATEGY_LABELS
+  RootTypeConfigStatus
 } from '../stage1MappingTypes';
 import {
   initialSourceSystems,
@@ -14,7 +12,11 @@ import {
   mockSourceFieldMetas,
   mockStage1PreviewRecords
 } from '../stage1MappingData';
-import { SyncBatch, toSyncRootType } from '../syncQualityTypes';
+import { SyncBatch, formatLocalDateTime, toSyncRootType } from '../syncQualityTypes';
+import {
+  Stage1RuntimeState, Stage1TaskRequest, SyncRunOptions, ResetRunOptions,
+  validateStage1TaskStart, beginStage1Task, completeStage1Task
+} from '../stage1SyncExecution';
 import { initialSyncBatches } from '../syncQualityData';
 import { ObjectTypeListView } from './stage1-mapping/ObjectTypeListView';
 import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
@@ -25,8 +27,7 @@ import {
   TriggerSyncModal,
   Stage1QueryPreviewModal,
   FieldDetailModal,
-  ResetAccessModal,
-  ResetBlockModal
+  ResetAccessModal
 } from './stage1-mapping/Stage1Modals';
 
 interface Stage1MappingConfigViewProps {
@@ -34,6 +35,9 @@ interface Stage1MappingConfigViewProps {
   onUpdateBatches?: React.Dispatch<React.SetStateAction<SyncBatch[]>> | ((updater: SyncBatch[] | ((prev: SyncBatch[]) => SyncBatch[])) => void);
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
+  onCommitStage1State?: React.Dispatch<React.SetStateAction<Stage1RuntimeState>>;
+  syncRunOptions?: SyncRunOptions;
+  resetRunOptions?: ResetRunOptions;
   mappingObjects?: MappingObjectType[];
   onUpdateMappingObjects?: React.Dispatch<React.SetStateAction<MappingObjectType[]>>;
   fieldMappings?: FieldMappingItem[];
@@ -48,7 +52,10 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   mappingObjects: externalMappingObjects,
   onUpdateMappingObjects,
   fieldMappings: externalFieldMappings,
-  onUpdateFieldMappings
+  onUpdateFieldMappings,
+  onCommitStage1State,
+  syncRunOptions,
+  resetRunOptions
 }) => {
   // 1. 核心数据状态
   const [sourceSystems] = useState(initialSourceSystems);
@@ -65,6 +72,29 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   const [internalBatches, setInternalBatches] = useState<SyncBatch[]>(initialSyncBatches);
   const currentBatches = batches || internalBatches;
   const updateBatches = onUpdateBatches || setInternalBatches;
+
+  const runtimeState: Stage1RuntimeState = { mappingObjects, fieldMappings, batches: currentBatches };
+  const latestRuntime = useRef(runtimeState);
+  latestRuntime.current = runtimeState;
+  const [operationMessage, setOperationMessage] = useState('');
+  const [lastCreatedBatchId, setLastCreatedBatchId] = useState<string>();
+  const commitRuntime = (updater: (previous: Stage1RuntimeState) => Stage1RuntimeState) => {
+    if (onCommitStage1State) {
+      onCommitStage1State(updater);
+      return;
+    }
+    // Standalone component fallback; React batches the three owned setters together.
+    const next = updater(latestRuntime.current);
+    latestRuntime.current = next;
+    setMappingObjects(next.mappingObjects);
+    setFieldMappings(next.fieldMappings);
+    updateBatches(next.batches);
+  };
+  const displayMappingObjects = mappingObjects.map(root => {
+    const syncRootType = toSyncRootType(root.id);
+    const active = syncRootType && currentBatches.find(batch => batch.executionStatus === 'RUNNING' && batch.rootTypes.includes(syncRootType));
+    return active ? { ...root, syncStatus: active.taskType === 'RESET' ? 'RESETTING' as const : 'RUNNING' as const } : root;
+  });
 
   // 2. 当前视图层级 (OVERVIEW: 根类型总览入口, DETAIL: 根类型字段配置列表)
   const [currentLevel, setCurrentLevel] = useState<'OVERVIEW' | 'DETAIL'>('OVERVIEW');
@@ -84,16 +114,15 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
   // 重置相关模态框状态
   const [isResetAccessModalOpen, setIsResetAccessModalOpen] = useState(false);
-  const [isResetBlockModalOpen, setIsResetBlockModalOpen] = useState(false);
   const [resetTargetRootTypeId, setResetTargetRootTypeId] = useState<string>('PART');
 
   // 4. 当前上下文对应的根类型实体
-  const currentRootType = mappingObjects.find(r => r.id === selectedRootTypeId) || mappingObjects[0];
+  const currentRootType = displayMappingObjects.find(r => r.id === selectedRootTypeId) || displayMappingObjects[0];
   const resetTargetRoot = mappingObjects.find(r => r.id === resetTargetRootTypeId) || currentRootType;
 
   // 来源元数据池
   const availablePlmFields: SourceFieldMeta[] =
-    mockSourceFieldMetas[currentRootType.id] || mockSourceFieldMetas['PART'] || [];
+    currentRootType ? mockSourceFieldMetas[currentRootType.id] || [] : [];
 
   // ==================== 业务交互动作 ====================
 
@@ -252,300 +281,79 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsPublishModalOpen(false);
   };
 
-  // 执行数据同步 (系统自动选择实际执行方式，单条数据异常不中断整体任务)
-  const handleConfirmDataSync = () => {
-    setIsTriggerSyncModalOpen(false);
-    const target = currentRootType;
-    if (!target) return;
-
-    // 前置阻断校验：无权限或任务运行中
-    if (!hasPermission || target.syncStatus === 'RUNNING' || target.syncStatus === 'RESETTING') {
-      return;
-    }
-
-    // 系统自动确定同步执行方式与原因
-    const { strategy, reason } = determineSyncStrategy(target, fieldMappings);
-    const strategyLabel = SYNC_STRATEGY_LABELS[strategy] || '增量追平';
-
-    const now = new Date();
-    const startTimeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const batchId = `SYNC-${Date.now().toString().slice(-8)}`;
-    const syncRootType = toSyncRootType(target.id);
-
-    // 1. 设置根类型为正在运行
-    setMappingObjects(prev =>
-      prev.map(root => {
-        if (root.id !== target.id) return root;
-        return {
-          ...root,
-          syncStatus: 'RUNNING',
-          lastSyncExecutionStrategy: strategy,
-          lastSyncStrategyReason: reason
-        };
-      })
-    );
-
-    // 2. 立即创建 RUNNING 同步记录并插入 syncBatches 前部！实时更新任务总数与进行中指标
-    const initialBatch: SyncBatch = {
-      id: batchId,
-      jobName: `${target.name} 数据同步任务`,
-      taskType: 'SYNC',
-      rootTypes: [syncRootType],
-      syncMethod: strategy === 'INITIAL_REBUILD' ? 'FULL' : 'INCREMENTAL',
-      triggerType: 'MANUAL',
-      startTime: startTimeStr,
-      sourceDataCount: target.manticoreDocCount ?? 0,
-      successCount: 0,
-      failedCount: 0,
-      skippedCount: 0,
-      executionStatus: 'RUNNING',
-      actualStrategy: strategyLabel,
-      strategyReason: reason,
-      statusNote: `系统自动判定执行方式为【${strategyLabel}】（原因：${reason}），任务已启动，正在读取 PLM 数据并同步至底座...`,
-      failedRecords: []
-    };
-
-    updateBatches(prev => [initialBatch, ...prev]);
-
-    // 3. 1.2 秒后异步完成，更新同一条任务记录，绝不新建第二条！
-    setTimeout(() => {
-      const finishDate = new Date();
-      const endTimeStr = `${finishDate.getFullYear()}-${String(finishDate.getMonth() + 1).padStart(2, '0')}-${String(finishDate.getDate()).padStart(2, '0')} ${String(finishDate.getHours()).padStart(2, '0')}:${String(finishDate.getMinutes()).padStart(2, '0')}:${String(finishDate.getSeconds()).padStart(2, '0')}`;
-
-      // 字段全部标记为正式进入查询底座
-      let nextFields: FieldMappingItem[] = [];
-      setFieldMappings(prev => {
-        nextFields = prev.map(f => {
-          if (f.rootTypeId !== target.id) return f;
-          if (f.configStatus === 'CONFIGURED') {
-            return {
-              ...f,
-              isInFormalQueryBase: true,
-              isDataImpactingChange: false,
-              hasDraftModification: false
-            };
-          }
-          return f;
-        });
-        return nextFields;
-      });
-
-      // 模拟是否存在记录级轻微错误（仅 DOCUMENT 样例有轻微错误）
-      const hasMinorErrors = target.id === 'DOCUMENT';
-      const docCount = target.manticoreDocCount || (target.id === 'PART' ? 38400 : target.id === 'DOCUMENT' ? 52000 : 19200);
-      const rawErrors = hasMinorErrors ? (target.lastSyncErrorRecords || []) : [];
-      const errorRecords: SyncBatch['failedRecords'] = rawErrors.map((err, idx) => ({
-        id: err.id || `FAIL-${idx + 1}`,
-        recordKey: err.recordKey || `DOC-${idx + 1}`,
-        rootType: syncRootType,
-        failedField: err.errorField,
-        failureReason: err.errorMsg,
-        occurredAt: err.timestamp || endTimeStr,
-        retryable: true,
-        errorCode: err.errorCode,
-        techDetail: err.errorMsg
-      }));
-      const finalSuccessCount = hasMinorErrors ? Math.max(0, docCount - errorRecords.length) : docCount;
-
-      // 更新同一个任务记录
-      updateBatches(prev =>
-        prev.map(b => {
-          if (b.id !== batchId) return b;
-          return {
-            ...b,
-            endTime: endTimeStr,
-            durationText: '1.2s',
-            executionStatus: hasMinorErrors ? 'PARTIAL_SUCCESS' : 'SUCCESS',
-            sourceDataCount: docCount,
-            successCount: finalSuccessCount,
-            failedCount: errorRecords.length,
-            statusNote: hasMinorErrors
-              ? `同步完成，检测到 ${errorRecords.length} 条数据存在字段校验或格式异常，底座已同步成功 ${finalSuccessCount.toLocaleString()} 条。`
-              : `数据同步成功，正式查询底座已更新，共生效 ${finalSuccessCount.toLocaleString()} 条数据。`,
-            failedRecords: errorRecords
-          };
-        })
-      );
-
-      // 更新根类型状态
-      setMappingObjects(prev =>
-        prev.map(root => {
-          if (root.id !== target.id) return root;
-          const formalCount = nextFields.filter(
-            f => f.rootTypeId === root.id && f.configStatus === 'CONFIGURED' && f.isInFormalQueryBase && f.isDisplayInResult
-          ).length;
-
-          return {
-            ...root,
-            syncStatus: hasMinorErrors ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED',
-            lastSyncedAt: endTimeStr,
-            lastSyncBatchId: batchId,
-            formalQueryableFieldCount: formalCount,
-            hasPendingSyncChanges: false,
-            manticoreDocCount: docCount,
-            lastSyncSuccessCount: finalSuccessCount,
-            lastSyncErrorCount: rawErrors.length,
-            lastSyncErrorRecords: rawErrors
-          };
-        })
-      );
-    }, 1200);
+  const checkTaskStart = (rootTypeId: string, confirmedCode?: string) => {
+    const result = validateStage1TaskStart(latestRuntime.current, { rootTypeId, hasPermission, confirmedCode });
+    if (result.ok === false) setOperationMessage(result.reason);
+    return result;
   };
 
-  // 打开正式查询底座预览
+  const startTask = (taskType: 'SYNC' | 'RESET', rootTypeId: string, confirmedCode?: string) => {
+    if (!checkTaskStart(rootTypeId, confirmedCode).ok) return;
+    const request: Stage1TaskRequest = {
+      id: `${taskType}-${crypto.randomUUID()}`,
+      taskType, rootTypeId, hasPermission, confirmedCode,
+      startTime: formatLocalDateTime()
+    };
+    // Freeze execution options at submission; only code parameters can inject failures.
+    const options = { ...(taskType === 'RESET' ? resetRunOptions : syncRunOptions) };
+    commitRuntime(previous => beginStage1Task(previous, request));
+    setLastCreatedBatchId(request.id);
+    setOperationMessage(`${taskType === 'RESET' ? '重置' : '同步'}任务已提交。`);
+    setIsTriggerSyncModalOpen(false);
+    setIsResetAccessModalOpen(false);
+    const delayMs = typeof options.delayMs === 'number' && Number.isFinite(options.delayMs) && options.delayMs >= 0
+      ? options.delayMs : 1200;
+    // The App transaction setter remains valid after this page unmounts.
+    setTimeout(() => {
+      const completedAt = new Date();
+      commitRuntime(previous => completeStage1Task(previous, request, options, completedAt));
+    }, delayMs);
+  };
+
+  const handleConfirmDataSync = () => {
+    startTask('SYNC', selectedRootTypeId);
+  };
+
   const handleOpenQueryPreview = (rootTypeId?: string) => {
-    if (rootTypeId) {
-      setSelectedRootTypeId(rootTypeId);
-    }
+    if (rootTypeId) setSelectedRootTypeId(rootTypeId);
     setIsQueryPreviewOpen(true);
   };
 
-  // 触发根类型同步弹窗
   const handleTriggerQuickSync = (rootId: string) => {
+    if (!checkTaskStart(rootId).ok) return;
     setSelectedRootTypeId(rootId);
     setIsTriggerSyncModalOpen(true);
   };
 
-  // 发起重置接入请求（带阻断前置校验）
   const handleRequestResetAccess = (rootId: string) => {
-    const target = mappingObjects.find(r => r.id === rootId);
-    if (!target) return;
+    if (!checkTaskStart(rootId).ok) return;
     setResetTargetRootTypeId(rootId);
-
-    // 阻断检查：若任务正在执行中（RUNNING / RESETTING），严禁进行重置
-    if (target.syncStatus === 'RUNNING' || target.syncStatus === 'RESETTING') {
-      setIsResetBlockModalOpen(true);
-      return;
-    }
-
     setIsResetAccessModalOpen(true);
   };
 
-  // 确认执行重置接入
   const handleConfirmReset = (confirmedCode: string) => {
-    const rootId = resetTargetRootTypeId;
-    const target = mappingObjects.find(r => r.id === rootId);
-    if (!target) return;
-
-    // 二次提交校验：权限、根类型完全一致、确认码区分大小写匹配大写 rootId、无运行中任务
-    const isTargetMatched = confirmedCode.trim().toUpperCase() === target.id.toUpperCase();
-    if (!hasPermission || !isTargetMatched || target.syncStatus === 'RUNNING' || target.syncStatus === 'RESETTING') {
-      return; // 严密阻断，不发起任何操作
-    }
-
-    const beforeDocCount = target.manticoreDocCount; // 未知时为 undefined，严禁虚构
-    const targetFields = fieldMappings.filter(f => f.rootTypeId === rootId);
-
-    const now = new Date();
-    const startTimeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const resetBatchId = `RESET-${Date.now().toString().slice(-8)}`;
-    const syncRootType = toSyncRootType(rootId);
-
-    // 1. 关闭弹窗并标记根类型状态为 RESETTING (重置中)
-    setIsResetAccessModalOpen(false);
-    setMappingObjects(prev =>
-      prev.map(r => (r.id === rootId ? { ...r, syncStatus: 'RESETTING' } : r))
-    );
-
-    // 2. 立即在数据同步记录创建 RUNNING 重置任务！
-    const initialResetBatch: SyncBatch = {
-      id: resetBatchId,
-      taskType: 'RESET',
-      jobName: `${target.name} 接入重置任务`,
-      rootTypes: [syncRootType],
-      syncMethod: 'FULL',
-      triggerType: 'MANUAL',
-      startTime: startTimeStr,
-      sourceDataCount: beforeDocCount ?? 0,
-      successCount: 0,
-      failedCount: 0,
-      skippedCount: 0,
-      executionStatus: 'RUNNING',
-      statusNote: `正在执行 ${target.name} 接入重置：清空正式查询底座数据，保留字段映射并转为草稿...`,
-      failedRecords: [],
-      resetAuditDetail: {
-        operator: '接入管理员',
-        confirmedInputCode: confirmedCode,
-        beforeConfiguredCount: target.configuredFieldCount,
-        beforeDraftCount: target.draftFieldCount,
-        beforeFormalQueryableCount: target.formalQueryableFieldCount,
-        beforeDocCount: beforeDocCount,
-        deletedDocCount: beforeDocCount,
-        retainedDraftCount: targetFields.length
-      }
-    };
-
-    updateBatches(prev => [initialResetBatch, ...prev]);
-
-    // 3. 1.2 秒后重置完成，更新同一条任务记录为 SUCCESS
-    setTimeout(() => {
-      const finishDate = new Date();
-      const endTimeStr = `${finishDate.getFullYear()}-${String(finishDate.getMonth() + 1).padStart(2, '0')}-${String(finishDate.getDate()).padStart(2, '0')} ${String(finishDate.getHours()).padStart(2, '0')}:${String(finishDate.getMinutes()).padStart(2, '0')}:${String(finishDate.getSeconds()).padStart(2, '0')}`;
-
-      // 字段全部转为草稿态
-      setFieldMappings(prev =>
-        prev.map(f => {
-          if (f.rootTypeId !== rootId) return f;
-          return {
-            ...f,
-            configStatus: 'DRAFT',
-            hasDraftModification: false,
-            isInFormalQueryBase: false,
-            isDataImpactingChange: true,
-            updatedAt: '刚刚 (重置转草稿)',
-            updatedBy: '接入管理员'
-          };
-        })
-      );
-
-      // 更新根类型状态
-      setMappingObjects(prev =>
-        prev.map(r => {
-          if (r.id !== rootId) return r;
-          return {
-            ...r,
-            configStatus: targetFields.length > 0 ? 'DRAFTING' : 'NOT_CONFIGURED',
-            configuredFieldCount: 0,
-            formalQueryableFieldCount: 0,
-            draftFieldCount: targetFields.length,
-            syncStatus: 'NOT_SYNCED',
-            manticoreDocCount: 0,
-            hasPendingSyncChanges: false,
-            lastSyncedAt: undefined,
-            lastSyncBatchId: undefined,
-            lastSyncErrorRecords: []
-          };
-        })
-      );
-
-      // 更新同一个重置任务记录为完成
-      updateBatches(prev =>
-        prev.map(b => {
-          if (b.id !== resetBatchId) return b;
-          return {
-            ...b,
-            endTime: endTimeStr,
-            durationText: '1.2s',
-            executionStatus: 'SUCCESS',
-            statusNote: `已完成 ${target.name} 接入重置：清空正式查询数据，保留 ${targetFields.length} 个字段映射并转为草稿。`,
-            resetAuditDetail: {
-              ...b.resetAuditDetail!,
-              deletedDocCount: beforeDocCount,
-              retainedDraftCount: targetFields.length
-            }
-          };
-        })
-      );
-    }, 1200);
+    startTask('RESET', resetTargetRootTypeId, confirmedCode);
   };
+
+  if (!currentRootType) {
+    return <div className="p-8 text-center text-[var(--ty-font-sub-color)]">暂无可用根类型配置</div>;
+  }
 
   return (
     <div className="space-y-4">
+      {operationMessage && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] px-3 py-2 text-ty-xs">
+          <span>{operationMessage}</span>
+          {lastCreatedBatchId && currentBatches.some(batch => batch.id === lastCreatedBatchId) && (
+            <button type="button" onClick={() => onNavigateToSyncQuality(lastCreatedBatchId)} className="text-[var(--ty-primary-color)] cursor-pointer hover:underline">查看同步记录</button>
+          )}
+        </div>
+      )}
       {/* 视图分发：根类型总览 vs 根类型字段映射列表 */}
       {currentLevel === 'OVERVIEW' ? (
         <ObjectTypeListView
           sourceSystems={sourceSystems}
-          mappingObjects={mappingObjects}
+          mappingObjects={displayMappingObjects}
           onSelectRootType={handleSelectRootType}
           onOpenQueryPreview={handleOpenQueryPreview}
           onTriggerSync={handleTriggerQuickSync}
@@ -563,7 +371,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
           onPublishConfig={() => setIsPublishModalOpen(true)}
-          onTriggerDataSync={() => setIsTriggerSyncModalOpen(true)}
+          onTriggerDataSync={() => handleTriggerQuickSync(currentRootType.id)}
           onResetAccess={() => handleRequestResetAccess(currentRootType.id)}
           onOpenQueryPreview={() => handleOpenQueryPreview(currentRootType.id)}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
@@ -606,7 +414,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
       {/* 模态框 4：发起数据同步 (系统自动选择执行策略) */}
       <TriggerSyncModal
-        isOpen={isTriggerSyncModalOpen}
+        isOpen={isTriggerSyncModalOpen && mappingObjects.some(root => root.id === selectedRootTypeId)}
         onClose={() => setIsTriggerSyncModalOpen(false)}
         currentRootType={currentRootType}
         fields={fieldMappings}
@@ -634,19 +442,13 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
       {/* 模态框 7：重置接入高危二次确认 */}
       <ResetAccessModal
-        isOpen={isResetAccessModalOpen}
+        isOpen={isResetAccessModalOpen && mappingObjects.some(root => root.id === resetTargetRootTypeId)}
         onClose={() => setIsResetAccessModalOpen(false)}
         currentRootType={resetTargetRoot}
         fields={fieldMappings}
         onConfirmReset={handleConfirmReset}
       />
 
-      {/* 模态框 8：正在执行任务时的重置阻断提示 */}
-      <ResetBlockModal
-        isOpen={isResetBlockModalOpen}
-        onClose={() => setIsResetBlockModalOpen(false)}
-        currentRootType={resetTargetRoot}
-      />
     </div>
   );
 };

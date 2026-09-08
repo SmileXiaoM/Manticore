@@ -137,11 +137,11 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       if (field.hasDraftModification) {
         return (
           <div className="space-y-1">
-            <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+            <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
               <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
               已配置
             </span>
-            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-1.5 py-0.5 rounded-ty-xs font-medium flex items-center whitespace-nowrap">
+            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-1.5 py-0.5 rounded-ty-xs font-medium flex flex-wrap items-center gap-y-1 whitespace-normal max-w-full">
               <Clock className="w-2.5 h-2.5 mr-1 text-[var(--ty-blue-color)] shrink-0" />
               <span>有草稿修改</span>
               {field.isDataImpactingChange && (
@@ -154,7 +154,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         );
       }
       return (
-        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
           <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
           已配置
         </span>
@@ -162,12 +162,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     }
     return (
       <div className="space-y-1">
-        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+        <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
           <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
           草稿
         </span>
         {field.isDataImpactingChange && (
-          <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.5 rounded-ty-xs font-medium whitespace-nowrap">
+          <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1.5 py-0.5 rounded-ty-xs font-medium whitespace-normal max-w-full">
             生效后需同步
           </div>
         )}
@@ -179,7 +179,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const renderBaseStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'DRAFT') {
       return (
-        <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs italic whitespace-nowrap" title="草稿未生效，不进入正式查询底座">
+        <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs italic whitespace-normal max-w-full" title="草稿未生效，不进入正式查询底座">
           - (草稿未生效)
         </span>
       );
@@ -189,18 +189,18 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       if (field.hasDraftModification && field.isDataImpactingChange) {
         return (
           <div className="space-y-0.5">
-            <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-2 py-0.5 rounded-ty-xs">
+            <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-normal max-w-full text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-2 py-0.5 rounded-ty-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-blue-color)] mr-1.5 shrink-0"></span>
               已在正式底座
             </span>
-            <div className="text-ty-2xs text-[var(--ty-orange-color)] font-medium leading-tight whitespace-nowrap">
+            <div className="text-ty-2xs text-[var(--ty-orange-color)] font-medium leading-tight whitespace-normal max-w-full">
               新修改待生效同步
             </div>
           </div>
         );
       }
       return (
-        <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-font-main-light-color)] bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 px-2 py-0.5 rounded-ty-xs">
+        <span className="min-h-[22px] inline-flex items-center text-ty-xs font-medium whitespace-normal max-w-full text-[var(--ty-font-main-light-color)] bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 px-2 py-0.5 rounded-ty-xs">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1.5 shrink-0"></span>
           已在正式底座
         </span>
@@ -208,7 +208,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     }
 
     return (
-      <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+      <span className="min-h-[22px] inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
         <AlertTriangle className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
         待进入正式底座
       </span>
@@ -259,7 +259,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       </div>
 
       {/* 页面主标题与操作区 */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3.5 flex flex-col xl:flex-row xl:flex-wrap xl:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex items-center space-x-2">
             <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
@@ -364,7 +364,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <Send className="w-3.5 h-3.5 shrink-0" />
             <span className="whitespace-nowrap">生效配置</span>
             {totalDraftWorkItemCount > 0 && (
-              <span className="bg-[var(--ty-fill-white-color)]/20 text-[var(--ty-font-white-color)] text-ty-2xs px-1.5 py-0.2 rounded-full font-mono font-semibold shrink-0">
+              <span className="bg-[var(--ty-fill-white-color)]/20 text-[var(--ty-font-white-color)] text-ty-2xs px-1.5 py-0.5 rounded-ty-xs font-mono font-semibold shrink-0">
                 {totalDraftWorkItemCount}
               </span>
             )}
@@ -503,21 +503,21 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1240px] text-left text-ty-xs">
+          <table className="w-full table-fixed text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
-                <th className="py-2.5 px-3 min-w-[150px] whitespace-nowrap">PLM 来源字段</th>
-                <th className="py-2.5 px-3 min-w-[150px] whitespace-nowrap">Manticore 检索字段</th>
-                <th className="py-2.5 px-3 min-w-[140px] whitespace-nowrap">前台显示名称</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[65px] whitespace-nowrap">顺序号</th>
-                <th className="py-2.5 px-3 min-w-[100px] whitespace-nowrap">PLM 业务类型</th>
-                <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">底层类型</th>
-                <th className="py-2.5 px-3 min-w-[90px] whitespace-nowrap">查询能力</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[60px] whitespace-nowrap">排序</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[105px] whitespace-nowrap">结果展示</th>
-                <th className="py-2.5 px-3 min-w-[130px] whitespace-nowrap">配置状态</th>
-                <th className="py-2.5 px-3 min-w-[130px] whitespace-nowrap">底座状态</th>
-                <th className="py-2.5 px-3 text-center min-w-[120px] sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10 whitespace-nowrap">操作</th>
+                <th className="py-2.5 px-1 w-[11%] whitespace-normal">PLM 来源字段</th>
+                <th className="py-2.5 px-1 w-[11%] whitespace-normal">Manticore 检索字段</th>
+                <th className="py-2.5 px-1 w-[9%] whitespace-normal">前台显示名称</th>
+                <th className="py-2.5 px-1 w-[5%] whitespace-normal text-center">顺序号</th>
+                <th className="py-2.5 px-1 w-[8%] whitespace-normal">PLM 业务类型</th>
+                <th className="py-2.5 px-1 w-[7%] whitespace-normal">底层类型</th>
+                <th className="py-2.5 px-1 w-[8%] whitespace-normal">查询能力</th>
+                <th className="py-2.5 px-1 w-[4%] whitespace-normal text-center">排序</th>
+                <th className="py-2.5 px-1 w-[9%] whitespace-normal text-center">结果展示</th>
+                <th className="py-2.5 px-1 w-[9%] whitespace-normal">配置状态</th>
+                <th className="py-2.5 px-1 w-[9%] whitespace-normal">底座状态</th>
+                <th className="py-2.5 px-1 w-[10%] whitespace-normal text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]">
@@ -525,8 +525,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 paginatedFields.map(field => (
                   <tr key={field.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50 transition-colors group">
                     {/* 1. PLM 来源字段 */}
-                    <td className="py-2.5 px-3">
-                      <div className="font-mono font-semibold text-[var(--ty-font-main-color)]">{field.sourceFieldName}</div>
+                    <td className="py-2.5 px-1 break-words">
+                      <div className="font-mono font-semibold break-all text-[var(--ty-font-main-color)]">{field.sourceFieldName}</div>
                       <div className="text-ty-xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
                         <span>{field.sourceDisplayName}</span>
                         {field.isDisplayNameMissing && (
@@ -538,15 +538,15 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 2. Manticore 检索字段 (紧邻源字段) */}
-                    <td className="py-2.5 px-3 font-mono font-semibold text-[var(--ty-blue-color)]">
+                    <td className="py-2.5 px-1 break-words font-mono font-semibold text-[var(--ty-blue-color)]">
                       <div className="flex items-center space-x-1">
                         <ArrowRight className="w-3 h-3 text-[var(--ty-border-color)] shrink-0" />
-                        <span>{field.manticoreField}</span>
+                        <span className="min-w-0 break-all">{field.manticoreField}</span>
                       </div>
                     </td>
 
                     {/* 3. 前台显示名称 */}
-                    <td className="py-2.5 px-3 font-medium text-[var(--ty-font-main-color)]">
+                    <td className="py-2.5 px-1 break-words font-medium text-[var(--ty-font-main-color)]">
                       {field.hasDraftModification && field.draftData?.displayTitle ? (
                         <div>
                           <span className="text-[var(--ty-font-main-color)]">{field.displayTitle}</span>
@@ -560,7 +560,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 顺序号 */}
-                    <td className="py-2.5 px-2.5 text-center">
+                    <td className="py-2.5 px-1 text-center">
                       {field.hasDraftModification && field.draftData?.displayOrder !== undefined ? (
                         <div className="font-mono font-bold text-[var(--ty-font-main-color)]">
                           <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 text-ty-xs">
@@ -573,14 +573,14 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                           )}
                         </div>
                       ) : (
-                        <span className="font-mono font-semibold text-[var(--ty-font-main-color)] px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] text-ty-xs">
+                        <span className="font-mono font-semibold break-all text-[var(--ty-font-main-color)] px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] text-ty-xs">
                           {field.displayOrder ?? field.defaultDisplayOrder ?? '-'}
                         </span>
                       )}
                     </td>
 
                     {/* 4. PLM 业务类型 */}
-                    <td className="py-2.5 px-3 text-[var(--ty-font-sub-color)]">
+                    <td className="py-2.5 px-1 break-words text-[var(--ty-font-sub-color)]">
                       <span>{field.sourceDataTypeLabel}</span>
                       {field.defaultUnit && (
                         <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">({field.defaultUnit})</span>
@@ -588,12 +588,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 5. Manticore 底层存储类型 */}
-                    <td className="py-2.5 px-3 font-mono text-ty-xs text-[var(--ty-font-sub-color)]">
+                    <td className="py-2.5 px-1 break-words font-mono text-ty-xs text-[var(--ty-font-sub-color)]">
                       {field.manticoreType}
                     </td>
 
                     {/* 6. 查询能力 */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-1 break-words">
                       {renderQueryCapabilityBadge(
                         field.hasDraftModification && field.draftData?.queryCapability
                           ? field.draftData.queryCapability
@@ -602,7 +602,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 7. 允许排序 */}
-                    <td className="py-2.5 px-2.5 text-center">
+                    <td className="py-2.5 px-1 text-center">
                       {(field.hasDraftModification && field.draftData?.isSortable !== undefined
                         ? field.draftData.isSortable
                         : field.isSortable) ? (
@@ -613,7 +613,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 8. 结果展示 (支持超链接标记，复用统一有效超链接判定口径) */}
-                    <td className="py-2.5 px-2.5 text-center">
+                    <td className="py-2.5 px-1 text-center">
                       {(() => {
                         if (!field.isDisplayInResult) {
                           return <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs">否</span>;
@@ -624,7 +624,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                         if (hasValidLink) {
                           return (
                             <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 text-ty-xs font-semibold whitespace-nowrap"
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 text-ty-xs font-semibold whitespace-normal max-w-full"
                               title="在查询结果中以源系统超链接形式展示 (配置完整有效)"
                             >
                               <Link className="w-2.5 h-2.5 mr-1 text-[var(--ty-blue-color)] shrink-0" />
@@ -638,22 +638,22 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 9. 配置状态 */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-1 break-words">
                       {renderConfigStatusBadge(field)}
                     </td>
 
                     {/* 11. 底座状态 */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-1 break-words">
                       {renderBaseStatusBadge(field)}
                     </td>
 
                     {/* 12. 操作列 (粘性吸附) */}
-                    <td className="py-2.5 px-3 text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] z-10 min-w-[120px] whitespace-nowrap">
+                    <td className="py-2.5 px-1 break-words text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] z-10 whitespace-nowrap">
                       <div className="flex items-center justify-center space-x-1.5 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => onViewFieldDetail(field)}
-                          className="h-7 px-2 bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          className="h-7 px-1.5 bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
                         >
                           详情
                         </button>
@@ -661,7 +661,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                           type="button"
                           onClick={() => onEditField(field)}
                           disabled={!hasPermission}
-                          className={`h-7 px-2 rounded-ty-sm text-ty-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                          className={`h-7 px-1.5 rounded-ty-sm text-ty-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                             hasPermission
                               ? 'bg-[var(--ty-primary-lighter-color)] hover:bg-[var(--ty-primary-light-color)] text-[var(--ty-primary-color)]'
                               : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'

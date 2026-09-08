@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Search,
   RotateCcw,
@@ -32,7 +32,10 @@ import {
   getRootTypeDisplayName,
   getSyncMethodLabel,
   getTriggerTypeLabel,
-  formatLocalDateTime
+  formatLocalDateTime,
+  formatSyncCount,
+  isKnownSyncCount,
+  getSyncProgressText
 } from '../syncQualityTypes';
 import { initialSyncBatches } from '../syncQualityData';
 
@@ -40,7 +43,7 @@ interface DataSyncQualityViewProps {
   initialSelectedBatchId?: string | null;
   onClearSelectedBatchId?: () => void;
   batches?: SyncBatch[];
-  onUpdateBatches?: (batches: SyncBatch[]) => void;
+  onUpdateBatches?: React.Dispatch<React.SetStateAction<SyncBatch[]>>;
   initialRootTypeFilter?: string;
 }
 
@@ -54,14 +57,12 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
   // 批次数据状态（支持外部托管或内部状态）
   const [internalBatches, setInternalBatches] = useState<SyncBatch[]>(initialSyncBatches);
   const batches = propBatches || internalBatches;
+  const batchesRef = useRef(batches);
+  batchesRef.current = batches;
 
   const setBatches = (updater: SyncBatch[] | ((prev: SyncBatch[]) => SyncBatch[])) => {
     if (onUpdateBatches) {
-      if (typeof updater === 'function') {
-        onUpdateBatches(updater(batches));
-      } else {
-        onUpdateBatches(updater);
-      }
+      onUpdateBatches(updater);
     } else {
       setInternalBatches(updater);
     }
@@ -74,6 +75,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
 
   // 抽屉详情选中的批次 ID
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(initialSelectedBatchId || null);
+  const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
 
   // 折叠技术信息状态字典 (recordId -> boolean)
   const [expandedTechIds, setExpandedTechIds] = useState<Record<string, boolean>>({});
@@ -106,12 +108,27 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
   // 外部传入 initialSelectedBatchId 时响应
   useEffect(() => {
     if (initialSelectedBatchId) {
-      setSelectedBatchId(initialSelectedBatchId);
+      const exists = batches.some(batch => batch.id === initialSelectedBatchId);
+      setSelectedBatchId(exists ? initialSelectedBatchId : null);
+      setSelectionNotice(exists ? null : `未找到任务 ${initialSelectedBatchId}，已返回同步记录列表。`);
+      setSelectedRootType('ALL');
+      setSelectedStatus('ALL');
+      setSearchKeyword('');
       if (onClearSelectedBatchId) {
         onClearSelectedBatchId();
       }
     }
-  }, [initialSelectedBatchId, onClearSelectedBatchId]);
+  }, [initialSelectedBatchId, onClearSelectedBatchId, batches]);
+
+  useEffect(() => {
+    if (selectedBatchId && !batches.some(batch => batch.id === selectedBatchId)) {
+      setSelectionNotice(`任务 ${selectedBatchId} 已不存在，已返回同步记录列表。`);
+      setSelectedBatchId(null);
+      setSelectedRootType('ALL');
+      setSelectedStatus('ALL');
+      setSearchKeyword('');
+    }
+  }, [batches, selectedBatchId]);
 
   // 重置筛选条件
   const handleResetFilters = () => {
@@ -189,7 +206,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
     if (!activeBatch || !newNoteContent.trim()) return;
 
     const newNote: HandlingNote = {
-      id: `NOTE-${Date.now()}`,
+      id: `NOTE-${crypto.randomUUID()}`,
       content: newNoteContent.trim(),
       operator: '李晓华 (数据管理员)',
       createdAt: formatLocalDateTime(new Date())
@@ -211,136 +228,88 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
     showToast('处理说明已成功保存', 'success');
   };
 
-  // 执行重试（支持数据级重试与任务级重试，生成真实重试批次留痕）
+  // 重试范围必须来自已取得的源端数量或本批次可重试异常记录。
   const handleExecuteRetry = () => {
-    if (!activeBatch || isRetrying) return;
-
+    if (!activeBatch || isRetrying || activeBatch.taskType === 'RESET') return;
     const targetBatchId = activeBatch.id;
-    const isTaskFailureInitial = activeBatch.executionStatus === 'FAILED';
-    const retryableDataRecordsInitial = activeBatch.failedRecords.filter(r => r.retryable);
-
-    if (!isTaskFailureInitial && retryableDataRecordsInitial.length === 0) {
+    const initialTaskFailure = activeBatch.executionStatus === 'FAILED';
+    if (initialTaskFailure && !isKnownSyncCount(activeBatch.sourceDataCount)) {
+      showToast('源端数量待获取，暂不能确定任务重试范围', 'warning');
+      return;
+    }
+    if (!initialTaskFailure && !activeBatch.failedRecords.some(record => record.retryable)) {
       showToast('当前批次无可重试的数据', 'warning');
       return;
     }
 
     setIsRetrying(true);
+    const startedAt = new Date();
+    const newBatchId = `SYNC-RETRY-${crypto.randomUUID()}`;
 
     setTimeout(() => {
       setIsRetrying(false);
-
-      const now = new Date();
-      const startTimeStr = formatLocalDateTime(now);
-      const endTimeObj = new Date(now.getTime() + 75 * 1000);
-      const endTimeStr = formatLocalDateTime(endTimeObj);
-
-      let generatedBatchId = '';
-      let isTaskFailureMode = false;
-      let finalRetryCount = 0;
-
-      // 使用函数式状态更新，避免使用旧闭包 batches 覆盖重试等待期间用户提交的处理说明
-      setBatches(prev => {
-        // 基于 prev 中的最新批次计算重试编号，防止重复
-        let newBatchId = `${targetBatchId}-R1`;
-        let retrySuffixIndex = 1;
-        while (prev.some(b => b.id === newBatchId)) {
-          retrySuffixIndex++;
-          newBatchId = `${targetBatchId}-R${retrySuffixIndex}`;
-        }
-        generatedBatchId = newBatchId;
-
-        // 获取原批次最新数据（包含重试等待期间用户新增的 handlingNotes）
-        const currentTargetBatch = prev.find(b => b.id === targetBatchId);
-        if (!currentTargetBatch) return prev;
-
-        const isTaskFailure = currentTargetBatch.executionStatus === 'FAILED';
-        isTaskFailureMode = isTaskFailure;
-        const retryableDataRecords = currentTargetBatch.failedRecords.filter(r => r.retryable);
-        const retryCount = isTaskFailure ? currentTargetBatch.sourceDataCount : retryableDataRecords.length;
-        finalRetryCount = retryCount;
-
-        // 1. 创建全新的重试批次，作为独立记录入库留痕
-        const newRetryBatch: SyncBatch = {
-          id: newBatchId,
-          jobName: `${currentTargetBatch.jobName} - 失败重试`,
-          parentBatchId: currentTargetBatch.id,
-          rootTypes: [...currentTargetBatch.rootTypes],
-          syncMethod: 'COMPENSATION',
-          triggerType: 'RETRY',
-          startTime: startTimeStr,
-          endTime: endTimeStr,
-          durationText: '1分15秒',
-          sourceDataCount: retryCount,
-          successCount: retryCount,
-          failedCount: 0,
-          skippedCount: 0,
-          executionStatus: 'SUCCESS',
-          failedRecords: [],
-          statusNote: isTaskFailure
-            ? `重试任务在 PLM 网关认证凭证更新后重新执行，已顺利完成全批次 ${retryCount} 条数据读取并全部成功写入。`
-            : `重试批次对原批次 ${currentTargetBatch.id} 中 ${retryCount} 条可重试失败记录重新执行清洗与同步，全部成功写入。`,
-          handlingNotes: [
-            {
-              id: `NOTE-RETRY-${Date.now()}`,
-              content: isTaskFailure
-                ? `针对原任务级失败批次 ${currentTargetBatch.id} 发起全量任务重试，已生成新批次 ${newBatchId} 并成功完成。`
-                : `针对原批次 ${currentTargetBatch.id} 中 ${retryCount} 条可重试异常数据发起定向重试，已生成新批次 ${newBatchId}。`,
-              operator: '李晓华 (数据管理员)',
-              createdAt: startTimeStr
-            }
-          ]
-        };
-
-        // 2. 更新原批次：保持原始历史状态和统计数据不变，但将可重试明细标记为重试成功并追加处理备忘
-        // 关键：保留 b.handlingNotes，确保重试等待期间用户保存的处理说明完整存在
-        const updatedBatches = prev.map(b => {
-          if (b.id === targetBatchId) {
-            const updatedRecords = b.failedRecords.map(rec => {
-              if (rec.retryable) {
-                return {
-                  ...rec,
-                  latestRetryResult: 'SUCCESS' as const
-                };
-              }
-              return rec;
-            });
-
-            const linkedNote: HandlingNote = {
-              id: `NOTE-LINK-${Date.now()}`,
-              content: isTaskFailure
-                ? `已针对本失败任务发起重试，生成新批次 ${newBatchId}，执行结果：同步完成。`
-                : `已针对本批次 ${retryCount} 条失败数据发起重试，生成新批次 ${newBatchId}，执行结果：同步完成。`,
-              operator: '李晓华 (数据管理员)',
-              createdAt: startTimeStr
-            };
-
-            return {
-              ...b,
-              failedRecords: updatedRecords,
-              handlingNotes: [linkedNote, ...(b.handlingNotes || [])]
-            };
-          }
-          return b;
-        });
-
-        // 将新重试批次插入到列表最前部，实现列表留痕
-        return [newRetryBatch, ...updatedBatches];
-      });
-
-      if (generatedBatchId) {
-        setLastGeneratedBatchId(generatedBatchId);
-        showToast(
-          isTaskFailureMode
-            ? `任务重试成功，已生成新批次 ${generatedBatchId}`
-            : `已成功重试 ${finalRetryCount} 条失败数据，已生成新批次 ${generatedBatchId}`,
-          'success'
-        );
+      const currentTargetBatch = batchesRef.current.find(batch => batch.id === targetBatchId);
+      if (!currentTargetBatch || currentTargetBatch.taskType === 'RESET') {
+        showToast('原同步任务已不存在，无法重试', 'warning');
+        return;
       }
+      const isTaskFailure = currentTargetBatch.executionStatus === 'FAILED';
+      const retryableDataRecords = currentTargetBatch.failedRecords.filter(record => record.retryable);
+      const retryCount = isTaskFailure ? currentTargetBatch.sourceDataCount : retryableDataRecords.length;
+      if (!isKnownSyncCount(retryCount) || (!isTaskFailure && retryCount === 0)) {
+        showToast('未取得有效重试范围，未创建重试任务', 'warning');
+        return;
+      }
+
+      const completedAt = new Date();
+      const startTime = formatLocalDateTime(startedAt);
+      const endTime = formatLocalDateTime(completedAt);
+      const newRetryBatch: SyncBatch = {
+        id: newBatchId,
+        taskType: 'SYNC',
+        jobName: `${currentTargetBatch.jobName} - 失败重试`,
+        parentBatchId: currentTargetBatch.id,
+        rootTypes: [...currentTargetBatch.rootTypes],
+        syncMethod: 'COMPENSATION',
+        triggerType: 'RETRY',
+        startTime,
+        endTime,
+        durationText: `${Math.max(1, Math.round((completedAt.getTime() - startedAt.getTime()) / 1000))}秒`,
+        sourceDataCount: retryCount,
+        successCount: retryCount,
+        failedCount: 0,
+        skippedCount: 0,
+        executionStatus: 'SUCCESS',
+        failedRecords: [],
+        statusNote: isTaskFailure
+          ? `重新执行原同步任务，完成 ${formatSyncCount(retryCount)} 条数据同步。`
+          : `对原批次 ${currentTargetBatch.id} 中 ${formatSyncCount(retryCount)} 条可重试异常数据重新同步，全部成功写入。`
+      };
+      const linkedNote: HandlingNote = {
+        id: `NOTE-${crypto.randomUUID()}`,
+        content: `已发起重试，生成新批次 ${newBatchId}，执行结果：同步完成。`,
+        operator: '李晓华 (数据管理员)',
+        createdAt: endTime
+      };
+
+      // 仅更新目标批次并插入新任务，保留等待期间其他任务和人工说明的变化。
+      setBatches(prev => {
+        if (!prev.some(batch => batch.id === targetBatchId)) return prev;
+        return [newRetryBatch, ...prev.map(batch => batch.id === targetBatchId ? {
+          ...batch,
+          failedRecords: batch.failedRecords.map(record => retryableDataRecords.some(retry => retry.id === record.id)
+            ? { ...record, latestRetryResult: 'SUCCESS' as const }
+            : record),
+          handlingNotes: [linkedNote, ...(batch.handlingNotes || [])]
+        } : batch)];
+      });
+      setLastGeneratedBatchId(newBatchId);
+      showToast(`已成功重试 ${formatSyncCount(retryCount)} 条数据，已生成新批次 ${newBatchId}`, 'success');
     }, 1200);
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[var(--ty-fill-color)] overflow-hidden text-[var(--ty-font-main-color)] relative font-sans">
+    <div className="flex-1 min-w-0 flex flex-col h-full bg-[var(--ty-fill-color)] overflow-hidden text-[var(--ty-font-main-color)] relative font-sans">
       {/* Toast 消息提示 */}
       {toastMessage && (
         <div className="fixed top-16 right-8 z-50 transition-all duration-300 transform translate-y-0">
@@ -467,17 +436,24 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
           </div>
         </div>
 
-        {/* 任务表格卡片：1280px 首屏完整可见，无需横向滚动 */}
+        {selectionNotice && (
+          <div role="status" className="flex items-start gap-2 p-3 rounded-ty-sm border border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)] text-ty-xs">
+            <Info className="w-4 h-4 shrink-0" />
+            <span className="min-w-0 break-all">{selectionNotice}</span>
+          </div>
+        )}
+
+        {/* 任务表格卡片：长任务 ID 在单元格内换行，状态与操作保持可见 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[850px]">
+            <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-sm font-semibold border-b border-[var(--ty-border-color)]">
-                  <th className="py-3 px-4 min-w-[280px]">任务编号 / 任务名称</th>
-                  <th className="py-3 px-3 w-[170px] min-w-[150px]">操作时间</th>
-                  <th className="py-3 px-3 w-[220px] min-w-[190px]">数据结果 / 影响</th>
-                  <th className="py-3 px-3 w-[120px] min-w-[110px] whitespace-nowrap">执行状态</th>
-                  <th className="py-3 px-4 w-[90px] min-w-[80px] text-right whitespace-nowrap">操作</th>
+                  <th className="py-3 px-3 w-[27%]">任务编号 / 任务名称</th>
+                  <th className="py-3 px-2 w-[16%]">操作时间</th>
+                  <th className="py-3 px-2 w-[27%]">数据结果 / 影响</th>
+                  <th className="py-3 px-2 w-[18%] whitespace-nowrap">执行状态</th>
+                  <th className="py-3 px-2 w-[12%] text-right whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -512,7 +488,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         } ${isNewlyCreated ? 'bg-[var(--ty-green-light-color)]/20' : ''}`}
                       >
                         {/* 1. 任务编号 / 任务名称：合并展示根类型与轻量标签 */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-3 break-all">
                           <div className="flex flex-col">
                             <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                               <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] hover:text-[var(--ty-primary-color)] transition-colors font-mono">
@@ -521,17 +497,17 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                               {batch.rootTypes.map(rt => (
                                 <span
                                   key={rt}
-                                  className="inline-flex items-center px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-2xs font-medium border border-[var(--ty-border-color)]"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-2xs font-medium border border-[var(--ty-border-color)]"
                                 >
                                   {getRootTypeDisplayName(rt)}
                                 </span>
                               ))}
                               {isResetBatch ? (
-                                <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold whitespace-nowrap">
+                                <span className="text-ty-2xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold whitespace-nowrap">
                                   接入重置
                                 </span>
                               ) : batch.triggerType === 'RETRY' ? (
-                                <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold whitespace-nowrap">
+                                <span className="text-ty-2xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold whitespace-nowrap">
                                   重试任务
                                 </span>
                               ) : null}
@@ -539,7 +515,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                             <span className="text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 line-clamp-1">
                               {batch.jobName}
                             </span>
-                            <div className="flex items-center space-x-1.5 mt-0.5 text-ty-xs text-[var(--ty-font-sub-color)]">
+                            <div className="flex flex-wrap items-center gap-x-1.5 mt-0.5 text-ty-xs text-[var(--ty-font-sub-color)]">
                               {isResetBatch ? (
                                 <>
                                   <span className="text-[var(--ty-red-color)] font-medium">清空检索底座</span>
@@ -564,7 +540,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </td>
 
                         {/* 2. 操作时间 */}
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-2">
                           <div className="flex flex-col text-ty-xs">
                             <span className="text-[var(--ty-font-main-color)] font-mono">{batch.startTime}</span>
                             <span className="text-[var(--ty-font-sub-color)] mt-0.5 flex items-center">
@@ -575,41 +551,45 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </td>
 
                         {/* 3. 数据结果 / 影响 */}
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-2">
                           {isResetBatch ? (
                             <div className="flex flex-col">
-                              <div className="flex items-center space-x-2 text-ty-sm">
+                              <div className="flex flex-wrap items-center gap-x-2 text-ty-sm">
                                 <span className="text-[var(--ty-font-main-color)]">
                                   清空底座: <strong className="text-[var(--ty-red-color)] font-semibold">
-                                    {batch.resetAuditDetail?.deletedDocCount !== undefined && batch.resetAuditDetail?.deletedDocCount !== null
+                                    {isKnownSyncCount(batch.resetAuditDetail?.deletedDocCount)
                                       ? `${batch.resetAuditDetail.deletedDocCount.toLocaleString()} 条`
                                       : '待获取'}
                                   </strong>
                                 </span>
                               </div>
                               <span className="text-[var(--ty-font-sub-color)] text-ty-xs mt-0.5">
-                                保留草稿映射: <strong>{batch.resetAuditDetail?.retainedDraftCount ?? 0}</strong> 个字段
+                                {batch.executionStatus === 'FAILED'
+                                  ? '字段配置保持原状'
+                                  : batch.executionStatus === 'RUNNING'
+                                  ? '字段处理结果待获取'
+                                  : <>保留草稿映射: <strong>{formatSyncCount(batch.resetAuditDetail?.retainedDraftCount)}</strong> 个字段</>}
                               </span>
                             </div>
                           ) : (
                             <div className="flex flex-col">
-                              <div className="flex items-center space-x-2 text-ty-sm">
-                                <span className="text-[var(--ty-font-main-color)]">总数: <strong className="text-[var(--ty-font-main-color)]">{batch.sourceDataCount.toLocaleString()}</strong></span>
-                                <span className="text-[var(--ty-green-color)] font-medium">成功: {batch.successCount.toLocaleString()}</span>
-                                {batch.failedCount > 0 && (
+                              <div className="flex flex-wrap items-center gap-x-2 text-ty-sm">
+                                <span className="text-[var(--ty-font-main-color)]">总数: <strong className="text-[var(--ty-font-main-color)]">{formatSyncCount(batch.sourceDataCount)}</strong></span>
+                                <span className="text-[var(--ty-green-color)] font-medium">成功: {formatSyncCount(batch.successCount)}</span>
+                                {(!isKnownSyncCount(batch.failedCount) || batch.failedCount > 0) && (
                                   <span className={batch.executionStatus === 'FAILED' ? 'text-[var(--ty-red-color)] font-semibold' : 'text-[var(--ty-orange-color)] font-semibold'}>
-                                    异常: {batch.failedCount.toLocaleString()}
+                                    异常: {formatSyncCount(batch.failedCount)}
                                   </span>
                                 )}
                               </div>
                               {batch.executionStatus === 'RUNNING' && (
                                 <span className="text-[var(--ty-primary-color)] text-ty-xs mt-0.5">
-                                  正在处理 {Math.max(0, batch.sourceDataCount - batch.successCount - batch.failedCount - batch.skippedCount)} 条
+                                  {getSyncProgressText(batch)}
                                 </span>
                               )}
-                              {batch.skippedCount > 0 && (
+                              {(!isKnownSyncCount(batch.skippedCount) || batch.skippedCount > 0) && (
                                 <span className="text-[var(--ty-font-sub-color)] text-ty-xs mt-0.5">
-                                  跳过 {batch.skippedCount} 条，不计为同步异常
+                                  {isKnownSyncCount(batch.skippedCount) ? `跳过 ${formatSyncCount(batch.skippedCount)} 条，不计为同步异常` : '跳过数量: 待获取'}
                                 </span>
                               )}
                             </div>
@@ -617,7 +597,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </td>
 
                         {/* 4. 执行状态 */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        <td className="py-3 px-2 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-ty-xs text-ty-xs font-medium border whitespace-nowrap ${statusMeta.bgClass} ${statusMeta.textClass} ${statusMeta.borderClass}`}
                           >
@@ -627,7 +607,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         </td>
 
                         {/* 5. 操作 */}
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-2 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end space-x-2">
                             {isResetBatch ? (
                               <button
@@ -649,7 +629,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                               >
                                 查看失败
                               </button>
-                            ) : batch.failedCount > 0 ? (
+                            ) : isKnownSyncCount(batch.failedCount) && batch.failedCount > 0 ? (
                               <button
                                 onClick={e => {
                                   e.stopPropagation();
@@ -688,26 +668,26 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
           <div className="w-full max-w-xl sm:max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col border-l border-[var(--ty-border-color)] rounded-l-lg z-50 overflow-hidden">
             {/* 抽屉头部 */}
             <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
-              <div className="flex items-center space-x-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
                 {activeBatch.taskType === 'RESET' ? (
                   <RotateCcw className="w-4 h-4 text-[var(--ty-red-color)]" />
                 ) : (
                   <Database className="w-4 h-4 text-[var(--ty-primary-color)]" />
                 )}
-                <div>
-                  <div className="flex items-center space-x-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
                       {activeBatch.taskType === 'RESET' ? '接入重置任务详情' : '同步任务详情'}
                     </h2>
-                    <span className="text-ty-xs font-mono font-medium text-[var(--ty-font-main-color)]">
+                    <span className="text-ty-xs font-mono font-medium break-all text-[var(--ty-font-main-color)]">
                       {activeBatch.id}
                     </span>
                     {activeBatch.taskType === 'RESET' ? (
-                      <span className="text-ty-2xs px-1.5 py-0.2 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold">
+                      <span className="text-ty-2xs px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold">
                         接入重置
                       </span>
                     ) : activeBatch.parentBatchId ? (
-                      <span className="text-ty-xs text-[var(--ty-font-sub-light-color)]">
+                      <span className="text-ty-xs break-all text-[var(--ty-font-sub-light-color)]">
                         (重试自: {activeBatch.parentBatchId})
                       </span>
                     ) : null}
@@ -717,7 +697,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedBatchId(null)}
-                className="w-8 h-8 rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 shrink-0 rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] flex items-center justify-center transition-colors cursor-pointer"
                 title="关闭抽屉"
               >
                 <X className="w-4 h-4" />
@@ -735,7 +715,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                     <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-ty-xs">
                       <div>
                         <span className="text-[var(--ty-font-sub-color)] block">任务编号:</span>
-                        <span className="text-[var(--ty-font-main-color)] font-mono font-medium mt-0.5 block">{activeBatch.id}</span>
+                        <span className="text-[var(--ty-font-main-color)] font-mono font-medium mt-0.5 block break-all">{activeBatch.id}</span>
                       </div>
                       <div>
                         <span className="text-[var(--ty-font-sub-color)] block">目标根类型:</span>
@@ -785,22 +765,30 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-3 text-center">
                         <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">已清空检索底座数据</span>
                         <span className="text-ty-md font-bold text-[var(--ty-red-color)] mt-1 block">
-                          {activeBatch.resetAuditDetail?.deletedDocCount !== undefined && activeBatch.resetAuditDetail?.deletedDocCount !== null
+                          {isKnownSyncCount(activeBatch.resetAuditDetail?.deletedDocCount)
                             ? `${activeBatch.resetAuditDetail.deletedDocCount.toLocaleString()} 条`
                             : '待获取'}
                         </span>
                       </div>
                       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-3 text-center">
-                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">保留转草稿字段数</span>
+                        <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">字段处理结果</span>
                         <span className="text-ty-md font-bold text-[var(--ty-primary-color)] mt-1 block">
-                          {activeBatch.resetAuditDetail?.retainedDraftCount ?? 0} 个
+                          {activeBatch.executionStatus === 'FAILED'
+                            ? '保持原状'
+                            : activeBatch.executionStatus === 'RUNNING'
+                            ? '待获取'
+                            : `保留转草稿 ${formatSyncCount(activeBatch.resetAuditDetail?.retainedDraftCount)} 个`}
                         </span>
                       </div>
                     </div>
                     {/* 一句恢复路径 */}
                     <div className="pt-2 text-ty-xs text-[var(--ty-font-sub-color)] flex items-center space-x-1.5">
                       <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
-                      <span>恢复路径：重新生效字段配置并同步成功后恢复查询。</span>
+                      <span>{activeBatch.executionStatus === 'FAILED'
+                        ? '重置失败，字段配置、底座数据和根类型状态均保持原状。'
+                        : activeBatch.executionStatus === 'RUNNING'
+                        ? '重置正在执行，处理结果待获取。'
+                        : '恢复路径：重新生效字段配置并同步成功后恢复查询。'}</span>
                     </div>
                   </div>
 
@@ -812,18 +800,20 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                           <XCircle className="w-4 h-4 text-[var(--ty-red-color)] shrink-0" />
                           <span>重置执行失败</span>
                         </h3>
-                        <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-red-color)] text-[var(--ty-font-white-color)] font-semibold">
-                          需要系统管理员介入
-                        </span>
+                        {activeBatch.resetAuditDetail?.needsAdminIntervention && (
+                          <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-red-color)] text-[var(--ty-font-white-color)] font-semibold">
+                            需要系统管理员介入
+                          </span>
+                        )}
                       </div>
                       <div className="space-y-1.5 text-ty-xs text-[var(--ty-font-main-color)]">
                         <div>
                           <span className="text-[var(--ty-font-sub-color)]">失败阶段:</span>{' '}
-                          <span className="font-medium">{activeBatch.taskFailureDetail?.failureStage || '清理物理索引阶段'}</span>
+                          <span className="font-medium">{activeBatch.resetAuditDetail?.failureStage || activeBatch.taskFailureDetail?.failureStage || '待获取'}</span>
                         </div>
                         <div>
                           <span className="text-[var(--ty-font-sub-color)]">失败原因:</span>{' '}
-                          <span className="font-medium">{activeBatch.taskFailureDetail?.failureReason || activeBatch.statusNote || 'Manticore 检索底层节点响应超时，已自动回滚'}</span>
+                          <span className="font-medium">{activeBatch.resetAuditDetail?.failureReason || activeBatch.taskFailureDetail?.failureReason || activeBatch.statusNote || '待获取'}</span>
                         </div>
                       </div>
                     </div>
@@ -838,35 +828,35 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">同步总数</span>
                     <span className="text-ty-md font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
-                      {activeBatch.sourceDataCount.toLocaleString()}
+                      {formatSyncCount(activeBatch.sourceDataCount)}
                     </span>
                   </div>
                   <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-green-color)] block">成功数量</span>
                     <span className="text-ty-md font-bold text-[var(--ty-green-color)] mt-0.5 block">
-                      {activeBatch.successCount.toLocaleString()}
+                      {formatSyncCount(activeBatch.successCount)}
                     </span>
                   </div>
                   <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm p-2.5 text-center">
                     <span className="text-ty-xs text-[var(--ty-orange-color)] block">异常数量</span>
                     <span className={`text-ty-md font-bold mt-0.5 block ${activeBatch.executionStatus === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-orange-color)]'}`}>
-                      {activeBatch.failedCount.toLocaleString()}
+                      {formatSyncCount(activeBatch.failedCount)}
                     </span>
                   </div>
                 </div>
 
                 {/* 跳过说明 / 正在处理说明 */}
-                {activeBatch.skippedCount > 0 && (
+                {(!isKnownSyncCount(activeBatch.skippedCount) || activeBatch.skippedCount > 0) && (
                   <div className="text-ty-xs text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)]/70 p-2 rounded-ty-sm border border-[var(--ty-border-light-color)] flex items-center space-x-1.5">
                     <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
-                    <span>跳过 {activeBatch.skippedCount} 条，不计为同步异常。</span>
+                    <span>{isKnownSyncCount(activeBatch.skippedCount) ? `跳过 ${formatSyncCount(activeBatch.skippedCount)} 条，不计为同步异常。` : '跳过数量: 待获取'}</span>
                   </div>
                 )}
                 {activeBatch.executionStatus === 'RUNNING' && (
                   <div className="text-ty-xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-primary-lightest-color)] p-2 rounded-ty-sm border border-[var(--ty-primary-color)]/30 flex items-center space-x-1.5">
                     <RefreshCw className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0 animate-spin" />
                     <span>
-                      正在处理 {activeBatch.sourceDataCount - activeBatch.successCount - activeBatch.failedCount - activeBatch.skippedCount} 条数据...
+                      {getSyncProgressText(activeBatch)}
                     </span>
                   </div>
                 )}
@@ -922,7 +912,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                   <div>
                     <span className="text-[var(--ty-font-sub-color)] block">实际执行方式:</span>
                     <span className="text-[var(--ty-font-main-color)] font-medium mt-0.5 block">
-                      {activeBatch.actualStrategy || (activeBatch.syncMethod === 'FULL' ? '全量重建' : '增量追平')}
+                      {activeBatch.actualStrategy || getSyncMethodLabel(activeBatch.syncMethod)}
                     </span>
                   </div>
 
@@ -978,7 +968,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                     <div>
                       <span className="text-[var(--ty-font-sub-color)]">影响范围:</span>{' '}
                       <span className="text-[var(--ty-font-main-color)] font-medium">
-                        全批次 {activeBatch.sourceDataCount} 条记录无法建立连接并写入
+                        {isKnownSyncCount(activeBatch.sourceDataCount) ? `全批次 ${formatSyncCount(activeBatch.sourceDataCount)} 条记录未完成同步` : '源端数据总数待获取，影响数量待确认'}
                       </span>
                     </div>
                   </div>
@@ -1243,10 +1233,14 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                 {activeBatch.taskType === 'RESET' ? (
                   <span className="text-[var(--ty-font-sub-color)] flex items-center space-x-1">
                     <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
-                    <span>恢复路径：重新生效字段配置并同步成功后恢复查询。</span>
+                    <span>{activeBatch.executionStatus === 'SUCCESS'
+                      ? '恢复路径：重新生效字段配置并同步成功后恢复查询。'
+                      : activeBatch.executionStatus === 'FAILED'
+                      ? '重置失败，字段与底座保持原状。'
+                      : '重置正在执行，处理结果待获取。'}</span>
                   </span>
                 ) : activeBatch.executionStatus === 'FAILED' ? (
-                  <span>任务级中断，支持重新执行整个同步任务</span>
+                  <span>{isKnownSyncCount(activeBatch.sourceDataCount) ? '任务级中断，支持重新执行整个同步任务' : '源端数量待获取，暂不能确定任务重试范围'}</span>
                 ) : (
                   <span>
                     本批次共 {activeBatch.failedRecords.length} 条异常，
@@ -1270,8 +1264,9 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                     {activeBatch.executionStatus === 'FAILED' && (
                       <button
                         onClick={handleExecuteRetry}
-                        disabled={isRetrying}
-                        className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] transition-all cursor-pointer"
+                        disabled={isRetrying || !isKnownSyncCount(activeBatch.sourceDataCount)}
+                        title={!isKnownSyncCount(activeBatch.sourceDataCount) ? '源端数量待获取，暂不能确定任务重试范围' : '重试整个同步任务'}
+                        className="flex items-center space-x-1.5 px-4 py-1.5 text-ty-xs font-semibold rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isRetrying ? (
                           <>

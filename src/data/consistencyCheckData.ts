@@ -7,12 +7,42 @@ import {
   ObjectSelectedReason,
   ConsistencyItemStatus,
   formatLocalDateTime,
-  formatLocalDateCode,
+  createConsistencyBatchId,
   resolveFieldDisplayName,
   getComparisonCapability,
   COMPARISON_CAPABILITY_TABLE
 } from '../types/consistencyCheck';
 import { FieldMappingItem } from '../stage1MappingTypes';
+import { SyncBatch, toSyncRootType } from '../syncQualityTypes';
+
+// 本地时间与带时区 ISO 时间均明确到秒；拒绝日期溢出和无法解析的时间。
+function reliableTimestamp(value?: string): number | undefined {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  const calendar = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day ||
+      calendar.getUTCHours() !== hour || calendar.getUTCMinutes() !== minute || calendar.getUTCSeconds() !== second) return undefined;
+  const timestamp = Date.parse(value.replace(' ', 'T'));
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+}
+
+/** 最近一次完成的同根类型真实同步，不依赖数组位置，也不关联重置。 */
+export function findLatestSuccessfulSyncBatch(batches: SyncBatch[] = [], rootTypeCode: string): SyncBatch | undefined {
+  const rootType = toSyncRootType(rootTypeCode);
+  if (!rootType) return undefined;
+  return batches.flatMap(batch => {
+    const isSync = batch.taskType === 'SYNC' || (batch.taskType === undefined && !batch.resetAuditDetail &&
+      (batch.syncMethod === 'FULL' || batch.syncMethod === 'INCREMENTAL' || batch.syncMethod === 'COMPENSATION'));
+    if (!isSync || !batch.rootTypes.includes(rootType) ||
+        (batch.executionStatus !== 'SUCCESS' && batch.executionStatus !== 'PARTIAL_SUCCESS')) return [];
+    const startTime = reliableTimestamp(batch.startTime);
+    const completedTime = reliableTimestamp(batch.endTime) ?? startTime;
+    return completedTime === undefined ? [] : [{ batch, completedTime, startTime }];
+  }).sort((a, b) => b.completedTime - a.completedTime ||
+    (b.startTime ?? Number.MIN_SAFE_INTEGER) - (a.startTime ?? Number.MIN_SAFE_INTEGER))[0]?.batch;
+}
 
 // 初始历史演示对象明细 (严格剔除所有已作废的 version_lifecycle，采用真实正式底座字段)
 export const initialDemoPartObjects: ConsistencyObjectResult[] = [
@@ -573,7 +603,7 @@ function getRealisticFieldValue(
  * 核心核验模拟执行函数
  * 严格支持：
  * 1. SPECIFIC_IDS 模式的任务对象集合严格等于去重后的用户输入 ID（去重，不补位，不换前缀流水号，selectedReason 为 MANUAL_SPECIFIED）
- * 2. 支持可验证的 FAILED 分支（当输入包含 TRIGGER_TASK_FAIL 时触发任务级超时失败，无伪造对象）
+ * 2. 非法请求或显式注入 simulateFailure 返回 FAILED，不生成补位对象
  * 3. 字段比对使用快照中真实类型规则，杜绝占位词
  * 4. 批次 ID 使用可靠唯一标识防碰撞
  */
@@ -581,12 +611,33 @@ export function executeConsistencyRun(
   req: ConsistencyCheckRequest,
   batchIdOverride?: string
 ): ConsistencyBatchRecord {
-  const batchId = batchIdOverride || `CC-${formatLocalDateCode()}-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
+  const batchId = batchIdOverride || createConsistencyBatchId();
   const nowStr = formatLocalDateTime();
   const { rootTypeCode, rootTypeName, scopeMode, comparisonFieldSnapshot } = req;
+  const idsAreValid = req.requestedObjectIds === undefined || (Array.isArray(req.requestedObjectIds) &&
+    req.requestedObjectIds.every(id => typeof id === 'string'));
+  const uniqueIds = idsAreValid ? Array.from(new Set((req.requestedObjectIds || []).map(id => id.trim()).filter(Boolean))) : [];
+  const countIsValid = typeof req.sampleCount === 'number' && Number.isSafeInteger(req.sampleCount) && req.sampleCount > 0;
+  let validationError: string | undefined;
+  if (!Object.hasOwn(ROOT_TYPE_SCOPE_OPTIONS, rootTypeCode)) {
+    validationError = `未知根类型 [${rootTypeCode}]，无法确定核验范围`;
+  } else if (!['RANDOM_SAMPLE', 'EXHAUSTIVE_SCOPE', 'SPECIFIC_IDS'].includes(scopeMode)) {
+    validationError = '不支持的核验范围模式';
+  } else if (scopeMode === 'SPECIFIC_IDS') {
+    if (!idsAreValid || uniqueIds.length === 0) validationError = '指定对象核验必须提供至少一个有效的对象唯一标识';
+  } else if (!countIsValid) {
+    validationError = '核验样本数必须为大于 0 的安全整数';
+  } else if (scopeMode === 'EXHAUSTIVE_SCOPE' && !ROOT_TYPE_SCOPE_OPTIONS[rootTypeCode].some(scope => scope.id === req.scopeId)) {
+    validationError = '指定分类范围不存在或不属于当前根类型';
+  }
+  if (!validationError && (!comparisonFieldSnapshot || comparisonFieldSnapshot.rootTypeCode !== rootTypeCode ||
+      !comparisonFieldSnapshot.uniqueKeyField?.sourceFieldKey?.trim() || !comparisonFieldSnapshot.uniqueKeyField?.manticoreField?.trim() ||
+      !comparisonFieldSnapshot.includedFields?.length)) {
+    validationError = '当前根类型缺少有效的业务唯一键或正式核验字段快照';
+  }
 
   // 1. 测试失败分支：通过参数显式注入 simulateFailure 触发，杜绝从用户业务输入中嗅探暗号
-  if (req.simulateFailure) {
+  if (validationError || req.simulateFailure) {
     const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
     return {
       id: batchId,
@@ -595,10 +646,10 @@ export function executeConsistencyRun(
       rootTypeCode,
       rootTypeName,
       scopeMode,
-      scopeDescription: req.scopeDescription || (scopeMode === 'SPECIFIC_IDS' ? `定向核验：${(req.requestedObjectIds || []).join(', ')}` : `${modeLabel}批次`),
+      scopeDescription: req.scopeDescription || (scopeMode === 'SPECIFIC_IDS' ? `定向核验：${uniqueIds.join(', ')}` : `${modeLabel}批次`),
       strategySummary: '核验执行失败（未完成有效比对）',
       executedAt: nowStr,
-      plannedCount: req.sampleCount || req.requestedObjectIds?.length || 0,
+      plannedCount: scopeMode === 'SPECIFIC_IDS' ? uniqueIds.length : countIsValid ? req.sampleCount : 0,
       actualCount: 0,
       consistentCount: 0,
       differenceCount: 0,
@@ -607,11 +658,11 @@ export function executeConsistencyRun(
       comparisonFieldSnapshot,
       frozenObjectIds: [],
       objectResults: [],
-      requestedObjectIds: req.requestedObjectIds,
+      requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? uniqueIds : undefined,
       sourceSyncBatchId: req.sourceSyncBatchId,
       status: 'FAILED',
-      failedStage: 'PLM 数据批量读取',
-      failedReason: 'PLM 批量查询接口超时 (504 Gateway Timeout)，无法建立源端读取会话'
+      failedStage: validationError ? '核验请求校验' : 'PLM 数据批量读取',
+      failedReason: validationError || 'PLM 批量查询接口超时 (504 Gateway Timeout)，无法建立源端读取会话'
     };
   }
 
@@ -627,9 +678,6 @@ export function executeConsistencyRun(
   const targetSpecs: TargetObjectSpec[] = [];
 
   if (scopeMode === 'SPECIFIC_IDS') {
-    const rawIds = req.requestedObjectIds || [];
-    const uniqueIds = Array.from(new Set(rawIds.map(id => id.trim()).filter(Boolean)));
-    
     uniqueIds.forEach(oid => {
       let plannedStatus: ConsistencyItemStatus = 'CONSISTENT';
       let isTargetMissing = false;
@@ -660,7 +708,7 @@ export function executeConsistencyRun(
       });
     });
   } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
-    const count = req.sampleCount && req.sampleCount > 0 ? req.sampleCount : 20;
+    const count = req.sampleCount;
     const prefix = rootTypeCode === 'PART' ? 'P' : rootTypeCode === 'DOCUMENT' ? 'DOC' : 'PR';
     const startNum = rootTypeCode === 'PART' ? 32000 : rootTypeCode === 'DOCUMENT' ? 52000 : 72000;
     const sampleNames = rootTypeCode === 'PART'
@@ -690,7 +738,7 @@ export function executeConsistencyRun(
     }
   } else {
     // RANDOM_SAMPLE
-    const count = req.sampleCount && req.sampleCount > 0 ? req.sampleCount : 50;
+    const count = req.sampleCount;
     const prefix = rootTypeCode === 'PART' ? 'P' : rootTypeCode === 'DOCUMENT' ? 'DOC' : 'PR';
     const startNum = rootTypeCode === 'PART' ? 30000 : rootTypeCode === 'DOCUMENT' ? 50000 : 70000;
     const sampleNames = rootTypeCode === 'PART'
@@ -894,7 +942,7 @@ export function executeConsistencyRun(
     comparisonFieldSnapshot,
     frozenObjectIds: targetSpecs.map(t => t.objectId),
     objectResults,
-    requestedObjectIds: req.requestedObjectIds,
+    requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? uniqueIds : undefined,
     sourceSyncBatchId: req.sourceSyncBatchId,
     status: 'COMPLETED'
   };

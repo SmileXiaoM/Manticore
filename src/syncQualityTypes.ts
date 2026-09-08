@@ -66,8 +66,8 @@ export interface ResetAuditDetail {
   beforeConfiguredCount: number;
   beforeDraftCount: number;
   beforeFormalQueryableCount: number;
-  beforeDocCount?: number;
-  deletedDocCount?: number;
+  beforeDocCount?: number | null;
+  deletedDocCount?: number | null;
   retainedDraftCount: number;
   failureStage?: string;
   failureReason?: string;
@@ -89,9 +89,9 @@ export interface SyncBatch {
 
   // 数据数量口径（已完成：总数 = 成功 + 异常 + 跳过；运行中：正在处理 = 总数 - 成功 - 异常 - 跳过；重置或未知时为 null/undefined）
   sourceDataCount?: number | null; // 同步数据总数（未知时为 null/undefined，UI显示"待获取"）
-  successCount?: number; // 成功数量
-  failedCount?: number; // 异常数量
-  skippedCount?: number; // 跳过数量（跳过 N 条，不计为同步异常）
+  successCount?: number | null; // 成功数量
+  failedCount?: number | null; // 异常数量
+  skippedCount?: number | null; // 跳过数量（跳过 N 条，不计为同步异常）
 
   executionStatus: SyncStatus; // 统一同步状态
   failedRecords: SyncFailedRecord[]; // 失败数据明细（仅用于数据级异常）
@@ -192,7 +192,7 @@ export function getRootTypeDisplayName(rootType: SyncRootType | string): string 
   }
 }
 
-export function getSyncMethodLabel(method: SyncMethod): string {
+export function getSyncMethodLabel(method?: SyncMethod): string {
   switch (method) {
     case 'FULL':
       return '全量同步';
@@ -201,8 +201,29 @@ export function getSyncMethodLabel(method: SyncMethod): string {
     case 'COMPENSATION':
       return '补偿同步';
     default:
-      return method;
+      return '待确定';
   }
+}
+
+export function isKnownSyncCount(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+export function formatSyncCount(value: number | null | undefined): string {
+  return isKnownSyncCount(value) ? value.toLocaleString() : '待获取';
+}
+
+export function getSyncProgressText(batch: SyncBatch): string {
+  const { sourceDataCount, successCount, failedCount, skippedCount } = batch;
+  if (
+    !isKnownSyncCount(sourceDataCount) || !isKnownSyncCount(successCount) ||
+    !isKnownSyncCount(failedCount) || !isKnownSyncCount(skippedCount)
+  ) return '正在读取源端数据';
+
+  const remaining = sourceDataCount - successCount - failedCount - skippedCount;
+  return Number.isFinite(remaining) && remaining >= 0
+    ? `正在处理 ${remaining.toLocaleString()} 条`
+    : '正在读取源端数据';
 }
 
 export function getTriggerTypeLabel(trigger: TriggerType): string {

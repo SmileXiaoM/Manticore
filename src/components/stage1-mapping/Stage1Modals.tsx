@@ -241,7 +241,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
           {previousErrorCount > 0 && (
             <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-1.5 font-medium">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>上次同步有 {previousErrorCount} 条异常，本次将由系统自动处理。</span>
+              <span>上次同步有 {previousErrorCount} 条异常。本次异常以本次执行结果为准。</span>
             </div>
           )}
         </div>
@@ -300,10 +300,10 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
 
   const currentFields = fields.filter(f => f.rootTypeId === currentRootType.id);
   const targetCode = currentRootType.id; // PART / DOCUMENT / PROCESS
-  const isCodeMatched = confirmInput.trim() === targetCode;
+  const isCodeMatched = confirmInput === targetCode;
 
   // 未知值必须保持未知并显示“待获取”，严禁虚构 38400
-  const docCountText = currentRootType.manticoreDocCount !== undefined && currentRootType.manticoreDocCount !== null
+  const docCountText = typeof currentRootType.manticoreDocCount === 'number' && Number.isFinite(currentRootType.manticoreDocCount)
     ? `${currentRootType.manticoreDocCount.toLocaleString()} 条`
     : '待获取';
 
@@ -406,7 +406,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             disabled={!isCodeMatched}
             onClick={() => {
               if (isCodeMatched) {
-                onConfirmReset(confirmInput.trim());
+                onConfirmReset(confirmInput);
                 onClose();
               }
             }}

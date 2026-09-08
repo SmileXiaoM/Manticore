@@ -962,7 +962,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <div className="space-y-0.5">
                                 {renderConflictBadge(c)}
                                 {custom && (
-                                  <span className="ml-1 px-1 py-0.2 rounded-ty-xs text-ty-2xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-medium inline-block">
+                                  <span className="ml-1 px-1 py-0.5 rounded-ty-xs text-ty-2xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-medium inline-block">
                                     已定制属性
                                   </span>
                                 )}

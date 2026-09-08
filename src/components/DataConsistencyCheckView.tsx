@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Play,
   AlertCircle,
@@ -16,9 +16,10 @@ import {
   ConsistencyBatchRecord,
   ConsistencyObjectResult,
   ConsistencyItemStatus,
+  ConsistencyCheckRequest,
   calculateConsistencyStats,
   formatLocalDateTime,
-  formatLocalDateCode,
+  createConsistencyBatchId,
   OBJECT_STATUS_META,
   resolveFieldDisplayName
 } from '../types/consistencyCheck';
@@ -27,7 +28,8 @@ import {
   ROOT_TYPE_SCOPE_OPTIONS,
   ROOT_TYPE_OBJECT_ID_PLACEHOLDER,
   buildComparisonFieldSnapshot,
-  executeConsistencyRun
+  executeConsistencyRun,
+  findLatestSuccessfulSyncBatch
 } from '../data/consistencyCheckData';
 import {
   initialMappingObjectTypes,
@@ -46,6 +48,7 @@ interface DataConsistencyCheckViewProps {
   batches?: ConsistencyBatchRecord[];
   onUpdateBatches?: (updater: ConsistencyBatchRecord[] | ((prev: ConsistencyBatchRecord[]) => ConsistencyBatchRecord[])) => void;
   onNavigateToSyncQuality?: (batchId?: string) => void;
+  runOptions?: { forceTaskFailure?: boolean; delayMs?: number };
 }
 
 // 统一的核验范围模式
@@ -60,7 +63,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   syncBatches,
   batches: externalBatches,
   onUpdateBatches,
-  onNavigateToSyncQuality
+  onNavigateToSyncQuality,
+  runOptions
 }) => {
   // 1. 批次数据源：受控优先，内聚降级
   const [internalBatches, setInternalBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
@@ -87,8 +91,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const [selectedObjectForCompare, setSelectedObjectForCompare] = useState<ConsistencyObjectResult | null>(null);
   const [isFieldPreviewModalOpen, setIsFieldPreviewModalOpen] = useState<boolean>(false);
 
-  // 5. 发起核验中的运行状态
-  const [isRunningCheck, setIsRunningCheck] = useState<boolean>(false);
+  // 5. 从共享任务集判定运行态，切页返回后仍阻断重复启动。
+  const isRunningCheck = batches.some(batch => batch.status === 'RUNNING');
 
   // 6. 批次详情抽屉内部的筛选与分页
   const [detailFilterStatus, setDetailFilterStatus] = useState<DetailFilterState>('ALL');
@@ -106,6 +110,22 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const selectedBatch = useMemo(() => {
     return batches.find(b => b.id === selectedBatchId) || null;
   }, [batches, selectedBatchId]);
+
+  const closeBatchDetail = () => {
+    setSelectedBatchId(null);
+    setSelectedObjectForCompare(null);
+    setDetailFilterStatus('ALL');
+    setDetailPageIndex(1);
+  };
+
+  useEffect(() => {
+    if (selectedBatchId && !selectedBatch) {
+      setSelectedBatchId(null);
+      setSelectedObjectForCompare(null);
+      setDetailFilterStatus('ALL');
+      setDetailPageIndex(1);
+    }
+  }, [selectedBatchId, selectedBatch]);
 
   // 获取当前选中的根类型元信息（严格匹配，若未找到返回 null 阻断启动）
   const currentRootType = useMemo(() => {
@@ -132,6 +152,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const comparisonSnapshotResult = useMemo(() => {
     return buildComparisonFieldSnapshot(selectedRootTypeCode, allFieldList);
   }, [selectedRootTypeCode, allFieldList]);
+  const snapshotError = comparisonSnapshotResult.uniqueKeyError || comparisonSnapshotResult.fieldsError;
 
   // 当前根类型可用的指定分类范围选项
   const currentScopeOptions = useMemo(() => {
@@ -173,7 +194,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
   // 统一调用唯一统计函数计算当前任务指标
   const currentStats = useMemo(() => {
-    return calculateConsistencyStats(currentBatch);
+    return currentBatch ? calculateConsistencyStats(currentBatch) : null;
   }, [currentBatch]);
 
   // 顶部一致率指标卡名称根据当前批次动态呈现
@@ -190,6 +211,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
   // 发起核验操作（完整异步执行生命周期，失败封闭，参数冻结）
   const handleTriggerCheck = () => {
+    if (isRunningCheck) return;
     // 1. 严格校验根类型存在性
     if (!currentRootType) {
       showToast(`配置异常：未找到根类型 [${selectedRootTypeCode}] 的底座定义，无法发起核验。`, 'error');
@@ -211,14 +233,14 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     let targetScopeOption: { id: string; label: string; count: number } | undefined;
 
     if (scopeMode === 'RANDOM_SAMPLE') {
-      if (!sampleCount || sampleCount <= 0) {
+      if (!Number.isSafeInteger(sampleCount) || sampleCount <= 0) {
         showToast('请选择合法的抽检样本容量', 'warning');
         return;
       }
       taskCount = sampleCount;
     } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
       targetScopeOption = currentScopeOptions.find(o => o.id === selectedScopeId);
-      if (!targetScopeOption || typeof targetScopeOption.count !== 'number' || targetScopeOption.count <= 0) {
+      if (!targetScopeOption || !Number.isSafeInteger(targetScopeOption.count) || targetScopeOption.count <= 0) {
         showToast('所选分类范围配置异常或对象数量未知，无法发起全量核验。', 'warning');
         return;
       }
@@ -233,17 +255,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
     // 4. 任务六：核验任务与同步任务可信关联
     // 仅关联当前根类型最近一次 SUCCESS 或 PARTIAL_SUCCESS 的同步任务
-    const rootTypeMapping: Record<string, string> = {
-      PART: 'Part',
-      DOCUMENT: 'Document',
-      PROCESS: 'Process'
-    };
-    const targetSyncType = rootTypeMapping[selectedRootTypeCode] || selectedRootTypeCode;
-    const matchedSyncBatch = syncBatches?.find(sb => 
-      (sb.executionStatus === 'SUCCESS' || sb.executionStatus === 'PARTIAL_SUCCESS') &&
-      sb.rootTypes?.some(rt => (rt as string) === targetSyncType || (rt as string).toUpperCase() === selectedRootTypeCode.toUpperCase())
-    );
-    const reliableSyncBatchId = matchedSyncBatch ? matchedSyncBatch.id : undefined;
+    const reliableSyncBatchId = findLatestSuccessfulSyncBatch(syncBatches, selectedRootTypeCode)?.id;
 
     const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
     const scopeDesc = scopeMode === 'RANDOM_SAMPLE'
@@ -252,11 +264,11 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       ? `全量核验：${targetScopeOption?.label || selectedScopeId}`
       : `定向核验：${parsedIds.uniqueIds.join(', ')}`;
 
-    const batchId = `CC-${formatLocalDateCode()}-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
+    const batchId = createConsistencyBatchId();
     const nowStr = formatLocalDateTime();
 
     // 5. 任务十一：参数冻结（深拷贝入参，异步回调使用冻结快照）
-    const frozenRequest = {
+    const frozenRequest: ConsistencyCheckRequest = {
       rootTypeCode: selectedRootTypeCode,
       rootTypeName: currentRootType.displayName,
       scopeMode,
@@ -265,8 +277,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       scopeName: targetScopeOption?.label,
       scopeDescription: scopeDesc,
       requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? [...parsedIds.uniqueIds] : undefined,
-      comparisonFieldSnapshot: JSON.parse(JSON.stringify(comparisonSnapshotResult.snapshot)),
-      sourceSyncBatchId: reliableSyncBatchId
+      comparisonFieldSnapshot: structuredClone(comparisonSnapshotResult.snapshot),
+      sourceSyncBatchId: reliableSyncBatchId,
+      simulateFailure: runOptions?.forceTaskFailure
     };
 
     // 6. 异步生命周期开始：先插入纯净的 RUNNING 批次
@@ -294,7 +307,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       status: 'RUNNING'
     };
 
-    setIsRunningCheck(true);
     updateBatches(prev => [runningBatch, ...prev]);
     showToast(`已发起核验任务 [${batchId}]，正在执行比对...`, 'success');
 
@@ -304,14 +316,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       const completedBatch = executeConsistencyRun(frozenRequest, batchId);
 
       updateBatches(prev => prev.map(b => (b.id === batchId ? completedBatch : b)));
-      setIsRunningCheck(false);
 
       if (completedBatch.status === 'FAILED') {
         showToast(`核验批次 [${batchId}] 执行失败：${completedBatch.failedReason}`, 'error');
       } else {
         showToast(`核验批次 [${batchId}] 比对完成`, 'success');
       }
-    }, 1200);
+    }, typeof runOptions?.delayMs === 'number' && Number.isFinite(runOptions.delayMs) && runOptions.delayMs >= 0 ? runOptions.delayMs : 1200);
   };
 
   // 抽屉内部 5 种状态筛选结果（任务九）
@@ -333,7 +344,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
   // 抽屉内选中批次的指标统计
   const selectedBatchStats = useMemo(() => {
-    return calculateConsistencyStats(selectedBatch);
+    return selectedBatch ? calculateConsistencyStats(selectedBatch) : null;
   }, [selectedBatch]);
 
   return (
@@ -358,7 +369,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
       {/* 顶部标题栏（任务一 & 任务七：当前任务驱动） */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--ty-border-color)]">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center space-x-2.5">
             <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)]">数据一致性核验</h1>
             {isCurrentRunning && (
@@ -374,7 +385,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </span>
             )}
           </div>
-          <div className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 break-all">
             <span>
               {isCurrentRunning
                 ? `当前核验任务：${currentBatch.id} · ${currentBatch.rootTypeName}`
@@ -402,7 +413,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         {onNavigateToSyncQuality && (
           <button
             onClick={() => onNavigateToSyncQuality(currentBatch?.sourceSyncBatchId)}
-            className="inline-flex items-center text-ty-xs text-[var(--ty-primary-color)] hover:underline self-start sm:self-auto cursor-pointer font-medium"
+            className="inline-flex shrink-0 items-center text-ty-xs text-[var(--ty-primary-color)] hover:underline self-start sm:self-auto cursor-pointer font-medium"
             id="link-to-sync-quality"
           >
             <span>查看数据同步记录</span>
@@ -434,10 +445,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
           {/* 任务五：紧凑的“查看字段”入口 */}
           <div className="flex items-center space-x-2 text-ty-xs">
-            {comparisonSnapshotResult.fieldsError ? (
+            {snapshotError ? (
               <span className="text-[var(--ty-orange-color)] text-ty-2xs font-medium flex items-center space-x-1">
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span>{comparisonSnapshotResult.fieldsError}</span>
+                <span>{snapshotError}</span>
               </span>
             ) : comparisonSnapshotResult.snapshot ? (
               <div className="flex items-center space-x-1.5">
@@ -634,17 +645,17 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   {scopeMode === 'RANDOM_SAMPLE' ? `抽检 (${sampleCount}个)` : scopeMode === 'EXHAUSTIVE_SCOPE' ? '指定范围全量' : `定向核验 (${parsedIds.uniqueIds.length}个)`}
                 </strong></div>
                 <div>核验状态：<strong className="text-[var(--ty-font-main-color)]">
-                  {!currentRootType ? '根类型异常' : comparisonSnapshotResult.fieldsError ? '无可用字段' : '就绪'}
+                  {!currentRootType ? '根类型异常' : comparisonSnapshotResult.uniqueKeyError ? '无可用唯一键' : comparisonSnapshotResult.fieldsError ? '无可用字段' : '就绪'}
                 </strong></div>
               </div>
             </div>
 
             <button
               type="button"
-              disabled={isRunningCheck || !currentRootType || !!comparisonSnapshotResult.fieldsError}
+              disabled={isRunningCheck || !currentRootType || !!snapshotError}
               onClick={handleTriggerCheck}
               className={`w-full py-2.5 px-4 rounded-ty-sm text-ty-xs font-semibold flex items-center justify-center space-x-2 transition-colors cursor-pointer shadow-sm ${
-                isRunningCheck || !currentRootType || comparisonSnapshotResult.fieldsError
+                isRunningCheck || !currentRootType || snapshotError
                   ? 'bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-color)] cursor-not-allowed'
                   : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
               }`}
@@ -672,7 +683,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
       {/* 任务七 & 任务八：4 个指标卡全部由当前任务驱动，正文显示 33.3%（1 / 3），删除右上角重复值 */}
       {/* 严格遵循唯一口径：有效比对数 = 一致数 + 不一致数；待复查、无法比对不入分母；分母为0或核验中/失败显示 --（0 / 0）或 -- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="consistency-metrics-board">
+      {currentBatch && currentStats ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="consistency-metrics-board">
         {/* 指标 1：本次核验一致率 */}
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -688,7 +699,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </span>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono">
                 {isCurrentRunning || isCurrentFailed
-                  ? '（0 / 0）'
+                  ? ''
                   : currentStats.fractionDisplay}
               </span>
             </div>
@@ -748,7 +759,11 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <span className="text-ty-xs text-[var(--ty-font-sub-color)]">个对象</span>
           </div>
         </div>
-      </div>
+      </div> : (
+        <div id="consistency-metrics-board" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
+          暂无核验任务，发起核验后查看结果统计
+        </div>
+      )}
 
       {/* 结果列表和差异详情 (表格卡片) */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] overflow-hidden" id="consistency-batch-history-card">
@@ -763,7 +778,12 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-ty-xs">
+          <table className="w-full table-fixed text-left border-collapse text-ty-xs">
+            <colgroup>
+              <col className="w-[14%]" /><col className="w-[7%]" /><col className="w-[16%]" />
+              <col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[7%]" />
+              <col className="w-[7%]" /><col className="w-[7%]" /><col className="w-[13%]" /><col className="w-[10%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] font-semibold text-ty-2xs">
                 <th className="py-2.5 px-3.5">批次编号</th>
@@ -786,7 +806,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
                 return (
                   <tr key={batch.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                    <td className="py-3 px-3.5 font-mono font-bold text-[var(--ty-primary-color)]">
+                    <td className="py-3 px-3.5 break-all font-mono font-bold text-[var(--ty-primary-color)]" title={batch.id}>
                       {batch.id}
                     </td>
                     <td className="py-3 px-3 font-medium text-[var(--ty-font-main-color)]">
@@ -795,7 +815,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     <td className="py-3 px-3 text-ty-2xs text-[var(--ty-font-main-color)] max-w-xs truncate" title={batch.scopeDescription}>
                       {batch.scopeDescription}
                     </td>
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-3 px-1.5 text-center whitespace-nowrap">
                       {isRunning ? (
                         <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] text-ty-2xs font-semibold">
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -848,7 +868,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     <td className="py-3 px-3 font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
                       {batch.executedAt}
                     </td>
-                    <td className="py-3 px-3.5 text-center">
+                    <td className="py-3 px-1.5 text-center whitespace-nowrap">
                       <button
                         type="button"
                         disabled={isRunning}
@@ -869,17 +889,22 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </tr>
                 );
               })}
+              {batches.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-[var(--ty-font-sub-color)]">暂无核验记录</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* 差异详情抽屉（任务九：拆开待复查与无法比对） */}
-      {selectedBatch && (
+      {selectedBatch && selectedBatchStats && (
         <div className="fixed inset-0 z-50 overflow-hidden" id="batch-detail-drawer-overlay">
           <div
             className="absolute inset-0 bg-ty-overlay backdrop-blur-xs transition-opacity"
-            onClick={() => setSelectedBatchId(null)}
+            onClick={closeBatchDetail}
           />
           <div className="fixed inset-y-0 right-0 max-w-4xl w-full bg-[var(--ty-fill-white-color)] shadow-ty-lg flex flex-col z-10 animate-in slide-in-from-right duration-200">
             {/* 抽屉头部 */}
@@ -899,7 +924,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedBatchId(null)}
+                onClick={closeBatchDetail}
+                aria-label="关闭批次详情"
                 className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -924,13 +950,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               <div>
                 <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">本次一致率</span>
                 <span className="text-ty-sm font-bold font-mono text-[var(--ty-font-main-color)]">
-                  {selectedBatchStats.rateDisplay}
+                  {selectedBatch.status === 'COMPLETED' ? selectedBatchStats.rateDisplay : '--'}
                 </span>
               </div>
               <div>
                 <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">有效比对数</span>
                 <span className="text-ty-sm font-bold font-mono text-[var(--ty-primary-color)]">
-                  {selectedBatchStats.effectiveCount}
+                  {selectedBatch.status === 'COMPLETED' ? selectedBatchStats.effectiveCount : '--'}
                 </span>
               </div>
               <div>
@@ -938,13 +964,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 <span className={`text-ty-sm font-bold font-mono ${
                   selectedBatchStats.inconsistentCount > 0 ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-green-color)]'
                 }`}>
-                  {selectedBatchStats.inconsistentCount}
+                  {selectedBatch.status === 'COMPLETED' ? selectedBatchStats.inconsistentCount : '--'}
                 </span>
               </div>
               <div>
                 <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">待处理数</span>
                 <span className="text-ty-sm font-bold font-mono text-[var(--ty-orange-color)]">
-                  {selectedBatchStats.pendingTotalCount}
+                  {selectedBatch.status === 'COMPLETED' ? selectedBatchStats.pendingTotalCount : '--'}
                 </span>
               </div>
             </div>

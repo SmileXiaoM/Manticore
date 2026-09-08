@@ -460,3 +460,8 @@ export function formatLocalDateCode(date: Date = new Date()): string {
   const pad = (num: number) => String(num).padStart(2, '0');
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
 }
+
+/** 完整 UUID 同时用于任务更新、列表 key 和详情定位。 */
+export function createConsistencyBatchId(): string {
+  return `CC-${formatLocalDateCode()}-${crypto.randomUUID()}`;
+}

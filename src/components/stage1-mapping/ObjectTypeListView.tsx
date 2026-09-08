@@ -26,6 +26,7 @@ import {
   SYNC_STRATEGY_LABELS
 } from '../../stage1MappingTypes';
 import { FloatingMoreMenu } from './FloatingMoreMenu';
+import { formatSyncCount } from '../../syncQualityTypes';
 
 interface ObjectTypeListViewProps {
   sourceSystems: SourceSystemInfo[];
@@ -111,13 +112,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
     };
   }, []);
 
-  // 宽屏模式（内容区 >= 1074px）：对应 1440px(约1134px)与1920px(约1616px)视口，操作列展开文字（锁定240px）
-  // 紧凑模式（内容区 < 1074px）：对应 1280px(约974px)与820px(约516px)视口，操作列为纯图标（锁定116px），彻底消除对状态列的遮挡
-  const isExpandedActions = containerWidth >= 1074;
-
-  // 8列基础宽度定义：总和严格控制在 834px (已移除正式查询底座版本列)
-  // 宽屏基础总宽 = 834 + 240 = 1074px，与 1440px 视口下 1134px 内容区完全契合，无横向滚动且有 60px 弹性扩展
-  // 紧凑基础总宽 = 834 + 116 = 950px，1280px (974px) 视口下完全容纳无需横向滚动，数据状态列完全不被遮挡
+  // 为完整状态标签与四个 32px 操作按钮预留空间。
   const baseColumns = {
     rootType: 148,
     sourceSystem: 80,
@@ -130,7 +125,16 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   };
 
   const expandedActionWidth = 264;
-  const compactActionWidth = 124;
+  const compactActionWidth = 148;
+  const compactColumns = {
+    ...baseColumns,
+    rootType: 144,
+    sourceSystem: 72,
+    configuredFields: 64,
+    queryableFields: 80,
+    draftFields: 52,
+    dataStatus: 154
+  };
 
   const baseContentWidth = Object.values(baseColumns).reduce(
     (sum, width) => sum + width,
@@ -138,22 +142,19 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   );
 
   const expandedBaseTotal = baseContentWidth + expandedActionWidth;
-  const compactBaseTotal = baseContentWidth + compactActionWidth;
+  const compactBaseTotal = Object.values(compactColumns).reduce((sum, width) => sum + width, 0) + compactActionWidth;
+  const isExpandedActions = containerWidth >= expandedBaseTotal;
 
-  // 动态列宽分配策略：基于 W3C table-fixed 与 colgroup 规范
-  // 保证操作列在 1440px 与 1920px 下均稳定在 240px
-  // 1920px 下多余空间定向分配给：根类型 (35%)、来源系统 (20%)、数据状态 (45%)
+  // 宽屏剩余宽度分配给根类型、来源系统和数据状态。
   const colWidths = useMemo(() => {
     if (!isExpandedActions) {
-      // 紧凑模式：基础总宽 950px (834px 内容列 + 116px 纯图标操作列)
       return {
-        ...baseColumns,
+        ...compactColumns,
         actions: compactActionWidth,
         tableMinWidth: compactBaseTotal
       };
     }
 
-    // 宽屏模式：基准总宽 1074px (834px 内容列 + 240px 文字操作列)
     const surplus = Math.max(0, containerWidth - expandedBaseTotal);
     const rootTypeAdd = Math.round(surplus * 0.35);
     const sourceSystemAdd = Math.round(surplus * 0.20);
@@ -244,11 +245,9 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1.5 shrink-0"></span>
               已同步
             </span>
-            {root.lastSyncSuccessCount !== undefined && (
-              <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-tight whitespace-nowrap">
-                成功 <span className="font-mono font-medium text-[var(--ty-green-color)]">{root.lastSyncSuccessCount.toLocaleString()}</span> 条
-              </div>
-            )}
+            <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-tight whitespace-nowrap">
+              成功 <span className="font-mono font-medium text-[var(--ty-green-color)]">{formatSyncCount(root.lastSyncSuccessCount)}</span>
+            </div>
           </div>
         );
       case 'COMPLETED_WITH_ERRORS':
@@ -258,10 +257,10 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
               <AlertTriangle className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
               同步完成（有异常）
             </span>
-            <div className="flex items-center space-x-1 text-ty-2xs leading-tight whitespace-nowrap">
-              <span className="text-[var(--ty-green-color)] font-mono">成功 {root.lastSyncSuccessCount?.toLocaleString() ?? 0}</span>
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-ty-2xs leading-tight">
+              <span className="text-[var(--ty-green-color)] font-mono">成功 {formatSyncCount(root.lastSyncSuccessCount)}</span>
               <span className="text-[var(--ty-border-color)]">|</span>
-              <span className="text-[var(--ty-red-color)] font-mono font-semibold">异常 {root.lastSyncErrorCount ?? 0}</span>
+              <span className="text-[var(--ty-red-color)] font-mono font-semibold">异常 {formatSyncCount(root.lastSyncErrorCount)}</span>
               <button
                 type="button"
                 onClick={() => setViewingErrorsRootType(root)}
@@ -581,7 +580,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                       {renderSyncedAt(root.lastSyncedAt)}
                     </td>
 
-                    {/* 操作列 (1440/1920px 展开文字且严格锁宽 264px；1280/820px 纯图标且锁定 124px) */}
+                    {/* 操作列：宽屏显示文字，紧凑布局保留四个完整图标按钮 */}
                     <td
                       style={{
                         width: colWidths.actions,
@@ -594,7 +593,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onSelectRootType(root.id)}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-primary-lighter-color)] hover:bg-[var(--ty-primary-light-color)] text-[var(--ty-primary-color)] rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
+                          className={`h-8 ${isExpandedActions ? 'px-1.5' : 'w-8 justify-center'} bg-[var(--ty-primary-lighter-color)] hover:bg-[var(--ty-primary-light-color)] text-[var(--ty-primary-color)] rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="配置字段 (配置该根类型的字段映射)"
                           aria-label="配置字段"
                         >
@@ -607,7 +606,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onOpenQueryPreview(root.id)}
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-ty-sm font-medium text-ty-xs border border-[var(--ty-border-color)] transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
+                          className={`h-8 ${isExpandedActions ? 'px-1.5' : 'w-8 justify-center'} bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-ty-sm font-medium text-ty-xs border border-[var(--ty-border-color)] transition-colors flex items-center justify-center space-x-1 cursor-pointer whitespace-nowrap shrink-0`}
                           title="查询预览 (查看当前正式查询底座快照)"
                           aria-label="查询预览"
                         >
@@ -627,7 +626,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                             root.configuredFieldCount === 0 ||
                             !hasPermission
                           }
-                          className={`h-7.5 ${isExpandedActions ? 'px-1.5' : 'w-7.5 justify-center'} rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 whitespace-nowrap shrink-0 ${
+                          className={`h-8 ${isExpandedActions ? 'px-1.5' : 'w-8 justify-center'} rounded-ty-sm font-medium text-ty-xs transition-colors flex items-center justify-center space-x-1 whitespace-nowrap shrink-0 ${
                             root.configuredFieldCount === 0 || !hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'
                               ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
                               : root.syncStatus === 'PENDING' || root.syncStatus === 'COMPLETED_WITH_ERRORS' || root.syncStatus === 'FAILED'
