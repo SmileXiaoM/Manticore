@@ -81,17 +81,17 @@ export interface SyncBatch {
   taskType?: TaskType; // 任务类型：默认为 'SYNC'，重置时为 'RESET'
   parentBatchId?: string; // 关联原批次编号（用于重试留痕，如原批次 SYNC-20260825-010）
   rootTypes: SyncRootType[]; // 涉及的根类型列表
-  syncMethod: SyncMethod; // 同步方式
+  syncMethod?: SyncMethod; // 同步方式（重置任务不包含）
   triggerType: TriggerType; // 触发方式
   startTime: string; // 开始时间
   endTime?: string; // 结束时间（运行中批次为 undefined）
   durationText?: string; // 耗时描述，如 48分17秒
 
-  // 数据数量口径（已完成：总数 = 成功 + 异常 + 跳过；运行中：正在处理 = 总数 - 成功 - 异常 - 跳过）
-  sourceDataCount: number; // 同步数据总数
-  successCount: number; // 成功数量
-  failedCount: number; // 异常数量
-  skippedCount: number; // 跳过数量（跳过 N 条，不计为同步异常）
+  // 数据数量口径（已完成：总数 = 成功 + 异常 + 跳过；运行中：正在处理 = 总数 - 成功 - 异常 - 跳过；重置或未知时为 null/undefined）
+  sourceDataCount?: number | null; // 同步数据总数（未知时为 null/undefined，UI显示"待获取"）
+  successCount?: number; // 成功数量
+  failedCount?: number; // 异常数量
+  skippedCount?: number; // 跳过数量（跳过 N 条，不计为同步异常）
 
   executionStatus: SyncStatus; // 统一同步状态
   failedRecords: SyncFailedRecord[]; // 失败数据明细（仅用于数据级异常）
@@ -166,11 +166,12 @@ export function getSyncStatusMeta(status: SyncStatus, taskType?: TaskType): Stat
  * 集中、双向、类型安全的根类型转换函数
  * 一阶段使用 PART / DOCUMENT / PROCESS，数据同步记录使用 Part / Document / Process
  */
-export function toSyncRootType(id: string): SyncRootType {
+export function toSyncRootType(id: string): SyncRootType | undefined {
   const upper = (id || '').toUpperCase();
+  if (upper === 'PART') return 'Part';
   if (upper === 'DOCUMENT') return 'Document';
   if (upper === 'PROCESS') return 'Process';
-  return 'Part';
+  return undefined;
 }
 
 export function toStage1RootTypeId(rootType: SyncRootType | string): string {

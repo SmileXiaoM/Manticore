@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 
@@ -25,6 +25,8 @@ import {
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
 import { SyncBatch } from './syncQualityTypes';
+import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
+import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
 
 import {
   FieldSimilarityRule,
@@ -122,6 +124,21 @@ export default function App() {
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
   const [syncBatches, setSyncBatches] = useState<SyncBatch[]>(initialSyncBatches);
 
+  // Shared Stage 1 Mapping state across Stage 1 Config and Data Consistency Check
+  const [mappingObjects, setMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
+  const [flatFieldMappings, setFlatFieldMappings] = useState<FieldMappingItem[]>(
+    () => Object.values(initialFieldMappings).flat()
+  );
+
+  const groupedFieldMappings = useMemo(() => {
+    const map: Record<string, FieldMappingItem[]> = {};
+    flatFieldMappings.forEach(f => {
+      if (!map[f.rootTypeId]) map[f.rootTypeId] = [];
+      map[f.rootTypeId].push(f);
+    });
+    return map;
+  }, [flatFieldMappings]);
+
   const handleNavigate = (newView: string) => {
     // R10-BLK-04: strict unsaved changes guard using the shared comparison function
     const isModified = isObjectRulesModified(editingFieldRules, savedFieldRules, activeObjectType);
@@ -180,6 +197,10 @@ export default function App() {
               <Stage1MappingConfigView
                 batches={syncBatches}
                 onUpdateBatches={setSyncBatches}
+                mappingObjects={mappingObjects}
+                onUpdateMappingObjects={setMappingObjects}
+                fieldMappings={flatFieldMappings}
+                onUpdateFieldMappings={setFlatFieldMappings}
                 onNavigateToSyncQuality={(batchId) => {
                   if (batchId) {
                     setSelectedSyncBatchId(batchId);
@@ -200,7 +221,14 @@ export default function App() {
 
             {currentView === 'data-consistency-check' && (
               <DataConsistencyCheckView
-                onNavigateToSyncQuality={() => handleNavigate('data-sync-quality')}
+                mappingObjects={mappingObjects}
+                fieldMappings={groupedFieldMappings}
+                onNavigateToSyncQuality={(batchId) => {
+                  if (batchId) {
+                    setSelectedSyncBatchId(batchId);
+                  }
+                  handleNavigate('data-sync-quality');
+                }}
               />
             )}
 

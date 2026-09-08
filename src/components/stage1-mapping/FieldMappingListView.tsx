@@ -26,6 +26,7 @@ import {
   formatRootTypeDisplayName
 } from '../../stage1MappingTypes';
 import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
+import { FloatingMoreMenu } from './FloatingMoreMenu';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -62,7 +63,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONFIGURED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
-  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
 
   // 分页状态
@@ -412,49 +412,21 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <span className="whitespace-nowrap">查询预览</span>
           </button>
 
-          {/* 5. 更多操作下拉菜单 (重置接入 / 审计记录 / 模拟系统失败) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowMoreDropdown(!showMoreDropdown)}
-              className={`h-8 w-8 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                showMoreDropdown
-                  ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)]'
-                  : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
-              }`}
-              title="更多操作 (重置接入、审计留痕等)"
-              aria-label="更多操作"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-
-            {showMoreDropdown && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-1 w-48 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-40 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100"
-              >
-                <button
-                  type="button"
-                  disabled={!hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'}
-                  onClick={() => {
-                    setShowMoreDropdown(false);
-                    onResetAccess();
-                  }}
-                  className={`w-full text-left px-3 py-2 flex items-center space-x-2 transition-colors ${
-                    !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
-                      ? 'opacity-50 cursor-not-allowed text-[var(--ty-font-sub-light-color)]'
-                      : 'text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer'
-                  }`}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
-                  <div className="leading-tight">
-                    <div className="font-semibold">重置接入</div>
-                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空正式查询数据并转为草稿</div>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
+          {/* 5. 更多操作下拉菜单 (重置接入 / 使用 FloatingMoreMenu 传送至 body 防止裁切) */}
+          <FloatingMoreMenu
+            buttonClassName="h-8 w-8 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            items={[
+              {
+                id: `reset-access-${currentRootType.id}`,
+                label: '重置接入',
+                description: '清空正式查询数据并转为草稿',
+                icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />,
+                danger: true,
+                disabled: !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING',
+                onClick: onResetAccess
+              }
+            ]}
+          />
         </div>
       </div>
 

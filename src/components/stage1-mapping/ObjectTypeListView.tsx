@@ -25,6 +25,7 @@ import {
   formatRootTypeDisplayName,
   SYNC_STRATEGY_LABELS
 } from '../../stage1MappingTypes';
+import { FloatingMoreMenu } from './FloatingMoreMenu';
 
 interface ObjectTypeListViewProps {
   sourceSystems: SourceSystemInfo[];
@@ -50,19 +51,6 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSystemId, setSelectedSystemId] = useState<string>('ALL');
   const [viewingErrorsRootType, setViewingErrorsRootType] = useState<MappingObjectType | null>(null);
-  const [openDropdownRootId, setOpenDropdownRootId] = useState<string | null>(null);
-
-  // 点击外部关闭更多操作下拉菜单
-  useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.row-more-menu-container')) {
-        setOpenDropdownRootId(null);
-      }
-    };
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   // 过滤后的根类型列表
   const filteredRootTypes = useMemo(() => {
@@ -600,9 +588,7 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                         minWidth: colWidths.actions,
                         maxWidth: colWidths.actions
                       }}
-                      className={`py-2.5 px-1 text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] whitespace-nowrap ${
-                        openDropdownRootId === root.id ? 'z-30' : 'z-10'
-                      }`}
+                      className="py-2.5 px-1 text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] whitespace-nowrap z-10"
                     >
                       <div className="flex items-center justify-center space-x-1 whitespace-nowrap">
                         <button
@@ -665,53 +651,20 @@ export const ObjectTypeListView: React.FC<ObjectTypeListViewProps> = ({
                           )}
                         </button>
 
-                        {/* 更多操作下拉菜单 (只保留重置接入) */}
-                        <div className="relative row-more-menu-container">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenDropdownRootId(openDropdownRootId === root.id ? null : root.id);
-                            }}
-                            className={`h-7.5 w-7.5 rounded-ty-sm border border-[var(--ty-border-color)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                              openDropdownRootId === root.id
-                                ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)]'
-                                : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
-                            }`}
-                            title="更多操作"
-                            aria-label="更多操作"
-                          >
-                            <MoreHorizontal className="w-3.5 h-3.5" />
-                          </button>
-
-                          {openDropdownRootId === root.id && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 w-48 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-lg py-1 z-40 text-ty-xs text-left animate-in fade-in zoom-in-95 duration-100"
-                            >
-                              <button
-                                type="button"
-                                disabled={!hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownRootId(null);
-                                  onResetAccess(root.id);
-                                }}
-                                className={`w-full text-left px-3 py-2 flex items-center space-x-2 transition-colors ${
-                                  !hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING'
-                                    ? 'opacity-50 cursor-not-allowed text-[var(--ty-font-sub-light-color)]'
-                                    : 'text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer'
-                                }`}
-                              >
-                                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />
-                                <div className="leading-tight">
-                                  <div className="font-semibold">重置接入</div>
-                                  <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">清空正式查询数据并转为草稿</div>
-                                </div>
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        {/* 更多操作下拉菜单 (采用 FloatingMoreMenu 传送至 body，彻底避免表格边界裁切) */}
+                        <FloatingMoreMenu
+                          items={[
+                            {
+                              id: `reset-access-${root.id}`,
+                              label: '重置接入',
+                              description: '清空正式查询数据并转为草稿',
+                              icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />,
+                              danger: true,
+                              disabled: !hasPermission || root.syncStatus === 'RUNNING' || root.syncStatus === 'RESETTING',
+                              onClick: () => onResetAccess(root.id)
+                            }
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

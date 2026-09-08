@@ -34,20 +34,34 @@ interface Stage1MappingConfigViewProps {
   onUpdateBatches?: React.Dispatch<React.SetStateAction<SyncBatch[]>> | ((updater: SyncBatch[] | ((prev: SyncBatch[]) => SyncBatch[])) => void);
   onNavigateToSyncQuality: (batchId?: string) => void;
   hasPermission?: boolean;
+  mappingObjects?: MappingObjectType[];
+  onUpdateMappingObjects?: React.Dispatch<React.SetStateAction<MappingObjectType[]>>;
+  fieldMappings?: FieldMappingItem[];
+  onUpdateFieldMappings?: React.Dispatch<React.SetStateAction<FieldMappingItem[]>>;
 }
 
 export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = ({
   batches,
   onUpdateBatches,
   onNavigateToSyncQuality,
-  hasPermission = true
+  hasPermission = true,
+  mappingObjects: externalMappingObjects,
+  onUpdateMappingObjects,
+  fieldMappings: externalFieldMappings,
+  onUpdateFieldMappings
 }) => {
   // 1. 核心数据状态
   const [sourceSystems] = useState(initialSourceSystems);
-  const [mappingObjects, setMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
-  const [fieldMappings, setFieldMappings] = useState<FieldMappingItem[]>(
+  const [internalMappingObjects, setInternalMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
+  const [internalFieldMappings, setInternalFieldMappings] = useState<FieldMappingItem[]>(
     () => Object.values(initialFieldMappings).flat()
   );
+
+  const mappingObjects = externalMappingObjects || internalMappingObjects;
+  const setMappingObjects = onUpdateMappingObjects || setInternalMappingObjects;
+  const fieldMappings = externalFieldMappings || internalFieldMappings;
+  const setFieldMappings = onUpdateFieldMappings || setInternalFieldMappings;
+
   const [internalBatches, setInternalBatches] = useState<SyncBatch[]>(initialSyncBatches);
   const currentBatches = batches || internalBatches;
   const updateBatches = onUpdateBatches || setInternalBatches;
