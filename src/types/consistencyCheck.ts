@@ -107,10 +107,189 @@ export interface ConsistencyBatchRecord {
   comparisonFieldSnapshot?: ComparisonFieldSnapshot;
   frozenObjectIds: string[];
   objectResults: ConsistencyObjectResult[];
+  requestedObjectIds?: string[];        // SPECIFIC_IDS 模式下用户实际输入的去重 ID 清单
+  sourceSyncBatchId?: string;           // 关联的数据同步批次 ID (若有)
   
   status: ConsistencyTaskStatus;
   failedStage?: string;                 // 任务失败阶段
   failedReason?: string;                // 任务失败原因
+}
+
+// 显式可复用的确定性比较能力表
+export interface ComparisonCapabilityRule {
+  isVerifiable: boolean;
+  manticoreType: string;
+  comparisonMethod: string;
+  excludeReason?: string;
+}
+
+export const COMPARISON_CAPABILITY_TABLE: Record<string, ComparisonCapabilityRule> = {
+  TEXT: {
+    isVerifiable: true,
+    manticoreType: 'STRING',
+    comparisonMethod: '使用同步映射后的规范化结果做精确相等'
+  },
+  STRING: {
+    isVerifiable: true,
+    manticoreType: 'STRING',
+    comparisonMethod: '使用同步映射后的规范化结果做精确相等'
+  },
+  ENUM: {
+    isVerifiable: true,
+    manticoreType: 'STRING',
+    comparisonMethod: '比较同步后的正式枚举值或编码'
+  },
+  NUMERIC: {
+    isVerifiable: true,
+    manticoreType: 'INTEGER/FLOAT',
+    comparisonMethod: '按既有同步精度规则比较数值'
+  },
+  INTEGER: {
+    isVerifiable: true,
+    manticoreType: 'INTEGER',
+    comparisonMethod: '按既有同步精度规则比较数值'
+  },
+  FLOAT: {
+    isVerifiable: true,
+    manticoreType: 'FLOAT',
+    comparisonMethod: '按既有同步精度规则比较数值'
+  },
+  NUMERIC_WITH_UNIT: {
+    isVerifiable: true,
+    manticoreType: 'FLOAT',
+    comparisonMethod: '先按同步规则统一单位和精度，再比较数值'
+  },
+  BOOLEAN: {
+    isVerifiable: true,
+    manticoreType: 'BOOL/INTEGER',
+    comparisonMethod: '比较同步后的布尔规范值'
+  },
+  BOOL: {
+    isVerifiable: true,
+    manticoreType: 'BOOL/INTEGER',
+    comparisonMethod: '比较同步后的布尔规范值'
+  },
+  DATE: {
+    isVerifiable: true,
+    manticoreType: 'TIMESTAMP/BIGINT',
+    comparisonMethod: '统一到同步落库的时区和精度后比较'
+  },
+  DATETIME: {
+    isVerifiable: true,
+    manticoreType: 'TIMESTAMP/BIGINT',
+    comparisonMethod: '统一到同步落库的时区和精度后比较'
+  },
+  TIMESTAMP: {
+    isVerifiable: true,
+    manticoreType: 'TIMESTAMP/BIGINT',
+    comparisonMethod: '统一到同步落库的时区和精度后比较'
+  },
+  CATEGORY_TREE: {
+    isVerifiable: true,
+    manticoreType: 'STRING',
+    comparisonMethod: '使用同步落库的规范路径值比较'
+  },
+  PATH: {
+    isVerifiable: true,
+    manticoreType: 'STRING',
+    comparisonMethod: '使用同步落库的规范路径值比较'
+  },
+  LONG_TEXT: {
+    isVerifiable: false,
+    manticoreType: 'STRING',
+    comparisonMethod: '不适用',
+    excludeReason: '当前类型暂无确定性核验规则（非结构化长文本）'
+  },
+  JSON: {
+    isVerifiable: false,
+    manticoreType: 'JSON',
+    comparisonMethod: '不适用',
+    excludeReason: '当前类型暂无确定性核验规则（非标JSON结构）'
+  },
+  MULTI_VALUE: {
+    isVerifiable: false,
+    manticoreType: 'MULTI',
+    comparisonMethod: '不适用',
+    excludeReason: '当前类型暂无确定性核验规则（多值集合无序）'
+  },
+  BINARY: {
+    isVerifiable: false,
+    manticoreType: 'BINARY',
+    comparisonMethod: '不适用',
+    excludeReason: '当前类型暂无确定性核验规则（二进制数据）'
+  }
+};
+
+export function getComparisonCapability(dataType?: string): ComparisonCapabilityRule {
+  const dt = dataType?.toUpperCase().trim() || 'UNKNOWN';
+  if (COMPARISON_CAPABILITY_TABLE[dt]) {
+    return COMPARISON_CAPABILITY_TABLE[dt];
+  }
+  return {
+    isVerifiable: false,
+    manticoreType: 'UNKNOWN',
+    comparisonMethod: '不适用',
+    excludeReason: '当前类型暂无确定性核验规则'
+  };
+}
+
+/**
+ * 统一显示名解析函数（全站唯一兜底顺序）
+ * trim(displayTitle) -> trim(sourceDisplayName) -> trim(sourceFieldName) -> trim(sourceFieldKey) -> 未命名属性
+ */
+export function resolveFieldDisplayName(field: {
+  displayTitle?: string | null;
+  sourceDisplayName?: string | null;
+  sourceFieldName?: string | null;
+  sourceFieldKey?: string | null;
+}): string {
+  if (field.displayTitle && field.displayTitle.trim()) return field.displayTitle.trim();
+  if (field.sourceDisplayName && field.sourceDisplayName.trim()) return field.sourceDisplayName.trim();
+  if (field.sourceFieldName && field.sourceFieldName.trim()) return field.sourceFieldName.trim();
+  if (field.sourceFieldKey && field.sourceFieldKey.trim()) return field.sourceFieldKey.trim();
+  return '未命名属性';
+}
+
+/**
+ * 统一对象核验主状态元信息映射（仅四种主状态，无歧义，禁止将目标记录缺失作为第五种状态）
+ */
+export const OBJECT_STATUS_META: Record<ConsistencyItemStatus, {
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+}> = {
+  CONSISTENT: {
+    label: '一致',
+    badgeClass: 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30',
+    dotClass: 'bg-[var(--ty-green-color)]'
+  },
+  INCONSISTENT: {
+    label: '不一致',
+    badgeClass: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border border-[var(--ty-red-color)]/30',
+    dotClass: 'bg-[var(--ty-red-color)]'
+  },
+  PENDING_RECHECK: {
+    label: '待复查',
+    badgeClass: 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30',
+    dotClass: 'bg-[var(--ty-orange-color)]'
+  },
+  UNABLE_TO_COMPARE: {
+    label: '无法比对',
+    badgeClass: 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]',
+    dotClass: 'bg-[var(--ty-font-sub-light-color)]'
+  }
+};
+
+export interface ConsistencyCheckRequest {
+  rootTypeCode: string;
+  rootTypeName: string;
+  scopeMode: ConsistencyStrategyType;
+  sampleCount?: number;
+  scopeId?: string;
+  scopeName?: string;
+  requestedObjectIds?: string[];
+  comparisonFieldSnapshot: ComparisonFieldSnapshot;
+  sourceSyncBatchId?: string;
 }
 
 /**
@@ -120,7 +299,7 @@ export interface ConsistencyBatchRecord {
  * - 有效完成比对数 = 一致数 + 不一致数
  * - 待复查、无法比对、未覆盖和任务级失败不计入分母
  * - 分母为 0 时显示 '--'，不得显示 100% 或 0%
- * - 百分比旁必须显示分子和分母，例如 46 / 48
+ * - 百分比旁显示分子分母格式如 (46 / 48)
  */
 export interface ConsistencyStats {
   effectiveComparedCount: number;       // 有效比对数 (consistent + inconsistent)
@@ -134,8 +313,9 @@ export interface ConsistencyStats {
   consistencyRate: number | null;       // 数值百分比，如 95.8；分母为0时为 null
   ratePercentOnly: string;              // 如 "95.8%" 或 "--"
   fractionDisplay: string;              // 如 "(46 / 48)" 或 "(0 / 0)"
+  fractionWithoutParens: string;        // 如 "46 / 48" 或 "0 / 0"
   rateDisplay: string;                  // 如 "95.8% (46 / 48)" 或 "-- (0 / 0)"
-  rateText: string;                     // 兼容别名
+  rateText: string;                     // 兼容别名 (纯百分比或--)
   fractionText: string;                 // 兼容别名
 }
 
@@ -165,6 +345,7 @@ export function calculateConsistencyStats(batch: {
       consistencyRate: null,
       ratePercentOnly: '--',
       fractionDisplay: '(0 / 0)',
+      fractionWithoutParens: '0 / 0',
       rateDisplay: '-- (0 / 0)',
       rateText: '--',
       fractionText: '(0 / 0)'
@@ -174,6 +355,7 @@ export function calculateConsistencyStats(batch: {
   const rate = (consistent / effective) * 100;
   const rateFixed = rate.toFixed(1);
   const fractionStr = `(${consistent} / ${effective})`;
+  const fractionPure = `${consistent} / ${effective}`;
   const rateDisplayStr = `${rateFixed}% ${fractionStr}`;
   return {
     effectiveComparedCount: effective,
@@ -187,6 +369,7 @@ export function calculateConsistencyStats(batch: {
     consistencyRate: rate,
     ratePercentOnly: `${rateFixed}%`,
     fractionDisplay: fractionStr,
+    fractionWithoutParens: fractionPure,
     rateDisplay: rateDisplayStr,
     rateText: `${rateFixed}%`,
     fractionText: fractionStr

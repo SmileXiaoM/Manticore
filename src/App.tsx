@@ -223,6 +223,7 @@ export default function App() {
               <DataConsistencyCheckView
                 mappingObjects={mappingObjects}
                 fieldMappings={groupedFieldMappings}
+                syncBatches={syncBatches}
                 onNavigateToSyncQuality={(batchId) => {
                   if (batchId) {
                     setSelectedSyncBatchId(batchId);
