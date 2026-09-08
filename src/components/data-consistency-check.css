@@ -158,6 +158,14 @@
   font-weight: 500;
   min-width: 0;
 }
+.data-consistency-check label.inline-control {
+  flex-direction: row;
+  align-items: center;
+}
+.data-consistency-check label.inline-control input {
+  width: 16px;
+  height: 16px;
+}
 .data-consistency-check :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
   width: 100%;
   min-width: 0;

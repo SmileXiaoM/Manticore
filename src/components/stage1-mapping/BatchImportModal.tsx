@@ -834,10 +834,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                       </th>
                       <th className="py-2.5 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
                       <th className="py-2.5 px-3 min-w-[200px]">PLM 属性定义（只读）</th>
-                      <th className="py-2.5 px-3 min-w-[140px]">前台显示名称</th>
-                      <th className="py-2.5 px-3 min-w-[130px]">Manticore 字段</th>
-                      <th className="py-2.5 px-3 min-w-[80px]">底层类型</th>
-                      <th className="py-2.5 px-3 min-w-[65px] text-center">顺序号</th>
+                      <th className="py-2.5 px-3 min-w-[210px]">建议映射</th>
                       <th className="py-2.5 px-3 min-w-[130px]">比对状态与说明</th>
                       <th className="py-2.5 px-3 min-w-[110px] text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky">
                         配置与操作
@@ -920,45 +917,13 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <SourceAttributeDetails meta={c.sourceFieldMeta} compact />
                             </td>
 
-                            {/* 前台显示名称 */}
-                            <td className="py-2.5 px-3 font-medium text-[var(--ty-font-main-color)]">
-                              {currentTitle}
-                            </td>
-
-                            {/* Manticore 字段 */}
-                            <td className="py-2.5 px-3 font-mono text-[var(--ty-primary-color)] font-semibold">
-                              {currentManticore}
-                            </td>
-
-                            {/* 底层类型 */}
-                            <td className="py-2.5 px-3 font-mono text-[var(--ty-font-sub-color)]">
-                              {currentType}
-                            </td>
-
-                            {/* 顺序号 */}
-                            <td className="py-2.5 px-3 text-center font-mono font-bold text-[var(--ty-font-main-color)]">
-                              {currentOrder !== undefined ? (
-                                <span
-                                  className={`px-1.5 py-0.5 rounded-ty-xs border text-ty-2xs ${
-                                    c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
-                                      ? 'bg-[var(--ty-fill-dark-color)] border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)]'
-                                      : custom
-                                      ? 'bg-[var(--ty-primary-lighter-color)] border-[var(--ty-primary-color)]/30 text-[var(--ty-primary-color)] font-bold'
-                                      : 'bg-[var(--ty-primary-lighter-color)] border-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)]'
-                                  }`}
-                                  title={
-                                    c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
-                                      ? '该字段在当前根类型已有映射中的实际顺序号'
-                                      : custom
-                                      ? '用户在本次批量导入中单独定制的顺序号'
-                                      : '系统推断建议顺序号'
-                                  }
-                                >
-                                  {currentOrder}
-                                </span>
-                              ) : (
-                                <span className="text-[var(--ty-font-sub-light-color)]">-</span>
-                              )}
+                            <td className="py-2.5 px-3">
+                              <div className="font-medium text-[var(--ty-font-main-color)]">{currentTitle}</div>
+                              <div className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
+                                <code className="text-[var(--ty-primary-color)]">{currentManticore}</code>
+                                <span className="mx-1">·</span>{currentType}
+                                <span className="mx-1">·</span>顺序 {currentOrder ?? '-'}
+                              </div>
                             </td>
 
                             {/* 比对状态与提示 */}
@@ -1022,7 +987,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                       })
                     ) : (
                       <tr>
-                        <td colSpan={9} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                        <td colSpan={6} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                           未找到匹配的候选元数据
                         </td>
                       </tr>

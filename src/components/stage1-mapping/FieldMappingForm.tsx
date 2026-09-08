@@ -2,13 +2,7 @@ import React, { useMemo } from 'react';
 import { SourceAttributeDetails } from './SourceAttributeDetails';
 import {
   Link,
-  Shield,
-  AlertTriangle,
-  HelpCircle,
-  Hash,
-  Sliders,
-  Type,
-  Database
+  Shield
 } from 'lucide-react';
 import {
   SourceFieldMeta,
@@ -85,96 +79,23 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* 1. PLM 来源元数据 (只读展示) */}
-      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
-          <div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">
-            1
-          </div>
-          <div>
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">PLM 来源元数据</h4>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">源系统与对象属性定义 (只读)</p>
-          </div>
+    <div className="space-y-4">
+      {/* 1. PLM 来源定义：只读摘要，避免与目标配置争抢页面空间 */}
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">1</div><div><h4 className="text-ty-xs font-bold">PLM 来源定义</h4><p className="text-ty-2xs text-[var(--ty-font-sub-color)]">随所选来源属性自动带出，只读</p></div></div>
+          {sourceMeta?.isExampleMetadata && <span className="text-ty-2xs px-1.5 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs">示例元数据</span>}
         </div>
-
         {sourceMeta ? (
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 text-ty-xs space-y-2.5 flex-1">
-            <div className="space-y-1">
-              <span className="text-ty-2xs font-semibold text-[var(--ty-font-sub-color)] uppercase tracking-wider block">
-                PLM 属性标识与编码
-              </span>
-              <div className="font-mono text-ty-xs font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-weak-dark-color)] p-2 rounded-ty-sm border border-[var(--ty-border-color)] break-all">
-                {sourceMeta.sourceFieldName}
-              </div>
-              <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">
-                Key: {sourceMeta.sourceFieldKey}
-              </div>
-            </div>
-
-            {/* PLM 显示名状态 */}
-            <div className="space-y-1 pt-1 border-t border-[var(--ty-border-light-color)]">
-              <span className="text-[var(--ty-font-sub-color)] text-ty-2xs block">PLM 原始显示名:</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-medium text-[var(--ty-font-main-color)]">
-                  {sourceMeta.sourceDisplayName && sourceMeta.sourceDisplayName.trim().length > 0
-                    ? sourceMeta.sourceDisplayName
-                    : '(未定义)'}
-                </span>
-                {displayNameResolved.isMissing && (
-                  <span className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs font-medium">
-                    已按字段名兜底
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {displayNameResolved.isMissing && (
-              <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-font-main-light-color)] space-y-0.5">
-                <div className="flex items-center space-x-1 font-semibold text-[var(--ty-orange-color)]">
-                  <AlertTriangle className="w-3 h-3 text-[var(--ty-orange-color)] shrink-0" />
-                  <span>元数据未提供显示名</span>
-                </div>
-                <p className="text-[var(--ty-font-main-light-color)] leading-tight">
-                  系统已按字段编码自动兜底，请在右侧“前台显示名称”确认或补充标准业务名称。
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
-              <div>
-                <span className="text-[var(--ty-font-sub-light-color)] block">数据类型:</span>
-                <span className="font-medium text-[var(--ty-font-main-color)]">
-                  {sourceMeta.sourceDataTypeLabel}
-                </span>
-              </div>
-              <div>
-                <span className="text-[var(--ty-font-sub-light-color)] block">必填校验:</span>
-                <span className={sourceMeta.isRequired ? 'text-[var(--ty-red-color)] font-semibold' : 'text-[var(--ty-font-sub-color)]'}>
-                  {sourceMeta.isRequired ? '必填' : '选填'}
-                </span>
-              </div>
-            </div>
-
-            {sourceMeta.defaultUnit && (
-              <div className="text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
-                <span className="text-[var(--ty-font-sub-light-color)] block">单位族 / 默认单位:</span>
-                <span className="font-medium text-[var(--ty-primary-color)]">
-                  {sourceMeta.unitFamily || '标量'} ({sourceMeta.defaultUnit})
-                </span>
-              </div>
-            )}
-
-            <SourceAttributeDetails meta={sourceMeta} />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] px-3 py-2 text-ty-xs">
+            <div><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">属性</span><strong>{sourceMeta.sourceDisplayName?.trim() || sourceMeta.sourceFieldName}</strong><code className="text-ty-2xs text-[var(--ty-font-sub-color)] block">{sourceMeta.sourceFieldName} · {sourceMeta.sourceFieldKey}</code>{displayNameResolved.isMissing && <span className="text-ty-2xs text-[var(--ty-orange-color)]">显示名已按字段名兜底</span>}</div>
+            <div><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">PLM 类型</span><strong>{sourceMeta.sourceDataTypeLabel}</strong><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">{sourceMeta.isRequired ? '必填' : '选填'}{sourceMeta.defaultUnit ? ` · ${sourceMeta.defaultUnit}` : ''}</span></div>
+            <div className="md:col-span-2"><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">来源属性特征</span><SourceAttributeDetails meta={sourceMeta} compact /></div>
           </div>
-        ) : (
-          <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-6 text-center text-[var(--ty-font-sub-light-color)] text-ty-xs flex-1 flex flex-col items-center justify-center">
-            <AlertTriangle className="w-6 h-6 mb-2 text-[var(--ty-icon-lighter-color)]" />
-            <span>请先选择 PLM 来源属性</span>
-          </div>
-        )}
+        ) : <div className="rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] p-3 text-center text-ty-xs text-[var(--ty-font-sub-color)]">请先选择 PLM 来源属性</div>}
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* 2. 映射与业务展示 */}
       <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3.5 flex flex-col">
         <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
@@ -480,6 +401,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

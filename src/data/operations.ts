@@ -1,31 +1,25 @@
 import { MappingObjectType } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
-import { ConsistencyBatchRecord, ConsistencyPlan } from '../types/consistencyCheck';
+import { ConsistencyBatchRecord } from '../types/consistencyCheck';
 
 export interface ExecutionSchedule {
-  kind: 'SYNC' | 'VERIFY';
   rootTypeCode: string;
   enabled: boolean;
   frequency: 'HOURLY' | 'DAILY' | 'WEEKLY';
   intervalHours: number;
   time: string;
   weekday: number;
-  planId: string;
-  sampleCount: number;
   savedAt?: string;
 }
-export const newSchedule = (kind: ExecutionSchedule['kind'], rootTypeCode: string): ExecutionSchedule => ({
-  kind,
+export const newSchedule = (rootTypeCode: string): ExecutionSchedule => ({
   rootTypeCode,
   enabled: false,
   frequency: 'DAILY',
   intervalHours: 1,
   time: '02:00',
   weekday: 1,
-  planId: '',
-  sampleCount: 50,
 });
-export function validateSchedule(schedule: ExecutionSchedule, plans: ConsistencyPlan[]) {
+export function validateSchedule(schedule: ExecutionSchedule) {
   if (!['PART', 'DOCUMENT', 'PROCESS'].includes(schedule.rootTypeCode)) return '请选择根类型';
   if (!schedule.enabled) return '';
   if (!['HOURLY', 'DAILY', 'WEEKLY'].includes(schedule.frequency)) return '请选择执行周期';
@@ -40,14 +34,6 @@ export function validateSchedule(schedule: ExecutionSchedule, plans: Consistency
     (!Number.isInteger(schedule.weekday) || schedule.weekday < 0 || schedule.weekday > 6)
   )
     return '请选择星期';
-  if (schedule.kind === 'VERIFY') {
-    const plan = plans.find((item) => item.id === schedule.planId && item.rootTypeCode === schedule.rootTypeCode);
-    if (!plan) return '请选择当前根类型的核验方案';
-    if (!plan.allowedModes.includes('RANDOM_SAMPLE') || plan.scopeRule !== 'ALL_ROOT')
-      return '请选择允许抽样且范围为全部对象的方案';
-    if (!Number.isInteger(schedule.sampleCount) || schedule.sampleCount < 1 || schedule.sampleCount > 10000)
-      return '抽样量请输入 1–10000 的整数';
-  }
   return '';
 }
 export function nextScheduledAt(schedule: ExecutionSchedule, after: Date): string | undefined {
@@ -116,29 +102,6 @@ export function buildOverview(roots: MappingObjectType[], batches: SyncBatch[], 
       ).length,
     };
   });
-}
-
-export interface SyncStageLog {
-  batchId: string;
-  rootTypeCode: string;
-  stage: 'SOURCE_TO_STAGING' | 'STAGING_TO_TARGET';
-  status: 'RUNNING' | 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
-  startedAt: string;
-  endedAt?: string;
-  readCount?: number;
-  writtenCount?: number;
-  errorCount?: number;
-  skippedCount?: number;
-  errors: { objectId: string; field?: string; reason: string; traceId?: string }[];
-}
-export const STAGE_LABELS = { SOURCE_TO_STAGING: '源表 → 中间表', STAGING_TO_TARGET: '中间表 → Manticore' };
-export function stageLogFor(
-  logs: SyncStageLog[] | undefined,
-  batchId: string,
-  root: string,
-  stage: SyncStageLog['stage'],
-) {
-  return logs?.find((log) => log.batchId === batchId && log.rootTypeCode === root && log.stage === stage);
 }
 
 export interface PresenceEvidence {

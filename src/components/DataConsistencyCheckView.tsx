@@ -31,7 +31,6 @@ import { SyncBatch } from '../syncQualityTypes';
 
 interface DataConsistencyCheckViewProps {
   initialRootTypeFilter?: string;
-  onConfigureSchedule?: (root?: string) => void;
   onInspectTarget?: (root?: string) => void;
   mappingObjects?: MappingObjectType[];
   fieldMappings?: Record<string, FieldMappingItem[]>;
@@ -59,7 +58,33 @@ const newPlan = (rootTypeCode: string): ConsistencyPlan => ({
   comparisonRule: 'FORMAL_MAPPING',
   allowedModes: [...modes],
   defaultMode: 'RANDOM_SAMPLE',
+  schedule: {
+    enabled: false,
+    frequency: 'DAILY',
+    intervalHours: 24,
+    time: '02:00',
+    weekday: 1,
+    sampleCount: 50,
+  },
 });
+
+const planScheduleLabel = (plan: ConsistencyPlan) => {
+  const schedule = plan.schedule;
+  if (!schedule?.enabled) return '未启用';
+  if (schedule.frequency === 'HOURLY') return `每 ${schedule.intervalHours} 小时 · 抽样 ${schedule.sampleCount}`;
+  const period = schedule.frequency === 'DAILY' ? '每天' : `每周${'日一二三四五六'[schedule.weekday]}`;
+  return `${period} ${schedule.time} · 抽样 ${schedule.sampleCount}`;
+};
+
+const validatePlanSchedule = (plan: ConsistencyPlan) => {
+  const schedule = plan.schedule;
+  if (!schedule?.enabled) return '';
+  if (!plan.allowedModes.includes('RANDOM_SAMPLE') || plan.scopeRule !== 'ALL_ROOT') return '自动核验要求方案允许抽样，且范围为根类型全部对象';
+  if (!Number.isInteger(schedule.sampleCount) || schedule.sampleCount < 1 || schedule.sampleCount > 10000) return '自动核验抽样量请输入 1–10000 的整数';
+  if (schedule.frequency === 'HOURLY' && (!Number.isInteger(schedule.intervalHours) || schedule.intervalHours < 1 || schedule.intervalHours > 168)) return '自动核验间隔请输入 1–168 小时的整数';
+  if (schedule.frequency !== 'HOURLY' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)) return '请选择自动核验执行时间';
+  return '';
+};
 
 function FieldName({
   field,
@@ -100,7 +125,6 @@ function SnapshotSummary({ snapshot }: { snapshot: ComparisonFieldSnapshot }) {
 
 export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> = ({
   initialRootTypeFilter = 'ALL',
-  onConfigureSchedule,
   onInspectTarget,
   mappingObjects = initialMappingObjectTypes,
   fieldMappings = initialFieldMappings,
@@ -143,7 +167,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     : null;
   const draftError = resolvedDraft
     ? resolvePlanSnapshot(resolvedDraft, fields).error ||
-      (plans.some((plan) => plan.id !== draft.id && plan.name.trim() === draft.name.trim()) ? '方案名称已存在' : '')
+      (plans.some((plan) => plan.id !== draft.id && plan.name.trim() === draft.name.trim()) ? '方案名称已存在' : '') ||
+      validatePlanSchedule(resolvedDraft)
     : '';
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId);
   const selectedSnapshot = selectedPlan ? resolvePlanSnapshot(selectedPlan, fields) : {};
@@ -257,11 +282,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <p className="muted">管理核验方案，查看 PLM 与检索底座的比对结果。</p>
         </div>
         <div className="page-actions">
-          {onConfigureSchedule && (
-            <button onClick={() => onConfigureSchedule(rootFilter === 'ALL' ? undefined : rootFilter)}>
-              核验频率设置
-            </button>
-          )}
           {onInspectTarget && (
             <button onClick={() => onInspectTarget(rootFilter === 'ALL' ? undefined : rootFilter)}>
               目标多余数据排查
@@ -331,6 +351,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   <th>范围规则</th>
                   <th>固定核验属性</th>
                   <th>默认运行方式</th>
+                  <th>自动核验</th>
                   <th>操作</th>
                 </tr>
               </thead>
@@ -342,6 +363,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     <td>{scopeLabel(plan.scopeRule)}</td>
                     <td>{plan.comparisonFieldKeys.length} 项</td>
                     <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
+                    <td>{planScheduleLabel(plan)}</td>
                     <td>
                       <div className="actions">
                         <button
@@ -699,6 +721,40 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     ))}
                   </select>
                 </label>
+              </fieldset>
+              <fieldset>
+                <legend>自动核验</legend>
+                <label className="inline-control">
+                  <input
+                    type="checkbox"
+                    checked={!!draft.schedule?.enabled}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      scopeRule: event.target.checked ? 'ALL_ROOT' : draft.scopeRule,
+                      allowedModes: event.target.checked && !draft.allowedModes.includes('RANDOM_SAMPLE') ? [...draft.allowedModes, 'RANDOM_SAMPLE'] : draft.allowedModes,
+                      schedule: { ...(draft.schedule || newPlan(draft.rootTypeCode).schedule!), enabled: event.target.checked },
+                    })}
+                  />
+                  启用该方案的自动核验
+                </label>
+                <p className="muted">频率随方案保存。自动任务固定按本方案的全部对象范围抽样，手动发起仍可选择其他运行方式。</p>
+                {draft.schedule?.enabled && (
+                  <div className="form-grid">
+                    <label>
+                      执行周期
+                      <select value={draft.schedule.frequency} onChange={(event) => setDraft({ ...draft, schedule: { ...draft.schedule!, frequency: event.target.value as NonNullable<ConsistencyPlan['schedule']>['frequency'] } })}>
+                        <option value="HOURLY">按小时间隔</option><option value="DAILY">每天</option><option value="WEEKLY">每周</option>
+                      </select>
+                    </label>
+                    {draft.schedule.frequency === 'HOURLY' ? (
+                      <label>间隔小时<input type="number" min="1" max="168" value={draft.schedule.intervalHours} onChange={(event) => setDraft({ ...draft, schedule: { ...draft.schedule!, intervalHours: Number(event.target.value) } })} /></label>
+                    ) : (
+                      <label>执行时间（北京时间）<input type="time" value={draft.schedule.time} onChange={(event) => setDraft({ ...draft, schedule: { ...draft.schedule!, time: event.target.value } })} /></label>
+                    )}
+                    {draft.schedule.frequency === 'WEEKLY' && <label>星期<select value={draft.schedule.weekday} onChange={(event) => setDraft({ ...draft, schedule: { ...draft.schedule!, weekday: Number(event.target.value) } })}>{'日一二三四五六'.split('').map((day, index) => <option key={day} value={index}>星期{day}</option>)}</select></label>}
+                    <label>每次抽样量<input type="number" min="1" max="10000" value={draft.schedule.sampleCount} onChange={(event) => setDraft({ ...draft, schedule: { ...draft.schedule!, sampleCount: Number(event.target.value) } })} /></label>
+                  </div>
+                )}
               </fieldset>
               <details className="compact-details scope-settings">
                 <summary>

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { SyncPipelineLogs } from './SyncPipelineLogs';
 import {
   Search,
   RotateCcw,
@@ -41,7 +40,6 @@ import {
 import { initialSyncBatches } from '../syncQualityData';
 
 interface DataSyncQualityViewProps {
-  onConfigureSchedule?: (root?: string) => void;
   initialSelectedBatchId?: string | null;
   onClearSelectedBatchId?: () => void;
   batches?: SyncBatch[];
@@ -50,7 +48,6 @@ interface DataSyncQualityViewProps {
 }
 
 export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
-  onConfigureSchedule,
   initialSelectedBatchId,
   onClearSelectedBatchId,
   batches: propBatches,
@@ -349,7 +346,6 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
               一阶段检索底座
             </span>
           </div>
-          {onConfigureSchedule && <button onClick={() => onConfigureSchedule(selectedRootType === 'ALL' ? undefined : selectedRootType.toUpperCase())} className="text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 py-2">同步频率设置</button>}
         </div>
 
         {/* 顶部紧凑指标摘要：收敛为 3 个关键指标 */}
@@ -945,9 +941,6 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                 )}
               </div>
 
-              <div key={`${activeBatch.id}-${selectedRootType}`}>
-                <SyncPipelineLogs batch={activeBatch} initialRoot={selectedRootType.toUpperCase()} />
-              </div>
               {/* 3. 任务级失败专属模块 vs 数据级异常记录列表 (区分任务级失败与数据级异常) */}
               {activeBatch.executionStatus === 'FAILED' ? (
                 /* 任务级失败专属展示：不伪装成单条业务数据异常 */

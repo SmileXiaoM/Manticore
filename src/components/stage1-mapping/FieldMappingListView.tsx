@@ -20,6 +20,7 @@ import {
   Link,
   MoreHorizontal
 } from 'lucide-react';
+import { ExecutionSchedule, scheduleLabel } from '../../data/operations';
 import {
   FieldMappingItem,
   MappingObjectType,
@@ -41,6 +42,8 @@ interface FieldMappingListViewProps {
   onResetAccess: () => void;
   onOpenQueryPreview: () => void;
   onNavigateToSyncQuality: (batchId?: string) => void;
+  syncSchedule?: ExecutionSchedule;
+  onConfigureSyncSchedule: () => void;
   hasPermission?: boolean;
 }
 
@@ -57,6 +60,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onResetAccess,
   onOpenQueryPreview,
   onNavigateToSyncQuality,
+  syncSchedule,
+  onConfigureSyncSchedule,
   hasPermission = true
 }) => {
   // 筛选与搜索
@@ -400,6 +405,16 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${currentRootType.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
             <span className="whitespace-nowrap">同步数据</span>
             {hasPendingSync && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-0.5 shrink-0"></span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfigureSyncSchedule}
+            className="h-8 px-3 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-ty-sm text-ty-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            title="设置当前根类型从中间表同步到 Manticore 的执行频率"
+          >
+            <Clock className="w-3.5 h-3.5 text-[var(--ty-icon-color)]" />
+            <span>同步计划：{scheduleLabel(syncSchedule)}</span>
           </button>
 
           {/* 4. 查询预览 */}

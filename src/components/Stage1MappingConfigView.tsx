@@ -18,6 +18,7 @@ import {
   validateStage1TaskStart, beginStage1Task, completeStage1Task
 } from '../stage1SyncExecution';
 import { initialSyncBatches } from '../syncQualityData';
+import { ExecutionSchedule } from '../data/operations';
 import { ObjectTypeListView } from './stage1-mapping/ObjectTypeListView';
 import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
 import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
@@ -42,6 +43,8 @@ interface Stage1MappingConfigViewProps {
   onUpdateMappingObjects?: React.Dispatch<React.SetStateAction<MappingObjectType[]>>;
   fieldMappings?: FieldMappingItem[];
   onUpdateFieldMappings?: React.Dispatch<React.SetStateAction<FieldMappingItem[]>>;
+  syncSchedules?: ExecutionSchedule[];
+  onConfigureSyncSchedule?: (rootTypeCode: string) => void;
 }
 
 export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = ({
@@ -55,7 +58,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   onUpdateFieldMappings,
   onCommitStage1State,
   syncRunOptions,
-  resetRunOptions
+  resetRunOptions,
+  syncSchedules = [],
+  onConfigureSyncSchedule
 }) => {
   // 1. 核心数据状态
   const [sourceSystems] = useState(initialSourceSystems);
@@ -375,6 +380,8 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onResetAccess={() => handleRequestResetAccess(currentRootType.id)}
           onOpenQueryPreview={() => handleOpenQueryPreview(currentRootType.id)}
           onNavigateToSyncQuality={onNavigateToSyncQuality}
+          syncSchedule={syncSchedules.find(schedule => schedule.rootTypeCode === currentRootType.id)}
+          onConfigureSyncSchedule={() => onConfigureSyncSchedule?.(currentRootType.id)}
           hasPermission={hasPermission}
         />
       )}

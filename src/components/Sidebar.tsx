@@ -9,7 +9,8 @@ import {
   Grid,
   Settings,
   Database,
-  FileSearch
+  FileSearch,
+  ScrollText
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -45,6 +46,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               <Sliders className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
               <span>接入配置</span>
               {currentView === 'stage1-mapping-config' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
+            </button>
+
+            <button
+              onClick={() => onNavigate('source-ingestion-logs')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+                currentView === 'source-ingestion-logs'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
+                  : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
+              }`}
+            >
+              <ScrollText className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
+              <span>源端采集日志</span>
+              {currentView === 'source-ingestion-logs' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
             <button

@@ -13,7 +13,7 @@ export const Header: React.FC<HeaderProps> = ({
   const getStageBadge = () => {
     if (currentView === 'dashboard') return '运行看板';
     if (
-      currentView === 'data-sync-quality' || currentView === 'target-presence' ||
+      currentView === 'data-sync-quality' || currentView === 'source-ingestion-logs' || currentView === 'target-presence' ||
       currentView === 'stage1-mapping-config' ||
       currentView === 'data-consistency-check'
     ) {

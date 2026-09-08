@@ -324,6 +324,14 @@ export interface ConsistencyPlan {
   comparisonRule: 'FORMAL_MAPPING';
   allowedModes: ConsistencyStrategyType[];
   defaultMode: ConsistencyStrategyType;
+  schedule?: {
+    enabled: boolean;
+    frequency: 'HOURLY' | 'DAILY' | 'WEEKLY';
+    intervalHours: number;
+    time: string;
+    weekday: number;
+    sampleCount: number;
+  };
 }
 
 /**
