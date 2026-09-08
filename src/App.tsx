@@ -27,6 +27,8 @@ import { initialSyncBatches } from './syncQualityData';
 import { SyncBatch } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
+import { initialConsistencyBatches } from './data/consistencyCheckData';
+import { ConsistencyBatchRecord } from './types/consistencyCheck';
 
 import {
   FieldSimilarityRule,
@@ -123,6 +125,7 @@ export default function App() {
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
   const [syncBatches, setSyncBatches] = useState<SyncBatch[]>(initialSyncBatches);
+  const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
 
   // Shared Stage 1 Mapping state across Stage 1 Config and Data Consistency Check
   const [mappingObjects, setMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
@@ -224,6 +227,8 @@ export default function App() {
                 mappingObjects={mappingObjects}
                 fieldMappings={groupedFieldMappings}
                 syncBatches={syncBatches}
+                batches={consistencyBatches}
+                onUpdateBatches={setConsistencyBatches}
                 onNavigateToSyncQuality={(batchId) => {
                   if (batchId) {
                     setSelectedSyncBatchId(batchId);

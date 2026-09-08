@@ -11,7 +11,11 @@ export const Header: React.FC<HeaderProps> = ({
   currentView = 'field-rules'
 }) => {
   const getStageBadge = () => {
-    if (currentView === 'data-sync-quality' || currentView === 'stage1-mapping-config') {
+    if (
+      currentView === 'data-sync-quality' ||
+      currentView === 'stage1-mapping-config' ||
+      currentView === 'data-consistency-check'
+    ) {
       return '一阶段检索底座';
     }
     if (currentView === 'data-processing' || currentView === 'decision-rules') {

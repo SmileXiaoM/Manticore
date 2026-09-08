@@ -25,7 +25,8 @@ export type ObjectSelectedReason =
   | 'HIGH_FREQUENCY'       // 重点高频
   | 'RECENT_MODIFIED'      // 近期修改
   | 'RANDOM_SAMPLE'        // 随机抽检
-  | 'MANUAL_SPECIFIED';    // 手工指定
+  | 'MANUAL_SPECIFIED'     // 手工指定
+  | 'SCOPE_EXHAUSTIVE';    // 指定范围全量
 
 export interface ConsistencyFieldComparison {
   fieldCode: string;
@@ -59,6 +60,7 @@ export interface ComparisonFieldItem {
   manticoreField: string;
   displayName: string;
   dataType: string;
+  manticoreType: string;
   comparisonMethod: string;
 }
 
@@ -66,6 +68,8 @@ export interface ComparisonFieldItem {
 export interface ExcludedFieldItem {
   sourceFieldKey: string;
   fieldName: string;
+  sourceDataType?: string;
+  actualManticoreType?: string;
   reason: string;
 }
 
@@ -76,6 +80,8 @@ export interface ComparisonFieldSnapshot {
     sourceFieldKey: string;
     manticoreField: string;
     displayName: string;
+    sourceDataType?: string;
+    manticoreType?: string;
   };
   includedFields: ComparisonFieldItem[];
   excludedFields: ExcludedFieldItem[];
@@ -118,118 +124,173 @@ export interface ConsistencyBatchRecord {
 // 显式可复用的确定性比较能力表
 export interface ComparisonCapabilityRule {
   isVerifiable: boolean;
-  manticoreType: string;
+  allowedManticoreTypes: string[];
+  manticoreType: string;               // 底座期望类型说明
+  manticoreTypeDisplay?: string;
   comparisonMethod: string;
   excludeReason?: string;
 }
 
-export const COMPARISON_CAPABILITY_TABLE: Record<string, ComparisonCapabilityRule> = {
+export const COMPARISON_CAPABILITY_TABLE: Record<string, {
+  isVerifiable: boolean;
+  allowedManticoreTypes: string[];
+  manticoreType: string;
+  comparisonMethod: string;
+  excludeReason?: string;
+}> = {
   TEXT: {
     isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
     manticoreType: 'STRING',
     comparisonMethod: '使用同步映射后的规范化结果做精确相等'
   },
   STRING: {
     isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
     manticoreType: 'STRING',
     comparisonMethod: '使用同步映射后的规范化结果做精确相等'
   },
+  CODE: {
+    isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
+    manticoreType: 'STRING',
+    comparisonMethod: '使用同步映射后的编码值做精确相等'
+  },
   ENUM: {
     isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
     manticoreType: 'STRING',
     comparisonMethod: '比较同步后的正式枚举值或编码'
   },
   NUMERIC: {
     isVerifiable: true,
+    allowedManticoreTypes: ['FLOAT', 'DOUBLE', 'INTEGER', 'INT', 'BIGINT'],
     manticoreType: 'INTEGER/FLOAT',
     comparisonMethod: '按既有同步精度规则比较数值'
   },
   INTEGER: {
     isVerifiable: true,
+    allowedManticoreTypes: ['INTEGER', 'INT', 'BIGINT', 'UINT'],
     manticoreType: 'INTEGER',
     comparisonMethod: '按既有同步精度规则比较数值'
   },
   FLOAT: {
     isVerifiable: true,
+    allowedManticoreTypes: ['FLOAT', 'DOUBLE', 'INTEGER', 'BIGINT'],
     manticoreType: 'FLOAT',
     comparisonMethod: '按既有同步精度规则比较数值'
   },
   NUMERIC_WITH_UNIT: {
     isVerifiable: true,
+    allowedManticoreTypes: ['FLOAT', 'DOUBLE', 'INTEGER', 'BIGINT'],
     manticoreType: 'FLOAT',
     comparisonMethod: '先按同步规则统一单位和精度，再比较数值'
   },
   BOOLEAN: {
     isVerifiable: true,
+    allowedManticoreTypes: ['BOOL', 'BOOLEAN', 'INTEGER', 'INT'],
     manticoreType: 'BOOL/INTEGER',
     comparisonMethod: '比较同步后的布尔规范值'
   },
   BOOL: {
     isVerifiable: true,
+    allowedManticoreTypes: ['BOOL', 'BOOLEAN', 'INTEGER', 'INT'],
     manticoreType: 'BOOL/INTEGER',
     comparisonMethod: '比较同步后的布尔规范值'
   },
   DATE: {
     isVerifiable: true,
+    allowedManticoreTypes: ['TIMESTAMP', 'BIGINT', 'DATETIME', 'INTEGER'],
     manticoreType: 'TIMESTAMP/BIGINT',
     comparisonMethod: '统一到同步落库的时区和精度后比较'
   },
   DATETIME: {
     isVerifiable: true,
+    allowedManticoreTypes: ['TIMESTAMP', 'BIGINT', 'DATETIME', 'INTEGER'],
     manticoreType: 'TIMESTAMP/BIGINT',
     comparisonMethod: '统一到同步落库的时区和精度后比较'
   },
   TIMESTAMP: {
     isVerifiable: true,
+    allowedManticoreTypes: ['TIMESTAMP', 'BIGINT', 'DATETIME', 'INTEGER'],
     manticoreType: 'TIMESTAMP/BIGINT',
     comparisonMethod: '统一到同步落库的时区和精度后比较'
   },
   CATEGORY_TREE: {
     isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
     manticoreType: 'STRING',
     comparisonMethod: '使用同步落库的规范路径值比较'
   },
   PATH: {
     isVerifiable: true,
+    allowedManticoreTypes: ['STRING', 'TEXT'],
     manticoreType: 'STRING',
     comparisonMethod: '使用同步落库的规范路径值比较'
   },
   LONG_TEXT: {
     isVerifiable: false,
+    allowedManticoreTypes: [],
     manticoreType: 'STRING',
     comparisonMethod: '不适用',
     excludeReason: '当前类型暂无确定性核验规则（非结构化长文本）'
   },
   JSON: {
     isVerifiable: false,
+    allowedManticoreTypes: [],
     manticoreType: 'JSON',
     comparisonMethod: '不适用',
     excludeReason: '当前类型暂无确定性核验规则（非标JSON结构）'
   },
   MULTI_VALUE: {
     isVerifiable: false,
+    allowedManticoreTypes: [],
     manticoreType: 'MULTI',
     comparisonMethod: '不适用',
     excludeReason: '当前类型暂无确定性核验规则（多值集合无序）'
   },
   BINARY: {
     isVerifiable: false,
+    allowedManticoreTypes: [],
     manticoreType: 'BINARY',
     comparisonMethod: '不适用',
     excludeReason: '当前类型暂无确定性核验规则（二进制数据）'
   }
 };
 
-export function getComparisonCapability(dataType?: string): ComparisonCapabilityRule {
-  const dt = dataType?.toUpperCase().trim() || 'UNKNOWN';
-  if (COMPARISON_CAPABILITY_TABLE[dt]) {
-    return COMPARISON_CAPABILITY_TABLE[dt];
+export function getComparisonCapability(sourceDataType?: string, actualManticoreType?: string): ComparisonCapabilityRule {
+  const dt = sourceDataType?.toUpperCase().trim() || 'UNKNOWN';
+  const baseRule = COMPARISON_CAPABILITY_TABLE[dt];
+  if (!baseRule || !baseRule.isVerifiable) {
+    return {
+      isVerifiable: false,
+      allowedManticoreTypes: baseRule?.allowedManticoreTypes || [],
+      manticoreType: baseRule?.manticoreType || 'UNKNOWN',
+      comparisonMethod: '不适用',
+      excludeReason: baseRule?.excludeReason || `来源类型 [${dt}] 暂无确定性核验规则`
+    };
   }
+
+  // 双端兼容性校验：来源业务类型 + Manticore 实际类型
+  if (actualManticoreType) {
+    const act = actualManticoreType.toUpperCase().trim();
+    const isMatched = baseRule.allowedManticoreTypes.some(t => act.includes(t) || t.includes(act));
+    if (!isMatched) {
+      return {
+        isVerifiable: false,
+        allowedManticoreTypes: baseRule.allowedManticoreTypes,
+        manticoreType: baseRule.manticoreType,
+        comparisonMethod: '不适用',
+        excludeReason: `来源业务类型 [${dt}] 映射到底座 [${act}]，当前无确定性比较规则（期望底座: ${baseRule.manticoreType}）`
+      };
+    }
+  }
+
   return {
-    isVerifiable: false,
-    manticoreType: 'UNKNOWN',
-    comparisonMethod: '不适用',
-    excludeReason: '当前类型暂无确定性核验规则'
+    isVerifiable: true,
+    allowedManticoreTypes: baseRule.allowedManticoreTypes,
+    manticoreType: baseRule.manticoreType,
+    comparisonMethod: baseRule.comparisonMethod
   };
 }
 
@@ -287,9 +348,11 @@ export interface ConsistencyCheckRequest {
   sampleCount?: number;
   scopeId?: string;
   scopeName?: string;
+  scopeDescription?: string;
   requestedObjectIds?: string[];
   comparisonFieldSnapshot: ComparisonFieldSnapshot;
   sourceSyncBatchId?: string;
+  simulateFailure?: boolean;
 }
 
 /**
@@ -344,19 +407,19 @@ export function calculateConsistencyStats(batch: {
       pendingTotalCount: pendingTotal,
       consistencyRate: null,
       ratePercentOnly: '--',
-      fractionDisplay: '(0 / 0)',
+      fractionDisplay: '（0 / 0）',
       fractionWithoutParens: '0 / 0',
-      rateDisplay: '-- (0 / 0)',
+      rateDisplay: '--（0 / 0）',
       rateText: '--',
-      fractionText: '(0 / 0)'
+      fractionText: '（0 / 0）'
     };
   }
 
   const rate = (consistent / effective) * 100;
   const rateFixed = rate.toFixed(1);
-  const fractionStr = `(${consistent} / ${effective})`;
+  const fractionStr = `（${consistent} / ${effective}）`;
   const fractionPure = `${consistent} / ${effective}`;
-  const rateDisplayStr = `${rateFixed}% ${fractionStr}`;
+  const rateDisplayStr = `${rateFixed}%${fractionStr}`;
   return {
     effectiveComparedCount: effective,
     effectiveCount: effective,

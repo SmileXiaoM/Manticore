@@ -4,7 +4,13 @@ import {
   AlertCircle,
   Loader2,
   X,
-  ArrowRight
+  ArrowRight,
+  Info,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import {
   ConsistencyBatchRecord,
@@ -13,7 +19,8 @@ import {
   calculateConsistencyStats,
   formatLocalDateTime,
   formatLocalDateCode,
-  OBJECT_STATUS_META
+  OBJECT_STATUS_META,
+  resolveFieldDisplayName
 } from '../types/consistencyCheck';
 import {
   initialConsistencyBatches,
@@ -36,48 +43,71 @@ interface DataConsistencyCheckViewProps {
   mappingObjects?: MappingObjectType[];
   fieldMappings?: Record<string, FieldMappingItem[]>;
   syncBatches?: SyncBatch[];
+  batches?: ConsistencyBatchRecord[];
+  onUpdateBatches?: (updater: ConsistencyBatchRecord[] | ((prev: ConsistencyBatchRecord[]) => ConsistencyBatchRecord[])) => void;
   onNavigateToSyncQuality?: (batchId?: string) => void;
 }
 
 // 统一的核验范围模式
 type CheckScopeMode = 'RANDOM_SAMPLE' | 'EXHAUSTIVE_SCOPE' | 'SPECIFIC_IDS';
 
+// 详情抽屉内的 5 种筛选状态（拆开待复查与无法比对）
+type DetailFilterState = 'ALL' | 'CONSISTENT' | 'INCONSISTENT' | 'PENDING_RECHECK' | 'UNABLE_TO_COMPARE';
+
 export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> = ({
   mappingObjects = initialMappingObjectTypes,
   fieldMappings = initialFieldMappings,
   syncBatches,
+  batches: externalBatches,
+  onUpdateBatches,
   onNavigateToSyncQuality
 }) => {
-  // 1. 当前选中的根类型代码 (单选，严禁多选和全部根类型)
+  // 1. 批次数据源：受控优先，内聚降级
+  const [internalBatches, setInternalBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
+  const batches = externalBatches || internalBatches;
+  const updateBatches = (updater: ConsistencyBatchRecord[] | ((prev: ConsistencyBatchRecord[]) => ConsistencyBatchRecord[])) => {
+    if (onUpdateBatches) {
+      onUpdateBatches(updater);
+    } else {
+      setInternalBatches(updater);
+    }
+  };
+
+  // 2. 当前选中的根类型代码 (单选，严禁多选和全部根类型)
   const [selectedRootTypeCode, setSelectedRootTypeCode] = useState<string>('PART');
 
-  // 2. 核验模式及配置
+  // 3. 核验模式及配置
   const [scopeMode, setScopeMode] = useState<CheckScopeMode>('RANDOM_SAMPLE');
   const [sampleCount, setSampleCount] = useState<number>(50);
   const [selectedScopeId, setSelectedScopeId] = useState<string>('SCOPE_PART_FASTENER');
   const [inputObjectIds, setInputObjectIds] = useState<string>('P-30001, P-30002, P-30003, P-30004, P-30005');
 
-  // 3. 核验历史批次与当前查看的批次、对比明细
-  const [batches, setBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
-  const [selectedBatch, setSelectedBatch] = useState<ConsistencyBatchRecord | null>(null);
+  // 4. 选中的批次 ID 与明细弹窗状态
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedObjectForCompare, setSelectedObjectForCompare] = useState<ConsistencyObjectResult | null>(null);
+  const [isFieldPreviewModalOpen, setIsFieldPreviewModalOpen] = useState<boolean>(false);
 
-  // 4. 发起核验中的运行状态
+  // 5. 发起核验中的运行状态
   const [isRunningCheck, setIsRunningCheck] = useState<boolean>(false);
 
-  // 5. 批次详情抽屉内部的筛选与分页
-  const [detailFilterStatus, setDetailFilterStatus] = useState<'ALL' | ConsistencyItemStatus>('ALL');
+  // 6. 批次详情抽屉内部的筛选与分页
+  const [detailFilterStatus, setDetailFilterStatus] = useState<DetailFilterState>('ALL');
   const [detailPageIndex, setDetailPageIndex] = useState<number>(1);
   const detailPageSize = 10;
 
-  // 6. 页面提示
+  // 7. 页面提示
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const showToast = (text: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 获取当前选中的根类型元信息
+  // 响应式解析当前查看的批次
+  const selectedBatch = useMemo(() => {
+    return batches.find(b => b.id === selectedBatchId) || null;
+  }, [batches, selectedBatchId]);
+
+  // 获取当前选中的根类型元信息（严格匹配，若未找到返回 null 阻断启动）
   const currentRootType = useMemo(() => {
     const found = mappingObjects.find(m => m.id === selectedRootTypeCode);
     if (found) {
@@ -86,21 +116,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         displayName: found.name
       };
     }
-    const defaultName = selectedRootTypeCode === 'PART' ? '零部件 (Part)' : selectedRootTypeCode === 'DOCUMENT' ? '文档 (Document)' : '工艺路线 (Process)';
-    return {
-      id: selectedRootTypeCode,
-      name: defaultName,
-      displayName: defaultName,
-      sourceSystemId: 'PLM_WINCHILL',
-      sourceSystemName: 'Windchill PLM',
-      description: '',
-      configuredFieldCount: 0,
-      formalQueryableFieldCount: 0,
-      draftFieldCount: 0,
-      manticoreDocCount: 0,
-      configStatus: 'CONFIGURED' as const,
-      syncStatus: 'NOT_SYNCED' as const
-    };
+    return null;
   }, [mappingObjects, selectedRootTypeCode]);
 
   // 获取平铺的字段映射列表用于核验字段提取
@@ -138,7 +154,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     }
   };
 
-  // 解析手动输入的指定对象
+  // 解析手动输入的指定对象 ID（去重，不补位）
   const parsedIds = useMemo(() => {
     const list = inputObjectIds
       .split(/[\n,，\s]+/)
@@ -152,27 +168,35 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     };
   }, [inputObjectIds]);
 
-  // 获取最近一次完成的批次（用于顶部看板，若无则使用首条批次）
-  const latestBatch = useMemo(() => {
-    return batches.find(b => b.status === 'COMPLETED') || batches[0] || null;
-  }, [batches]);
+  // 任务一 & 任务七：当前最新任务驱动指标看板与状态
+  const currentBatch = batches[0] || null;
 
-  // 统一调用唯一统计函数计算指标（保证顶部指标、历史列表、详情抽屉完全同一套算法）
-  const latestStats = useMemo(() => {
-    return calculateConsistencyStats(latestBatch);
-  }, [latestBatch]);
+  // 统一调用唯一统计函数计算当前任务指标
+  const currentStats = useMemo(() => {
+    return calculateConsistencyStats(currentBatch);
+  }, [currentBatch]);
 
-  // 顶部一致率指标卡名称根据最近批次动态呈现
+  // 顶部一致率指标卡名称根据当前批次动态呈现
   const consistencyRateTitle = useMemo(() => {
-    if (!latestBatch) return '核验一致率';
-    if (latestBatch.scopeMode === 'RANDOM_SAMPLE') return '本次抽检一致率';
-    if (latestBatch.scopeMode === 'EXHAUSTIVE_SCOPE') return '本次全量核验一致率';
+    if (!currentBatch) return '核验一致率';
+    if (currentBatch.scopeMode === 'RANDOM_SAMPLE') return '本次抽检一致率';
+    if (currentBatch.scopeMode === 'EXHAUSTIVE_SCOPE') return '本次全量核验一致率';
     return '本次定向核验一致率';
-  }, [latestBatch]);
+  }, [currentBatch]);
 
-  // 发起核验操作（完整异步执行生命周期）
+  // 判断当前首条任务状态
+  const isCurrentRunning = currentBatch?.status === 'RUNNING';
+  const isCurrentFailed = currentBatch?.status === 'FAILED';
+
+  // 发起核验操作（完整异步执行生命周期，失败封闭，参数冻结）
   const handleTriggerCheck = () => {
-    // 1. 前置校验：检查字段快照
+    // 1. 严格校验根类型存在性
+    if (!currentRootType) {
+      showToast(`配置异常：未找到根类型 [${selectedRootTypeCode}] 的底座定义，无法发起核验。`, 'error');
+      return;
+    }
+
+    // 2. 字段快照校验
     if (comparisonSnapshotResult.uniqueKeyError) {
       showToast(comparisonSnapshotResult.uniqueKeyError, 'warning');
       return;
@@ -181,26 +205,49 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       showToast(comparisonSnapshotResult.fieldsError || '当前根类型暂无正式可核验字段', 'warning');
       return;
     }
-    if (scopeMode === 'SPECIFIC_IDS' && parsedIds.uniqueIds.length === 0) {
-      showToast('请输入至少一个有效的对象唯一标识', 'warning');
-      return;
+
+    // 3. 范围与样本校验（禁止 20/50 补位）
+    let taskCount = 0;
+    let targetScopeOption: { id: string; label: string; count: number } | undefined;
+
+    if (scopeMode === 'RANDOM_SAMPLE') {
+      if (!sampleCount || sampleCount <= 0) {
+        showToast('请选择合法的抽检样本容量', 'warning');
+        return;
+      }
+      taskCount = sampleCount;
+    } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
+      targetScopeOption = currentScopeOptions.find(o => o.id === selectedScopeId);
+      if (!targetScopeOption || typeof targetScopeOption.count !== 'number' || targetScopeOption.count <= 0) {
+        showToast('所选分类范围配置异常或对象数量未知，无法发起全量核验。', 'warning');
+        return;
+      }
+      taskCount = targetScopeOption.count;
+    } else {
+      if (parsedIds.uniqueIds.length === 0) {
+        showToast('请输入至少一个有效的对象唯一标识', 'warning');
+        return;
+      }
+      taskCount = parsedIds.uniqueIds.length;
     }
 
-    const snapshot = comparisonSnapshotResult.snapshot;
-    const targetScopeOption = scopeMode === 'EXHAUSTIVE_SCOPE'
-      ? currentScopeOptions.find(o => o.id === selectedScopeId)
-      : undefined;
-
-    const taskCount =
-      scopeMode === 'RANDOM_SAMPLE'
-        ? sampleCount
-        : scopeMode === 'EXHAUSTIVE_SCOPE'
-        ? targetScopeOption?.count || 20
-        : parsedIds.uniqueIds.length;
+    // 4. 任务六：核验任务与同步任务可信关联
+    // 仅关联当前根类型最近一次 SUCCESS 或 PARTIAL_SUCCESS 的同步任务
+    const rootTypeMapping: Record<string, string> = {
+      PART: 'Part',
+      DOCUMENT: 'Document',
+      PROCESS: 'Process'
+    };
+    const targetSyncType = rootTypeMapping[selectedRootTypeCode] || selectedRootTypeCode;
+    const matchedSyncBatch = syncBatches?.find(sb => 
+      (sb.executionStatus === 'SUCCESS' || sb.executionStatus === 'PARTIAL_SUCCESS') &&
+      sb.rootTypes?.some(rt => (rt as string) === targetSyncType || (rt as string).toUpperCase() === selectedRootTypeCode.toUpperCase())
+    );
+    const reliableSyncBatchId = matchedSyncBatch ? matchedSyncBatch.id : undefined;
 
     const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
     const scopeDesc = scopeMode === 'RANDOM_SAMPLE'
-      ? `抽检核验（${sampleCount} 个样本）`
+      ? `抽检核验（${taskCount} 个样本）`
       : scopeMode === 'EXHAUSTIVE_SCOPE'
       ? `全量核验：${targetScopeOption?.label || selectedScopeId}`
       : `定向核验：${parsedIds.uniqueIds.join(', ')}`;
@@ -208,15 +255,29 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     const batchId = `CC-${formatLocalDateCode()}-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
     const nowStr = formatLocalDateTime();
 
-    // 2. 异步生命周期开始：先插入纯净的 RUNNING 批次
-    const runningBatch: ConsistencyBatchRecord = {
-      id: batchId,
-      planName: `${currentRootType.displayName} ${modeLabel}批次`,
-      triggerType: 'MANUAL_CUSTOM',
+    // 5. 任务十一：参数冻结（深拷贝入参，异步回调使用冻结快照）
+    const frozenRequest = {
       rootTypeCode: selectedRootTypeCode,
       rootTypeName: currentRootType.displayName,
       scopeMode,
+      sampleCount: taskCount,
+      scopeId: scopeMode === 'EXHAUSTIVE_SCOPE' ? selectedScopeId : undefined,
+      scopeName: targetScopeOption?.label,
       scopeDescription: scopeDesc,
+      requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? [...parsedIds.uniqueIds] : undefined,
+      comparisonFieldSnapshot: JSON.parse(JSON.stringify(comparisonSnapshotResult.snapshot)),
+      sourceSyncBatchId: reliableSyncBatchId
+    };
+
+    // 6. 异步生命周期开始：先插入纯净的 RUNNING 批次
+    const runningBatch: ConsistencyBatchRecord = {
+      id: batchId,
+      planName: `${frozenRequest.rootTypeName} ${modeLabel}批次`,
+      triggerType: 'MANUAL_CUSTOM',
+      rootTypeCode: frozenRequest.rootTypeCode,
+      rootTypeName: frozenRequest.rootTypeName,
+      scopeMode: frozenRequest.scopeMode,
+      scopeDescription: frozenRequest.scopeDescription,
       strategySummary: `${modeLabel}执行中...`,
       executedAt: nowStr,
       plannedCount: taskCount,
@@ -225,33 +286,24 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       differenceCount: 0,
       pendingRecheckCount: 0,
       incompleteCount: 0,
-      comparisonFieldSnapshot: snapshot,
+      comparisonFieldSnapshot: frozenRequest.comparisonFieldSnapshot,
       frozenObjectIds: [],
       objectResults: [],
-      requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? parsedIds.uniqueIds : undefined,
-      sourceSyncBatchId: syncBatches?.[0]?.id,
+      requestedObjectIds: frozenRequest.requestedObjectIds,
+      sourceSyncBatchId: frozenRequest.sourceSyncBatchId,
       status: 'RUNNING'
     };
 
     setIsRunningCheck(true);
-    setBatches(prev => [runningBatch, ...prev]);
+    updateBatches(prev => [runningBatch, ...prev]);
     showToast(`已发起核验任务 [${batchId}]，正在执行比对...`, 'success');
 
-    // 3. 模拟异步比对完成并在同一条记录上更新为最终状态（COMPLETED 或 FAILED）
+    // 7. 模拟异步比对完成并在同一条记录上更新为最终状态（COMPLETED 或 FAILED）
     setTimeout(() => {
-      const completedBatch = executeConsistencyRun({
-        rootTypeCode: selectedRootTypeCode,
-        rootTypeName: currentRootType.displayName,
-        scopeMode,
-        sampleCount: taskCount,
-        scopeId: selectedScopeId,
-        scopeName: targetScopeOption?.label,
-        requestedObjectIds: scopeMode === 'SPECIFIC_IDS' ? parsedIds.uniqueIds : undefined,
-        comparisonFieldSnapshot: snapshot,
-        sourceSyncBatchId: syncBatches?.[0]?.id
-      }, batchId);
+      // 严格使用冻结请求，绝不读取 1.2 秒后变化的 React state
+      const completedBatch = executeConsistencyRun(frozenRequest, batchId);
 
-      setBatches(prev => prev.map(b => (b.id === batchId ? completedBatch : b)));
+      updateBatches(prev => prev.map(b => (b.id === batchId ? completedBatch : b)));
       setIsRunningCheck(false);
 
       if (completedBatch.status === 'FAILED') {
@@ -262,16 +314,15 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     }, 1200);
   };
 
-  // 抽屉内部筛选结果
+  // 抽屉内部 5 种状态筛选结果（任务九）
   const filteredBatchResults = useMemo(() => {
     if (!selectedBatch) return [];
     if (detailFilterStatus === 'ALL') return selectedBatch.objectResults;
-    if (detailFilterStatus === 'PENDING_RECHECK') {
-      return selectedBatch.objectResults.filter(
-        item => item.status === 'PENDING_RECHECK' || item.status === 'UNABLE_TO_COMPARE'
-      );
-    }
-    return selectedBatch.objectResults.filter(item => item.status === detailFilterStatus);
+    if (detailFilterStatus === 'CONSISTENT') return selectedBatch.objectResults.filter(i => i.status === 'CONSISTENT');
+    if (detailFilterStatus === 'INCONSISTENT') return selectedBatch.objectResults.filter(i => i.status === 'INCONSISTENT');
+    if (detailFilterStatus === 'PENDING_RECHECK') return selectedBatch.objectResults.filter(i => i.status === 'PENDING_RECHECK');
+    if (detailFilterStatus === 'UNABLE_TO_COMPARE') return selectedBatch.objectResults.filter(i => i.status === 'UNABLE_TO_COMPARE');
+    return selectedBatch.objectResults;
   }, [selectedBatch, detailFilterStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBatchResults.length / detailPageSize));
@@ -280,8 +331,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     return filteredBatchResults.slice(start, start + detailPageSize);
   }, [filteredBatchResults, detailPageIndex]);
 
-  // 判断最新批次是否正在核验中
-  const isLatestRunning = latestBatch?.status === 'RUNNING';
+  // 抽屉内选中批次的指标统计
+  const selectedBatchStats = useMemo(() => {
+    return calculateConsistencyStats(selectedBatch);
+  }, [selectedBatch]);
 
   return (
     <div className="space-y-4" id="data-consistency-check-view">
@@ -303,26 +356,53 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         </div>
       )}
 
-      {/* 顶部标题栏 */}
+      {/* 顶部标题栏（任务一 & 任务七：当前任务驱动） */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--ty-border-color)]">
         <div>
-          <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)]">数据一致性核验</h1>
-          <div className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 flex items-center space-x-2">
-            <span>最近核验时间：</span>
-            <span className="font-mono text-[var(--ty-font-main-color)] font-medium">
-              {latestBatch?.executedAt || '--'}
+          <div className="flex items-center space-x-2.5">
+            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)]">数据一致性核验</h1>
+            {isCurrentRunning && (
+              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] text-ty-2xs font-semibold animate-pulse">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>核验执行中</span>
+              </span>
+            )}
+            {isCurrentFailed && (
+              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] text-ty-2xs font-semibold">
+                <XCircle className="w-3 h-3" />
+                <span>核验执行失败</span>
+              </span>
+            )}
+          </div>
+          <div className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>
+              {isCurrentRunning
+                ? `当前核验任务：${currentBatch.id} · ${currentBatch.rootTypeName}`
+                : isCurrentFailed
+                ? `最新核验任务：${currentBatch.id} · ${currentBatch.rootTypeName}（失败）`
+                : `最近核验时间：`}
             </span>
-            {latestBatch && (
+            <span className="font-mono text-[var(--ty-font-main-color)] font-medium">
+              {currentBatch?.executedAt || '--'}
+            </span>
+            {currentBatch && !isCurrentRunning && !isCurrentFailed && (
               <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                ({latestBatch.id} · {latestBatch.rootTypeName})
+                ({currentBatch.id} · {currentBatch.rootTypeName})
+              </span>
+            )}
+            {currentBatch?.sourceSyncBatchId && (
+              <span className="text-ty-2xs text-[var(--ty-primary-color)] font-mono bg-[var(--ty-primary-lightest-color)] px-1.5 py-0.5 rounded-ty-xs">
+                关联同步批次：{currentBatch.sourceSyncBatchId}
               </span>
             )}
           </div>
         </div>
+
+        {/* 任务六：关联同步记录跳转 */}
         {onNavigateToSyncQuality && (
           <button
-            onClick={() => onNavigateToSyncQuality(latestBatch?.sourceSyncBatchId)}
-            className="inline-flex items-center text-ty-xs text-[var(--ty-primary-color)] hover:underline self-start sm:self-auto cursor-pointer"
+            onClick={() => onNavigateToSyncQuality(currentBatch?.sourceSyncBatchId)}
+            className="inline-flex items-center text-ty-xs text-[var(--ty-primary-color)] hover:underline self-start sm:self-auto cursor-pointer font-medium"
             id="link-to-sync-quality"
           >
             <span>查看数据同步记录</span>
@@ -331,23 +411,55 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         )}
       </div>
 
-      {/* 1. 根类型与核验范围 + 2. 发起核验 */}
+      {/* 失败详情横幅（若当前最新任务失败） */}
+      {isCurrentFailed && (
+        <div className="p-3.5 bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 rounded-ty-sm text-ty-xs text-[var(--ty-red-color)] space-y-1">
+          <div className="font-bold flex items-center space-x-1.5">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>当前任务执行失败：{currentBatch.failedReason}</span>
+          </div>
+          <div className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+            失败阶段：{currentBatch.failedStage || '数据比对'} · 批次编号：{currentBatch.id}
+          </div>
+        </div>
+      )}
+
+      {/* 1. 根类型与核验范围 + 2. 发起核验操作卡片 */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 space-y-4" id="consistency-action-card">
         <div className="flex items-center justify-between pb-3 border-b border-[var(--ty-border-color)]">
           <div className="flex items-center space-x-2">
             <div className="w-1.5 h-3.5 bg-[var(--ty-primary-color)] rounded-ty-xs"></div>
             <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">发起一致性核验</h2>
           </div>
-          {comparisonSnapshotResult.fieldsError ? (
-            <span className="text-[var(--ty-orange-color)] text-ty-2xs font-medium flex items-center space-x-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>{comparisonSnapshotResult.fieldsError}</span>
-            </span>
-          ) : comparisonSnapshotResult.snapshot ? (
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-              核验字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.includedFields.length} 项</strong>
-            </span>
-          ) : null}
+
+          {/* 任务五：紧凑的“查看字段”入口 */}
+          <div className="flex items-center space-x-2 text-ty-xs">
+            {comparisonSnapshotResult.fieldsError ? (
+              <span className="text-[var(--ty-orange-color)] text-ty-2xs font-medium flex items-center space-x-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{comparisonSnapshotResult.fieldsError}</span>
+              </span>
+            ) : comparisonSnapshotResult.snapshot ? (
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[var(--ty-font-sub-color)] text-ty-2xs">核验字段:</span>
+                <span className="font-semibold text-[var(--ty-font-main-color)] text-ty-2xs">
+                  {comparisonSnapshotResult.snapshot.includedFields.length} 项
+                </span>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
+                  (按当前正式查询底座自动读取)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsFieldPreviewModalOpen(true)}
+                  className="ml-1 text-[var(--ty-primary-color)] hover:underline font-medium cursor-pointer text-ty-2xs flex items-center space-x-0.5"
+                  id="btn-view-comparison-fields"
+                >
+                  <span>查看字段</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -493,7 +605,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               {scopeMode === 'SPECIFIC_IDS' && (
                 <div className="space-y-1.5 pt-1 text-ty-xs">
                   <div className="flex items-center justify-between text-ty-2xs">
-                    <span className="text-[var(--ty-font-sub-color)]">输入对象标识（逗号/换行分隔）：</span>
+                    <span className="text-[var(--ty-font-sub-color)]">输入对象唯一标识（逗号/换行分隔，纯业务输入）：</span>
                     <span className="text-[var(--ty-primary-color)] font-mono font-medium">
                       已识别 {parsedIds.uniqueIds.length} 个
                     </span>
@@ -517,22 +629,22 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 3. 执行核验
               </label>
               <div className="p-3 bg-[var(--ty-fill-weak-dark-color)]/60 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-2xs space-y-1.5 text-[var(--ty-font-sub-color)]">
-                <div>根类型：<strong className="text-[var(--ty-font-main-color)]">{currentRootType.displayName}</strong></div>
+                <div>根类型：<strong className="text-[var(--ty-font-main-color)]">{currentRootType?.displayName || '未选择'}</strong></div>
                 <div>模式：<strong className="text-[var(--ty-font-main-color)]">
-                  {scopeMode === 'RANDOM_SAMPLE' ? `抽检 (${sampleCount}个)` : scopeMode === 'EXHAUSTIVE_SCOPE' ? '指定范围全量' : '指定对象ID'}
+                  {scopeMode === 'RANDOM_SAMPLE' ? `抽检 (${sampleCount}个)` : scopeMode === 'EXHAUSTIVE_SCOPE' ? '指定范围全量' : `定向核验 (${parsedIds.uniqueIds.length}个)`}
                 </strong></div>
                 <div>核验状态：<strong className="text-[var(--ty-font-main-color)]">
-                  {comparisonSnapshotResult.fieldsError ? '无可用字段' : '就绪'}
+                  {!currentRootType ? '根类型异常' : comparisonSnapshotResult.fieldsError ? '无可用字段' : '就绪'}
                 </strong></div>
               </div>
             </div>
 
             <button
               type="button"
-              disabled={isRunningCheck || !!comparisonSnapshotResult.fieldsError}
+              disabled={isRunningCheck || !currentRootType || !!comparisonSnapshotResult.fieldsError}
               onClick={handleTriggerCheck}
               className={`w-full py-2.5 px-4 rounded-ty-sm text-ty-xs font-semibold flex items-center justify-center space-x-2 transition-colors cursor-pointer shadow-sm ${
-                isRunningCheck || comparisonSnapshotResult.fieldsError
+                isRunningCheck || !currentRootType || comparisonSnapshotResult.fieldsError
                   ? 'bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-color)] cursor-not-allowed'
                   : 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)]'
               }`}
@@ -558,8 +670,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         </div>
       </div>
 
-      {/* 3. 本次核验一致率 与 4. 有效比对数、不一致数、待处理数 看板卡片 */}
-      {/* 严格遵循唯一口径：有效比对数 = 一致数 + 不一致数；待复查、无法比对不入分母；分母为0或核验中显示 -- */}
+      {/* 任务七 & 任务八：4 个指标卡全部由当前任务驱动，正文显示 33.3%（1 / 3），删除右上角重复值 */}
+      {/* 严格遵循唯一口径：有效比对数 = 一致数 + 不一致数；待复查、无法比对不入分母；分母为0或核验中/失败显示 --（0 / 0）或 -- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="consistency-metrics-board">
         {/* 指标 1：本次核验一致率 */}
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] p-4 flex flex-col justify-between">
@@ -567,20 +679,18 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <span className="text-ty-xs font-medium text-[var(--ty-font-sub-color)]">
               {consistencyRateTitle}
             </span>
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-mono">
-              {isLatestRunning ? '--' : latestStats.fractionWithoutParens}
-            </span>
+            {/* 右上角已彻底移除重复分子分母 */}
           </div>
           <div className="mt-2.5">
-            <div className="flex items-baseline space-x-2">
+            <div className="flex items-baseline space-x-1.5">
               <span className="text-ty-2xl font-bold font-mono text-[var(--ty-font-main-color)] tracking-tight">
-                {isLatestRunning ? '--' : latestStats.rateText}
+                {isCurrentRunning || isCurrentFailed ? '--' : currentStats.rateText}
               </span>
-              {!isLatestRunning && latestStats.rateText !== '--' && (
-                <span className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono">
-                  ({latestStats.fractionWithoutParens})
-                </span>
-              )}
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono">
+                {isCurrentRunning || isCurrentFailed
+                  ? '（0 / 0）'
+                  : currentStats.fractionDisplay}
+              </span>
             </div>
           </div>
         </div>
@@ -595,7 +705,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </div>
           <div className="mt-2.5 flex items-baseline space-x-1.5">
             <span className="text-ty-2xl font-bold font-mono text-[var(--ty-primary-color)] tracking-tight">
-              {isLatestRunning ? '--' : latestStats.effectiveCount}
+              {isCurrentRunning || isCurrentFailed ? '--' : currentStats.effectiveCount}
             </span>
             <span className="text-ty-xs text-[var(--ty-font-sub-color)]">个对象</span>
           </div>
@@ -611,9 +721,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </div>
           <div className="mt-2.5 flex items-baseline space-x-1.5">
             <span className={`text-ty-2xl font-bold font-mono tracking-tight ${
-              !isLatestRunning && latestStats.inconsistentCount > 0 ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-green-color)]'
+              !isCurrentRunning && !isCurrentFailed && currentStats.inconsistentCount > 0 ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-green-color)]'
             }`}>
-              {isLatestRunning ? '--' : latestStats.inconsistentCount}
+              {isCurrentRunning || isCurrentFailed ? '--' : currentStats.inconsistentCount}
             </span>
             <span className="text-ty-xs text-[var(--ty-font-sub-color)]">个对象</span>
           </div>
@@ -625,20 +735,22 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <span className="text-ty-xs font-medium text-[var(--ty-font-sub-color)]">
               待处理数
             </span>
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">待复查 + 无法比对</span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+              待复查 {isCurrentRunning || isCurrentFailed ? '--' : currentStats.pendingCount} · 无法比对 {isCurrentRunning || isCurrentFailed ? '--' : currentStats.unableCount}
+            </span>
           </div>
           <div className="mt-2.5 flex items-baseline space-x-1.5">
             <span className={`text-ty-2xl font-bold font-mono tracking-tight ${
-              !isLatestRunning && latestStats.pendingTotalCount > 0 ? 'text-[var(--ty-orange-color)]' : 'text-[var(--ty-font-main-color)]'
+              !isCurrentRunning && !isCurrentFailed && currentStats.pendingTotalCount > 0 ? 'text-[var(--ty-orange-color)]' : 'text-[var(--ty-font-main-color)]'
             }`}>
-              {isLatestRunning ? '--' : latestStats.pendingTotalCount}
+              {isCurrentRunning || isCurrentFailed ? '--' : currentStats.pendingTotalCount}
             </span>
             <span className="text-ty-xs text-[var(--ty-font-sub-color)]">个对象</span>
           </div>
         </div>
       </div>
 
-      {/* 5. 结果列表和差异详情 (表格卡片) */}
+      {/* 结果列表和差异详情 (表格卡片) */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] overflow-hidden" id="consistency-batch-history-card">
         <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -703,12 +815,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                       {isRunning || isFailed ? (
                         <span className="font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">--</span>
                       ) : (
-                        <div className="inline-flex items-center space-x-1 text-ty-2xs font-mono font-semibold text-[var(--ty-font-main-color)]">
-                          <span>{stats.rateText}</span>
-                          {stats.rateText !== '--' && (
-                            <span className="text-[var(--ty-font-sub-color)] font-normal">({stats.fractionWithoutParens})</span>
-                          )}
-                        </div>
+                        <span className="text-ty-2xs font-mono font-semibold text-[var(--ty-font-main-color)]">
+                          {stats.rateDisplay}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 px-3 text-center font-mono font-semibold text-[var(--ty-font-main-color)]">
@@ -744,7 +853,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                         type="button"
                         disabled={isRunning}
                         onClick={() => {
-                          setSelectedBatch(batch);
+                          setSelectedBatchId(batch.id);
                           setDetailFilterStatus('ALL');
                           setDetailPageIndex(1);
                         }}
@@ -765,12 +874,12 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         </div>
       </div>
 
-      {/* 差异详情抽屉 */}
+      {/* 差异详情抽屉（任务九：拆开待复查与无法比对） */}
       {selectedBatch && (
         <div className="fixed inset-0 z-50 overflow-hidden" id="batch-detail-drawer-overlay">
           <div
             className="absolute inset-0 bg-ty-overlay backdrop-blur-xs transition-opacity"
-            onClick={() => setSelectedBatch(null)}
+            onClick={() => setSelectedBatchId(null)}
           />
           <div className="fixed inset-y-0 right-0 max-w-4xl w-full bg-[var(--ty-fill-white-color)] shadow-ty-lg flex flex-col z-10 animate-in slide-in-from-right duration-200">
             {/* 抽屉头部 */}
@@ -790,7 +899,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedBatch(null)}
+                onClick={() => setSelectedBatchId(null)}
                 className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -810,46 +919,41 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </div>
             )}
 
-            {/* 抽屉统一指标栏 (统一调用 calculateConsistencyStats) */}
-            {(() => {
-              const bStats = calculateConsistencyStats(selectedBatch);
-              return (
-                <div className="px-6 py-3.5 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] grid grid-cols-4 gap-3 text-center">
-                  <div>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">本次一致率</span>
-                    <span className="text-ty-sm font-bold font-mono text-[var(--ty-font-main-color)]">
-                      {bStats.rateText} {bStats.rateText !== '--' && <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-normal">({bStats.fractionWithoutParens})</span>}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">有效比对数</span>
-                    <span className="text-ty-sm font-bold font-mono text-[var(--ty-primary-color)]">
-                      {bStats.effectiveCount}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">不一致数</span>
-                    <span className={`text-ty-sm font-bold font-mono ${
-                      bStats.inconsistentCount > 0 ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-green-color)]'
-                    }`}>
-                      {bStats.inconsistentCount}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">待处理数</span>
-                    <span className="text-ty-sm font-bold font-mono text-[var(--ty-orange-color)]">
-                      {bStats.pendingTotalCount}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* 抽屉统一指标栏 (统一调用 calculateConsistencyStats 且格式保持一致) */}
+            <div className="px-6 py-3.5 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] grid grid-cols-4 gap-3 text-center">
+              <div>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">本次一致率</span>
+                <span className="text-ty-sm font-bold font-mono text-[var(--ty-font-main-color)]">
+                  {selectedBatchStats.rateDisplay}
+                </span>
+              </div>
+              <div>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">有效比对数</span>
+                <span className="text-ty-sm font-bold font-mono text-[var(--ty-primary-color)]">
+                  {selectedBatchStats.effectiveCount}
+                </span>
+              </div>
+              <div>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">不一致数</span>
+                <span className={`text-ty-sm font-bold font-mono ${
+                  selectedBatchStats.inconsistentCount > 0 ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-green-color)]'
+                }`}>
+                  {selectedBatchStats.inconsistentCount}
+                </span>
+              </div>
+              <div>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">待处理数</span>
+                <span className="text-ty-sm font-bold font-mono text-[var(--ty-orange-color)]">
+                  {selectedBatchStats.pendingTotalCount}
+                </span>
+              </div>
+            </div>
 
             {/* 抽屉内容列表区 */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 text-ty-xs">
-              {/* 筛选过滤栏 */}
+              {/* 任务九：筛选过滤栏（5 个拆分按钮） */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-ty-2xs">
+                <div className="flex flex-wrap items-center gap-1.5 text-ty-2xs">
                   <span className="text-[var(--ty-font-sub-color)] mr-1">筛选状态:</span>
                   <button
                     type="button"
@@ -860,38 +964,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
                       detailFilterStatus === 'ALL'
                         ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] border-[var(--ty-primary-color)] font-bold'
-                        : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'
+                        : 'bg-[var(--ty-fill-white-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)] hover:border-[var(--ty-primary-color)]'
                     }`}
                   >
                     全部 ({selectedBatch.objectResults.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDetailFilterStatus('INCONSISTENT');
-                      setDetailPageIndex(1);
-                    }}
-                    className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
-                      detailFilterStatus === 'INCONSISTENT'
-                        ? 'bg-[var(--ty-red-color)] text-[var(--ty-font-white-color)] border-[var(--ty-red-color)] font-bold'
-                        : 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30'
-                    }`}
-                  >
-                    不一致 ({selectedBatch.differenceCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDetailFilterStatus('PENDING_RECHECK');
-                      setDetailPageIndex(1);
-                    }}
-                    className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
-                      detailFilterStatus === 'PENDING_RECHECK'
-                        ? 'bg-[var(--ty-orange-color)] text-[var(--ty-font-white-color)] border-[var(--ty-orange-color)] font-bold'
-                        : 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30'
-                    }`}
-                  >
-                    待处理 ({(selectedBatch.pendingRecheckCount || 0) + (selectedBatch.incompleteCount || 0)})
                   </button>
                   <button
                     type="button"
@@ -905,7 +981,49 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                         : 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30'
                     }`}
                   >
-                    一致 ({selectedBatch.consistentCount})
+                    一致 ({selectedBatchStats.consistentCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailFilterStatus('INCONSISTENT');
+                      setDetailPageIndex(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
+                      detailFilterStatus === 'INCONSISTENT'
+                        ? 'bg-[var(--ty-red-color)] text-[var(--ty-font-white-color)] border-[var(--ty-red-color)] font-bold'
+                        : 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30'
+                    }`}
+                  >
+                    不一致 ({selectedBatchStats.inconsistentCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailFilterStatus('PENDING_RECHECK');
+                      setDetailPageIndex(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
+                      detailFilterStatus === 'PENDING_RECHECK'
+                        ? 'bg-[var(--ty-orange-color)] text-[var(--ty-font-white-color)] border-[var(--ty-orange-color)] font-bold'
+                        : 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30'
+                    }`}
+                  >
+                    待复查 ({selectedBatchStats.pendingCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailFilterStatus('UNABLE_TO_COMPARE');
+                      setDetailPageIndex(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-ty-xs font-medium border transition-colors cursor-pointer ${
+                      detailFilterStatus === 'UNABLE_TO_COMPARE'
+                        ? 'bg-[var(--ty-font-sub-color)] text-[var(--ty-font-white-color)] border-[var(--ty-font-sub-color)] font-bold'
+                        : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'
+                    }`}
+                  >
+                    无法比对 ({selectedBatchStats.unableCount})
                   </button>
                 </div>
               </div>
@@ -996,6 +1114,134 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 任务五：核验字段清单预览只读弹窗 */}
+      {isFieldPreviewModalOpen && comparisonSnapshotResult.snapshot && (
+        <div className="fixed inset-0 z-60 overflow-y-auto bg-ty-overlay backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg max-w-3xl w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--ty-border-color)]">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
+                    正式核验字段清单
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] text-ty-2xs font-semibold">
+                    {currentRootType?.displayName || selectedRootTypeCode}
+                  </span>
+                </div>
+                <span className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-0.5 block">
+                  自动读取已入正式查询底座（isInFormalQueryBase=true）且具有确定性比对能力的字段
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFieldPreviewModalOpen(false)}
+                className="p-1 rounded-ty-sm text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 1. 业务唯一键信息 */}
+            <div className="p-3 bg-[var(--ty-fill-weak-dark-color)]/60 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-[var(--ty-font-main-color)]">业务唯一键定位字段：</span>
+                <span className="text-ty-2xs text-[var(--ty-primary-color)] font-semibold">唯一主键（不参与普通字段一致率）</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-ty-2xs text-[var(--ty-font-sub-color)] font-mono pt-1">
+                <div>显示名称：<strong className="text-[var(--ty-font-main-color)] font-sans">{comparisonSnapshotResult.snapshot.uniqueKeyField.displayName}</strong></div>
+                <div>来源字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.sourceFieldKey}</strong></div>
+                <div>底座字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreField}</strong></div>
+                <div>存储类型：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreType || 'STRING'}</strong></div>
+              </div>
+            </div>
+
+            {/* 2. 纳入核验字段表格 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+                <span>纳入核验字段列表 ({comparisonSnapshotResult.snapshot.includedFields.length} 项)</span>
+              </div>
+              <div className="border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden max-h-60 overflow-y-auto">
+                <table className="w-full text-left text-ty-xs border-collapse">
+                  <thead className="sticky top-0 bg-[var(--ty-fill-weak-dark-color)] z-10">
+                    <tr className="text-ty-2xs text-[var(--ty-font-sub-color)] border-b border-[var(--ty-border-color)]">
+                      <th className="p-2.5">字段显示名</th>
+                      <th className="p-2.5">来源字段 Key</th>
+                      <th className="p-2.5">底座物理字段</th>
+                      <th className="p-2.5">业务类型</th>
+                      <th className="p-2.5">底座类型</th>
+                      <th className="p-2.5">核验比对方式</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--ty-border-color)]">
+                    {comparisonSnapshotResult.snapshot.includedFields.map(field => (
+                      <tr key={field.sourceFieldKey} className="hover:bg-[var(--ty-fill-weak-dark-color)]">
+                        <td className="p-2.5 font-medium text-[var(--ty-font-main-color)]">
+                          {field.displayName}
+                        </td>
+                        <td className="p-2.5 font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
+                          {field.sourceFieldKey}
+                        </td>
+                        <td className="p-2.5 font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
+                          {field.manticoreField}
+                        </td>
+                        <td className="p-2.5 text-ty-2xs text-[var(--ty-font-main-color)] font-mono">
+                          {field.dataType}
+                        </td>
+                        <td className="p-2.5 text-ty-2xs text-[var(--ty-font-sub-color)] font-mono">
+                          {field.manticoreType || 'STRING'}
+                        </td>
+                        <td className="p-2.5 text-ty-2xs text-[var(--ty-primary-color)]">
+                          {field.comparisonMethod}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 3. 排除字段列表（如有） */}
+            {comparisonSnapshotResult.snapshot.excludedFields.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center space-x-1.5 text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">
+                  <span>排除字段说明 ({comparisonSnapshotResult.snapshot.excludedFields.length} 项未纳入)</span>
+                </div>
+                <div className="border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden max-h-36 overflow-y-auto">
+                  <table className="w-full text-left text-ty-xs border-collapse">
+                    <thead className="sticky top-0 bg-[var(--ty-fill-weak-dark-color)] z-10">
+                      <tr className="text-ty-2xs text-[var(--ty-font-sub-color)] border-b border-[var(--ty-border-color)]">
+                        <th className="p-2">字段显示名</th>
+                        <th className="p-2">来源字段 Key</th>
+                        <th className="p-2">排除原因</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--ty-border-color)]">
+                      {comparisonSnapshotResult.snapshot.excludedFields.map((ex, idx) => (
+                        <tr key={idx} className="hover:bg-[var(--ty-fill-weak-dark-color)]">
+                          <td className="p-2 text-[var(--ty-font-main-color)]">{ex.fieldName}</td>
+                          <td className="p-2 font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">{ex.sourceFieldKey}</td>
+                          <td className="p-2 text-ty-2xs text-[var(--ty-orange-color)]">{ex.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsFieldPreviewModalOpen(false)}
+                className="px-4 py-1.5 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-xs font-medium cursor-pointer"
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>

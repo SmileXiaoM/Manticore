@@ -250,7 +250,9 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
       uniqueKeyField: {
         sourceFieldKey: 'iba_part_number',
         manticoreField: 'part_number',
-        displayName: '物料编码'
+        displayName: '物料编码',
+        sourceDataType: 'STRING',
+        manticoreType: 'STRING'
       },
       includedFields: [
         {
@@ -258,6 +260,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'part_name',
           displayName: '零件名称',
           dataType: 'TEXT',
+          manticoreType: 'STRING',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.TEXT.comparisonMethod
         },
         {
@@ -265,6 +268,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'material',
           displayName: '主要材质',
           dataType: 'ENUM',
+          manticoreType: 'STRING',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.ENUM.comparisonMethod
         },
         {
@@ -272,6 +276,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'nominal_diameter_mm',
           displayName: '公称直径 (mm)',
           dataType: 'NUMERIC_WITH_UNIT',
+          manticoreType: 'FLOAT',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.NUMERIC_WITH_UNIT.comparisonMethod
         },
         {
@@ -279,6 +284,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'category_path',
           displayName: '分类路径',
           dataType: 'CATEGORY_TREE',
+          manticoreType: 'STRING',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.CATEGORY_TREE.comparisonMethod
         }
       ],
@@ -286,6 +292,8 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
         {
           sourceFieldKey: 'iba_surface_treatment',
           fieldName: '表面处理工艺',
+          sourceDataType: 'STRING',
+          actualManticoreType: 'STRING',
           reason: '草稿字段未正式生效进入底座'
         }
       ],
@@ -317,7 +325,9 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
       uniqueKeyField: {
         sourceFieldKey: 'iba_part_number',
         manticoreField: 'part_number',
-        displayName: '物料编码'
+        displayName: '物料编码',
+        sourceDataType: 'STRING',
+        manticoreType: 'STRING'
       },
       includedFields: [
         {
@@ -325,6 +335,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'part_name',
           displayName: '零件名称',
           dataType: 'TEXT',
+          manticoreType: 'STRING',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.TEXT.comparisonMethod
         },
         {
@@ -332,6 +343,7 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
           manticoreField: 'material',
           displayName: '主要材质',
           dataType: 'ENUM',
+          manticoreType: 'STRING',
           comparisonMethod: COMPARISON_CAPABILITY_TABLE.ENUM.comparisonMethod
         }
       ],
@@ -398,6 +410,17 @@ export function buildComparisonFieldSnapshot(
   }
   const uField = uniqueKeyFields[0];
 
+  // 唯一键也必须验证 source key、Manticore 字段和可定位类型，不得使用 partNumber/part_number 默认值补位
+  if (!uField.sourceFieldKey?.trim() || !uField.manticoreField?.trim()) {
+    return { uniqueKeyError: `当前根类型 [${rootTypeCode}] 正式底座中业务唯一键缺少有效源端字段标识或底座物理字段名，无法用于对象定位。` };
+  }
+  const uManticoreType = (uField.manticoreType || '').toUpperCase().trim();
+  const validUniqueLocatableTypes = ['STRING', 'TEXT', 'INTEGER', 'INT', 'BIGINT', 'CODE'];
+  const isLocatable = validUniqueLocatableTypes.some(t => uManticoreType.includes(t));
+  if (!isLocatable) {
+    return { uniqueKeyError: `当前根类型 [${rootTypeCode}] 业务唯一键底座类型 [${uField.manticoreType}] 不属于标量唯一可定位类型 (STRING/TEXT/BIGINT/INT)。` };
+  }
+
   // 正式可比对字段与被排除字段
   const includedCandidates: ComparisonFieldItem[] = [];
   const excludedCandidates: ComparisonFieldSnapshot['excludedFields'] = [];
@@ -411,6 +434,8 @@ export function buildComparisonFieldSnapshot(
       excludedCandidates.push({
         sourceFieldKey: f.sourceFieldKey || f.id,
         fieldName: resolveFieldDisplayName(f),
+        sourceDataType: f.sourceDataType,
+        actualManticoreType: f.manticoreType,
         reason: f.configStatus === 'DRAFT' ? '草稿字段未生效' : '未纳入正式查询底座'
       });
       return;
@@ -420,17 +445,21 @@ export function buildComparisonFieldSnapshot(
       excludedCandidates.push({
         sourceFieldKey: f.sourceFieldKey || f.id,
         fieldName: resolveFieldDisplayName(f),
+        sourceDataType: f.sourceDataType,
+        actualManticoreType: f.manticoreType,
         reason: '未定义有效源端或底座字段标识'
       });
       return;
     }
 
-    // 检查确定性比较能力表
-    const cap = getComparisonCapability(f.sourceDataType);
+    // 检查确定性比较能力表（双端校验：来源业务类型 + Manticore 实际类型）
+    const cap = getComparisonCapability(f.sourceDataType, f.manticoreType);
     if (!cap.isVerifiable) {
       excludedCandidates.push({
         sourceFieldKey: f.sourceFieldKey,
         fieldName: resolveFieldDisplayName(f),
+        sourceDataType: f.sourceDataType,
+        actualManticoreType: f.manticoreType,
         reason: cap.excludeReason || '当前类型暂无确定性核验规则'
       });
       return;
@@ -441,6 +470,7 @@ export function buildComparisonFieldSnapshot(
       manticoreField: f.manticoreField,
       displayName: resolveFieldDisplayName(f),
       dataType: f.sourceDataType || 'TEXT',
+      manticoreType: f.manticoreType || cap.manticoreType,
       comparisonMethod: cap.comparisonMethod
     });
   });
@@ -452,9 +482,11 @@ export function buildComparisonFieldSnapshot(
   const snapshot: ComparisonFieldSnapshot = {
     rootTypeCode,
     uniqueKeyField: {
-      sourceFieldKey: uField.sourceFieldKey || 'partNumber',
-      manticoreField: uField.manticoreField || 'part_number',
-      displayName: resolveFieldDisplayName(uField)
+      sourceFieldKey: uField.sourceFieldKey.trim(),
+      manticoreField: uField.manticoreField.trim(),
+      displayName: resolveFieldDisplayName(uField),
+      sourceDataType: uField.sourceDataType || 'STRING',
+      manticoreType: uField.manticoreType || 'STRING'
     },
     includedFields: includedCandidates,
     excludedFields: excludedCandidates,
@@ -553,8 +585,8 @@ export function executeConsistencyRun(
   const nowStr = formatLocalDateTime();
   const { rootTypeCode, rootTypeName, scopeMode, comparisonFieldSnapshot } = req;
 
-  // 1. 验证失败分支：若定向输入包含 TRIGGER_TASK_FAIL 或 FAIL_TEST，模拟任务级执行失败
-  if (req.requestedObjectIds && req.requestedObjectIds.some(id => id.toUpperCase() === 'TRIGGER_TASK_FAIL' || id.toUpperCase() === 'FAIL_TEST')) {
+  // 1. 测试失败分支：通过参数显式注入 simulateFailure 触发，杜绝从用户业务输入中嗅探暗号
+  if (req.simulateFailure) {
     const modeLabel = scopeMode === 'RANDOM_SAMPLE' ? '抽检核验' : scopeMode === 'EXHAUSTIVE_SCOPE' ? '全量核验' : '定向核验';
     return {
       id: batchId,
@@ -563,10 +595,10 @@ export function executeConsistencyRun(
       rootTypeCode,
       rootTypeName,
       scopeMode,
-      scopeDescription: `定向核验：${req.requestedObjectIds.join(', ')}`,
-      strategySummary: '定向核验（任务级失败，未完成有效比对）',
+      scopeDescription: req.scopeDescription || (scopeMode === 'SPECIFIC_IDS' ? `定向核验：${(req.requestedObjectIds || []).join(', ')}` : `${modeLabel}批次`),
+      strategySummary: '核验执行失败（未完成有效比对）',
       executedAt: nowStr,
-      plannedCount: req.requestedObjectIds.length,
+      plannedCount: req.sampleCount || req.requestedObjectIds?.length || 0,
       actualCount: 0,
       consistentCount: 0,
       differenceCount: 0,
@@ -578,7 +610,7 @@ export function executeConsistencyRun(
       requestedObjectIds: req.requestedObjectIds,
       sourceSyncBatchId: req.sourceSyncBatchId,
       status: 'FAILED',
-      failedStage: 'PLM 数据读取',
+      failedStage: 'PLM 数据批量读取',
       failedReason: 'PLM 批量查询接口超时 (504 Gateway Timeout)，无法建立源端读取会话'
     };
   }
@@ -628,7 +660,7 @@ export function executeConsistencyRun(
       });
     });
   } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
-    const count = req.sampleCount || 20;
+    const count = req.sampleCount && req.sampleCount > 0 ? req.sampleCount : 20;
     const prefix = rootTypeCode === 'PART' ? 'P' : rootTypeCode === 'DOCUMENT' ? 'DOC' : 'PR';
     const startNum = rootTypeCode === 'PART' ? 32000 : rootTypeCode === 'DOCUMENT' ? 52000 : 72000;
     const sampleNames = rootTypeCode === 'PART'
@@ -651,14 +683,14 @@ export function executeConsistencyRun(
       targetSpecs.push({
         objectId: oid,
         objectName: `${sampleNames[i % sampleNames.length]} ${oid}`,
-        selectedReason: 'RANDOM_SAMPLE',
+        selectedReason: 'SCOPE_EXHAUSTIVE',
         plannedStatus,
         isTargetMissing
       });
     }
   } else {
     // RANDOM_SAMPLE
-    const count = req.sampleCount || 50;
+    const count = req.sampleCount && req.sampleCount > 0 ? req.sampleCount : 50;
     const prefix = rootTypeCode === 'PART' ? 'P' : rootTypeCode === 'DOCUMENT' ? 'DOC' : 'PR';
     const startNum = rootTypeCode === 'PART' ? 30000 : rootTypeCode === 'DOCUMENT' ? 50000 : 70000;
     const sampleNames = rootTypeCode === 'PART'
