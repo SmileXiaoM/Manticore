@@ -26,7 +26,7 @@ export function resolvePlanSnapshot(
   const formal = buildComparisonFieldSnapshot(plan.rootTypeCode, fields);
   if (!formal.snapshot) return { error: formal.uniqueKeyError || formal.fieldsError };
   if (plan.uniqueKeyFieldKey !== formal.snapshot.uniqueKeyField.sourceFieldKey)
-    return { error: '请选择当前根类型的正式唯一标识属性' };
+    return { error: '唯一标识配置已变更，请编辑并保存方案以更新' };
   const keys = new Set(plan.comparisonFieldKeys);
   if (!keys.size) return { error: '请至少选择一个固定核验属性' };
   if (

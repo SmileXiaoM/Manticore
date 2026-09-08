@@ -131,8 +131,11 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     () => (draft ? buildComparisonFieldSnapshot(draft.rootTypeCode, fields) : {}),
     [draft, fields],
   );
-  const draftError = draft
-    ? resolvePlanSnapshot(draft, fields).error ||
+  const resolvedDraft = draft
+    ? { ...draft, uniqueKeyFieldKey: draftFormal.snapshot?.uniqueKeyField.sourceFieldKey || '' }
+    : null;
+  const draftError = resolvedDraft
+    ? resolvePlanSnapshot(resolvedDraft, fields).error ||
       (plans.some((plan) => plan.id !== draft.id && plan.name.trim() === draft.name.trim()) ? '方案名称已存在' : '')
     : '';
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId);
@@ -174,8 +177,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     setNotice('');
   }
   function savePlan() {
-    if (!draft || draftError) return;
-    const saved = structuredClone({ ...draft, name: draft.name.trim() });
+    if (!resolvedDraft || draftError) return;
+    const saved = structuredClone({ ...resolvedDraft, name: resolvedDraft.name.trim() });
     updatePlans((previous) =>
       previous.some((plan) => plan.id === saved.id)
         ? previous.map((plan) => (plan.id === saved.id ? saved : plan))
@@ -600,25 +603,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                       </option>
                     ))}
                   </select>
-                </label>
-
-                <label>
-                  唯一标识属性
-                  <select
-                    aria-label="唯一标识属性"
-                    disabled={!draftFormal.snapshot}
-                    value={draft.uniqueKeyFieldKey}
-                    onChange={(event) => setDraft({ ...draft, uniqueKeyFieldKey: event.target.value })}
-                  >
-                    <option value="">请选择唯一标识属性</option>
-                    {draftFormal.snapshot && (
-                      <option value={draftFormal.snapshot.uniqueKeyField.sourceFieldKey}>
-                        {draftFormal.snapshot.uniqueKeyField.displayName}
-                        {draftFormal.snapshot.uniqueKeyField.isDisplayNameMissing ? '（显示名缺失）' : ''}
-                      </option>
-                    )}
-                  </select>
-                  <small className="muted">用于定位对象，独立于逐字段比对。</small>
                 </label>
               </div>
               <fieldset>
