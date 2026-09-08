@@ -636,3 +636,56 @@
 .data-consistency-check .field-rules .rule-list {
   margin-top: 8px;
 }
+
+.data-consistency-check .scope-editor {
+  margin-top: 20px;
+}
+.data-consistency-check .scope-kind {
+  max-width: 360px;
+}
+.data-consistency-check .scope-time,
+.data-consistency-check .scope-attributes {
+  margin-top: 16px;
+}
+.data-consistency-check .scope-time-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.data-consistency-check .scope-condition-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.data-consistency-check .scope-condition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr) 32px;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.data-consistency-check .scope-editor label {
+  min-width: 0;
+}
+.data-consistency-check .scope-remove {
+  padding: 8px;
+  border: 0;
+  color: var(--ty-icon-color);
+}
+.data-consistency-check .scope-footnote {
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .data-consistency-check .scope-time-inputs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .data-consistency-check .scope-condition-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+  }
+  .data-consistency-check .scope-condition-row > label:first-child {
+    grid-column: 1 / -1;
+  }
+}

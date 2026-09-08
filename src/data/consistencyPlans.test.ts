@@ -88,9 +88,9 @@ test('launch freezes plan, chosen fields and comparison rules independently of l
 
 test('scope-dependent launches fail closed for all modes until PLM data is available', () => {
   const p = plan();
-  assert.match(preparePlanRun(p, fields, '零部件', 'EXHAUSTIVE_SCOPE', 50, []).error!, /待获取/);
+  assert.match(preparePlanRun(p, fields, '零部件', 'EXHAUSTIVE_SCOPE', 50, []).error!, /请选择范围条件/);
   p.scopeRule = 'PLM_SCOPE';
-  for (const mode of p.allowedModes) {
+  for (const mode of ['RANDOM_SAMPLE', 'SPECIFIC_IDS'] as const) {
     assert.match(preparePlanRun(p, fields, '零部件', mode, 50, ['P-1']).error!, /需从 PLM 读取/);
   }
   p.scopeRule = 'ALL_ROOT';

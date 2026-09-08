@@ -7,6 +7,7 @@ import {
   formatLocalDateTime,
 } from '../types/consistencyCheck';
 import { buildComparisonFieldSnapshot, PLM_SCOPE_UNAVAILABLE } from './consistencyCheckData';
+import { ConsistencyScopeDraft, getScopeFields, SCOPE_QUERY_UNAVAILABLE, validateScopeDraft } from './consistencyScope';
 
 export function resolvePlanSnapshot(
   plan: ConsistencyPlan,
@@ -51,11 +52,17 @@ export function preparePlanRun(
   mode: ConsistencyStrategyType,
   sampleCount: number,
   objectIds: string[],
+  rangeScope?: ConsistencyScopeDraft,
 ): { request?: ConsistencyCheckRequest; error?: string } {
   const resolved = resolvePlanSnapshot(plan, fields);
   if (!resolved.snapshot) return { error: resolved.error };
   if (!plan.allowedModes.includes(mode)) return { error: '该方案不允许此运行方式' };
-  if (plan.scopeRule === 'PLM_SCOPE' || mode === 'EXHAUSTIVE_SCOPE') return { error: PLM_SCOPE_UNAVAILABLE };
+  if (mode === 'EXHAUSTIVE_SCOPE') {
+    return {
+      error: validateScopeDraft(rangeScope, getScopeFields(plan.rootTypeCode, fields)) || SCOPE_QUERY_UNAVAILABLE,
+    };
+  }
+  if (plan.scopeRule === 'PLM_SCOPE') return { error: PLM_SCOPE_UNAVAILABLE };
   if (mode === 'RANDOM_SAMPLE' && (!Number.isSafeInteger(sampleCount) || sampleCount < 1 || sampleCount > 10000)) {
     return { error: '抽样量请输入 1–10000 的整数' };
   }

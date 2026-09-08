@@ -1,5 +1,7 @@
 import { ConsistencyPlanDialog } from './ConsistencyPlanDialog';
 import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
+import { ConsistencyScopeEditor } from './ConsistencyScopeEditor';
+import { getScopeFields, newScopeDraft } from '../data/consistencyScope';
 import React, { useMemo, useRef, useState } from 'react';
 import { Play, Plus, X, Loader2 } from 'lucide-react';
 import {
@@ -116,6 +118,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const [mode, setMode] = useState<ConsistencyStrategyType>('RANDOM_SAMPLE');
   const [sampleCount, setSampleCount] = useState('50');
   const [ids, setIds] = useState('');
+  const [rangeScope, setRangeScope] = useState(newScopeDraft);
   const [notice, setNotice] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | ConsistencyItemStatus>('ALL');
@@ -143,7 +146,15 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     ),
   ];
   const prepared = selectedPlan
-    ? preparePlanRun(selectedPlan, fields, rootName(selectedPlan.rootTypeCode), mode, Number(sampleCount), parsedIds)
+    ? preparePlanRun(
+        selectedPlan,
+        fields,
+        rootName(selectedPlan.rootTypeCode),
+        mode,
+        Number(sampleCount),
+        parsedIds,
+        rangeScope,
+      )
     : {};
   const running = batches.some((batch) => batch.status === 'RUNNING');
   const runError = running ? '已有核验正在执行，请等待完成' : !selectedPlan ? '请先选择核验方案' : prepared.error;
@@ -158,6 +169,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     setSelectedPlanId(planId);
     setMode(plan?.defaultMode || 'RANDOM_SAMPLE');
     setIds('');
+    setRangeScope(newScopeDraft());
     setSampleCount('50');
     setNotice('');
   }
@@ -174,6 +186,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
     if (selectedPlanId === saved.id) {
       setMode(saved.defaultMode);
       setIds('');
+      setRangeScope(newScopeDraft());
     }
   }
   function triggerRun() {
@@ -441,7 +454,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 <>
                   <div className="run-summary" aria-label="方案摘要">
                     <p className="muted">
-                      {rootName(selectedPlan.rootTypeCode)} · {scopeLabel(selectedPlan.scopeRule)}
+                      {rootName(selectedPlan.rootTypeCode)} ·{' '}
+                      {mode === 'EXHAUSTIVE_SCOPE' ? '按本次范围条件筛选' : scopeLabel(selectedPlan.scopeRule)}
                     </p>
                     {selectedSnapshot.snapshot ? (
                       <dl className="run-field-summary">
@@ -476,7 +490,14 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                       ))}
                     </div>
                   </fieldset>
-                  {(mode === 'EXHAUSTIVE_SCOPE' || selectedPlan.scopeRule === 'PLM_SCOPE') && (
+                  {mode === 'EXHAUSTIVE_SCOPE' && (
+                    <ConsistencyScopeEditor
+                      value={rangeScope}
+                      fields={getScopeFields(selectedPlan.rootTypeCode, fields)}
+                      onChange={setRangeScope}
+                    />
+                  )}
+                  {mode !== 'EXHAUSTIVE_SCOPE' && selectedPlan.scopeRule === 'PLM_SCOPE' && (
                     <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>
                   )}
                   {mode === 'RANDOM_SAMPLE' && (

@@ -1,3 +1,4 @@
+import { SCOPE_QUERY_UNAVAILABLE } from './consistencyScope';
 import {
   ConsistencyBatchRecord,
   ConsistencyObjectResult,
@@ -609,7 +610,9 @@ export function executeConsistencyRun(
     validationError = `未知根类型 [${rootTypeCode}]，无法确定核验范围`;
   } else if (!['RANDOM_SAMPLE', 'EXHAUSTIVE_SCOPE', 'SPECIFIC_IDS'].includes(scopeMode)) {
     validationError = '不支持的核验范围模式';
-  } else if (scopeMode === 'EXHAUSTIVE_SCOPE' || planSnapshot?.scopeRule === 'PLM_SCOPE') {
+  } else if (scopeMode === 'EXHAUSTIVE_SCOPE') {
+    validationError = SCOPE_QUERY_UNAVAILABLE;
+  } else if (planSnapshot?.scopeRule === 'PLM_SCOPE') {
     validationError = PLM_SCOPE_UNAVAILABLE;
   } else if (scopeMode === 'SPECIFIC_IDS') {
     if (!idsAreValid || uniqueIds.length === 0) validationError = '指定对象核验必须提供至少一个有效的对象唯一标识';
@@ -902,7 +905,7 @@ export function executeConsistencyRun(
   const scopeDesc = scopeMode === 'RANDOM_SAMPLE'
     ? `抽检核验（${targetSpecs.length} 个样本）`
     : scopeMode === 'EXHAUSTIVE_SCOPE'
-    ? `全量核验：${req.scopeName || req.scopeId || '指定分类范围'}`
+    ? `全量核验：${req.scopeName || req.scopeId || '指定条件范围'}`
     : `定向核验：${targetSpecs.map(t => t.objectId).join(', ')}`;
 
   return {

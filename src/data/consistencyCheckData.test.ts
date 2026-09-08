@@ -94,7 +94,7 @@ test('specific IDs remain exact after trimming and deduplication; failure keeps 
 test('unloaded PLM scopes never generate objects, and pending states stay outside the rate', () => {
   const exhaustive = executeConsistencyRun(request({ scopeMode: 'EXHAUSTIVE_SCOPE', sampleCount: 28, scopeId: 'SCOPE_DOC_DRAWING' }));
   assert.equal(exhaustive.status, 'FAILED');
-  assert.match(exhaustive.failedReason!, /需从 PLM 读取/);
+  assert.match(exhaustive.failedReason!, /PLM 范围查询未接入/);
   assert.equal(exhaustive.actualCount, 0);
   assert.deepEqual(exhaustive.objectResults, []);
   const result = executeConsistencyRun(request({ scopeMode: 'SPECIFIC_IDS', requestedObjectIds: ['DOC-OK', 'DOC-DIFF', 'DOC-MISS', 'DOC-PENDING', 'DOC-UNABLE'] }));
