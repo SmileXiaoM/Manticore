@@ -80,8 +80,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 
   // 当前选中的来源元数据
   const currentSelectedMeta = useMemo(() => {
-    return availablePlmFields.find(f => f.sourceFieldKey === formData.selectedSourceKey) || null;
-  }, [availablePlmFields, formData.selectedSourceKey]);
+    return availablePlmFields.find(f => f.sourceFieldKey === formData.selectedSourceKey) ||
+      (editingField?.sourceFieldKey === formData.selectedSourceKey
+        ? editingField.draftData?.sourceMetadata || editingField.sourceMetadata || null
+        : null);
+  }, [availablePlmFields, formData.selectedSourceKey, editingField]);
 
   // 弹窗打开、切换编辑项或切换根类型时才回填，用户输入过程中绝不重新初始化
   useEffect(() => {
@@ -349,6 +352,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         ...editingField,
         hasDraftModification: true,
         draftData: {
+          sourceMetadata: structuredClone(meta),
           displayTitle: formData.displayTitle.trim(),
           displayOrder: formData.displayOrder,
           defaultDisplayOrder: formData.displayOrder,
@@ -380,6 +384,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isDisplayNameMissing: isMissing,
         sourceDataType: meta.sourceDataType,
         sourceDataTypeLabel: meta.sourceDataTypeLabel,
+        sourceMetadata: structuredClone(meta),
         unitFamily: meta.unitFamily,
         defaultUnit: meta.defaultUnit,
         manticoreField: formData.manticoreField,
@@ -451,6 +456,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             </label>
             <div className="flex-1 max-w-md">
               <select
+                aria-label="选择 PLM 来源属性"
                 value={formData.selectedSourceKey}
                 onChange={e => handleSourceFieldSelect(e.target.value)}
                 className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] cursor-pointer ${

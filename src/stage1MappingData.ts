@@ -937,6 +937,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
   PART: [
     {
       sourceFieldKey: 'iba_part_number',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_master'], attributeKind: 'HARD', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'partNumber',
       sourceDisplayName: '物料编码',
       sourceDataType: 'TEXT',
@@ -954,6 +956,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     },
     {
       sourceFieldKey: 'iba_material',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_attribute'], attributeKind: 'EXTENDED', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'material',
       sourceDisplayName: '主要材质',
       sourceDataType: 'TEXT',
@@ -972,6 +976,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     },
     {
       sourceFieldKey: 'iba_classification_path',
+      isExampleMetadata: true,
+      sourceTables: [], attributeKind: 'VIRTUAL', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'classificationPath',
       sourceDisplayName: '分类路径',
       sourceDataType: 'CATEGORY_TREE',
@@ -981,6 +987,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     // 真实来源类型升级变更 (TEXT -> ENUM)
     {
       sourceFieldKey: 'iba_surface_treatment',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_attribute'], attributeKind: 'EXTENDED', isMultiValue: true, hasEnumDefinition: true, enumDefinition: { code: 'EXAMPLE_SURFACE_TREATMENT', name: '表面处理工艺（示例）' },
       sourceFieldName: 'surfaceTreatment',
       sourceDisplayName: '表面处理工艺',
       sourceDataType: 'ENUM',
@@ -1007,6 +1015,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     // 未映射新属性
     {
       sourceFieldKey: 'iba_lifecycle_state',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_master'], attributeKind: 'HARD', isMultiValue: false, hasEnumDefinition: true, enumDefinition: { code: 'EXAMPLE_LIFECYCLE_STATE', name: '生命周期状态（示例）' },
       sourceFieldName: 'state',
       sourceDisplayName: '生命周期状态',
       sourceDataType: 'ENUM',
@@ -1020,6 +1030,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     },
     {
       sourceFieldKey: 'iba_manufacturer_name',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_attribute'], attributeKind: 'EXTENDED', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'manufacturerName',
       sourceDisplayName: '原厂制造商名称',
       sourceDataType: 'TEXT',
@@ -1030,6 +1042,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
   DOCUMENT: [
     {
       sourceFieldKey: 'iba_doc_number',
+      isExampleMetadata: true,
+      sourceTables: ['example_document_master'], attributeKind: 'HARD', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'docNumber',
       sourceDisplayName: '文档编号',
       sourceDataType: 'TEXT',
@@ -1063,6 +1077,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
     },
     {
       sourceFieldKey: 'iba_sheet_size',
+      isExampleMetadata: true,
+      sourceTables: ['example_document_attribute'], attributeKind: 'EXTENDED', isMultiValue: false, hasEnumDefinition: true, enumDefinition: { code: 'EXAMPLE_SHEET_SIZE', name: '图幅幅面（示例）' },
       sourceFieldName: 'sheetSize',
       sourceDisplayName: '图幅幅面',
       sourceDataType: 'ENUM',
@@ -1080,6 +1096,8 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
   PROCESS: [
     {
       sourceFieldKey: 'iba_route_code',
+      isExampleMetadata: true,
+      sourceTables: ['example_process_master'], attributeKind: 'HARD', isMultiValue: false, hasEnumDefinition: false,
       sourceFieldName: 'routeCode',
       sourceDisplayName: '工艺路线编码',
       sourceDataType: 'TEXT',

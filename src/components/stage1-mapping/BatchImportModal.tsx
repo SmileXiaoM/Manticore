@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { SourceAttributeDetails } from './SourceAttributeDetails';
 import {
   X,
   Search,
@@ -538,6 +539,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         isDisplayNameMissing: isMissing,
         sourceDataType: c.sourceFieldMeta.sourceDataType,
         sourceDataTypeLabel: c.sourceFieldMeta.sourceDataTypeLabel,
+        sourceMetadata: structuredClone(c.sourceFieldMeta),
         unitFamily: c.sourceFieldMeta.unitFamily,
         defaultUnit: c.sourceFieldMeta.defaultUnit,
         manticoreField: manticoreName,
@@ -613,6 +615,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
             <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
               <FileSpreadsheet className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
               批量发现并导入 PLM 字段映射
+              <span className="ml-2 text-ty-2xs font-normal text-[var(--ty-font-sub-color)]">原型示例数据</span>
             </h3>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
               主动读取来源系统元数据定义，自动完成类型推断与来源显示名兜底。勾选后生成草稿，需生效配置后方能进入正式底座。
@@ -665,7 +668,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </div>
               <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">尚未读取 PLM 元数据字典</h4>
               <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mt-1 mb-4 leading-relaxed">
-                点击上方或下方“读取 PLM 元数据”按钮，系统将连接来源系统接口，实时比对并识别未配置的属性候选。
+                读取当前根类型的来源属性，查看定义并选择需要映射的字段。当前原型使用示例元数据。
               </p>
               <button
                 type="button"
@@ -830,7 +833,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         </button>
                       </th>
                       <th className="py-2.5 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
-                      <th className="py-2.5 px-3 min-w-[100px]">PLM 业务类型</th>
+                      <th className="py-2.5 px-3 min-w-[200px]">PLM 属性定义（只读）</th>
                       <th className="py-2.5 px-3 min-w-[140px]">前台显示名称</th>
                       <th className="py-2.5 px-3 min-w-[130px]">Manticore 字段</th>
                       <th className="py-2.5 px-3 min-w-[80px]">底层类型</th>
@@ -908,12 +911,13 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                             </td>
 
                             <td className="py-2.5 px-3 text-[var(--ty-font-sub-color)]">
-                              <span>{c.sourceFieldMeta.sourceDataTypeLabel}</span>
+                              <span>数据类型：{c.sourceFieldMeta.sourceDataTypeLabel}</span>
                               {c.sourceFieldMeta.defaultUnit && (
                                 <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">
                                   ({c.sourceFieldMeta.defaultUnit})
                                 </span>
                               )}
+                              <SourceAttributeDetails meta={c.sourceFieldMeta} compact />
                             </td>
 
                             {/* 前台显示名称 */}

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { SourceAttributeDetails } from './SourceAttributeDetails';
 import {
   Link,
   Shield,
@@ -142,7 +143,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
 
             <div className="grid grid-cols-2 gap-2 text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
               <div>
-                <span className="text-[var(--ty-font-sub-light-color)] block">PLM 业务类型:</span>
+                <span className="text-[var(--ty-font-sub-light-color)] block">数据类型:</span>
                 <span className="font-medium text-[var(--ty-font-main-color)]">
                   {sourceMeta.sourceDataTypeLabel}
                 </span>
@@ -164,21 +165,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               </div>
             )}
 
-            {sourceMeta.enumOptions && sourceMeta.enumOptions.length > 0 && (
-              <div className="text-ty-2xs pt-1 border-t border-[var(--ty-border-light-color)]">
-                <span className="text-[var(--ty-font-sub-light-color)] block mb-1">受控枚举 ({sourceMeta.enumOptions.length}):</span>
-                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                  {sourceMeta.enumOptions.map(opt => (
-                    <span
-                      key={opt.code}
-                      className="px-1.5 py-0.5 rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 text-ty-2xs"
-                    >
-                      {opt.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <SourceAttributeDetails meta={sourceMeta} />
           </div>
         ) : (
           <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-6 text-center text-[var(--ty-font-sub-light-color)] text-ty-xs flex-1 flex flex-col items-center justify-center">

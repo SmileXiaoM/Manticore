@@ -105,6 +105,12 @@ export type FieldConfigStatus = 'CONFIGURED' | 'DRAFT';
 
 // PLM 来源字段元数据
 export interface SourceFieldMeta {
+  sourceTables?: string[]; // undefined: 未返回；空数组: 无直接来源表（如计算属性）
+  attributeKind?: 'HARD' | 'EXTENDED' | 'VIRTUAL';
+  isMultiValue?: boolean;
+  hasEnumDefinition?: boolean;
+  enumDefinition?: { code: string; name?: string };
+  isExampleMetadata?: boolean;
   sourceFieldKey: string; // 稳定的唯一字段标识 e.g. 'iba_part_number', 'master_name'
   sourceFieldName: string; // 源系统字段名 e.g. 'partNumber', 'name'
   sourceDisplayName: string; // 源系统显示名 (可能为空或缺失)
@@ -160,6 +166,7 @@ export interface HyperlinkConfig {
 
 // 字段映射项核心模型 (仅归属根类型，无软类型)
 export interface FieldMappingItem {
+  sourceMetadata?: SourceFieldMeta; // 保存时读取的来源定义，独立于目标映射参数
   id: string;
   rootTypeId: string; // 'PART' | 'DOCUMENT' | 'PROCESS'
   sourceSystemId: string; // 'PLM_WINCHILL'
