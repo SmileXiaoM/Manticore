@@ -6,8 +6,10 @@ export function ConsistencyPlanDialog({
   title,
   onDismiss,
   children,
+  closeLabel = '关闭方案弹窗',
 }: {
   title: string;
+  closeLabel?: string;
   onDismiss: () => void;
   children: React.ReactNode;
 }) {
@@ -34,7 +36,7 @@ export function ConsistencyPlanDialog({
     >
       <header className="plan-dialog-heading">
         <h2>{title}</h2>
-        <button type="button" aria-label="关闭方案弹窗" onClick={onDismiss}>
+        <button type="button" aria-label={closeLabel} onClick={onDismiss}>
           <X size={20} />
         </button>
       </header>

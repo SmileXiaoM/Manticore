@@ -110,7 +110,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const plans = externalPlans ?? internalPlans;
   const updateBatches = onUpdateBatches ?? setInternalBatches;
   const updatePlans = onUpdatePlans ?? setInternalPlans;
-  const [tab, setTab] = useState<'plans' | 'run'>('plans');
+  const [runOpen, setRunOpen] = useState(false);
   const [draft, setDraft] = useState<ConsistencyPlan | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [mode, setMode] = useState<ConsistencyStrategyType>('RANDOM_SAMPLE');
@@ -211,7 +211,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       status: 'RUNNING',
     };
     updateBatches((previous) => [pending, ...previous]);
-    setNotice('已发起核验');
+    setRunOpen(false);
+    setNotice('已发起核验，可在下方记录中查看进度。');
     // 回调只读取启动时冻结的请求；共享任务在切换页面后仍可完成。
     setTimeout(() => {
       const completed = executeConsistencyRun(request, batchId);
@@ -223,218 +224,105 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   return (
     <div className="data-consistency-check">
       <header className="page-heading">
-        <div>
-          <h1>数据一致性核验</h1>
-          <p className="muted">先定义可复用方案，再按方案发起核验。</p>
+        <div className="page-heading-copy">
+          <div className="page-title-line">
+            <h1>数据一致性核验</h1>
+            <span className="prototype-note">原型演示</span>
+          </div>
+          <p className="muted">管理核验方案，查看 PLM 与检索底座的比对结果。</p>
         </div>
-        <span className="muted prototype-note">原型演示</span>
+        <div className="page-actions">
+          <button
+            onClick={() => {
+              setDraft(newPlan(''));
+              setNotice('');
+            }}
+          >
+            <Plus size={16} />
+            新建方案
+          </button>
+          <button
+            className="primary"
+            disabled={running}
+            onClick={() => {
+              choosePlan(plans.length === 1 ? plans[0].id : '');
+              setRunOpen(true);
+            }}
+          >
+            {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+            {running ? '核验中' : '发起核验'}
+          </button>
+        </div>
       </header>
-      <nav className="plan-tabs" aria-label="核验操作">
-        <button
-          type="button"
-          aria-current={tab === 'plans' ? 'page' : undefined}
-          onClick={() => {
-            setTab('plans');
-            setNotice('');
-          }}
-        >
-          核验方案定义
-        </button>
-        <button
-          type="button"
-          aria-current={tab === 'run' ? 'page' : undefined}
-          onClick={() => {
-            setTab('run');
-            setNotice('');
-          }}
-        >
-          发起核验
-        </button>
-      </nav>
       {notice && (
         <p role="status" className="notice">
           {notice}
         </p>
       )}
-      {tab === 'plans' ? (
-        <section className="panel" aria-label="核验方案定义">
-          <div className="section-heading">
-            <div>
-              <h2>核验方案</h2>
-              <p className="muted">不同根类型分别建立方案。</p>
-            </div>
-            <button
-              className="primary"
-              onClick={() => {
-                setDraft(newPlan(''));
-                setNotice('');
-              }}
-            >
-              <Plus size={16} />
-              新建方案
-            </button>
+      <section className="panel" aria-label="核验方案定义">
+        <div className="section-heading">
+          <div>
+            <h2>核验方案</h2>
+            <p className="muted">不同根类型分别建立方案。</p>
           </div>
-          {plans.length ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>方案名称</th>
-                    <th>适用根类型</th>
-                    <th>范围规则</th>
-                    <th>固定核验属性</th>
-                    <th>默认运行方式</th>
-                    <th>操作</th>
+          <span className="muted">{plans.length} 个方案</span>
+        </div>
+        {plans.length ? (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>方案名称</th>
+                  <th>适用根类型</th>
+                  <th>范围规则</th>
+                  <th>固定核验属性</th>
+                  <th>默认运行方式</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plans.map((plan) => (
+                  <tr key={plan.id}>
+                    <td>{plan.name}</td>
+                    <td>{rootName(plan.rootTypeCode)}</td>
+                    <td>{scopeLabel(plan.scopeRule)}</td>
+                    <td>{plan.comparisonFieldKeys.length} 项</td>
+                    <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
+                    <td>
+                      <div className="actions">
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            setDraft(structuredClone(plan));
+                            setNotice('');
+                          }}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            choosePlan(plan.id);
+                            setRunOpen(true);
+                          }}
+                        >
+                          发起核验
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {plans.map((plan) => (
-                    <tr key={plan.id}>
-                      <td>{plan.name}</td>
-                      <td>{rootName(plan.rootTypeCode)}</td>
-                      <td>{scopeLabel(plan.scopeRule)}</td>
-                      <td>{plan.comparisonFieldKeys.length} 项</td>
-                      <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
-                      <td>
-                        <div className="actions">
-                          <button
-                            onClick={() => {
-                              setDraft(structuredClone(plan));
-                              setNotice('');
-                            }}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            onClick={() => {
-                              choosePlan(plan.id);
-                              setTab('run');
-                            }}
-                          >
-                            发起核验
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-state">暂无核验方案，请新建方案并选择核验属性。</div>
-          )}
-        </section>
-      ) : (
-        <section className="panel" aria-label="发起核验">
-          <div className="section-heading">
-            <h2>发起核验</h2>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <label className="plan-picker">
-            核验方案
-            <select aria-label="核验方案" value={selectedPlanId} onChange={(event) => choosePlan(event.target.value)}>
-              <option value="">请选择核验方案</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!plans.length && (
-            <div className="empty-state">
-              暂无可选方案。
-              <button
-                className="text-button"
-                onClick={() => {
-                  setTab('plans');
-                  setDraft(newPlan(''));
-                }}
-              >
-                新建方案
-              </button>
-            </div>
-          )}
-          {selectedPlan && (
-            <>
-              <div className="run-summary">
-                <div className="summary-line">
-                  <strong>{rootName(selectedPlan.rootTypeCode)}</strong>
-                  <span>{scopeLabel(selectedPlan.scopeRule)}</span>
-                  <span className="muted">本次核验口径 · 只读</span>
-                </div>
-                {selectedSnapshot.snapshot ? (
-                  <>
-                    <SnapshotSummary snapshot={selectedSnapshot.snapshot} />
-                    <p className="muted">发起时保存字段和比较规则快照，方案后续修改不影响历史任务。</p>
-                  </>
-                ) : (
-                  <p className="validation">{selectedSnapshot.error}</p>
-                )}
-              </div>
-              <fieldset>
-                <legend>本次运行方式</legend>
-                <div className="mode-options">
-                  {selectedPlan.allowedModes.map((item) => (
-                    <label key={item}>
-                      <input type="radio" name="run-mode" checked={mode === item} onChange={() => setMode(item)} />
-                      {CONSISTENCY_MODE_LABELS[item]}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              {(mode === 'EXHAUSTIVE_SCOPE' || selectedPlan.scopeRule === 'PLM_SCOPE') && (
-                <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>
-              )}
-              {mode === 'RANDOM_SAMPLE' && (
-                <label className="sample-input">
-                  抽样量
-                  <input
-                    aria-label="抽样量"
-                    type="number"
-                    min={1}
-                    max={10000}
-                    step={1}
-                    value={sampleCount}
-                    onChange={(event) => setSampleCount(event.target.value)}
-                  />
-                  <small className="muted">输入 1–10000 的整数；实际数量以核验结果为准。</small>
-                </label>
-              )}
-              {mode === 'SPECIFIC_IDS' && (
-                <label>
-                  对象 ID
-                  <textarea
-                    aria-label="对象 ID"
-                    rows={3}
-                    value={ids}
-                    onChange={(event) => setIds(event.target.value)}
-                    placeholder={ROOT_TYPE_OBJECT_ID_PLACEHOLDER[selectedPlan.rootTypeCode]}
-                  />
-                  <small className="muted">用逗号、空格或换行分隔，已去重 {parsedIds.length} 个 ID。</small>
-                </label>
-              )}
-            </>
-          )}
-          <div className="form-footer">
-            <span className="validation" id="run-error">
-              {runError === PLM_SCOPE_UNAVAILABLE ? '分类范围未加载，暂不能发起核验' : runError}
-            </span>
-            <button
-              className="primary"
-              onClick={triggerRun}
-              disabled={!!runError || !prepared.request}
-              aria-describedby="run-error"
-            >
-              {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              {running ? '核验中' : '发起核验'}
-            </button>
-          </div>
-        </section>
-      )}
+        ) : (
+          <div className="empty-state">暂无核验方案，请新建方案并选择核验属性。</div>
+        )}
+      </section>
 
       <section className="panel" aria-label="核验结果">
         <div className="section-heading">
-          <h2>核验结果</h2>
+          <h2>核验记录</h2>
           <span className="muted">{batches.length} 次记录</span>
         </div>
         {latest ? (
@@ -507,6 +395,132 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </table>
         </div>
       </section>
+
+      {runOpen && (
+        <ConsistencyPlanDialog title="发起核验" closeLabel="关闭发起核验弹窗" onDismiss={() => setRunOpen(false)}>
+          <form
+            className="plan-dialog-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              triggerRun();
+            }}
+          >
+            <div className="plan-dialog-body">
+              <label className="plan-picker">
+                核验方案
+                <select
+                  data-autofocus
+                  aria-label="核验方案"
+                  value={selectedPlanId}
+                  onChange={(event) => choosePlan(event.target.value)}
+                >
+                  <option value="">请选择核验方案</option>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!plans.length && (
+                <div className="empty-state">
+                  暂无可选方案。
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      setRunOpen(false);
+                      setDraft(newPlan(''));
+                    }}
+                  >
+                    新建方案
+                  </button>
+                </div>
+              )}
+              {selectedPlan && (
+                <>
+                  <div className="run-summary">
+                    <div className="summary-line">
+                      <strong>{rootName(selectedPlan.rootTypeCode)}</strong>
+                      <span>{scopeLabel(selectedPlan.scopeRule)}</span>
+                      <span className="muted">本次核验口径 · 只读</span>
+                    </div>
+                    {selectedSnapshot.snapshot ? (
+                      <>
+                        <SnapshotSummary snapshot={selectedSnapshot.snapshot} />
+                        <p className="muted">发起时保存字段和比较规则快照，方案后续修改不影响历史任务。</p>
+                      </>
+                    ) : (
+                      <p className="validation">{selectedSnapshot.error}</p>
+                    )}
+                  </div>
+                  <fieldset>
+                    <legend>本次运行方式</legend>
+                    <div className="mode-options">
+                      {selectedPlan.allowedModes.map((item) => (
+                        <label key={item}>
+                          <input type="radio" name="run-mode" checked={mode === item} onChange={() => setMode(item)} />
+                          {CONSISTENCY_MODE_LABELS[item]}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {(mode === 'EXHAUSTIVE_SCOPE' || selectedPlan.scopeRule === 'PLM_SCOPE') && (
+                    <div className="empty-state compact">{PLM_SCOPE_UNAVAILABLE}</div>
+                  )}
+                  {mode === 'RANDOM_SAMPLE' && (
+                    <label className="sample-input">
+                      抽样量
+                      <input
+                        aria-label="抽样量"
+                        type="number"
+                        min={1}
+                        max={10000}
+                        step={1}
+                        value={sampleCount}
+                        onChange={(event) => setSampleCount(event.target.value)}
+                      />
+                      <small className="muted">输入 1–10000 的整数；实际数量以核验结果为准。</small>
+                    </label>
+                  )}
+                  {mode === 'SPECIFIC_IDS' && (
+                    <label>
+                      对象 ID
+                      <textarea
+                        aria-label="对象 ID"
+                        rows={3}
+                        value={ids}
+                        onChange={(event) => setIds(event.target.value)}
+                        placeholder={ROOT_TYPE_OBJECT_ID_PLACEHOLDER[selectedPlan.rootTypeCode]}
+                      />
+                      <small className="muted">用逗号、空格或换行分隔，已去重 {parsedIds.length} 个 ID。</small>
+                    </label>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="form-footer">
+              <span className="validation" id="run-error">
+                {runError === PLM_SCOPE_UNAVAILABLE ? '分类范围未加载，暂不能发起核验' : runError}
+              </span>
+              <div className="actions">
+                <button type="button" onClick={() => setRunOpen(false)}>
+                  取消
+                </button>
+                <button
+                  className="primary"
+                  type="submit"
+                  disabled={!!runError || !prepared.request}
+                  aria-describedby="run-error"
+                >
+                  {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                  {running ? '核验中' : '发起核验'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </ConsistencyPlanDialog>
+      )}
 
       {draft && (
         <ConsistencyPlanDialog

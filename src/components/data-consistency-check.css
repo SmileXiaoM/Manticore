@@ -1,5 +1,5 @@
 .data-consistency-check {
-  padding: 24px;
+  padding: 0;
   color: var(--ty-font-main-color);
   background: var(--ty-fill-color);
   font-size: var(--ty-font-sm-size);
@@ -55,26 +55,39 @@
 }
 .data-consistency-check .page-heading {
   margin-bottom: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--ty-border-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+  background: var(--ty-fill-white-color);
 }
+.data-consistency-check .page-heading-copy {
+  min-width: 0;
+}
+.data-consistency-check .page-heading-copy p {
+  margin: 8px 0 0;
+}
+.data-consistency-check .page-title-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.data-consistency-check .prototype-note {
+  border: 1px solid var(--ty-border-light-color);
+  color: var(--ty-font-sub-color);
+  font-size: var(--ty-font-xs-size);
+  border-radius: var(--ty-ui-border-radius);
+  padding: 0 8px;
+}
+.data-consistency-check .page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .data-consistency-check .section-heading {
   margin-bottom: 16px;
-}
-.data-consistency-check .plan-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--ty-border-color);
-  margin-bottom: 16px;
-}
-.data-consistency-check .plan-tabs button {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  padding: 8px 0 12px;
-  border-bottom: 2px solid transparent;
-}
-.data-consistency-check .plan-tabs button[aria-current='page'] {
-  color: var(--ty-primary-color);
-  border-bottom-color: var(--ty-primary-color);
 }
 .data-consistency-check .panel {
   border: 1px solid var(--ty-border-color);
@@ -249,7 +262,10 @@
   flex-wrap: wrap;
 }
 .data-consistency-check .latest-summary {
-  padding: 12px 0 20px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--ty-fill-color);
+  border-radius: var(--ty-ui-border-radius-normal);
 }
 .data-consistency-check .snapshot-summary {
   display: grid;
@@ -385,7 +401,7 @@
   padding-top: 20px;
 }
 @media (max-width: 1000px) {
-  .data-consistency-check {
+  .data-consistency-check .page-heading {
     padding: 16px;
   }
   .data-consistency-check .panel {
