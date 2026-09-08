@@ -1078,13 +1078,12 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                             {item.objectName}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {item.isTargetMissing ? (
-                              <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border border-[var(--ty-red-color)]/30 text-ty-2xs font-bold">
-                                目标记录缺失
-                              </span>
-                            ) : (
-                              <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${meta.badgeClass}`}>
-                                {meta.label}
+                            <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${meta.badgeClass}`}>
+                              {meta.label}
+                            </span>
+                            {item.isTargetMissing && (
+                              <span className="block mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                                原因：目标记录缺失
                               </span>
                             )}
                           </td>
@@ -1178,11 +1177,12 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 <span className="font-semibold text-[var(--ty-font-main-color)]">业务唯一键定位字段：</span>
                 <span className="text-ty-2xs text-[var(--ty-primary-color)] font-semibold">唯一主键（不参与普通字段一致率）</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-ty-2xs text-[var(--ty-font-sub-color)] font-mono pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-ty-2xs text-[var(--ty-font-sub-color)] font-mono pt-1">
                 <div>显示名称：<strong className="text-[var(--ty-font-main-color)] font-sans">{comparisonSnapshotResult.snapshot.uniqueKeyField.displayName}</strong></div>
                 <div>来源字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.sourceFieldKey}</strong></div>
-                <div>底座字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreField}</strong></div>
-                <div>存储类型：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreType || 'STRING'}</strong></div>
+                <div>Manticore 目标字段：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreField}</strong></div>
+                <div>来源业务类型：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.sourceDataType || '--'}</strong></div>
+                <div>Manticore 目标类型：<strong className="text-[var(--ty-font-main-color)]">{comparisonSnapshotResult.snapshot.uniqueKeyField.manticoreType || '--'}</strong></div>
               </div>
             </div>
 
@@ -1198,8 +1198,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                       <th className="p-2.5">字段显示名</th>
                       <th className="p-2.5">来源字段 Key</th>
                       <th className="p-2.5">底座物理字段</th>
-                      <th className="p-2.5">业务类型</th>
-                      <th className="p-2.5">底座类型</th>
+                      <th className="p-2.5">来源业务类型</th>
+                      <th className="p-2.5">Manticore 目标类型</th>
                       <th className="p-2.5">核验比对方式</th>
                     </tr>
                   </thead>
@@ -1279,17 +1279,16 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg max-w-3xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--ty-border-color)]">
               <div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
                     对象比对明细：<span className="font-mono text-[var(--ty-primary-color)]">{selectedObjectForCompare.objectId}</span>
                   </h3>
-                  {selectedObjectForCompare.isTargetMissing ? (
-                    <span className="px-2 py-0.5 rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border border-[var(--ty-red-color)]/30 text-ty-2xs font-bold">
-                      目标记录缺失
-                    </span>
-                  ) : (
-                    <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${OBJECT_STATUS_META[selectedObjectForCompare.status].badgeClass}`}>
-                      {OBJECT_STATUS_META[selectedObjectForCompare.status].label}
+                  <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${OBJECT_STATUS_META[selectedObjectForCompare.status].badgeClass}`}>
+                    {OBJECT_STATUS_META[selectedObjectForCompare.status].label}
+                  </span>
+                  {selectedObjectForCompare.isTargetMissing && (
+                    <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      原因：目标记录缺失
                     </span>
                   )}
                 </div>
