@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  ChevronDown,
   ArrowRight,
   Database,
   Info,
@@ -66,7 +65,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   // 筛选与搜索
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONFIGURED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
 
   // 分页状态
@@ -292,52 +290,24 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           </p>
         </div>
 
-        {/* 顶部快捷操作工具栏 (统一 32px 高度，严格顺序：新建字段映射 -> 生效配置 -> 数据同步 -> 查询预览) */}
+        {/* 顶部快捷操作工具栏 */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 1. 新建字段映射 (带下拉菜单) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-              disabled={!hasPermission}
-              className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 transition-colors cursor-pointer whitespace-nowrap ${
-                hasPermission
-                  ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)]'
-                  : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
-              }`}
-            >
-              <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span className="whitespace-nowrap">新建字段映射</span>
-              <ChevronDown className="w-3 h-3 ml-0.5 shrink-0" />
-            </button>
-
-            {showCreateDropdown && (
-              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1 w-44 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm shadow-ty-md py-1 z-30 text-ty-xs text-[var(--ty-font-main-color)] animate-in fade-in zoom-in duration-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateDropdown(false);
-                    onOpenCreateSingle();
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer whitespace-nowrap"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0" />
-                  <span>单个新建映射</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateDropdown(false);
-                    onOpenBatchImport();
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-[var(--ty-fill-weak-dark-color)] flex items-center space-x-2 cursor-pointer border-t border-[var(--ty-border-light-color)] whitespace-nowrap"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--ty-green-color)] shrink-0" />
-                  <span>从 PLM 批量选择</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={onOpenCreateSingle}
+            disabled={!hasPermission}
+            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${hasPermission ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-white' : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'}`}
+          >
+            <Plus className="w-3.5 h-3.5" />新建属性
+          </button>
+          <button
+            type="button"
+            onClick={onOpenBatchImport}
+            disabled={!hasPermission}
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />批量同步属性
+          </button>
 
           {/* 2. 发布配置 */}
           <button
