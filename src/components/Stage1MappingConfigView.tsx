@@ -24,6 +24,7 @@ import { ObjectTypeListView } from './stage1-mapping/ObjectTypeListView';
 import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
 import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
 import { BatchImportModal } from './stage1-mapping/BatchImportModal';
+import { BatchDisplayOrderModal } from './stage1-mapping/BatchDisplayOrderModal';
 import {
   PublishConfigModal,
   Stage1QueryPreviewModal,
@@ -113,6 +114,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   const [detailTargetField, setDetailTargetField] = useState<FieldMappingItem | null>(null);
 
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
+  const [isBatchDisplayOrderOpen, setIsBatchDisplayOrderOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isQueryPreviewOpen, setIsQueryPreviewOpen] = useState(false);
 
@@ -221,6 +223,44 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     if (newDrafts.length > 0) {
       updateRootTypeStats(newDrafts[0].rootTypeId, nextMappings);
     }
+  };
+
+  // 批量调整已有属性的展示顺序。展示顺序只影响前台排列，不改变底层字段结构。
+  const handleBatchUpdateDisplayOrder = (fieldIds: string[], displayOrder: number) => {
+    const selectedIds = new Set(fieldIds);
+    let nextMappings: FieldMappingItem[] = [];
+
+    setFieldMappings(previous => {
+      nextMappings = previous.map(field => {
+        if (field.rootTypeId !== currentRootType.id || !selectedIds.has(field.id)) return field;
+
+        if (field.configStatus === 'CONFIGURED') {
+          return {
+            ...field,
+            hasDraftModification: true,
+            draftData: {
+              ...(field.draftData || {}),
+              displayOrder,
+              defaultDisplayOrder: displayOrder
+            },
+            updatedAt: '刚刚 (批量调整顺序)',
+            updatedBy: '当前用户'
+          };
+        }
+
+        return {
+          ...field,
+          displayOrder,
+          defaultDisplayOrder: displayOrder,
+          updatedAt: '刚刚 (批量调整顺序)',
+          updatedBy: '当前用户'
+        };
+      });
+      return nextMappings;
+    });
+
+    updateRootTypeStats(currentRootType.id, nextMappings);
+    setOperationMessage(`已将 ${fieldIds.length} 个属性的展示顺序统一调整为 ${displayOrder}，并保存为草稿。`);
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
@@ -388,6 +428,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onBackToOverview={handleBackToOverview}
           onOpenCreateSingle={handleOpenCreateSingle}
           onOpenBatchImport={() => setIsBatchImportOpen(true)}
+          onOpenBatchDisplayOrder={() => setIsBatchDisplayOrderOpen(true)}
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
           onPublishConfig={() => setIsPublishModalOpen(true)}
@@ -424,7 +465,17 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         hasPermission={hasPermission}
       />
 
-      {/* 模态框 3：生效配置影响确认 */}
+      {/* 模态框 3：批量调整已有属性展示顺序 */}
+      <BatchDisplayOrderModal
+        isOpen={isBatchDisplayOrderOpen}
+        onClose={() => setIsBatchDisplayOrderOpen(false)}
+        currentRootType={currentRootType}
+        fields={fieldMappings}
+        onSave={handleBatchUpdateDisplayOrder}
+        hasPermission={hasPermission}
+      />
+
+      {/* 模态框 4：生效配置影响确认 */}
       <PublishConfigModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}

@@ -9,6 +9,7 @@ import {
   Eye,
   HelpCircle,
   FileSpreadsheet,
+  ListOrdered,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -35,6 +36,7 @@ interface FieldMappingListViewProps {
   onBackToOverview: () => void;
   onOpenCreateSingle: () => void;
   onOpenBatchImport: () => void;
+  onOpenBatchDisplayOrder: () => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
   onPublishConfig: () => void;
@@ -52,6 +54,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onBackToOverview,
   onOpenCreateSingle,
   onOpenBatchImport,
+  onOpenBatchDisplayOrder,
   onEditField,
   onViewFieldDetail,
   onPublishConfig,
@@ -307,6 +310,15 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />批量同步属性
+          </button>
+          <button
+            type="button"
+            onClick={onOpenBatchDisplayOrder}
+            disabled={!hasPermission || rootTypeFields.length === 0}
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            title="选择多个已有属性并统一设置展示顺序"
+          >
+            <ListOrdered className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />批量调整顺序
           </button>
 
           {/* 2. 发布配置 */}
