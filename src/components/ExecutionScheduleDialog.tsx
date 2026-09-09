@@ -43,7 +43,7 @@ export function ExecutionScheduleDialog({
         >
           <div className="plan-dialog-body">
             <div className="notice">
-              此计划只负责“中间表 → Manticore”。“源端 → 中间表”的执行频率由上游采集任务管理，本页面只查看采集日志。
+              此计划只负责“中间表 → Manticore”。“源端 → 中间表”的执行由上游中间件管理，本系统只查看中间表写入异常日志。
             </div>
             <label className="inline-control">
               <input

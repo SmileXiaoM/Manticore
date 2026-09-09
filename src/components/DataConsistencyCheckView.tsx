@@ -3,7 +3,7 @@ import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
 import { ConsistencyScopeEditor } from './ConsistencyScopeEditor';
 import { getScopeFields, newScopeDraft } from '../data/consistencyScope';
 import React, { useMemo, useRef, useState } from 'react';
-import { FileCheck2, Loader2, Play, Plus, Settings2, X } from 'lucide-react';
+import { FileCheck2, Loader2, Play, Plus, X } from 'lucide-react';
 import {
   ConsistencyBatchRecord,
   ConsistencyPlan,
@@ -146,7 +146,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const updateBatches = onUpdateBatches ?? setInternalBatches;
   const updatePlans = onUpdatePlans ?? setInternalPlans;
   const [runOpen, setRunOpen] = useState(false);
-  const [showPlanManagement, setShowPlanManagement] = useState(false);
   const [rootFilter, setRootFilter] = useState(initialRootTypeFilter);
   const [draft, setDraft] = useState<ConsistencyPlan | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -345,17 +344,84 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               ))}
             </select>
           </label>
-          <button
-            aria-expanded={showPlanManagement}
-            aria-controls="consistency-plan-management"
-            onClick={() => setShowPlanManagement((value) => !value)}
-          >
-            <Settings2 size={16} />
-            核验方案
-          </button>
           <span className="muted context-note">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
         </div>
       </header>
+
+      <section className="panel plan-management" id="consistency-plan-management" aria-label="核验方案定义">
+        <div className="section-heading">
+          <div>
+            <h2>核验方案</h2>
+            <p className="muted">方案定义核验字段、可用运行方式及方案自己的自动核验频率。</p>
+          </div>
+          <div className="actions">
+            <span className="muted">{visiblePlans.length} 个方案</span>
+            <button
+              onClick={() => {
+                setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
+                setNotice('');
+              }}
+            >
+              <Plus size={16} />
+              新建方案
+            </button>
+          </div>
+        </div>
+        {visiblePlans.length ? (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>方案名称</th>
+                  <th>适用根类型</th>
+                  <th>范围规则</th>
+                  <th>核验属性</th>
+                  <th>默认运行方式</th>
+                  <th>自动核验</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiblePlans.map((plan) => (
+                  <tr key={plan.id}>
+                    <td>{plan.name}</td>
+                    <td>{rootName(plan.rootTypeCode)}</td>
+                    <td>{scopeLabel(plan.scopeRule)}</td>
+                    <td>{plan.comparisonFieldKeys.length} 项</td>
+                    <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
+                    <td>{planScheduleLabel(plan)}</td>
+                    <td>
+                      <div className="actions">
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            setDraft(structuredClone(plan));
+                            setNotice('');
+                          }}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            choosePlan(plan.id);
+                            setRunOpen(true);
+                          }}
+                        >
+                          发起核验
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">暂无核验方案，请先新建方案。</div>
+        )}
+      </section>
+
       {notice && (
         <p role="status" className="notice">
           {notice}
@@ -464,82 +530,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </table>
         </div>
       </section>
-
-      {showPlanManagement && (
-        <section className="panel plan-management" id="consistency-plan-management" aria-label="核验方案定义">
-          <div className="section-heading">
-            <div>
-              <h2>核验方案</h2>
-              <p className="muted">方案定义核验字段、可用运行方式及方案自己的自动核验频率。</p>
-            </div>
-            <div className="actions">
-              <span className="muted">{visiblePlans.length} 个方案</span>
-              <button
-                onClick={() => {
-                  setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
-                  setNotice('');
-                }}
-              >
-                <Plus size={16} />
-                新建方案
-              </button>
-            </div>
-          </div>
-          {visiblePlans.length ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>方案名称</th>
-                    <th>适用根类型</th>
-                    <th>范围规则</th>
-                    <th>核验属性</th>
-                    <th>默认运行方式</th>
-                    <th>自动核验</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visiblePlans.map((plan) => (
-                    <tr key={plan.id}>
-                      <td>{plan.name}</td>
-                      <td>{rootName(plan.rootTypeCode)}</td>
-                      <td>{scopeLabel(plan.scopeRule)}</td>
-                      <td>{plan.comparisonFieldKeys.length} 项</td>
-                      <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
-                      <td>{planScheduleLabel(plan)}</td>
-                      <td>
-                        <div className="actions">
-                          <button
-                            className="text-button"
-                            onClick={() => {
-                              setDraft(structuredClone(plan));
-                              setNotice('');
-                            }}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            className="text-button"
-                            onClick={() => {
-                              choosePlan(plan.id);
-                              setRunOpen(true);
-                            }}
-                          >
-                            发起核验
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-state">暂无核验方案，请先新建方案。</div>
-          )}
-        </section>
-      )}
 
       {runOpen && (
         <ConsistencyPlanDialog title="发起核验" closeLabel="关闭发起核验弹窗" onDismiss={() => setRunOpen(false)}>
