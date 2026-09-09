@@ -263,7 +263,7 @@ export default function App() {
                 records={targetSyncRecords}
                 onRetryRecord={(recordId) => setTargetSyncRecords((previous) => previous.map((record) => (
                   record.id === recordId
-                    ? { ...record, status: 'PENDING', processedAt: undefined, retryCount: record.retryCount + 1 }
+                    ? { ...record, status: 'PENDING', processedAt: undefined }
                     : record
                 )))}
               />

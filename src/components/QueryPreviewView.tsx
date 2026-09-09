@@ -33,6 +33,7 @@ import {
   ObjectType
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface QueryPreviewViewProps {
   editingRules: FieldSimilarityRule[];
@@ -86,9 +87,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   // 结果区 Tab: 参与评分候选 vs 已排除候选
   const [activeTab, setActiveTab] = useState<'SCORED' | 'EXCLUDED'>('SCORED');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // 算分明细抽屉选中的候选件
   const [selectedCandidate, setSelectedCandidate] = useState<ScoredCandidate | null>(null);
+  const scoredPage = paginateRows<ScoredCandidate>(lastRunContext?.searchResult.scoredCandidates || [], page, pageSize);
+  const excludedPage = paginateRows<ExcludedCandidate>(lastRunContext?.searchResult.excludedCandidates || [], page, pageSize);
 
   // 根类型变更响应
   const handleRootTypeChange = (newRootId: string) => {
@@ -193,6 +198,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
       setLastRunContext(snapshot);
       setIsSearching(false);
+      setPage(1);
       // 默认聚焦有结果的 Tab
       if (result.scoredCandidates.length === 0 && result.excludedCandidates.length > 0) {
         setActiveTab('EXCLUDED');
@@ -529,7 +535,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           {/* 结果分栏 Tabs */}
           <div className="border-b border-[var(--ty-border-color)] px-4 flex items-center gap-4 bg-[var(--ty-fill-white-color)]">
             <button
-              onClick={() => setActiveTab('SCORED')}
+              onClick={() => { setActiveTab('SCORED'); setPage(1); }}
               className={`py-3 text-ty-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
                 activeTab === 'SCORED'
                   ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -548,7 +554,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('EXCLUDED')}
+              onClick={() => { setActiveTab('EXCLUDED'); setPage(1); }}
               className={`py-3 text-ty-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
                 activeTab === 'EXCLUDED'
                   ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)]'
@@ -578,6 +584,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   未找到符合当前评分条件的相似件
                 </div>
               ) : (
+                <>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-ty-xs border-collapse">
                     <thead>
@@ -594,14 +601,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                      {lastRunContext.searchResult.scoredCandidates.map((cand, idx) => (
+                      {scoredPage.rows.map((cand, idx) => (
                         <tr
                           key={cand.objectId}
                           className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors"
                           id={`candidate-row-${cand.objectId}`}
                         >
                           <td className="py-3 px-4 text-center font-mono font-bold text-[var(--ty-font-sub-light-color)]">
-                            {idx + 1}
+                            {(scoredPage.currentPage - 1) * pageSize + idx + 1}
                           </td>
 
                           {/* 标识与名称 */}
@@ -696,6 +703,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     </tbody>
                   </table>
                 </div>
+                <TablePagination total={lastRunContext.searchResult.scoredCandidates.length} page={scoredPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+                </>
               )}
             </div>
           )}
@@ -708,6 +717,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   当前试算未发现被门槛规则排除的候选件
                 </div>
               ) : (
+                <>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-ty-xs border-collapse">
                     <thead>
@@ -722,14 +732,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                      {lastRunContext.searchResult.excludedCandidates.map((exc, idx) => (
+                      {excludedPage.rows.map((exc, idx) => (
                         <tr
                           key={exc.objectId}
                           className="hover:bg-[var(--ty-orange-light-color)]/20 transition-colors"
                           id={`excluded-row-${exc.objectId}`}
                         >
                           <td className="py-3 px-4 text-center font-mono text-[var(--ty-font-sub-light-color)]">
-                            {idx + 1}
+                            {(excludedPage.currentPage - 1) * pageSize + idx + 1}
                           </td>
 
                           {/* 被排除对象 */}
@@ -772,6 +782,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                     </tbody>
                   </table>
                 </div>
+                <TablePagination total={lastRunContext.searchResult.excludedCandidates.length} page={excludedPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+                </>
               )}
             </div>
           )}

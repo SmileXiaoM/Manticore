@@ -28,6 +28,7 @@ import { preparePlanRun, resolvePlanSnapshot } from '../data/consistencyPlans';
 import { initialMappingObjectTypes, initialFieldMappings } from '../stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface DataConsistencyCheckViewProps {
   initialRootTypeFilter?: string;
@@ -159,6 +160,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ObjectResultFilter>('ALL');
   const [page, setPage] = useState(1);
+  const [planPage, setPlanPage] = useState(1);
+  const [planPageSize, setPlanPageSize] = useState(10);
+  const [recordPage, setRecordPage] = useState(1);
+  const [recordPageSize, setRecordPageSize] = useState(10);
   const [objectId, setObjectId] = useState<string | null>(null);
   const [showAllFields, setShowAllFields] = useState(false);
   const submitting = useRef(false);
@@ -201,6 +206,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const runError = running ? '已有核验正在执行，请等待完成' : !selectedPlan ? '请先选择核验方案' : prepared.error;
   const visiblePlans = plans.filter((plan) => rootFilter === 'ALL' || plan.rootTypeCode === rootFilter);
   const visibleBatches = batches.filter((batch) => rootFilter === 'ALL' || batch.rootTypeCode === rootFilter);
+  const { currentPage: currentPlanPage, rows: pagePlans } = paginateRows<ConsistencyPlan>(visiblePlans, planPage, planPageSize);
+  const { currentPage: currentRecordPage, rows: pageBatches } = paginateRows<ConsistencyBatchRecord>(visibleBatches, recordPage, recordPageSize);
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId);
   const selectedObject = selectedBatch?.objectResults.find((object) => object.objectId === objectId);
   const filteredObjects =
@@ -335,6 +342,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               onChange={(event) => {
                 setRootFilter(event.target.value);
                 setSelectedBatchId(null);
+                setPlanPage(1);
+                setRecordPage(1);
                 choosePlan('');
               }}
             >
@@ -370,6 +379,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </div>
         </div>
         {visiblePlans.length ? (
+          <>
           <div className="table-scroll">
             <table>
               <thead>
@@ -384,7 +394,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </tr>
               </thead>
               <tbody>
-                {visiblePlans.map((plan) => (
+                {pagePlans.map((plan) => (
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
                     <td>{rootName(plan.rootTypeCode)}</td>
@@ -419,6 +429,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </tbody>
             </table>
           </div>
+          <TablePagination total={visiblePlans.length} page={currentPlanPage} pageSize={planPageSize} itemLabel="个方案" onPageChange={setPlanPage} onPageSizeChange={(size) => { setPlanPageSize(size); setPlanPage(1); }} />
+          </>
         ) : (
           <div className="empty-state">暂无核验方案，请先新建方案。</div>
         )}
@@ -473,9 +485,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </tr>
             </thead>
             <tbody>
-              {visibleBatches.map((batch, index) => (
+              {pageBatches.map((batch, index) => (
                 <tr key={batch.id}>
-                  <td className="sequence-column">{index + 1}</td>
+                  <td className="sequence-column">{(currentRecordPage - 1) * recordPageSize + index + 1}</td>
                   <td>
                     <strong>{batch.planName}</strong>
                     <small className="muted">{batch.executedAt}</small>
@@ -531,6 +543,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             </tbody>
           </table>
         </div>
+        <TablePagination total={visibleBatches.length} page={currentRecordPage} pageSize={recordPageSize} itemLabel="次" onPageChange={setRecordPage} onPageSizeChange={(size) => { setRecordPageSize(size); setRecordPage(1); }} />
       </section>
 
       {runOpen && (

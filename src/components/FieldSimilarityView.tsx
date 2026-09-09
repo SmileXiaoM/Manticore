@@ -39,6 +39,7 @@ import {
   calculateFieldMatchRate
 } from '../data';
 import { useFeedback } from './ui/FeedbackProvider';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -128,6 +129,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [filterKeyword, setFilterKeyword] = useState('');
   const [filterScoreActive, setFilterScoreActive] = useState('ALL');
   const [filterMismatchAction, setFilterMismatchAction] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // 3. 模态框/编辑抽屉状态
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -201,6 +204,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return true;
     });
   }, [currentScopeEditingRules, filterKeyword, filterScoreActive, filterMismatchAction]);
+  const { currentPage, rows: pageRules } = paginateRows<FieldSimilarityRule>(filteredRules, page, pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedRootTypeId, selectedSoftTypeId]);
 
   // 统计指标
   const activeScoreRulesCount = currentScopeEditingRules.filter(r => r.isScoreActive && r.enabled).length;
@@ -816,7 +824,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 type="text"
                 placeholder="搜索字段名或编码..."
                 value={filterKeyword}
-                onChange={e => setFilterKeyword(e.target.value)}
+                onChange={e => { setFilterKeyword(e.target.value); setPage(1); }}
                 className="w-full h-8 pl-8 pr-3 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] placeholder-[var(--ty-font-sub-light-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
                 id="filter-rules-keyword-input"
               />
@@ -825,7 +833,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {/* 参与评分过滤 */}
             <select
               value={filterScoreActive}
-              onChange={e => setFilterScoreActive(e.target.value)}
+              onChange={e => { setFilterScoreActive(e.target.value); setPage(1); }}
               className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
               id="filter-score-active-select"
             >
@@ -837,7 +845,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {/* 不满足处理方式过滤 */}
             <select
               value={filterMismatchAction}
-              onChange={e => setFilterMismatchAction(e.target.value)}
+              onChange={e => { setFilterMismatchAction(e.target.value); setPage(1); }}
               className="h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
               id="filter-mismatch-action-select"
             >
@@ -880,6 +888,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             没有符合当前筛选条件的字段规则
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-ty-xs border-collapse">
               <thead>
@@ -895,7 +904,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                {filteredRules.map((rule, idx) => {
+                {pageRules.map((rule, idx) => {
                   const isGate = rule.mismatchAction === 'EXCLUDE_CANDIDATE';
                   return (
                     <tr
@@ -904,7 +913,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       id={`rule-row-${rule.id}`}
                     >
                       <td className="py-3 px-4 text-center text-[var(--ty-font-sub-light-color)] font-mono text-ty-2xs">
-                        {idx + 1}
+                        {(currentPage - 1) * pageSize + idx + 1}
                       </td>
 
                       {/* 字段名称 / 编码 */}
@@ -1014,6 +1023,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </tbody>
             </table>
           </div>
+          <TablePagination total={filteredRules.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+          </>
         )}
       </div>
 

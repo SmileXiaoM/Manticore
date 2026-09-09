@@ -23,6 +23,7 @@ import {
   targetSyncOperationLabel,
   targetSyncStatusLabel,
 } from '../data/targetSyncRecords';
+import { formatCompactNumber, paginateRows, TablePagination } from './ui/TablePagination';
 
 const rootName: Record<string, string> = { PART: '零部件', DOCUMENT: '文档', PROCESS: '工艺路线' };
 const statusClass: Record<TargetSyncStatus, string> = {
@@ -57,6 +58,9 @@ export function ManticoreSyncQueueView({
   const [detailId, setDetailId] = useState<string | null>(null);
   const [showJson, setShowJson] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [retryConfirmId, setRetryConfirmId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const scoped = useMemo(
     () => records.filter((row) => rootType === 'ALL' || row.rootTypeCode === rootType),
@@ -76,6 +80,7 @@ export function ManticoreSyncQueueView({
       row.traceId,
     ].some((value) => value?.toLowerCase().includes(term));
   }), [scoped, status, keyword]);
+  const { currentPage, rows: pageRows } = paginateRows<TargetSyncRecord>(visible, page, pageSize);
 
   const detail = records.find((row) => row.id === detailId);
   const count = (target: TargetSyncStatus) => scoped.filter((row) => row.status === target).length;
@@ -102,8 +107,13 @@ export function ManticoreSyncQueueView({
   }, [detailId]);
 
   const retry = (recordId: string) => {
+    const record = records.find((item) => item.id === recordId);
+    const root = roots.find((item) => item.id === record?.rootTypeCode);
     onRetryRecord?.(recordId);
-    setFeedback('已提交人工重试，记录已回到待处理队列。');
+    setRetryConfirmId(null);
+    setFeedback(root?.accessEnabled
+      ? '已重新入队。记录已变为待处理，将在该对象下一次同步任务执行时重试。'
+      : '已重新入队，但该对象当前已停用；启用接入配置后，记录才会被调度处理。');
   };
 
   const copyJson = async (record: TargetSyncRecord) => {
@@ -116,11 +126,11 @@ export function ManticoreSyncQueueView({
   };
 
   const metrics = [
-    { label: '未处理', value: count('PENDING').toLocaleString(), icon: <Clock3 className="w-4 h-4" /> },
-    { label: '中间表总数据量', value: scoped.length.toLocaleString(), icon: <Database className="w-4 h-4" /> },
-    { label: '已处理成功', value: count('PROCESSED').toLocaleString(), icon: <CheckCircle2 className="w-4 h-4" /> },
-    { label: '当前失败', value: count('FAILED').toLocaleString(), icon: <AlertTriangle className="w-4 h-4" /> },
-    { label: '目标表当前数据量', value: targetCount.toLocaleString(), icon: <Server className="w-4 h-4" /> },
+    { label: '未处理', value: formatCompactNumber(count('PENDING')), exactValue: count('PENDING'), icon: <Clock3 className="w-4 h-4" /> },
+    { label: '中间表总数据量', value: formatCompactNumber(scoped.length), exactValue: scoped.length, icon: <Database className="w-4 h-4" /> },
+    { label: '已处理成功', value: formatCompactNumber(count('PROCESSED')), exactValue: count('PROCESSED'), icon: <CheckCircle2 className="w-4 h-4" /> },
+    { label: '当前失败', value: formatCompactNumber(count('FAILED')), exactValue: count('FAILED'), icon: <AlertTriangle className="w-4 h-4" /> },
+    { label: '目标表当前数据量', value: formatCompactNumber(targetCount), exactValue: targetCount, icon: <Server className="w-4 h-4" /> },
     { label: '最近处理时间', value: latestProcessedAt, icon: <Clock3 className="w-4 h-4" />, time: true },
   ];
 
@@ -150,7 +160,7 @@ export function ManticoreSyncQueueView({
           <div key={metric.label} className="min-w-0 bg-white border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{metric.label}</span>
-              <strong className={`${metric.time ? 'text-ty-xs' : 'text-ty-xl'} mt-1 block font-mono truncate`} title={metric.value}>{metric.value}</strong>
+              <strong className={`${metric.time ? 'text-ty-xs' : 'text-ty-xl'} mt-1 block font-mono truncate`} title={metric.exactValue === undefined ? metric.value : metric.exactValue.toLocaleString('zh-CN')}>{metric.value}</strong>
             </div>
             <div className="shrink-0 w-8 h-8 rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] flex items-center justify-center">{metric.icon}</div>
           </div>
@@ -160,26 +170,26 @@ export function ManticoreSyncQueueView({
       <section className="bg-white border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">对象类型</span>
-          <select value={rootType} onChange={(event) => setRootType(event.target.value)} aria-label="同步队列对象类型" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
+          <select value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} aria-label="同步队列对象类型" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
             <option value="ALL">全部类型</option>
             {roots.map((root) => <option key={root.id} value={root.id}>{rootName[root.id]}</option>)}
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">处理状态</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value as 'ALL' | TargetSyncStatus)} aria-label="同步队列状态" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
+          <select value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | TargetSyncStatus); setPage(1); }} aria-label="同步队列状态" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
             <option value="ALL">全部状态</option>
             {Object.entries(targetSyncStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56">
-          <span className="block">记录 ID / 对象 OID / 业务唯一键 / 失败原因</span>
+          <span className="block">记录 ID / 对象 OID / 业务唯一键 / 失败信息</span>
           <span className="relative block">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" />
-            <input aria-label="搜索同步队列" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" />
+            <input aria-label="搜索同步队列" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" />
           </span>
         </label>
-        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]">
+        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]">
           <RotateCcw className="w-3.5 h-3.5" />重置
         </button>
       </section>
@@ -199,7 +209,7 @@ export function ManticoreSyncQueueView({
       <section className="bg-white border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--ty-border-color)]">
           <h2 className="text-ty-sm font-semibold">同步记录</h2>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条；失败记录支持查看详情和人工重试。</p>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条；失败记录可查看详情，并重新放回待处理队列。</p>
         </div>
         <div className="overflow-auto max-h-88">
           <table className="w-full min-w-[1720px] text-ty-xs">
@@ -214,14 +224,14 @@ export function ManticoreSyncQueueView({
                 <th className="px-3 py-2 text-left">接收时间</th>
                 <th className="px-3 py-2 text-left">处理时间</th>
                 <th className="px-3 py-2 text-right">重试次数</th>
-                <th className="px-3 py-2 text-left">失败原因</th>
+                <th className="px-3 py-2 text-left">失败信息</th>
                 <th className="sticky right-0 z-30 px-3 py-2 text-center bg-[var(--ty-fill-weak-dark-color)]">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-              {visible.map((row, index) => (
+              {pageRows.map((row, index) => (
                 <tr key={row.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50">
-                  <td className="px-3 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                  <td className="px-3 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
                   <td className="px-3 py-3">
                     <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-medium ${statusClass[row.status]}`}>{targetSyncStatusLabel[row.status]}</span>
                   </td>
@@ -233,11 +243,13 @@ export function ManticoreSyncQueueView({
                   <td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{row.processedAt || '—'}</td>
                   <td className="px-3 py-3 text-right font-mono">{row.retryCount}</td>
                   <td className="px-3 py-3">
-                    {row.failureReason ? <span className={`${row.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'} block max-w-64 truncate`} title={row.failureReason}>{row.failureReason}</span> : <span className="text-[var(--ty-font-sub-light-color)]">—</span>}
+                    {row.failureReason
+                      ? <span className={`${row.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'} block max-w-64 truncate`} title={row.failureReason}>{row.status === 'FAILED' ? row.failureReason : `上次失败：${row.failureReason}`}</span>
+                      : <span className="text-[var(--ty-font-sub-light-color)]">—</span>}
                   </td>
                   <td className="sticky right-0 px-3 py-3 text-center bg-white whitespace-nowrap">
                     <button type="button" onClick={() => setDetailId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><Eye className="w-3.5 h-3.5" />详情</button>
-                    {row.status === 'FAILED' && <button type="button" onClick={() => retry(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><RefreshCw className="w-3.5 h-3.5" />人工重试</button>}
+                    {row.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
                   </td>
                 </tr>
               ))}
@@ -245,6 +257,7 @@ export function ManticoreSyncQueueView({
           </table>
         </div>
         {!visible.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">暂无数据</div>}
+        <TablePagination total={visible.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
 
       {detail && (
@@ -297,9 +310,25 @@ export function ManticoreSyncQueueView({
             <footer className="shrink-0 px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex items-center justify-between gap-3">
               <button type="button" onClick={() => setShowJson((current) => !current)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white inline-flex items-center gap-2 hover:bg-[var(--ty-fill-color)]"><FileJson className="w-3.5 h-3.5" />{showJson ? '收起原始 JSON' : '查看原始 JSON'}</button>
               <div className="flex items-center gap-2">
-                {detail.status === 'FAILED' && <button type="button" onClick={() => retry(detail.id)} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-white inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />人工重试</button>}
+                {detail.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmId(detail.id)} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-white inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
                 <button type="button" className="h-8 min-w-16 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white" onClick={() => setDetailId(null)}>关闭</button>
               </div>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {retryConfirmId && (
+        <div className="fixed inset-0 z-[60] bg-ty-overlay flex items-center justify-center p-4" onMouseDown={(event) => event.target === event.currentTarget && setRetryConfirmId(null)}>
+          <section role="alertdialog" aria-modal="true" aria-label="确认重新入队" className="w-[min(480px,calc(100vw-32px))] bg-white border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
+            <header className="px-4 py-3 border-b border-[var(--ty-border-color)]"><h2 className="text-ty-lg font-semibold">确认重新入队</h2></header>
+            <div className="p-4 text-ty-sm leading-6">
+              <p>记录将变为“待处理”，并在该对象下一次同步任务执行时重试。</p>
+              <p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">上次失败原因会保留，便于后续复盘；重新入队不会立即写入 Manticore。</p>
+            </div>
+            <footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex justify-end gap-2">
+              <button type="button" className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white" onClick={() => setRetryConfirmId(null)}>取消</button>
+              <button type="button" className="h-8 px-4 border border-[var(--ty-primary-color)] rounded-ty-sm bg-[var(--ty-primary-color)] text-white" onClick={() => retry(retryConfirmId)}>确认重新入队</button>
             </footer>
           </section>
         </div>

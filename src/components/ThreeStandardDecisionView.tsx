@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ThresholdRule, HardRule, CategoryCoverage, ObjectType } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface ThreeStandardDecisionViewProps {
   thresholdRules: ThresholdRule[];
@@ -38,6 +39,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
   const { notify, confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'threshold' | 'hard' | 'coverage'>('threshold');
   const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Editing overlay state
   const [editingRule, setEditingRule] = useState<{
@@ -71,6 +74,9 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       r.weightOverrideInfo.toLowerCase().includes(keyword.toLowerCase())
     );
   }, [coverages, keyword]);
+  const thresholdPage = paginateRows<ThresholdRule>(filteredThresholds, page, pageSize);
+  const hardRulePage = paginateRows<HardRule>(filteredHardRules, page, pageSize);
+  const coveragePage = paginateRows<CategoryCoverage>(filteredCoverages, page, pageSize);
 
   // CRUD handlers
   const handleEdit = (type: 'threshold' | 'hard' | 'coverage', item: any) => {
@@ -254,7 +260,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         {/* Tab Selection */}
         <div className="flex border-b border-[var(--ty-border-color)] mt-4">
           <button
-            onClick={() => { setActiveTab('threshold'); setKeyword(''); }}
+            onClick={() => { setActiveTab('threshold'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'threshold'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -264,7 +270,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             决策阈值规则 ({filteredThresholds.length})
           </button>
           <button
-            onClick={() => { setActiveTab('hard'); setKeyword(''); }}
+            onClick={() => { setActiveTab('hard'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'hard'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -274,7 +280,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             硬性控制与强制复核 ({filteredHardRules.length})
           </button>
           <button
-            onClick={() => { setActiveTab('coverage'); setKeyword(''); }}
+            onClick={() => { setActiveTab('coverage'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'coverage'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -293,7 +299,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           <input
             type="text"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
             placeholder={
               activeTab === 'threshold'
                 ? "搜索阈值规则名称、适用分类..."
@@ -346,9 +352,9 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                         <td colSpan={10} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的阈值规则</td>
                       </tr>
                     ) : (
-                      filteredThresholds.map((r, index) => (
+                      thresholdPage.rows.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(thresholdPage.currentPage - 1) * pageSize + index + 1}</td>
                           <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
@@ -398,6 +404,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   </tbody>
                 </table>
               </div>
+              <TablePagination total={filteredThresholds.length} page={thresholdPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
             </div>
           </div>
         )}
@@ -426,9 +433,9 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                         <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
                       </tr>
                     ) : (
-                      filteredHardRules.map((r, index) => (
+                      hardRulePage.rows.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(hardRulePage.currentPage - 1) * pageSize + index + 1}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</div>
                             <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">测试示例：{r.triggerExample}</div>
@@ -501,6 +508,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   </tbody>
                 </table>
               </div>
+              <TablePagination total={filteredHardRules.length} page={hardRulePage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
             </div>
           </div>
         )}
@@ -538,9 +546,9 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                         <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类覆盖绑定关系</td>
                       </tr>
                     ) : (
-                      filteredCoverages.map((r, index) => (
+                      coveragePage.rows.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(coveragePage.currentPage - 1) * pageSize + index + 1}</td>
                           <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] font-mono whitespace-nowrap">{r.categoryPath}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {r.inheritParent ? (
@@ -593,6 +601,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   </tbody>
                 </table>
               </div>
+              <TablePagination total={filteredCoverages.length} page={coveragePage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
             </div>
           </div>
         )}

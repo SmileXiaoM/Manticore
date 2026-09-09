@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { StandardizationRule, SynonymRule, ClassificationAlignmentRule, ObjectType } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface DataProcessingViewProps {
   standardizationRules: StandardizationRule[];
@@ -36,6 +37,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
   const { notify, confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'standard' | 'synonym' | 'align'>('standard');
   const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Editing modal state
   const [editingRule, setEditingRule] = useState<{
@@ -70,6 +73,9 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       r.standardPath.toLowerCase().includes(keyword.toLowerCase())
     );
   }, [alignmentRules, keyword]);
+  const standardPage = paginateRows<StandardizationRule>(filteredStandard, page, pageSize);
+  const synonymPage = paginateRows<SynonymRule>(filteredSynonym, page, pageSize);
+  const alignPage = paginateRows<ClassificationAlignmentRule>(filteredAlign, page, pageSize);
 
   // CRUD operation handlers
   const handleEdit = (type: 'standard' | 'synonym' | 'align', item: any) => {
@@ -278,7 +284,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         {/* Tab Headers */}
         <div className="flex border-b border-[var(--ty-border-color)] mt-4">
           <button
-            onClick={() => { setActiveTab('standard'); setKeyword(''); }}
+            onClick={() => { setActiveTab('standard'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'standard'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -288,7 +294,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
             标准化规则 ({filteredStandard.length})
           </button>
           <button
-            onClick={() => { setActiveTab('synonym'); setKeyword(''); }}
+            onClick={() => { setActiveTab('synonym'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'synonym'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -298,7 +304,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
             同义词规则 ({filteredSynonym.length})
           </button>
           <button
-            onClick={() => { setActiveTab('align'); setKeyword(''); }}
+            onClick={() => { setActiveTab('align'); setKeyword(''); setPage(1); }}
             className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'align'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
@@ -317,7 +323,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           <input
             type="text"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
             placeholder={
               activeTab === 'standard'
                 ? "搜索规则名称、适用属性..."
@@ -368,9 +374,9 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的标准化规则</td>
                     </tr>
                   ) : (
-                    filteredStandard.map((r, index) => (
+                    standardPage.rows.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(standardPage.currentPage - 1) * pageSize + index + 1}</td>
                         <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
@@ -419,6 +425,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <TablePagination total={filteredStandard.length} page={standardPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
           </div>
         )}
 
@@ -444,9 +451,9 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的同义词规则</td>
                     </tr>
                   ) : (
-                    filteredSynonym.map((r, index) => (
+                    synonymPage.rows.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(synonymPage.currentPage - 1) * pageSize + index + 1}</td>
                         <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.primaryWord}</td>
                         <td className="px-4 py-3 min-w-[200px]">
                           <div className="flex flex-wrap gap-1">
@@ -500,6 +507,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <TablePagination total={filteredSynonym.length} page={synonymPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
           </div>
         )}
 
@@ -525,9 +533,9 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类/类型归一规则</td>
                     </tr>
                   ) : (
-                    filteredAlign.map((r, index) => (
+                    alignPage.rows.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(alignPage.currentPage - 1) * pageSize + index + 1}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="font-semibold text-[var(--ty-font-main-color)]">
                             {r.ruleType === 'CLASSIFICATION' ? '分类路径映射' : r.ruleType === 'TYPE' ? '对象类型归一' : '属性对照'}
@@ -575,6 +583,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <TablePagination total={filteredAlign.length} page={alignPage.currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
           </div>
         )}
 

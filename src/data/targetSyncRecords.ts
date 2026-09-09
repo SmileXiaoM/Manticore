@@ -61,7 +61,8 @@ export const initialTargetSyncRecords: TargetSyncRecord[] = [
   {
     id: 'STG-DOC-0908-0019', rootTypeCode: 'DOCUMENT', stagingTable: 'stg_document', targetIndex: 'idx_document',
     sourceObjectOid: 'OR:wt.doc.WTDocument:208', businessKey: 'DOC-SPEC-2026-0208', operationType: 'UPDATE',
-    receivedAt: '2026-09-08 09:01:58', status: 'PENDING', retryCount: 0, traceId: 'TRC-OUT-0908-0019',
+    receivedAt: '2026-09-08 09:01:58', status: 'PENDING', retryCount: 1,
+    errorCode: 'TARGET_TIMEOUT', failureReason: '上次写入目标索引超时，已由人工重新入队。', traceId: 'TRC-OUT-0908-0019',
     payload: documentPayload('DOC-SPEC-2026-0208', '液压系统设计规范', 'OR:wt.doc.WTDocument:208'),
   },
   {

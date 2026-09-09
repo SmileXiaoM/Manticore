@@ -9,6 +9,7 @@ import {
   Search
 } from 'lucide-react';
 import { ChangeRecord } from '../types';
+import { paginateRows, TablePagination } from './ui/TablePagination';
 
 interface PublishRecordViewProps {
   changeRecords: ChangeRecord[];
@@ -17,6 +18,8 @@ interface PublishRecordViewProps {
 export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeRecords }) => {
   const [filterObjectType, setFilterObjectType] = useState<string>('ALL');
   const [filterOpType, setFilterOpType] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredRecords = changeRecords.filter(r => {
     const objectTypeMap: Record<string, string> = {
@@ -28,6 +31,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
     const matchOp = filterOpType === 'ALL' || r.operationType === filterOpType;
     return matchType && matchOp;
   });
+  const { currentPage, rows: pageRecords } = paginateRows<ChangeRecord>(filteredRecords, page, pageSize);
 
   return (
     <div className="space-y-4" id="publish-record-view-container">
@@ -51,7 +55,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">对象类型:</span>
           <select
             value={filterObjectType}
-            onChange={(e) => setFilterObjectType(e.target.value)}
+            onChange={(e) => { setFilterObjectType(e.target.value); setPage(1); }}
             className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部类型</option>
@@ -64,7 +68,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">操作类型:</span>
           <select
             value={filterOpType}
-            onChange={(e) => setFilterOpType(e.target.value)}
+            onChange={(e) => { setFilterOpType(e.target.value); setPage(1); }}
             className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部操作</option>
@@ -105,9 +109,9 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)]">
               {filteredRecords.length > 0 ? (
-                filteredRecords.map((rec, index) => (
+                pageRecords.map((rec, index) => (
                   <tr key={rec.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                    <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
+                    <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
                     {/* Object Type */}
                     <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">
                       {rec.objectType}
@@ -182,6 +186,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
             </tbody>
           </table>
         </div>
+        <TablePagination total={filteredRecords.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </div>
     </div>
   );
