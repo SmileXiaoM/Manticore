@@ -184,7 +184,7 @@ export function OperationsDashboard({
                         <span className="text-[var(--ty-font-sub-color)] mt-1 block">读取 {latestWriteLog.readCount ?? '待获取'} · 写入 {latestWriteLog.writtenCount ?? '待获取'} · 失败 {latestWriteLog.failedCount ?? '待获取'}</span>
                       </>
                     ) : <span className="text-[var(--ty-font-sub-color)]">暂无写入记录</span>}
-                    <button className="text-[var(--ty-primary-color)] mt-auto pt-3 self-start" onClick={() => onIngestion(root.id)}>写入日志</button>
+                    <button className="text-[var(--ty-primary-color)] mt-auto pt-3 self-start" onClick={() => onIngestion(root.id)}>查看写入日志</button>
                   </section>
                   <section className="p-4 min-h-36 border-b xl:border-b-0 xl:border-r border-[var(--ty-border-light-color)] flex flex-col">
                     <div className="text-[var(--ty-font-sub-color)] mb-2">② Manticore 同步</div>

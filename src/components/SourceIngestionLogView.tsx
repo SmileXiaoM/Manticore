@@ -75,10 +75,10 @@ export function SourceIngestionLogView({
               <h1 className="text-ty-xl font-semibold">中间表写入日志</h1>
               <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span>
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">记录中间件从 PLM 源表读取数据并写入中间表的每次结果；不属于 Manticore 同步任务。</p>
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">记录中间件从 PLM 源表读取数据并写入中间表的每次结果；本系统仅用于发现和定位，源端数据问题需反馈源端责任方处理。</p>
           </div>
         </div>
-        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">当前为原型示例日志</span>
+        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">只读日志 · 不提供问题处置</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -223,7 +223,7 @@ export function SourceIngestionLogView({
               </div>
             </div>
             <footer className="px-5 py-3 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3">
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)]">追踪标识：<code className="inline">{detailLog.traceId || '待获取'}</code></span>
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)]">只读日志 · 追踪标识：<code className="inline">{detailLog.traceId || '待获取'}</code></span>
               <button type="button" onClick={() => setDetailLogId(null)} className="h-8 min-w-[68px] px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-color)]">关闭</button>
             </footer>
           </section>
