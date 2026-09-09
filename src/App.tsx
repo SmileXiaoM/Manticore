@@ -34,7 +34,7 @@ import { initialSyncBatches } from './syncQualityData';
 import { SyncBatch, toSyncRootType } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
-import { initialConsistencyBatches } from './data/consistencyCheckData';
+import { initialConsistencyBatches, initialConsistencyPlans } from './data/consistencyCheckData';
 import { ConsistencyBatchRecord, ConsistencyPlan } from './types/consistencyCheck';
 import { Stage1RuntimeState } from './stage1SyncExecution';
 
@@ -137,7 +137,7 @@ export default function App() {
   const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
 
-  const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>([]);
+  const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>(initialConsistencyPlans);
 
   // Shared Stage 1 Mapping state across Stage 1 Config and Data Consistency Check
   const [stage1State, setStage1State] = useState<Stage1RuntimeState>(() => ({

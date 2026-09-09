@@ -43,7 +43,7 @@ test('dashboard isolates roots, orders by time, and ignores RESET as a sync', ()
   const rows = buildOverview(initialMappingObjectTypes, input as typeof syncs, initialConsistencyBatches);
   assert.equal(rows.find((row) => row.root.id === 'PART')?.latestSync?.id, 'later');
   assert.notEqual(rows.find((row) => row.root.id === 'DOCUMENT')?.latestSync?.id, 'later');
-  assert.equal(rows.find((row) => row.root.id === 'DOCUMENT')?.latestCheck, undefined);
+  assert.equal(rows.find((row) => row.root.id === 'DOCUMENT')?.latestCheck?.rootTypeCode, 'DOCUMENT');
   assert.equal(
     buildOverview(initialMappingObjectTypes, [], []).every(
       (row) => !row.latestSync && !row.latestCheck && row.unresolvedTasks === 0,

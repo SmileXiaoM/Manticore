@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertOctagon, AlertTriangle, DatabaseZap, RotateCcw, Search, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Search, X } from 'lucide-react';
 import {
   IngestionStatus,
   SourceIngestionLog,
@@ -8,6 +8,7 @@ import {
 } from '../data/sourceIngestionLogs';
 
 const statusClass: Record<IngestionStatus, string> = {
+  SUCCESS: 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30',
   PARTIAL_SUCCESS: 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30',
   FAILED: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30',
 };
@@ -46,8 +47,8 @@ export function SourceIngestionLogView({
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
     [scopedLogs, status, keyword],
   );
-  const failedRecords = scopedLogs.reduce((sum, log) => sum + (log.failedCount || 0), 0);
-  const failedTasks = scopedLogs.filter((log) => log.status === 'FAILED').length;
+  const successfulBatches = scopedLogs.filter((log) => log.status === 'SUCCESS').length;
+  const abnormalBatches = scopedLogs.filter((log) => log.status !== 'SUCCESS').length;
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -71,10 +72,10 @@ export function SourceIngestionLogView({
           <DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-ty-xl font-semibold">中间表写入异常日志</h1>
+              <h1 className="text-ty-xl font-semibold">中间表写入日志</h1>
               <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span>
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">记录中间件从 PLM 源表读取数据并写入中间表时产生的异常；不属于 Manticore 同步任务。</p>
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">记录中间件从 PLM 源表读取数据并写入中间表的每次结果；不属于 Manticore 同步任务。</p>
           </div>
         </div>
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">当前为原型示例日志</span>
@@ -82,9 +83,9 @@ export function SourceIngestionLogView({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          ['异常批次', scopedLogs.length, <DatabaseZap className="w-4 h-4" />],
-          ['记录级异常', failedRecords, <AlertTriangle className="w-4 h-4" />],
-          ['任务级异常', failedTasks, <AlertOctagon className="w-4 h-4" />],
+          ['写入批次', scopedLogs.length, <DatabaseZap className="w-4 h-4" />],
+          ['成功批次', successfulBatches, <CheckCircle2 className="w-4 h-4" />],
+          ['异常批次', abnormalBatches, <AlertTriangle className="w-4 h-4" />],
         ].map(([label, value, icon]) => (
           <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center justify-between">
             <div><span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span><strong className="text-ty-xl mt-0.5 block">{value}</strong></div>
@@ -96,7 +97,7 @@ export function SourceIngestionLogView({
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">对象类型</span>
-          <select aria-label="中间表写入异常日志对象类型" value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
+          <select aria-label="中间表写入日志对象类型" value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
             <option value="ALL">全部类型</option>
             <option value="PART">零部件</option>
             <option value="DOCUMENT">文档</option>
@@ -104,24 +105,24 @@ export function SourceIngestionLogView({
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
-          <span className="block">异常结果</span>
-          <select aria-label="中间表写入异常结果" value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
-            <option value="ALL">全部异常</option>
+          <span className="block">写入结果</span>
+          <select aria-label="中间表写入结果" value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
+            <option value="ALL">全部结果</option>
             {Object.entries(ingestionStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56">
-          <span className="block">批次 / 源表 / 中间表 / 异常</span>
-          <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索中间表写入异常日志" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
+          <span className="block">批次 / 源表 / 中间表 / 摘要</span>
+          <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索中间表写入日志" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
         </label>
         <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
       </div>
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between"><div><h2 className="text-ty-sm font-semibold">写入异常</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 个异常批次，日志由上游中间件在发生异常时写入。</p></div></div>
+        <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between"><div><h2 className="text-ty-sm font-semibold">写入记录</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 个批次，执行频率由上游中间件决定。</p></div></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] text-left text-ty-xs border-collapse">
-            <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="w-12 px-2 py-2 text-center font-medium">序号</th><th className="px-4 py-2 font-medium">批次编号</th><th className="px-4 py-2 font-medium">写入时间</th><th className="px-4 py-2 font-medium">数据链路</th><th className="px-4 py-2 font-medium">方式</th><th className="px-4 py-2 font-medium">读取 / 写入 / 失败</th><th className="px-4 py-2 font-medium">异常结果</th><th className="px-4 py-2 font-medium">异常摘要</th></tr></thead>
+            <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="w-12 px-2 py-2 text-center font-medium">序号</th><th className="px-4 py-2 font-medium">批次编号</th><th className="px-4 py-2 font-medium">写入时间</th><th className="px-4 py-2 font-medium">数据链路</th><th className="px-4 py-2 font-medium">方式</th><th className="px-4 py-2 font-medium">读取 / 写入 / 失败</th><th className="px-4 py-2 font-medium">写入结果</th><th className="px-4 py-2 font-medium">结果摘要</th></tr></thead>
             <tbody>{pageRows.map((log, index) => (
               <tr key={log.id} className="border-t border-[var(--ty-border-light-color)] align-top">
                 <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
@@ -133,28 +134,28 @@ export function SourceIngestionLogView({
                   <span className="font-mono">{log.readCount ?? '待获取'} / {log.writtenCount ?? '待获取'} / </span>
                   <strong className={(log.failedCount || 0) > 0 ? 'font-mono text-[var(--ty-red-color)]' : 'font-mono font-normal'}>{log.failedCount ?? '待获取'}</strong>
                 </td>
-                <td className="px-4 py-3"><span className={`inline-flex items-center min-h-6 px-2 rounded-ty-xs border whitespace-nowrap ${statusClass[log.status]}`}>{ingestionStatusLabel[log.status]}</span></td>
+                <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 min-h-6 px-2 rounded-ty-xs border whitespace-nowrap ${statusClass[log.status]}`}>{log.status === 'SUCCESS' && <CheckCircle2 className="w-3 h-3" />}{ingestionStatusLabel[log.status]}</span></td>
                 <td className="px-4 py-3 max-w-72">
                   {log.issues?.length ? (
                     <div>
                       <strong className="text-[var(--ty-red-color)]">{log.failedCount} 条失败 · {log.issues.length} 类异常</strong>
                       <button type="button" onClick={() => setDetailLogId(log.id)} className="ml-3 text-[var(--ty-primary-link-color)] hover:underline">查看失败明细</button>
                     </div>
-                  ) : <span>{log.errorSummary || '—'}</span>}
+                  ) : <span>{log.errorSummary || (log.readCount === 0 ? '本次无待写入数据' : '—')}</span>}
                   {log.traceId && <code className="text-[var(--ty-font-sub-color)] mt-1 block">{log.traceId}</code>}
                 </td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-        {!visible.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无中间表写入异常日志</div>}
+        {!visible.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无中间表写入日志</div>}
         <div className="min-h-[52px] px-4 py-2 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3 text-ty-xs">
           <span className="text-[var(--ty-font-sub-color)]">共 {visible.length} 条，当前显示第 {firstVisibleRow}–{lastVisibleRow} 条</span>
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[var(--ty-font-sub-color)]">
               每页
               <select
-                aria-label="中间表写入异常日志每页条数"
+                aria-label="中间表写入日志每页条数"
                 value={pageSize}
                 onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
                 className="h-8 px-2 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"

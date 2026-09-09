@@ -1,6 +1,7 @@
 import { SCOPE_QUERY_UNAVAILABLE } from './consistencyScope';
 import {
   ConsistencyBatchRecord,
+  ConsistencyPlan,
   ConsistencyObjectResult,
   ComparisonFieldSnapshot,
   ComparisonFieldItem,
@@ -257,9 +258,142 @@ export const initialDemoPartObjects: ConsistencyObjectResult[] = [
   }
 ];
 
+const documentComparisonSnapshot: ComparisonFieldSnapshot = {
+  rootTypeCode: 'DOCUMENT',
+  uniqueKeyField: {
+    sourceFieldKey: 'iba_doc_number',
+    manticoreField: 'doc_number',
+    displayName: '文档编号',
+    sourceDataType: 'TEXT',
+    manticoreType: 'STRING',
+  },
+  includedFields: [
+    {
+      sourceFieldKey: 'iba_doc_title',
+      manticoreField: 'doc_title',
+      displayName: '文档标题',
+      dataType: 'TEXT',
+      manticoreType: 'STRING',
+      comparisonMethod: COMPARISON_CAPABILITY_TABLE.TEXT.comparisonMethod,
+    },
+    {
+      sourceFieldKey: 'iba_doc_version',
+      manticoreField: 'doc_version',
+      displayName: '文档版本',
+      dataType: 'TEXT',
+      manticoreType: 'STRING',
+      comparisonMethod: COMPARISON_CAPABILITY_TABLE.TEXT.comparisonMethod,
+    },
+  ],
+  excludedFields: [],
+  snapshotTime: '2026-09-07 02:30:00',
+};
+
+const initialDemoDocumentObjects: ConsistencyObjectResult[] = [
+  {
+    objectId: 'DOC-50001',
+    objectName: '减速器总成装配图',
+    rootTypeCode: 'DOCUMENT',
+    selectedReason: 'SCOPE_EXHAUSTIVE',
+    lastModifiedAt: '2026-09-06 16:20:00',
+    status: 'CONSISTENT',
+    statusDetail: '文档标题、文档版本均一致',
+    differenceFields: [],
+    fields: [
+      { fieldCode: 'iba_doc_title', fieldName: '文档标题', plmRawValue: '减速器总成装配图', mappedExpectedValue: '减速器总成装配图', manticoreActualValue: '减速器总成装配图', matchStatus: 'MATCH' },
+      { fieldCode: 'iba_doc_version', fieldName: '文档版本', plmRawValue: 'A.3', mappedExpectedValue: 'A.3', manticoreActualValue: 'A.3', matchStatus: 'MATCH' },
+    ],
+  },
+  {
+    objectId: 'DOC-50002',
+    objectName: '传动轴加工图',
+    rootTypeCode: 'DOCUMENT',
+    selectedReason: 'SCOPE_EXHAUSTIVE',
+    lastModifiedAt: '2026-09-06 15:40:00',
+    status: 'CONSISTENT',
+    statusDetail: '文档标题、文档版本均一致',
+    differenceFields: [],
+    fields: [
+      { fieldCode: 'iba_doc_title', fieldName: '文档标题', plmRawValue: '传动轴加工图', mappedExpectedValue: '传动轴加工图', manticoreActualValue: '传动轴加工图', matchStatus: 'MATCH' },
+      { fieldCode: 'iba_doc_version', fieldName: '文档版本', plmRawValue: 'B.1', mappedExpectedValue: 'B.1', manticoreActualValue: 'B.1', matchStatus: 'MATCH' },
+    ],
+  },
+];
+
+export const initialConsistencyPlans: ConsistencyPlan[] = [
+  {
+    id: 'PLAN-PART-DAILY',
+    name: '零件日常一致性抽检',
+    rootTypeCode: 'PART',
+    scopeRule: 'ALL_ROOT',
+    uniqueKeyFieldKey: 'iba_part_number',
+    comparisonFieldKeys: ['iba_part_name', 'iba_material', 'iba_nominal_diameter', 'iba_classification_path'],
+    comparisonRule: 'FORMAL_MAPPING',
+    allowedModes: ['RANDOM_SAMPLE', 'EXHAUSTIVE_SCOPE', 'SPECIFIC_IDS'],
+    defaultMode: 'RANDOM_SAMPLE',
+    schedule: { enabled: true, frequency: 'DAILY', intervalHours: 24, time: '02:30', weekday: 1, sampleCount: 50 },
+  },
+  {
+    id: 'PLAN-DOCUMENT-MANUAL',
+    name: '文档受控范围核验',
+    rootTypeCode: 'DOCUMENT',
+    scopeRule: 'PLM_SCOPE',
+    uniqueKeyFieldKey: 'iba_doc_number',
+    comparisonFieldKeys: ['iba_doc_title', 'iba_doc_version'],
+    comparisonRule: 'FORMAL_MAPPING',
+    allowedModes: ['RANDOM_SAMPLE', 'EXHAUSTIVE_SCOPE', 'SPECIFIC_IDS'],
+    defaultMode: 'EXHAUSTIVE_SCOPE',
+    schedule: { enabled: false, frequency: 'DAILY', intervalHours: 24, time: '03:00', weekday: 1, sampleCount: 50 },
+  },
+];
+
 // 初始历史批次记录：
 // CC-20260906-001: 一致 1, 不一致 2, 待复查 1, 无法比对 1 -> 有效比对 3, 一致率 33.3% (1 / 3)
 export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
+  {
+    id: 'CC-20260907-002',
+    planName: '工艺路线核验',
+    triggerType: 'MANUAL_BY_PLAN',
+    rootTypeCode: 'PROCESS',
+    rootTypeName: '工艺路线 (Process)',
+    scopeMode: 'RANDOM_SAMPLE',
+    scopeDescription: '根类型全部对象',
+    strategySummary: '任务启动失败，未生成对象明细',
+    executedAt: '2026-09-07 08:00:00',
+    plannedCount: 50,
+    actualCount: 0,
+    consistentCount: 0,
+    differenceCount: 0,
+    pendingRecheckCount: 0,
+    incompleteCount: 0,
+    frozenObjectIds: [],
+    objectResults: [],
+    status: 'FAILED',
+    failedStage: '核验字段准备',
+    failedReason: '当前根类型尚未配置正式可核验字段，任务未启动。',
+  },
+  {
+    id: 'CC-20260907-001',
+    planName: '文档受控范围核验',
+    triggerType: 'SCHEDULED',
+    rootTypeCode: 'DOCUMENT',
+    rootTypeName: '文档 (Document)',
+    scopeMode: 'EXHAUSTIVE_SCOPE',
+    scopeDescription: '受控图纸范围',
+    strategySummary: '指定范围全量核验（有效比对数 2，一致 2）',
+    executedAt: '2026-09-07 02:30:00',
+    plannedCount: 2,
+    actualCount: 2,
+    consistentCount: 2,
+    differenceCount: 0,
+    pendingRecheckCount: 0,
+    incompleteCount: 0,
+    comparisonFieldSnapshot: documentComparisonSnapshot,
+    frozenObjectIds: ['DOC-50001', 'DOC-50002'],
+    objectResults: initialDemoDocumentObjects,
+    sourceSyncBatchId: 'SYNC-20260825-001',
+    status: 'COMPLETED',
+  },
   {
     id: 'CC-20260906-001',
     planName: '零件抽检核验批次',
@@ -389,6 +523,27 @@ export const initialConsistencyBatches: ConsistencyBatchRecord[] = [
       initialDemoPartObjects[4]
     ],
     status: 'COMPLETED_WITH_ERRORS'
+  },
+  {
+    id: 'CC-20260904-001',
+    planName: '文档受控范围核验',
+    triggerType: 'SCHEDULED',
+    rootTypeCode: 'DOCUMENT',
+    rootTypeName: '文档 (Document)',
+    scopeMode: 'EXHAUSTIVE_SCOPE',
+    scopeDescription: '归档图纸范围',
+    strategySummary: '范围查询成功，未返回可核验对象',
+    executedAt: '2026-09-04 02:30:00',
+    plannedCount: 0,
+    actualCount: 0,
+    consistentCount: 0,
+    differenceCount: 0,
+    pendingRecheckCount: 0,
+    incompleteCount: 0,
+    comparisonFieldSnapshot: { ...documentComparisonSnapshot, snapshotTime: '2026-09-04 02:30:00' },
+    frozenObjectIds: [],
+    objectResults: [],
+    status: 'COMPLETED',
   }
 ];
 

@@ -12,6 +12,7 @@ const recordTime = (value?: string) => {
 };
 
 const ingestionTone: Record<SourceIngestionLog['status'], string> = {
+  SUCCESS: 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)]',
   PARTIAL_SUCCESS: 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)]',
   FAILED: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)]',
 };
@@ -22,6 +23,9 @@ const checkStatus = (check: ConsistencyBatchRecord) => {
   }
   if (check.status === 'FAILED') {
     return { label: '任务失败', tone: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)]' };
+  }
+  if (check.status === 'COMPLETED' && check.actualCount === 0) {
+    return { label: '完成（无对象）', tone: 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]' };
   }
   if (check.differenceCount || check.pendingRecheckCount || check.incompleteCount) {
     return { label: '发现问题', tone: 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)]' };
@@ -53,15 +57,15 @@ export function OperationsDashboard({
   const filteredRoots = roots.filter((root) => !selectedRoot || root.id === selectedRoot);
   const rows = buildOverview(filteredRoots, syncs, checks).map((row) => ({
     ...row,
-    latestWriteException: [...ingestionLogs]
+    latestWriteLog: [...ingestionLogs]
       .filter((log) => log.rootTypeCode === row.root.id)
       .sort((a, b) => recordTime(b.startedAt) - recordTime(a.startedAt))[0],
   }));
   const targetCountKnown = rows.some((row) => Number.isFinite(row.root.manticoreDocCount));
   const indexed = rows.reduce((sum, row) => sum + (row.root.manticoreDocCount || 0), 0);
   const visibleRootIds = new Set(filteredRoots.map((root) => root.id));
-  const writeExceptions = ingestionLogs.filter((log) => visibleRootIds.has(log.rootTypeCode));
-  const failedWriteTasks = writeExceptions.filter((log) => log.status === 'FAILED').length;
+  const writeLogs = ingestionLogs.filter((log) => visibleRootIds.has(log.rootTypeCode));
+  const writeIssues = writeLogs.filter((log) => log.status !== 'SUCCESS');
   const syncIssues = rows.filter(
     (row) => row.latestSync?.executionStatus === 'FAILED' || row.latestSync?.executionStatus === 'PARTIAL_SUCCESS',
   );
@@ -75,9 +79,9 @@ export function OperationsDashboard({
 
   const metrics = [
     {
-      label: '中间表写入异常',
-      value: writeExceptions.length,
-      note: `异常批次 · 任务级异常 ${failedWriteTasks}`,
+      label: '中间表写入',
+      value: writeLogs.length,
+      note: `成功 ${writeLogs.length - writeIssues.length} · 异常 ${writeIssues.length}`,
       icon: <ScrollText className="w-4 h-4" />,
       action: () => onIngestion(selectedRoot),
     },
@@ -114,7 +118,7 @@ export function OperationsDashboard({
               <h1 className="text-ty-xl font-semibold">Manticore 运行看板</h1>
               <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">按对象类型查看中间表写入异常、Manticore 同步、一致性核验和目标数据状态。</p>
+            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">按对象类型查看中间表写入、Manticore 同步、一致性核验和目标数据状态。</p>
           </div>
         </div>
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">当前展示任务与数据记录 · 实时服务指标待接入</span>
@@ -158,7 +162,7 @@ export function OperationsDashboard({
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">四列分别来自三类独立任务记录和 Manticore 数量记录，点击对应入口继续排查。</p>
         </div>
         <div className="p-3 space-y-3 bg-[var(--ty-fill-color)]">
-          {rows.map(({ root, latestWriteException, latestSync, latestCheck }) => {
+          {rows.map(({ root, latestWriteLog, latestSync, latestCheck }) => {
             const syncMeta = latestSync ? getSyncStatusMeta(latestSync.executionStatus) : undefined;
             const checkMeta = latestCheck ? checkStatus(latestCheck) : undefined;
             return (
@@ -172,15 +176,15 @@ export function OperationsDashboard({
                 </header>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 text-ty-xs">
                   <section className="p-4 min-h-36 border-b md:border-r xl:border-b-0 border-[var(--ty-border-light-color)] flex flex-col">
-                    <div className="text-[var(--ty-font-sub-color)] mb-2">① 中间表写入异常</div>
-                    {latestWriteException ? (
+                    <div className="text-[var(--ty-font-sub-color)] mb-2">① 中间表写入</div>
+                    {latestWriteLog ? (
                       <>
-                        <span className={`self-start inline-flex min-h-6 px-2 items-center rounded-ty-xs ${ingestionTone[latestWriteException.status]}`}>{ingestionStatusLabel[latestWriteException.status]}</span>
-                        <span className="text-[var(--ty-font-sub-color)] mt-2 block">{latestWriteException.endedAt || latestWriteException.startedAt}</span>
-                        <span className="text-[var(--ty-font-sub-color)] mt-1 block">读取 {latestWriteException.readCount ?? '待获取'} · 写入 {latestWriteException.writtenCount ?? '待获取'} · 失败 {latestWriteException.failedCount ?? '待获取'}</span>
+                        <span className={`self-start inline-flex min-h-6 px-2 items-center rounded-ty-xs ${ingestionTone[latestWriteLog.status]}`}>{ingestionStatusLabel[latestWriteLog.status]}</span>
+                        <span className="text-[var(--ty-font-sub-color)] mt-2 block">{latestWriteLog.endedAt || latestWriteLog.startedAt}</span>
+                        <span className="text-[var(--ty-font-sub-color)] mt-1 block">读取 {latestWriteLog.readCount ?? '待获取'} · 写入 {latestWriteLog.writtenCount ?? '待获取'} · 失败 {latestWriteLog.failedCount ?? '待获取'}</span>
                       </>
-                    ) : <span className="text-[var(--ty-font-sub-color)]">暂无写入异常</span>}
-                    <button className="text-[var(--ty-primary-color)] mt-auto pt-3 self-start" onClick={() => onIngestion(root.id)}>查看异常日志</button>
+                    ) : <span className="text-[var(--ty-font-sub-color)]">暂无写入记录</span>}
+                    <button className="text-[var(--ty-primary-color)] mt-auto pt-3 self-start" onClick={() => onIngestion(root.id)}>写入日志</button>
                   </section>
                   <section className="p-4 min-h-36 border-b xl:border-b-0 xl:border-r border-[var(--ty-border-light-color)] flex flex-col">
                     <div className="text-[var(--ty-font-sub-color)] mb-2">② Manticore 同步</div>

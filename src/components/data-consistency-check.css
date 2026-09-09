@@ -418,6 +418,10 @@
   background: var(--ty-green-lightest-color);
   color: var(--ty-green-color);
 }
+.data-consistency-check .task-status.empty {
+  background: var(--ty-fill-weak-dark-color);
+  color: var(--ty-font-sub-color);
+}
 .data-consistency-check .task-status.completed_with_errors {
   background: var(--ty-orange-lightest-color);
   color: var(--ty-orange-color);

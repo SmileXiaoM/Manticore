@@ -47,8 +47,10 @@ const modes = Object.keys(CONSISTENCY_MODE_LABELS) as ConsistencyStrategyType[];
 type ObjectResultFilter = 'ALL' | 'ISSUES' | ConsistencyItemStatus;
 const scopeLabel = (rule: ConsistencyPlan['scopeRule']) =>
   rule === 'ALL_ROOT' ? '根类型全部对象' : 'PLM 分类/业务范围';
-const statusLabel = (batch: ConsistencyBatchRecord) =>
-  ({ RUNNING: '核验中', COMPLETED: '完成', COMPLETED_WITH_ERRORS: '完成（有异常）', FAILED: '失败' })[batch.status];
+const statusLabel = (batch: ConsistencyBatchRecord) => {
+  if (batch.status === 'COMPLETED' && batch.actualCount === 0) return '完成（无对象）';
+  return ({ RUNNING: '核验中', COMPLETED: '核验通过', COMPLETED_WITH_ERRORS: '完成（有异常）', FAILED: '任务失败' })[batch.status];
+};
 const newPlan = (rootTypeCode: string): ConsistencyPlan => ({
   id: crypto.randomUUID(),
   name: '',
@@ -483,7 +485,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     <small className="muted">{CONSISTENCY_MODE_LABELS[batch.scopeMode]}</small>
                   </td>
                   <td>
-                    <span className={`task-status ${batch.status.toLowerCase()}`}>{statusLabel(batch)}</span>
+                    <span className={`task-status ${batch.status === 'COMPLETED' && batch.actualCount === 0 ? 'empty' : batch.status.toLowerCase()}`}>{statusLabel(batch)}</span>
                   </td>
                   <td>
                     {batch.status === 'FAILED' ? (
