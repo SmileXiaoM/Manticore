@@ -7,9 +7,11 @@ export function ConsistencyPlanDialog({
   onDismiss,
   children,
   closeLabel = '关闭方案弹窗',
+  className = '',
 }: {
   title: string;
   closeLabel?: string;
+  className?: string;
   onDismiss: () => void;
   children: React.ReactNode;
 }) {
@@ -27,7 +29,7 @@ export function ConsistencyPlanDialog({
   return (
     <dialog
       ref={ref}
-      className="plan-dialog"
+      className={`plan-dialog ${className}`.trim()}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();

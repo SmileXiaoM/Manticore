@@ -224,14 +224,14 @@ export default function App() {
               onSave={value => setSchedules(previous => [...previous.filter(item => item.rootTypeCode !== value.rootTypeCode), value])}
               onClose={() => setScheduleTarget(null)} />}
             {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} syncs={syncBatches} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs}
-              onIngestion={() => handleNavigate('source-ingestion-logs')}
+              onIngestion={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('source-ingestion-logs'); }}
               onSync={(root, batchId) => { setSelectedRootFilter(root || 'ALL'); setSelectedSyncBatchId(batchId || null); handleNavigate('data-sync-quality'); }}
               onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
               onPresence={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }} />}
             {currentView === 'target-presence' && <TargetPresenceView roots={mappingObjects} initialRoot={selectedRootFilter === 'ALL' ? 'PART' : selectedRootFilter}
               onBack={() => handleNavigate('dashboard')}
               onSync={root => { setSelectedRootFilter(root); setSelectedSyncBatchId(null); handleNavigate('data-sync-quality'); }} />}
-            {currentView === 'source-ingestion-logs' && <SourceIngestionLogView logs={initialSourceIngestionLogs} />}
+            {currentView === 'source-ingestion-logs' && <SourceIngestionLogView logs={initialSourceIngestionLogs} initialRootTypeFilter={selectedRootFilter} />}
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
                 batches={syncBatches}

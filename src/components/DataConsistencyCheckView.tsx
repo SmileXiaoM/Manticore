@@ -3,7 +3,7 @@ import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
 import { ConsistencyScopeEditor } from './ConsistencyScopeEditor';
 import { getScopeFields, newScopeDraft } from '../data/consistencyScope';
 import React, { useMemo, useRef, useState } from 'react';
-import { Play, Plus, X, Loader2 } from 'lucide-react';
+import { FileCheck2, Loader2, Play, Plus, Settings2, X } from 'lucide-react';
 import {
   ConsistencyBatchRecord,
   ConsistencyPlan,
@@ -44,6 +44,7 @@ interface DataConsistencyCheckViewProps {
 }
 
 const modes = Object.keys(CONSISTENCY_MODE_LABELS) as ConsistencyStrategyType[];
+type ObjectResultFilter = 'ALL' | 'ISSUES' | ConsistencyItemStatus;
 const scopeLabel = (rule: ConsistencyPlan['scopeRule']) =>
   rule === 'ALL_ROOT' ? '根类型全部对象' : 'PLM 分类/业务范围';
 const statusLabel = (batch: ConsistencyBatchRecord) =>
@@ -75,6 +76,8 @@ const planScheduleLabel = (plan: ConsistencyPlan) => {
   const period = schedule.frequency === 'DAILY' ? '每天' : `每周${'日一二三四五六'[schedule.weekday]}`;
   return `${period} ${schedule.time} · 抽样 ${schedule.sampleCount}`;
 };
+const batchTime = (value: string) =>
+  Date.parse(value.includes('T') ? value : `${value.replace(' ', 'T')}+08:00`) || 0;
 
 const validatePlanSchedule = (plan: ConsistencyPlan) => {
   const schedule = plan.schedule;
@@ -143,6 +146,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const updateBatches = onUpdateBatches ?? setInternalBatches;
   const updatePlans = onUpdatePlans ?? setInternalPlans;
   const [runOpen, setRunOpen] = useState(false);
+  const [showPlanManagement, setShowPlanManagement] = useState(false);
   const [rootFilter, setRootFilter] = useState(initialRootTypeFilter);
   const [draft, setDraft] = useState<ConsistencyPlan | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -152,9 +156,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const [rangeScope, setRangeScope] = useState(newScopeDraft);
   const [notice, setNotice] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | ConsistencyItemStatus>('ALL');
+  const [filter, setFilter] = useState<ObjectResultFilter>('ALL');
   const [page, setPage] = useState(1);
   const [objectId, setObjectId] = useState<string | null>(null);
+  const [showAllFields, setShowAllFields] = useState(false);
   const submitting = useRef(false);
   const fields = useMemo(() => Object.values(fieldMappings).flat(), [fieldMappings]);
   const rootName = (code: string) => mappingObjects.find((root) => root.id === code)?.name || code;
@@ -195,11 +200,29 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const runError = running ? '已有核验正在执行，请等待完成' : !selectedPlan ? '请先选择核验方案' : prepared.error;
   const visiblePlans = plans.filter((plan) => rootFilter === 'ALL' || plan.rootTypeCode === rootFilter);
   const visibleBatches = batches.filter((batch) => rootFilter === 'ALL' || batch.rootTypeCode === rootFilter);
-  const latest = visibleBatches[0];
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId);
   const selectedObject = selectedBatch?.objectResults.find((object) => object.objectId === objectId);
   const filteredObjects =
-    selectedBatch?.objectResults.filter((object) => filter === 'ALL' || object.status === filter) || [];
+    selectedBatch?.objectResults.filter(
+      (object) => filter === 'ALL' || (filter === 'ISSUES' ? object.status !== 'CONSISTENT' : object.status === filter),
+    ) || [];
+  const fieldDetailRows = selectedObject?.fields.filter(
+    (field) => showAllFields || field.matchStatus !== 'MATCH',
+  ) || [];
+  const latestBatchesByRoot = [...visibleBatches]
+    .sort((a, b) => batchTime(b.executedAt) - batchTime(a.executedAt))
+    .filter((batch, index, ordered) => ordered.findIndex((item) => item.rootTypeCode === batch.rootTypeCode) === index);
+  const recordSummary = latestBatchesByRoot.reduce(
+    (summary, batch) => ({
+      consistent: summary.consistent + batch.consistentCount,
+      difference: summary.difference + batch.differenceCount,
+      pending: summary.pending + batch.pendingRecheckCount,
+      unable: summary.unable + batch.incompleteCount,
+      running: summary.running + (batch.status === 'RUNNING' ? 1 : 0),
+      failed: summary.failed + (batch.status === 'FAILED' ? 1 : 0),
+    }),
+    { consistent: 0, difference: 0, pending: 0, unable: 0, running: 0, failed: 0 },
+  );
 
   function choosePlan(planId: string) {
     const plan = plans.find((item) => item.id === planId);
@@ -276,10 +299,11 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       <header className="page-heading">
         <div className="page-heading-copy">
           <div className="page-title-line">
+            <FileCheck2 size={20} className="page-title-icon" />
             <h1>数据一致性核验</h1>
             <span className="prototype-note">原型演示</span>
           </div>
-          <p className="muted">管理核验方案，查看 PLM 与检索底座的比对结果。</p>
+          <p className="muted">查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。</p>
         </div>
         <div className="page-actions">
           {onInspectTarget && (
@@ -288,13 +312,12 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             </button>
           )}
           <button
-            onClick={() => {
-              setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
-              setNotice('');
-            }}
+            aria-expanded={showPlanManagement}
+            aria-controls="consistency-plan-management"
+            onClick={() => setShowPlanManagement((value) => !value)}
           >
-            <Plus size={16} />
-            新建方案
+            <Settings2 size={16} />
+            核验方案
           </button>
           <button
             className="primary"
@@ -309,122 +332,72 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </button>
         </div>
       </header>
-      <label className="root-filter">
-        对象类型
-        <select
-          aria-label="核验对象类型筛选"
-          value={rootFilter}
-          onChange={(event) => {
-            setRootFilter(event.target.value);
-            setSelectedBatchId(null);
-            choosePlan('');
-          }}
-        >
-          <option value="ALL">全部类型</option>
-          {mappingObjects.map((root) => (
-            <option key={root.id} value={root.id}>
-              {root.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="record-toolbar">
+        <label className="root-filter">
+          对象类型
+          <select
+            aria-label="核验对象类型筛选"
+            value={rootFilter}
+            onChange={(event) => {
+              setRootFilter(event.target.value);
+              setSelectedBatchId(null);
+              choosePlan('');
+            }}
+          >
+            <option value="ALL">全部类型</option>
+            {mappingObjects.map((root) => (
+              <option key={root.id} value={root.id}>
+                {root.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="muted">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
+      </div>
       {notice && (
         <p role="status" className="notice">
           {notice}
         </p>
       )}
-      <section className="panel" aria-label="核验方案定义">
-        <div className="section-heading">
-          <div>
-            <h2>核验方案</h2>
-            <p className="muted">不同根类型分别建立方案。</p>
-          </div>
-          <span className="muted">{visiblePlans.length} 个方案</span>
-        </div>
-        {visiblePlans.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>方案名称</th>
-                  <th>适用根类型</th>
-                  <th>范围规则</th>
-                  <th>固定核验属性</th>
-                  <th>默认运行方式</th>
-                  <th>自动核验</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiblePlans.map((plan) => (
-                  <tr key={plan.id}>
-                    <td>{plan.name}</td>
-                    <td>{rootName(plan.rootTypeCode)}</td>
-                    <td>{scopeLabel(plan.scopeRule)}</td>
-                    <td>{plan.comparisonFieldKeys.length} 项</td>
-                    <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
-                    <td>{planScheduleLabel(plan)}</td>
-                    <td>
-                      <div className="actions">
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            setDraft(structuredClone(plan));
-                            setNotice('');
-                          }}
-                        >
-                          编辑
-                        </button>
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            choosePlan(plan.id);
-                            setRunOpen(true);
-                          }}
-                        >
-                          发起核验
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="empty-state">暂无核验方案，请新建方案并选择核验属性。</div>
-        )}
-      </section>
+      <div className="record-summary-grid" aria-label="核验记录汇总">
+        <article className="record-summary-card">
+          <span>核验记录</span>
+          <strong>{visibleBatches.length}</strong>
+          <small>核验中 {recordSummary.running} 次</small>
+        </article>
+        <article className="record-summary-card success">
+          <span>最近一致对象</span>
+          <strong>{recordSummary.consistent}</strong>
+          <small>各类型最近一次核验</small>
+        </article>
+        <article className="record-summary-card danger">
+          <span>最近不一致对象</span>
+          <strong>{recordSummary.difference}</strong>
+          <small>字段差异或目标记录缺失</small>
+        </article>
+        <article className="record-summary-card warning">
+          <span>最近待处理</span>
+          <strong>{recordSummary.pending + recordSummary.unable + recordSummary.failed}</strong>
+          <small>待复查 {recordSummary.pending} · 无法比对 {recordSummary.unable} · 任务失败 {recordSummary.failed}</small>
+        </article>
+      </div>
 
       <section className="panel" aria-label="核验结果">
         <div className="section-heading">
-          <h2>核验记录</h2>
+          <div>
+            <h2>核验记录</h2>
+            <p className="muted">记录任务执行状态和本次核验结论；不一致对象可继续查看字段证据。</p>
+          </div>
           <span className="muted">{visibleBatches.length} 次记录</span>
         </div>
-        {latest ? (
-          <div className="latest-summary">
-            <span>最新任务：{latest.planName}</span>
-            <span className={`task-status ${latest.status.toLowerCase()}`}>{statusLabel(latest)}</span>
-            <span>
-              一致率{' '}
-              {latest.status === 'RUNNING' || latest.status === 'FAILED'
-                ? '--'
-                : calculateConsistencyStats(latest).rateDisplay}
-            </span>
-          </div>
-        ) : (
-          <p className="muted">暂无核验任务，发起核验后查看结果统计</p>
-        )}
         <div className="table-scroll">
-          <table>
+          <table className="records-table">
             <thead>
               <tr>
                 <th>方案 / 核验时间</th>
-                <th>根类型</th>
-                <th>运行方式</th>
+                <th>对象类型 / 运行方式</th>
                 <th>状态</th>
-                <th>实际数量</th>
-                <th>一致率</th>
+                <th>核验结果</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -435,19 +408,35 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                     <strong>{batch.planName}</strong>
                     <small className="muted">{batch.executedAt}</small>
                   </td>
-                  <td>{batch.rootTypeName}</td>
-                  <td>{CONSISTENCY_MODE_LABELS[batch.scopeMode]}</td>
+                  <td>
+                    <span>{batch.rootTypeName}</span>
+                    <small className="muted">{CONSISTENCY_MODE_LABELS[batch.scopeMode]}</small>
+                  </td>
                   <td>
                     <span className={`task-status ${batch.status.toLowerCase()}`}>{statusLabel(batch)}</span>
                   </td>
-                  <td>{batch.status === 'RUNNING' ? '--' : batch.actualCount}</td>
                   <td>
-                    {batch.status === 'RUNNING' || batch.status === 'FAILED'
-                      ? '--'
-                      : calculateConsistencyStats(batch).rateDisplay}
+                    {batch.status === 'FAILED' ? (
+                      <span className="muted">未产生对象明细 · 一致率 --</span>
+                    ) : (
+                      <div className="record-result-cell">
+                        <span>
+                          {batch.status === 'RUNNING' ? `核验中 -- / ${batch.plannedCount}` : `已核验 ${batch.actualCount} / ${batch.plannedCount}`}
+                          {' · 一致率 '}
+                          {batch.status === 'RUNNING' ? '--' : calculateConsistencyStats(batch).rateDisplay}
+                        </span>
+                        <div className="result-breakdown" aria-label="核验结果分布">
+                          <span className="consistent">一致 {batch.consistentCount}</span>
+                          <span className="inconsistent">不一致 {batch.differenceCount}</span>
+                          <span className="pending">待复查 {batch.pendingRecheckCount}</span>
+                          <span className="unable">无法比对 {batch.incompleteCount}</span>
+                        </div>
+                      </div>
+                    )}
                   </td>
                   <td>
                     <button
+                      className="text-button"
                       onClick={() => {
                         setSelectedBatchId(batch.id);
                         setObjectId(null);
@@ -462,7 +451,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               ))}
               {!visibleBatches.length && (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={5} className="empty-state">
                     暂无核验记录
                   </td>
                 </tr>
@@ -471,6 +460,82 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           </table>
         </div>
       </section>
+
+      {showPlanManagement && (
+        <section className="panel plan-management" id="consistency-plan-management" aria-label="核验方案定义">
+          <div className="section-heading">
+            <div>
+              <h2>核验方案</h2>
+              <p className="muted">方案定义核验字段、可用运行方式及方案自己的自动核验频率。</p>
+            </div>
+            <div className="actions">
+              <span className="muted">{visiblePlans.length} 个方案</span>
+              <button
+                onClick={() => {
+                  setDraft(newPlan(rootFilter === 'ALL' ? '' : rootFilter));
+                  setNotice('');
+                }}
+              >
+                <Plus size={16} />
+                新建方案
+              </button>
+            </div>
+          </div>
+          {visiblePlans.length ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>方案名称</th>
+                    <th>适用根类型</th>
+                    <th>范围规则</th>
+                    <th>核验属性</th>
+                    <th>默认运行方式</th>
+                    <th>自动核验</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visiblePlans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td>{plan.name}</td>
+                      <td>{rootName(plan.rootTypeCode)}</td>
+                      <td>{scopeLabel(plan.scopeRule)}</td>
+                      <td>{plan.comparisonFieldKeys.length} 项</td>
+                      <td>{CONSISTENCY_MODE_LABELS[plan.defaultMode]}</td>
+                      <td>{planScheduleLabel(plan)}</td>
+                      <td>
+                        <div className="actions">
+                          <button
+                            className="text-button"
+                            onClick={() => {
+                              setDraft(structuredClone(plan));
+                              setNotice('');
+                            }}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            className="text-button"
+                            onClick={() => {
+                              choosePlan(plan.id);
+                              setRunOpen(true);
+                            }}
+                          >
+                            发起核验
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">暂无核验方案，请先新建方案。</div>
+          )}
+        </section>
+      )}
 
       {runOpen && (
         <ConsistencyPlanDialog title="发起核验" closeLabel="关闭发起核验弹窗" onDismiss={() => setRunOpen(false)}>
@@ -797,7 +862,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         <div
           className="detail-overlay"
           data-testid="batch-detail-drawer-overlay"
-          onClick={() => setSelectedBatchId(null)}
+          onClick={() => {
+            setObjectId(null);
+            setSelectedBatchId(null);
+          }}
         >
           <section
             className="detail-dialog"
@@ -809,7 +877,10 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               if (element && !element.contains(document.activeElement)) element.focus();
             }}
             onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
-              if (event.key === 'Escape') setSelectedBatchId(null);
+              if (event.key === 'Escape') {
+                setObjectId(null);
+                setSelectedBatchId(null);
+              }
               if (event.key === 'Tab') {
                 const focusable: HTMLElement[] = Array.from(
                   event.currentTarget.querySelectorAll<HTMLElement>(
@@ -837,7 +908,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 <h2>{selectedBatch.planName}</h2>
                 <small className="muted batch-id">{selectedBatch.id}</small>
               </div>
-              <button aria-label="关闭任务详情" onClick={() => setSelectedBatchId(null)}>
+              <button
+                aria-label="关闭任务详情"
+                onClick={() => {
+                  setObjectId(null);
+                  setSelectedBatchId(null);
+                }}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -893,6 +970,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 }}
               >
                 <option value="ALL">全部</option>
+                <option value="ISSUES">仅看异常</option>
                 {Object.entries(OBJECT_STATUS_META).map(([key, meta]) => (
                   <option key={key} value={key}>
                     {meta.label}
@@ -922,7 +1000,14 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                       </td>
                       <td>{object.statusDetail}</td>
                       <td>
-                        <button onClick={() => setObjectId(object.objectId)}>字段明细</button>
+                        <button
+                          onClick={() => {
+                            setShowAllFields(object.status === 'CONSISTENT');
+                            setObjectId(object.objectId);
+                          }}
+                        >
+                          字段明细
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -960,59 +1045,89 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 下一页
               </button>
             </div>
-            {selectedObject && (
-              <section className="object-detail">
-                <div className="section-heading">
-                  <h3>字段明细：{selectedObject.objectId}</h3>
-                  <button onClick={() => setObjectId(null)}>收起</button>
-                </div>
-                <p>{selectedObject.statusDetail}</p>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>核验字段</th>
-                        <th>PLM 原始值</th>
-                        <th>映射预期值</th>
-                        <th>Manticore 实际值</th>
-                        <th>比较结果</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedObject.fields.map((field) => (
-                        <tr key={field.fieldCode}>
-                          <td>
-                            <FieldName
-                              field={{
-                                displayName: field.fieldName,
-                                sourceFieldKey: field.fieldCode,
-                                isDisplayNameMissing: field.isDisplayNameMissing,
-                              }}
-                            />
-                            <code>{field.fieldCode}</code>
-                          </td>
-                          <td>{field.plmRawValue ?? '--'}</td>
-                          <td>{field.mappedExpectedValue ?? '--'}</td>
-                          <td>{field.manticoreActualValue ?? '--'}</td>
-                          <td>
-                            {
-                              {
-                                MATCH: '一致',
-                                MISMATCH: '差异',
-                                TARGET_MISSING: '目标记录缺失',
-                                UNVERIFIABLE: '无法比对',
-                              }[field.matchStatus]
-                            }
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
           </section>
         </div>
+      )}
+
+      {selectedObject && (
+        <ConsistencyPlanDialog
+          title={`字段明细：${selectedObject.objectId}`}
+          closeLabel="关闭字段明细弹窗"
+          className="field-detail-modal"
+          onDismiss={() => setObjectId(null)}
+        >
+          <div className="field-detail-dialog">
+            <div className="field-detail-summary">
+              <div>
+                <strong>{selectedObject.objectName}</strong>
+                <p className="muted">{selectedObject.statusDetail}</p>
+              </div>
+              <label className="inline-control">
+                <input
+                  type="checkbox"
+                  checked={showAllFields}
+                  onChange={(event) => setShowAllFields(event.target.checked)}
+                />
+                显示全部字段
+              </label>
+            </div>
+            <div className="table-scroll field-detail-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>核验字段</th>
+                    <th>PLM 原始值</th>
+                    <th>映射预期值</th>
+                    <th>Manticore 实际值</th>
+                    <th>比较结果</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fieldDetailRows.map((field) => (
+                    <tr key={field.fieldCode}>
+                      <td>
+                        <FieldName
+                          field={{
+                            displayName: field.fieldName,
+                            sourceFieldKey: field.fieldCode,
+                            isDisplayNameMissing: field.isDisplayNameMissing,
+                          }}
+                        />
+                        <code>{field.fieldCode}</code>
+                      </td>
+                      <td>{field.plmRawValue ?? '--'}</td>
+                      <td>{field.mappedExpectedValue ?? '--'}</td>
+                      <td>{field.manticoreActualValue ?? '--'}</td>
+                      <td>
+                        <span className={`field-result ${field.matchStatus.toLowerCase()}`}>
+                          {
+                            {
+                              MATCH: '一致',
+                              MISMATCH: '差异',
+                              TARGET_MISSING: '目标记录缺失',
+                              UNVERIFIABLE: '无法比对',
+                            }[field.matchStatus]
+                          }
+                        </span>
+                      </td>
+                      <td>{field.note || '--'}</td>
+                    </tr>
+                  ))}
+                  {!fieldDetailRows.length && (
+                    <tr>
+                      <td colSpan={6} className="empty-state">当前没有差异字段，可切换为显示全部字段。</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="field-detail-footer">
+              <span className="muted">默认仅展示差异、目标缺失和无法比对字段。</span>
+              <button type="button" onClick={() => setObjectId(null)}>关闭</button>
+            </div>
+          </div>
+        </ConsistencyPlanDialog>
       )}
     </div>
   );

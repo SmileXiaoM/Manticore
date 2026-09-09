@@ -27,7 +27,6 @@ test('page renders without selected detail, including a genuinely empty task col
   assert.match(initialPage, /数据一致性核验/);
   assert.doesNotMatch(initialPage, /batch-detail-drawer-overlay/);
   const emptyPage = renderToStaticMarkup(React.createElement(DataConsistencyCheckView, { batches: [] }));
-  assert.match(emptyPage, /暂无核验任务/);
   assert.match(emptyPage, /暂无核验记录/);
   assert.doesNotMatch(emptyPage, /batch-detail-drawer-overlay/);
   assert.doesNotMatch(emptyPage, /（0 \/ 0）/);

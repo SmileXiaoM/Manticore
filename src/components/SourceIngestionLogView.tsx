@@ -14,15 +14,26 @@ const statusClass: Record<IngestionStatus, string> = {
   FAILED: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30',
 };
 
-export function SourceIngestionLogView({ logs = initialSourceIngestionLogs }: { logs?: SourceIngestionLog[] }) {
+export function SourceIngestionLogView({
+  logs = initialSourceIngestionLogs,
+  initialRootTypeFilter = 'ALL',
+}: {
+  logs?: SourceIngestionLog[];
+  initialRootTypeFilter?: string;
+}) {
+  const [rootType, setRootType] = useState(initialRootTypeFilter);
   const [status, setStatus] = useState<'ALL' | IngestionStatus>('ALL');
   const [keyword, setKeyword] = useState('');
-  const visible = useMemo(() => logs.filter((log) => {
+  const scopedLogs = useMemo(
+    () => logs.filter((log) => rootType === 'ALL' || log.rootTypeCode === rootType),
+    [logs, rootType],
+  );
+  const visible = useMemo(() => scopedLogs.filter((log) => {
     if (status !== 'ALL' && log.status !== status) return false;
     const term = keyword.trim().toLowerCase();
     return !term || [log.id, log.sourceTable, log.stagingTable, log.errorSummary].some((value) => value?.toLowerCase().includes(term));
-  }), [logs, status, keyword]);
-  const unresolved = logs.filter((log) => log.status === 'FAILED' || log.status === 'PARTIAL_SUCCESS').length;
+  }), [scopedLogs, status, keyword]);
+  const unresolved = scopedLogs.filter((log) => log.status === 'FAILED' || log.status === 'PARTIAL_SUCCESS').length;
 
   return (
     <div className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto space-y-4">
@@ -42,8 +53,8 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs }: { 
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          ['日志总数', logs.length, <DatabaseZap className="w-4 h-4" />],
-          ['采集中', logs.filter((log) => log.status === 'RUNNING').length, <RefreshCw className="w-4 h-4" />],
+          ['日志总数', scopedLogs.length, <DatabaseZap className="w-4 h-4" />],
+          ['采集中', scopedLogs.filter((log) => log.status === 'RUNNING').length, <RefreshCw className="w-4 h-4" />],
           ['异常批次', unresolved, <AlertTriangle className="w-4 h-4" />],
         ].map(([label, value, icon]) => (
           <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center justify-between">
@@ -55,6 +66,15 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs }: { 
 
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
+          <span className="block">对象类型</span>
+          <select aria-label="采集日志对象类型" value={rootType} onChange={(event) => setRootType(event.target.value)} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
+            <option value="ALL">全部类型</option>
+            <option value="PART">零部件</option>
+            <option value="DOCUMENT">文档</option>
+            <option value="PROCESS">工艺路线</option>
+          </select>
+        </label>
+        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">执行状态</span>
           <select aria-label="采集日志状态" value={status} onChange={(event) => setStatus(event.target.value as 'ALL' | IngestionStatus)} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
             <option value="ALL">全部状态</option>
@@ -65,7 +85,7 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs }: { 
           <span className="block">批次 / 来源表 / 中间表</span>
           <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索采集日志" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2.5 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
         </label>
-        <button type="button" onClick={() => { setStatus('ALL'); setKeyword(''); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-1.5 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
+        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-1.5 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
       </div>
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">

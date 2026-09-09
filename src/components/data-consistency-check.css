@@ -55,7 +55,7 @@
 }
 .data-consistency-check .page-heading {
   margin-bottom: 16px;
-  padding: 20px 24px;
+  padding: 16px 20px;
   border: 1px solid var(--ty-border-color);
   border-radius: var(--ty-ui-border-radius-normal);
   background: var(--ty-fill-white-color);
@@ -71,6 +71,10 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+.data-consistency-check .page-title-icon {
+  color: var(--ty-primary-color);
+  flex-shrink: 0;
 }
 .data-consistency-check .prototype-note {
   border: 1px solid var(--ty-border-light-color);
@@ -96,6 +100,66 @@
   background: var(--ty-fill-white-color);
   margin-bottom: 16px;
   min-width: 0;
+}
+.data-consistency-check .record-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--ty-border-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+  background: var(--ty-fill-white-color);
+}
+.data-consistency-check .record-toolbar .root-filter {
+  width: 240px;
+}
+.data-consistency-check .record-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.data-consistency-check .record-summary-card {
+  position: relative;
+  min-width: 0;
+  padding: 12px 16px 12px 20px;
+  border: 1px solid var(--ty-border-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+  background: var(--ty-fill-white-color);
+  overflow: hidden;
+}
+.data-consistency-check .record-summary-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--ty-primary-color);
+  content: '';
+}
+.data-consistency-check .record-summary-card.success::before {
+  background: var(--ty-green-color);
+}
+.data-consistency-check .record-summary-card.danger::before {
+  background: var(--ty-red-color);
+}
+.data-consistency-check .record-summary-card.warning::before {
+  background: var(--ty-orange-color);
+}
+.data-consistency-check .record-summary-card > span,
+.data-consistency-check .record-summary-card > small {
+  display: block;
+  color: var(--ty-font-sub-color);
+  font-size: var(--ty-font-xs-size);
+}
+.data-consistency-check .record-summary-card > strong {
+  display: block;
+  margin: 4px 0;
+  font-size: var(--ty-font-2xl-size);
+  line-height: 1.25;
+}
+.data-consistency-check .plan-management {
+  border-top-color: var(--ty-primary-color);
 }
 .data-consistency-check button {
   display: inline-flex;
@@ -323,6 +387,7 @@
   padding: 4px 8px;
   border-radius: var(--ty-ui-border-radius);
   display: inline-block;
+  white-space: nowrap;
 }
 .data-consistency-check .task-status.completed {
   background: var(--ty-green-lightest-color);
@@ -339,6 +404,33 @@
 .data-consistency-check .task-status.running {
   background: var(--ty-blue-lightest-color);
   color: var(--ty-blue-color);
+}
+.data-consistency-check .result-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+.data-consistency-check .record-result-cell {
+  min-width: 192px;
+}
+.data-consistency-check .records-table :is(th, td) {
+  padding: 8px;
+}
+.data-consistency-check .result-breakdown span {
+  white-space: nowrap;
+}
+.data-consistency-check .result-breakdown .consistent {
+  color: var(--ty-green-color);
+}
+.data-consistency-check .result-breakdown .inconsistent {
+  color: var(--ty-red-color);
+}
+.data-consistency-check .result-breakdown .pending {
+  color: var(--ty-orange-color);
+}
+.data-consistency-check .result-breakdown .unable {
+  color: var(--ty-font-sub-color);
 }
 .data-consistency-check .table-scroll {
   width: 100%;
@@ -416,10 +508,61 @@
   margin-top: 16px;
   flex-wrap: wrap;
 }
-.data-consistency-check .object-detail {
-  border-top: 1px solid var(--ty-border-color);
-  margin-top: 20px;
-  padding-top: 20px;
+.data-consistency-check .plan-dialog.field-detail-modal {
+  width: min(1080px, calc(100vw - 48px));
+}
+.data-consistency-check .field-detail-dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.data-consistency-check .field-detail-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--ty-border-light-color);
+}
+.data-consistency-check .field-detail-summary p {
+  margin-bottom: 0;
+}
+.data-consistency-check .field-detail-summary .inline-control {
+  flex-shrink: 0;
+  font-weight: 400;
+}
+.data-consistency-check .field-detail-table {
+  padding: 16px 24px;
+}
+.data-consistency-check .field-detail-table table {
+  min-width: 880px;
+}
+.data-consistency-check .field-result {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--ty-ui-border-radius);
+  white-space: nowrap;
+}
+.data-consistency-check .field-result.match {
+  color: var(--ty-green-color);
+  background: var(--ty-green-lightest-color);
+}
+.data-consistency-check .field-result.mismatch,
+.data-consistency-check .field-result.target_missing {
+  color: var(--ty-red-color);
+  background: var(--ty-red-lightest-color);
+}
+.data-consistency-check .field-result.unverifiable {
+  color: var(--ty-orange-color);
+  background: var(--ty-orange-lightest-color);
+}
+.data-consistency-check .field-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--ty-border-light-color);
 }
 @media (max-width: 1000px) {
   .data-consistency-check .page-heading {
@@ -427,6 +570,9 @@
   }
   .data-consistency-check .panel {
     padding: 16px;
+  }
+  .data-consistency-check .record-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 640px) {
@@ -439,6 +585,18 @@
   .data-consistency-check .detail-dialog {
     padding: 16px;
     max-height: calc(100dvh - 16px);
+  }
+  .data-consistency-check .record-toolbar,
+  .data-consistency-check .field-detail-summary,
+  .data-consistency-check .field-detail-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .data-consistency-check .record-toolbar .root-filter {
+    width: 100%;
+  }
+  .data-consistency-check .record-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
