@@ -113,8 +113,8 @@ export function OperationsDashboard({
           <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-ty-md font-semibold">Manticore 运行看板</h1>
-              <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
+              <h1 className="text-ty-xl font-semibold">Manticore 运行看板</h1>
+              <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
             </div>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">按对象类型查看源端采集、Manticore 同步、一致性核验和目标数据状态。</p>
           </div>
@@ -122,14 +122,14 @@ export function OperationsDashboard({
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">当前展示任务与数据记录 · 实时服务指标待接入</span>
       </header>
 
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center gap-3">
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] flex items-center gap-2">
           对象类型
           <select
             aria-label="看板对象类型"
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            className="h-8 min-w-40 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+            className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
           >
             <option value="ALL">全部类型</option>
             {roots.map((root) => <option key={root.id} value={root.id}>{root.name}</option>)}
@@ -142,7 +142,7 @@ export function OperationsDashboard({
           <button
             key={metric.label}
             onClick={metric.action}
-            className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex items-center justify-between text-left hover:border-[var(--ty-primary-color)]"
+            className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center justify-between text-left hover:border-[var(--ty-primary-color)]"
           >
             <div>
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{metric.label}</span>
@@ -177,7 +177,7 @@ export function OperationsDashboard({
                     <div className="text-[var(--ty-font-sub-color)] mb-2">① 源端采集</div>
                     {latestIngestion ? (
                       <>
-                        <span className={`self-start inline-flex px-2 py-0.5 rounded-ty-xs ${ingestionTone[latestIngestion.status]}`}>{ingestionStatusLabel[latestIngestion.status]}</span>
+                        <span className={`self-start inline-flex min-h-6 px-2 inline-flex items-center rounded-ty-xs ${ingestionTone[latestIngestion.status]}`}>{ingestionStatusLabel[latestIngestion.status]}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-2 block">{latestIngestion.startedAt}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-1 block">读取 {latestIngestion.readCount ?? '待获取'} · 写入 {latestIngestion.writtenCount ?? '待获取'}</span>
                       </>
@@ -188,7 +188,7 @@ export function OperationsDashboard({
                     <div className="text-[var(--ty-font-sub-color)] mb-2">② Manticore 同步</div>
                     {latestSync && syncMeta ? (
                       <>
-                        <span className={`self-start inline-flex px-2 py-0.5 rounded-ty-xs ${syncMeta.bgClass} ${syncMeta.textClass}`}>{syncMeta.label}</span>
+                        <span className={`self-start inline-flex min-h-6 px-2 inline-flex items-center rounded-ty-xs ${syncMeta.bgClass} ${syncMeta.textClass}`}>{syncMeta.label}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-2 block">{latestSync.startTime}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-1 block">成功 {formatSyncCount(latestSync.successCount)} · 失败 {formatSyncCount(latestSync.failedCount)}</span>
                       </>
@@ -199,7 +199,7 @@ export function OperationsDashboard({
                     <div className="text-[var(--ty-font-sub-color)] mb-2">③ 一致性核验</div>
                     {latestCheck && checkMeta ? (
                       <>
-                        <span className={`self-start inline-flex px-2 py-0.5 rounded-ty-xs ${checkMeta.tone}`}>{checkMeta.label}</span>
+                        <span className={`self-start inline-flex min-h-6 px-2 inline-flex items-center rounded-ty-xs ${checkMeta.tone}`}>{checkMeta.label}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-2 block">{latestCheck.executedAt}</span>
                         <span className="text-[var(--ty-font-sub-color)] mt-1 block">
                           {latestCheck.status === 'RUNNING' || latestCheck.status === 'FAILED'

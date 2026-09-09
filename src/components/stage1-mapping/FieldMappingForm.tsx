@@ -84,7 +84,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3">
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">1</div><div><h4 className="text-ty-xs font-bold">PLM 来源定义</h4><p className="text-ty-2xs text-[var(--ty-font-sub-color)]">随所选来源属性自动带出，只读</p></div></div>
-          {sourceMeta?.isExampleMetadata && <span className="text-ty-2xs px-1.5 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs">示例元数据</span>}
+          {sourceMeta?.isExampleMetadata && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs">示例元数据</span>}
         </div>
         {sourceMeta ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] px-3 py-2 text-ty-xs">
@@ -97,8 +97,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* 2. 映射与业务展示 */}
-      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
+      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-4 flex flex-col">
+        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2">
           <div className="w-6 h-6 rounded-full bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 text-[var(--ty-green-color)] flex items-center justify-center font-bold text-ty-xs">
             2
           </div>
@@ -118,7 +118,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             value={formData.displayTitle}
             onChange={e => onChange({ displayTitle: e.target.value })}
             placeholder="例如：物料编码 / 规格型号"
-            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+            className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
               errors.displayTitle ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
             }`}
           />
@@ -182,8 +182,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
       </div>
 
       {/* 3. Manticore 底层配置 */}
-      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3.5 flex flex-col">
-        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2.5">
+      <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-4 flex flex-col">
+        <div className="flex items-center space-x-2 border-b border-[var(--ty-border-color)] pb-2">
           <div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">
             3
           </div>
@@ -204,7 +204,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             onChange={e => onChange({ manticoreField: e.target.value.toLowerCase() })}
             disabled={isEditingConfigured}
             placeholder="例如：part_number"
-            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs font-mono text-[var(--ty-primary-color)] font-semibold focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+            className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs font-mono text-[var(--ty-primary-color)] font-semibold focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
               errors.manticoreField ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
             } ${isEditingConfigured ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : ''}`}
           />
@@ -225,7 +225,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             value={formData.manticoreType}
             onChange={e => onChange({ manticoreType: e.target.value as ManticoreFieldType })}
             disabled={isEditingConfigured}
-            className={`w-full h-8 px-2.5 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
+            className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
               isEditingConfigured ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : 'cursor-pointer'
             }`}
           >
@@ -239,13 +239,13 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
         </div>
 
         {/* 检索与展示能力配置 */}
-        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 space-y-2.5 flex-1">
+        <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 space-y-3 flex-1">
           <div className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] mb-1 flex items-center">
             <Shield className="w-3.5 h-3.5 mr-1 text-[var(--ty-primary-color)]" />
             检索、展示与超链接能力配置
           </div>
 
-          <div className="space-y-1.5 text-ty-xs">
+          <div className="space-y-2 text-ty-xs">
             <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-ty-sm transition-colors">
               <input
                 type="checkbox"
@@ -321,7 +321,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
 
           {/* 超链接参数配置区 (启用超链接后展开) */}
           {formData.isEnableHyperlink && (
-            <div className="bg-[var(--ty-primary-lighter-color)]/40 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm p-2.5 space-y-2 text-ty-xs mt-2 animate-in fade-in">
+            <div className="bg-[var(--ty-primary-lighter-color)]/40 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm p-3 space-y-2 text-ty-xs mt-2 animate-in fade-in">
               <div className="flex items-center justify-between text-[var(--ty-primary-color)] font-semibold text-ty-2xs pb-1 border-b border-[var(--ty-primary-lighter-color)]">
                 <span className="flex items-center">
                   <Link className="w-3 h-3 mr-1 text-[var(--ty-primary-color)]" />

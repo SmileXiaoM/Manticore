@@ -72,7 +72,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-3">
             <div className="bg-[var(--ty-green-lightest-color)] p-2 rounded-ty-sm text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
               <Send className="w-4 h-4" />
             </div>
@@ -89,7 +89,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
         </div>
 
         {/* 影响摘要卡片 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2.5 text-ty-xs">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3 text-ty-xs">
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>目标根类型：</span>
             <span className="font-bold text-[var(--ty-font-main-color)]">
@@ -97,7 +97,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
             </span>
           </div>
 
-          <div className="border-t border-[var(--ty-border-color)] pt-2 space-y-1.5">
+          <div className="border-t border-[var(--ty-border-color)] pt-2 space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-[var(--ty-font-sub-color)]">待生效草稿总数：</span>
               <span className="font-bold text-[var(--ty-font-main-color)] font-mono">{totalDraftCount} 项</span>
@@ -113,13 +113,13 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </div>
 
           <div className="border-t border-[var(--ty-border-color)] pt-2 grid grid-cols-2 gap-2 text-ty-2xs">
-            <div className="bg-[var(--ty-orange-lightest-color)] p-2.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
+            <div className="bg-[var(--ty-orange-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
               <div className="font-bold text-[var(--ty-orange-color)]">数据影响变更: {dataImpactingCount} 项</div>
               <div className="text-ty-2xs opacity-80 mt-0.5">
                 {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
               </div>
             </div>
-            <div className="bg-[var(--ty-green-lightest-color)] p-2.5 rounded-ty-sm border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
+            <div className="bg-[var(--ty-green-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
               <div className="font-bold text-[var(--ty-green-color)]">纯展示变更: {displayOnlyCount} 项</div>
               <div className="text-ty-2xs opacity-80 mt-0.5">即刻生效，无需同步</div>
             </div>
@@ -139,7 +139,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2.5 pt-2">
+        <div className="flex justify-end space-x-3 pt-2">
           <button
             type="button"
             onClick={onClose}
@@ -150,7 +150,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           <button
             type="button"
             onClick={onConfirmPublish}
-            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
             <span>确认生效配置 ({totalDraftCount} 项)</span>
@@ -192,7 +192,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-3">
             <div className="p-2 rounded-ty-sm border bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-color)]/30">
               <RefreshCw className="w-4 h-4" />
             </div>
@@ -212,7 +212,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         </div>
 
         {/* 核心信息卡片 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 space-y-2.5 text-ty-xs">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3 text-ty-xs">
           <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
             <span>当前已生效字段数：</span>
             <span className="font-mono font-bold text-[var(--ty-green-color)]">
@@ -231,7 +231,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
 
           {/* 若存在待同步的数据影响变更 */}
           {hasPendingChanges && (
-            <div className="bg-[var(--ty-primary-lightest-color)]/60 border border-[var(--ty-primary-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-primary-color)] flex items-center space-x-1.5 font-medium">
+            <div className="bg-[var(--ty-primary-lightest-color)]/60 border border-[var(--ty-primary-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-primary-color)] flex items-center space-x-2 font-medium">
               <Info className="w-3.5 h-3.5 shrink-0" />
               <span>同步成功后更新正式查询底座。</span>
             </div>
@@ -239,7 +239,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
 
           {/* 上次同步异常简短提示 */}
           {previousErrorCount > 0 && (
-            <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-1.5 font-medium">
+            <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-2 font-medium">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span>上次同步有 {previousErrorCount} 条异常。本次异常以本次执行结果为准。</span>
             </div>
@@ -247,7 +247,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
+        <div className="flex justify-end space-x-3 pt-2 border-t border-[var(--ty-border-light-color)]">
           <button
             type="button"
             onClick={onClose}
@@ -261,7 +261,7 @@ export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
               onConfirmSync();
               onClose();
             }}
-            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
+            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>开始同步</span>
@@ -312,7 +312,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-red-color)]/30 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
         {/* 1. 标题 */}
         <div className="flex items-start justify-between border-b border-[var(--ty-red-color)]/20 pb-3">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-3">
             <div className="p-2 rounded-ty-sm border bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30">
               <ShieldAlert className="w-5 h-5" />
             </div>
@@ -332,12 +332,12 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
         </div>
 
         {/* 2. 合并后的影响说明 */}
-        <div className="bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/20 rounded-ty-sm p-3.5 space-y-2 text-ty-xs">
+        <div className="bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/20 rounded-ty-sm p-4 space-y-2 text-ty-xs">
           <div className="font-bold text-[var(--ty-red-color)] flex items-center space-x-1">
             <AlertOctagon className="w-4 h-4 mr-1 shrink-0" />
             <span>执行重置将产生以下影响（本操作不可撤销）：</span>
           </div>
-          <ul className="space-y-1.5 text-[var(--ty-font-main-color)] pl-5 list-disc leading-relaxed text-ty-xs">
+          <ul className="space-y-2 text-[var(--ty-font-main-color)] pl-5 list-disc leading-relaxed text-ty-xs">
             <li>
               删除当前根类型索引数据（当前索引量：<strong className="text-[var(--ty-red-color)] font-mono">{docCountText}</strong>）。
             </li>
@@ -354,7 +354,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
         </div>
 
         {/* 3. 一句恢复路径 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2.5 text-ty-xs flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 text-ty-xs flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
           <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
           <span>重新生效字段配置并同步成功后恢复查询。</span>
         </div>
@@ -371,7 +371,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             value={confirmInput}
             onChange={(e) => setConfirmInput(e.target.value)}
             placeholder={`请输入 ${targetCode}`}
-            className="w-full h-8 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono focus:border-[var(--ty-red-color)] focus:ring-1 focus:ring-[var(--ty-red-color)] outline-none"
+            className="w-full h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono focus:border-[var(--ty-red-color)] focus:ring-1 focus:ring-[var(--ty-red-color)] outline-none"
             autoFocus
           />
           <div className="flex items-center justify-between text-ty-2xs">
@@ -393,7 +393,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
         </div>
 
         {/* 底部按钮栏：明确提供【取消】与【重置接入】按钮 */}
-        <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-[var(--ty-border-light-color)]">
+        <div className="flex items-center justify-end space-x-3 pt-2 border-t border-[var(--ty-border-light-color)]">
           <button
             type="button"
             onClick={onClose}
@@ -415,7 +415,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
                 ? `请输入根类型编码 ${targetCode} 后方可确认重置`
                 : '立即执行重置接入操作'
             }
-            className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-all ${
+            className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 transition-all ${
               isCodeMatched
                 ? 'bg-[var(--ty-red-color)] hover:opacity-90 active:opacity-100 text-[var(--ty-font-white-color)] cursor-pointer shadow-xs'
                 : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed select-none'
@@ -544,24 +544,24 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="dialog" aria-modal="true" aria-label="正式查询底座数据预览" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
+        <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center space-x-2">
-              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
-                <Eye className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
+              <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
+                <Eye className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
                 正式查询底座数据预览
-              </h3>
-              <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+              </h2>
+              <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
-              <span className="px-2 py-0.5 text-ty-2xs font-mono font-semibold rounded-ty-sm bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+              <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-mono font-semibold rounded-ty-sm bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
                 底座展示列: {displayQueryFields.length} 个
               </span>
               {hiddenColumnsCount > 0 && (
-                <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+                <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
                   缺参隐藏列: {hiddenColumnsCount} 个
                 </span>
               )}
@@ -570,13 +570,13 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
               只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，严格遵循 URL 模板与缺参策略。
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" aria-label="关闭查询预览" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 状态与底座说明条 */}
-        <div className="px-5 py-2.5 bg-[var(--ty-primary-lightest-color)] border-b border-[var(--ty-primary-color)]/30 text-ty-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="px-5 py-2 bg-[var(--ty-primary-lightest-color)] border-b border-[var(--ty-primary-color)]/30 text-ty-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center space-x-2 text-[var(--ty-font-main-light-color)]">
             <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
             <span>
@@ -585,7 +585,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           </div>
 
           {(pendingSyncFields.length > 0 || draftFields.length > 0 || hiddenColumnsCount > 0) && (
-            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-sm border border-[var(--ty-orange-color)]/30 flex items-center space-x-1.5">
+            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] min-h-6 px-2 inline-flex items-center rounded-ty-sm border border-[var(--ty-orange-color)]/30 flex items-center space-x-2">
               {pendingSyncFields.length > 0 && (
                 <span>
                   待进入底座（{pendingSyncFields.length} 个）；
@@ -602,7 +602,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
         </div>
 
         {/* 模拟查询条件工具条 (32px 高度) */}
-        <div className="px-5 py-2.5 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="px-5 py-2 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center space-x-2 text-ty-xs flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ty-font-sub-light-color)]" />
@@ -630,7 +630,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                   displayQueryFields.map(f => (
                     <th
                       key={f.id}
-                      className="py-2.5 px-3 whitespace-nowrap"
+                      className="py-2 px-3 whitespace-nowrap"
                       style={{ width: f.defaultColumnWidth ? `${f.defaultColumnWidth}px` : 'auto' }}
                     >
                       {f.displayTitle}
@@ -640,7 +640,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                     </th>
                   ))
                 ) : (
-                  <th className="py-2.5 px-3">无正式可查展示列</th>
+                  <th className="py-2 px-3">无正式可查展示列</th>
                 )}
               </tr>
             </thead>
@@ -653,7 +653,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 
                       if (linkRes.type === 'LINK') {
                         return (
-                          <td key={f.id} className="py-2.5 px-3">
+                          <td key={f.id} className="py-2 px-3">
                             <a
                               href={linkRes.url}
                               target={linkRes.target}
@@ -670,9 +670,9 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 
                       if (linkRes.type === 'DISABLED_LINK') {
                         return (
-                          <td key={f.id} className="py-2.5 px-3">
+                          <td key={f.id} className="py-2 px-3">
                             <span
-                              className="font-mono text-[var(--ty-font-sub-light-color)] line-through decoration-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center bg-[var(--ty-fill-dark-color)] px-1.5 py-0.5 rounded-ty-xs text-ty-2xs"
+                              className="font-mono text-[var(--ty-font-sub-light-color)] line-through decoration-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center bg-[var(--ty-fill-dark-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs"
                               title={`超链接已禁用: ${linkRes.reason}`}
                             >
                               <span>{linkRes.text}</span>
@@ -683,7 +683,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                       }
 
                       return (
-                        <td key={f.id} className="py-2.5 px-3">
+                        <td key={f.id} className="py-2 px-3">
                           <span className="font-mono text-[var(--ty-font-main-color)]">{linkRes.text}</span>
                         </td>
                       );
@@ -714,7 +714,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
             关闭预览
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
@@ -748,7 +748,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
 
         <div className="space-y-3 text-ty-xs">
           {/* PLM 来源 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2">
             <div className="font-semibold text-[var(--ty-font-main-color)]">1. PLM 来源元数据</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">源字段 Key:</span> <span className="font-mono font-medium text-[var(--ty-font-main-color)]">{field.sourceFieldKey}</span></div>
@@ -766,19 +766,19 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           </div>
 
           {/* Manticore 底层 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2">
             <div className="font-semibold text-[var(--ty-font-main-color)]">2. Manticore 底层配置</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">物理字段:</span> <span className="font-mono font-semibold text-[var(--ty-primary-color)]">{field.manticoreField}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">数据类型:</span> <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{field.manticoreType}</span></div>
-              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">唯一主键:</span> <span className="text-[var(--ty-font-main-color)]">{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">排序支持:</span> <span className="text-[var(--ty-font-main-color)]">{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>
           </div>
 
           {/* 状态与生命周期 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2">
             <div className="font-semibold text-[var(--ty-font-main-color)]">3. 配置与底座归属</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">配置状态:</span> <span className="font-medium text-[var(--ty-font-main-color)]">{field.configStatus}</span></div>
@@ -794,7 +794,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
           </div>
 
           {/* 结果展示与源系统超链接 */}
-          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-1.5">
+          <div className="bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] space-y-2">
             <div className="font-semibold text-[var(--ty-font-main-color)]">4. 结果展示与源系统超链接</div>
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div>
@@ -822,7 +822,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
                 <>
                   <div className="col-span-2">
                     <span className="text-[var(--ty-font-sub-light-color)]">URL 模板:</span>{' '}
-                    <span className="font-mono text-[var(--ty-primary-color)] break-all bg-[var(--ty-fill-white-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)]">
+                    <span className="font-mono text-[var(--ty-primary-color)] break-all bg-[var(--ty-fill-white-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)]">
                       {field.hyperlinkConfig.urlTemplate || '-'}
                     </span>
                   </div>

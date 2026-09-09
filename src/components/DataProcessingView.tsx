@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { StandardizationRule, SynonymRule, ClassificationAlignmentRule, ObjectType } from '../types';
+import { useFeedback } from './ui/FeedbackProvider';
 
 interface DataProcessingViewProps {
   standardizationRules: StandardizationRule[];
@@ -32,6 +33,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
   alignmentRules,
   onUpdateAlignmentRules
 }) => {
+  const { notify, confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'standard' | 'synonym' | 'align'>('standard');
   const [keyword, setKeyword] = useState('');
 
@@ -138,7 +140,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
     if (type === 'standard') {
       if (!item.ruleName || !item.applicableProperty || !item.standardValue) {
-        alert('请填入必填项：规则名称、适用属性及标准值。');
+        notify('请填入必填项：规则名称、适用属性及标准值。', 'warning');
         return;
       }
       let updated: StandardizationRule[];
@@ -162,7 +164,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       onUpdateStandardizationRules(updated);
     } else if (type === 'synonym') {
       if (!item.primaryWord || !item.synonyms || item.synonyms.length === 0) {
-        alert('请填入必填项：主词以及至少一个同义词别名。');
+        notify('请填入必填项：主词以及至少一个同义词别名。', 'warning');
         return;
       }
       let updated: SynonymRule[];
@@ -186,7 +188,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       onUpdateSynonymRules(updated);
     } else if (type === 'align') {
       if (!item.sourcePath || !item.standardPath) {
-        alert('请填入必填项：源路径以及标准路径。');
+        notify('请填入必填项：源路径以及标准路径。', 'warning');
         return;
       }
       let updated: ClassificationAlignmentRule[];
@@ -213,8 +215,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
     setEditingRule(null);
   };
 
-  const handleDelete = (type: 'standard' | 'synonym' | 'align', id: string) => {
-    if (window.confirm('确定要删除这条数据预处理规则吗？(评审原型支持即时生效)')) {
+  const handleDelete = async (type: 'standard' | 'synonym' | 'align', id: string) => {
+    if (await confirm({ title: '删除规则', message: '确定要删除这条数据预处理规则吗？评审原型将即时生效。', confirmText: '删除', tone: 'danger' })) {
       if (type === 'standard') {
         onUpdateStandardizationRules(standardizationRules.filter(r => r.id !== id));
       } else if (type === 'synonym') {
@@ -244,16 +246,16 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         <div className="flex items-start justify-between mb-2">
           <div className="w-full">
             <div className="flex items-center space-x-2">
-              <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] flex items-center space-x-2">
+              <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] flex items-center space-x-2">
                 <Settings className="w-5 h-5 text-[var(--ty-primary-color)]" />
                 <span>数据处理规则 (算分前置清洗)</span>
               </h1>
-              <span className="px-2 py-0.5 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-ty-xs text-ty-2xs font-semibold border border-[var(--ty-orange-color)]/30">
+              <span className="min-h-6 px-2 inline-flex items-center bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-ty-xs text-ty-2xs font-semibold border border-[var(--ty-orange-color)]/30">
                 三阶段后续概念原型
               </span>
             </div>
 
-            <div className="mt-2.5 p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
+            <div className="mt-2 p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
               <p className="font-semibold text-[var(--ty-font-main-color)] mb-1 flex items-center">
                 <Info className="w-4 h-4 mr-1 text-[var(--ty-primary-color)]" />
                 三阶段后续规则行为说明
@@ -267,7 +269,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           </div>
 
           <div className="flex items-center space-x-2 shrink-0 self-start mt-1">
-            <span className="text-ty-2xs text-[var(--ty-font-main-light-color)] font-semibold bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-orange-color)]/30">
+            <span className="text-ty-2xs text-[var(--ty-font-main-light-color)] font-semibold bg-[var(--ty-orange-lightest-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30">
               后续阶段草案，不进入二阶段交付
             </span>
           </div>
@@ -277,7 +279,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         <div className="flex border-b border-[var(--ty-border-color)] mt-4">
           <button
             onClick={() => { setActiveTab('standard'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'standard'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -287,7 +289,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           </button>
           <button
             onClick={() => { setActiveTab('synonym'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'synonym'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -297,7 +299,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           </button>
           <button
             onClick={() => { setActiveTab('align'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'align'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -330,7 +332,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         <div>
           <button
             onClick={() => handleAddNew(activeTab)}
-            className="flex items-center space-x-1.5 px-3.5 h-8 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center space-x-2 px-4 h-8 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>
@@ -349,27 +351,29 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
               <table className="w-full min-w-[960px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5 whitespace-nowrap">规则名称</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">适用对象类型</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">适用属性</th>
-                    <th className="px-4 py-2.5 min-w-[140px]">映射前原始值</th>
-                    <th className="px-4 py-2.5 min-w-[120px]">清洗后(标准值)</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">匹配模式</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                    <th className="w-12 px-2 py-2 text-center">序号</th>
+                    <th className="px-4 py-2 whitespace-nowrap">规则名称</th>
+                    <th className="px-4 py-2 whitespace-nowrap">适用对象类型</th>
+                    <th className="px-4 py-2 whitespace-nowrap">适用属性</th>
+                    <th className="px-4 py-2 min-w-[140px]">映射前原始值</th>
+                    <th className="px-4 py-2 min-w-[120px]">清洗后(标准值)</th>
+                    <th className="px-4 py-2 whitespace-nowrap">匹配模式</th>
+                    <th className="px-4 py-2 whitespace-nowrap">状态</th>
+                    <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                   {filteredStandard.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的标准化规则</td>
+                      <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的标准化规则</td>
                     </tr>
                   ) : (
-                    filteredStandard.map(r => (
+                    filteredStandard.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                         <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs">
+                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
                             {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : r.applicableObjectType === 'PART_ELECTRICAL' ? '电气元器件' : '通用件'}
                           </span>
                         </td>
@@ -379,7 +383,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         </td>
                         <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] min-w-[120px]">{r.standardValue}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="px-1.5 py-0.5 bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs text-ty-2xs font-mono border border-[var(--ty-border-color)]">
+                          <span className="min-h-6 px-2 inline-flex items-center bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs text-ty-2xs font-mono border border-[var(--ty-border-color)]">
                             {r.ruleMethod === 'MAP' ? '多对一映射' : r.ruleMethod === 'REGEX' ? '正则提取' : '文本替换'}
                           </span>
                         </td>
@@ -389,7 +393,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                             title="点击快速启用/禁用"
                             className="flex items-center space-x-1 cursor-pointer"
                           >
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-bold transition-colors ${
+                            <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
                                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                 : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -400,7 +404,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center space-x-1.5">
+                          <div className="flex items-center justify-center space-x-2">
                             <button onClick={() => handleEdit('standard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -424,28 +428,30 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
               <table className="w-full min-w-[920px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5 whitespace-nowrap">主词 (唯一推荐名)</th>
-                    <th className="px-4 py-2.5 min-w-[200px]">同义词别名集 (触发拉平)</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">作用范围</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">适用对象类型</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">适用属性</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                    <th className="w-12 px-2 py-2 text-center">序号</th>
+                    <th className="px-4 py-2 whitespace-nowrap">主词 (唯一推荐名)</th>
+                    <th className="px-4 py-2 min-w-[200px]">同义词别名集 (触发拉平)</th>
+                    <th className="px-4 py-2 whitespace-nowrap">作用范围</th>
+                    <th className="px-4 py-2 whitespace-nowrap">适用对象类型</th>
+                    <th className="px-4 py-2 whitespace-nowrap">适用属性</th>
+                    <th className="px-4 py-2 whitespace-nowrap">状态</th>
+                    <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                   {filteredSynonym.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的同义词规则</td>
+                      <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的同义词规则</td>
                     </tr>
                   ) : (
-                    filteredSynonym.map(r => (
+                    filteredSynonym.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                         <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.primaryWord}</td>
                         <td className="px-4 py-3 min-w-[200px]">
                           <div className="flex flex-wrap gap-1">
                             {r.synonyms && r.synonyms.map((s, idx) => (
-                              <span key={idx} className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-medium">
+                              <span key={idx} className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-medium">
                                 {s}
                               </span>
                             ))}
@@ -457,7 +463,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs">
+                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
                             {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : r.applicableObjectType === 'PART_ELECTRICAL' ? '电气元器件' : '通用件'}
                           </span>
                         </td>
@@ -468,7 +474,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                             title="点击快速启用/禁用"
                             className="flex items-center space-x-1 cursor-pointer"
                           >
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-bold transition-colors ${
+                            <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
                                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                 : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -479,7 +485,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center space-x-1.5">
+                          <div className="flex items-center justify-center space-x-2">
                             <button onClick={() => handleEdit('synonym', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -503,23 +509,25 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
               <table className="w-full min-w-[920px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                    <th className="px-4 py-2.5 whitespace-nowrap">类型</th>
-                    <th className="px-4 py-2.5 min-w-[160px]">源系统分类/类型路径 (未清洗源)</th>
-                    <th className="px-4 py-2.5 min-w-[160px]">标准归一分类/类型路径</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">层级匹配相似度折扣 (退避退水系数)</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">适用对象</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
-                    <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                    <th className="w-12 px-2 py-2 text-center">序号</th>
+                    <th className="px-4 py-2 whitespace-nowrap">类型</th>
+                    <th className="px-4 py-2 min-w-[160px]">源系统分类/类型路径 (未清洗源)</th>
+                    <th className="px-4 py-2 min-w-[160px]">标准归一分类/类型路径</th>
+                    <th className="px-4 py-2 whitespace-nowrap">层级匹配相似度折扣 (退避退水系数)</th>
+                    <th className="px-4 py-2 whitespace-nowrap">适用对象</th>
+                    <th className="px-4 py-2 whitespace-nowrap">状态</th>
+                    <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                   {filteredAlign.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类/类型归一规则</td>
+                      <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类/类型归一规则</td>
                     </tr>
                   ) : (
-                    filteredAlign.map(r => (
+                    filteredAlign.map((r, index) => (
                       <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                        <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="font-semibold text-[var(--ty-font-main-color)]">
                             {r.ruleType === 'CLASSIFICATION' ? '分类路径映射' : r.ruleType === 'TYPE' ? '对象类型归一' : '属性对照'}
@@ -531,7 +539,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                           {r.similarityDiscount * 100}% <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-normal">({r.similarityDiscount < 1.0 ? '跨级损耗' : '完全拉平'})</span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs">
+                          <span className="bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
                             {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : r.applicableObjectType === 'PART_ELECTRICAL' ? '电气元器件' : '通用件'}
                           </span>
                         </td>
@@ -541,7 +549,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                             title="点击快速启用/禁用"
                             className="flex items-center space-x-1 cursor-pointer"
                           >
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-bold transition-colors ${
+                            <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
                                 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                 : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -552,7 +560,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center space-x-1.5">
+                          <div className="flex items-center justify-center space-x-2">
                             <button onClick={() => handleEdit('align', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -575,7 +583,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
       {/* 业务指南 */}
       <div className="p-4 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm">
         <div className="flex items-center space-x-2 mb-2">
-          <span className="px-2 py-0.5 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] rounded-ty-xs text-ty-2xs font-bold">
+          <span className="min-h-6 px-2 inline-flex items-center bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] rounded-ty-xs text-ty-2xs font-bold">
             业务指南
           </span>
           <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">前置数据清洗与归一说明</h4>
@@ -584,7 +592,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
           <p>
             此模块属于<strong className="text-[var(--ty-font-main-color)]">字段属性相似度算分的前置辅助清洗与归一</strong>。在对候选件和拟建件各字段进行比对评分之前，通过本页规则对单位、格式、书写习惯以及同义术语进行统合（如将 "φ", "D", "直径" 映射清洗为规范规格，或进行同义词主副匹配），不在此直接设置或修改相似度权重，以保证评分前数据的高保真度与同义拉平。
           </p>
-          <div className="pt-1.5 border-t border-[var(--ty-border-color)] flex flex-wrap items-center gap-4 text-[var(--ty-font-sub-light-color)] font-mono text-ty-2xs">
+          <div className="pt-2 border-t border-[var(--ty-border-color)] flex flex-wrap items-center gap-4 text-[var(--ty-font-sub-light-color)] font-mono text-ty-2xs">
             <span><strong>算分完整链路方案：</strong> 1. 前置数据清洗 (当前页) → 2. 相似度评分引擎 → 3. 业务决策输出</span>
           </div>
         </div>
@@ -592,28 +600,28 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
 
       {/* RENDER MODAL POPUP FOR CRUD */}
       {editingRule && (
-        <div className="fixed inset-0 bg-ty-overlay backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm shadow-ty-lg max-w-xl w-full border border-[var(--ty-border-color)] flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-ty-overlay backdrop-blur-xs flex items-center justify-center z-50 px-4 py-[60px]">
+          <section role="dialog" aria-modal="true" aria-labelledby="data-processing-dialog-title" className="standard-form-dialog bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg w-[min(600px,calc(100vw-32px))] border border-[var(--ty-border-color)] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden">
 
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] rounded-t-[4px] shrink-0">
+            <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
               <div className="flex items-center space-x-2">
                 <Settings className="w-4 h-4 text-[var(--ty-primary-color)]" />
-                <h3 className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
+                <h2 id="data-processing-dialog-title" className="font-semibold text-[var(--ty-font-main-color)] text-ty-lg">
                   {editingRule.isNew ? '新建' : '编辑'}
                   {editingRule.type === 'standard' ? '标准化处理规则' : editingRule.type === 'synonym' ? '同义词映射词典' : '分类/类型归一策略'}
-                </h3>
+                </h2>
               </div>
-              <button onClick={() => setEditingRule(null)} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] p-1 rounded-ty-xs cursor-pointer">
+              <button type="button" aria-label="关闭数据处理规则弹窗" onClick={() => setEditingRule(null)} className="h-7 w-7 flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] rounded-ty-sm cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body / Form */}
-            <form onSubmit={handleSave} className="flex-1 overflow-auto p-6 space-y-4">
+            <form onSubmit={handleSave} className="flex-1 overflow-auto p-4 space-y-4">
 
               {/* Common Information Alert */}
-              <div className="p-2.5 bg-[var(--ty-orange-lightest-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-main-light-color)] flex items-start space-x-1.5 border border-[var(--ty-orange-color)]/30">
+              <div className="p-3 bg-[var(--ty-orange-lightest-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-main-light-color)] flex items-start space-x-2 border border-[var(--ty-orange-color)]/30">
                 <AlertCircle className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0 mt-0.5" />
                 <span>
                   <strong className="text-[var(--ty-orange-color)]">三阶段原型提示：</strong>当前编辑的数据预处理参数属于<strong>三阶段未来启用后的规则行为</strong>，仅作原型交互，不直接或间接决定当前的二阶段物料字段相似度算分。
@@ -712,8 +720,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                     />
                   </div>
 
-                  <div className="flex items-center space-x-6 bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-color)]">
-                    <label className="flex items-center space-x-1.5 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
+                  <div className="flex items-center space-x-6 bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)]">
+                    <label className="flex items-center space-x-2 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingRule.item.isSimilarityActive}
@@ -723,7 +731,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       <span>参与算分清洗</span>
                     </label>
 
-                    <label className="flex items-center space-x-1.5 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
+                    <label className="flex items-center space-x-2 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingRule.item.isFullTextActive}
@@ -829,8 +837,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                     />
                   </div>
 
-                  <div className="flex items-center space-x-6 bg-[var(--ty-fill-weak-dark-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-color)]">
-                    <label className="flex items-center space-x-1.5 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
+                  <div className="flex items-center space-x-6 bg-[var(--ty-fill-weak-dark-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)]">
+                    <label className="flex items-center space-x-2 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingRule.item.isSimilarityActive}
@@ -840,7 +848,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                       <span>计算相似度拉平</span>
                     </label>
 
-                    <label className="flex items-center space-x-1.5 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
+                    <label className="flex items-center space-x-2 font-semibold text-[var(--ty-font-main-color)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingRule.item.isFullTextActive}
@@ -950,24 +958,24 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
             </form>
 
             {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-[var(--ty-border-color)] flex justify-end space-x-3 bg-[var(--ty-fill-weak-dark-color)] rounded-b-[4px] shrink-0">
+            <div className="px-4 py-3 border-t border-[var(--ty-border-color)] flex justify-end space-x-3 bg-[var(--ty-fill-weak-dark-color)] shrink-0">
               <button
                 type="button"
                 onClick={() => setEditingRule(null)}
-                className="px-4 h-8 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-sub-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-[68px] px-4 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-sub-color)] transition-colors cursor-pointer"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 h-8 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-[68px] px-4 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
               >
                 保存规则 (立即生效)
               </button>
             </div>
 
-          </div>
+          </section>
         </div>
       )}
 

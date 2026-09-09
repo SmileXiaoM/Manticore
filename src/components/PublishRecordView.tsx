@@ -39,7 +39,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <ChevronRight className="w-3 h-3" />
           <span className="text-[var(--ty-font-main-color)] font-medium">变更记录</span>
         </div>
-        <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
+        <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
         <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
           追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。
         </p>
@@ -52,7 +52,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <select
             value={filterObjectType}
             onChange={(e) => setFilterObjectType(e.target.value)}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部类型</option>
             <option value="PART_MECHANICAL">机械零件</option>
@@ -65,7 +65,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <select
             value={filterOpType}
             onChange={(e) => setFilterOpType(e.target.value)}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
+            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
           >
             <option value="ALL">全部操作</option>
             <option value="保存">保存</option>
@@ -81,8 +81,8 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
       {/* Change Records Table */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
-        <div className="bg-[var(--ty-fill-weak-dark-color)] px-4 py-2.5 border-b border-[var(--ty-border-color)] flex items-center justify-between">
-          <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center space-x-1.5">
+        <div className="bg-[var(--ty-fill-weak-dark-color)] px-4 py-2 border-b border-[var(--ty-border-color)] flex items-center justify-between">
+          <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center space-x-2">
             <History className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
             <span>操作变更审计日志 (只读安全审计记录)</span>
           </span>
@@ -92,20 +92,22 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <table className="w-full min-w-[980px] text-left border-collapse text-ty-xs">
             <thead>
               <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                <th className="px-4 py-2.5 min-w-[150px]">对象类型</th>
-                <th className="px-4 py-2.5 min-w-[90px] whitespace-nowrap">配置版本</th>
-                <th className="px-3 py-2.5 text-center min-w-[80px] whitespace-nowrap">操作类型</th>
-                <th className="px-5 py-2.5 min-w-[280px]">变更摘要</th>
-                <th className="px-4 py-2.5 min-w-[100px] whitespace-nowrap">操作人</th>
-                <th className="px-4 py-2.5 min-w-[140px] whitespace-nowrap">操作时间</th>
-                <th className="px-3 py-2.5 text-center min-w-[90px] whitespace-nowrap">执行结果</th>
-                <th className="px-4 py-2.5 min-w-[160px]">失败原因</th>
+                <th className="w-12 px-2 py-2 text-center">序号</th>
+                <th className="px-4 py-2 min-w-[150px]">对象类型</th>
+                <th className="px-4 py-2 min-w-[90px] whitespace-nowrap">配置版本</th>
+                <th className="px-3 py-2 text-center min-w-[80px] whitespace-nowrap">操作类型</th>
+                <th className="px-5 py-2 min-w-[280px]">变更摘要</th>
+                <th className="px-4 py-2 min-w-[100px] whitespace-nowrap">操作人</th>
+                <th className="px-4 py-2 min-w-[140px] whitespace-nowrap">操作时间</th>
+                <th className="px-3 py-2 text-center min-w-[90px] whitespace-nowrap">执行结果</th>
+                <th className="px-4 py-2 min-w-[160px]">失败原因</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)]">
               {filteredRecords.length > 0 ? (
-                filteredRecords.map((rec) => (
+                filteredRecords.map((rec, index) => (
                   <tr key={rec.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                    <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                     {/* Object Type */}
                     <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">
                       {rec.objectType}
@@ -118,7 +120,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
 
                     {/* Operation Type */}
                     <td className="px-3 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-ty-xs text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
+                      <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
                         rec.operationType === '启用' ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30' :
                         rec.operationType === '停用' ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]' :
                         'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-lighter-color)]'
@@ -172,7 +174,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-[var(--ty-font-sub-light-color)]">
+                  <td colSpan={9} className="text-center py-8 text-[var(--ty-font-sub-light-color)]">
                     暂无符合条件的变更记录。
                   </td>
                 </tr>

@@ -3,7 +3,6 @@ import {
   Search,
   RotateCcw,
   Download,
-  CheckCircle2,
   ChevronRight,
   Info,
   Layers,
@@ -29,6 +28,7 @@ import {
   SimilarityBaseline,
   ObjectType
 } from '../types';
+import { useFeedback } from './ui/FeedbackProvider';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
@@ -45,6 +45,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   objectConfigStatus,
   onNavigate
 }) => {
+  const { notify } = useFeedback();
   // 1. 查询条件
   const [rootTypeId, setRootTypeId] = useState<string>('PART');
   const [softTypeId, setSoftTypeId] = useState<string>('IN_HOUSE');
@@ -63,9 +64,6 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   // 选中的对比物料 (侧边/抽屉业务对比)
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
-
-  // 导出提示
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const availableSoftTypes = useMemo(() => {
     return softTypeOptions.filter(st => st.rootTypeId === rootTypeId);
@@ -114,7 +112,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     let baseline: SimilarityBaseline;
     if (baselineType === 'EXISTING_PART') {
       if (!existingPartId) {
-        alert('请选择或输入基准物料编码！');
+        notify('请选择或输入基准物料编码。', 'warning');
         return;
       }
       baseline = {
@@ -124,7 +122,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     } else {
       const formItem = mockFormBaselines.find(f => f.id === selectedFormId);
       if (!formItem) {
-        alert('请选择有效的申请表单！');
+        notify('请选择有效的申请表单。', 'warning');
         return;
       }
       baseline = {
@@ -217,9 +215,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     link.click();
     document.body.removeChild(link);
 
-    // 弹出 Toast 提示
-    setToastMessage(`已导出当前条件下全量相似件数据 (${searchResult.scoredCandidates.length} 条)`);
-    setTimeout(() => setToastMessage(null), 3500);
+    notify(`已导出当前条件下全量相似件数据（${searchResult.scoredCandidates.length} 条）。`, 'success');
   };
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
@@ -235,19 +231,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   return (
     <div className="space-y-4" id="client-find-similar-view-container">
-      {/* Toast 提示 */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 bg-[var(--ty-fill-darkest-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold px-4 py-2.5 rounded-ty-sm shadow-ty-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-          <CheckCircle2 className="w-4 h-4 text-[var(--ty-green-color)]" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* 顶部标题与业务场景说明 */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div>
-            <h1 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
+            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
               应用端查找相似件
             </h1>
@@ -259,7 +247,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置
@@ -267,7 +255,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <button
               onClick={handleSearch}
               disabled={isSearching}
-              className="h-8 inline-flex items-center gap-1.5 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
+              className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="client-search-btn"
             >
               <Search className="w-3.5 h-3.5" />
@@ -287,7 +275,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <select
               value={rootTypeId}
               onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="client-root-type-select"
             >
               {rootTypeOptions.map(rt => (
@@ -307,7 +295,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <select
               value={softTypeId}
               onChange={e => setSoftTypeId(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="client-soft-type-select"
             >
               {availableSoftTypes.map(st => (
@@ -327,7 +315,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <select
               value={baselineType}
               onChange={e => setBaselineType(e.target.value as any)}
-              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="client-baseline-type-select"
             >
               <option value="EXISTING_PART">已有物料作为基准</option>
@@ -359,7 +347,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                   value={existingPartId}
                   onChange={e => setExistingPartId(e.target.value)}
                   placeholder="输入物料编码..."
-                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                 />
               )
             ) : availableFormBaselines.length > 0 ? (
@@ -434,10 +422,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                   <span className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
                     {searchResult.reference?.objectName}
                   </span>
-                  <span className="text-ty-xs font-mono px-2 py-0.5 bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 rounded-ty-xs font-semibold">
+                  <span className="text-ty-xs font-mono min-h-6 px-2 inline-flex items-center bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 rounded-ty-xs font-semibold">
                     {searchResult.reference?.objectId}
                   </span>
-                  <span className="text-ty-2xs px-2 py-0.5 bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
+                  <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
                     {searchResult.baselineType === 'FORM_VALUES' ? '申请表单' : '已有物料'}
                   </span>
                 </div>
@@ -465,13 +453,13 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             </div>
 
             {/* 导出按钮 */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
               <span className="text-ty-xs text-[var(--ty-font-sub-color)]">
                 共找到 <strong className="text-[var(--ty-primary-color)] font-bold">{searchResult.scoredCandidates.length}</strong> 件相似物料
               </span>
               <button
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-semibold text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+                className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-semibold text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
                 title="导出当前条件下全量相似件数据 (XLSX/CSV)"
                 id="client-export-btn"
               >
@@ -486,17 +474,17 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <table className="w-full text-left text-ty-xs border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                  <th className="py-2.5 px-4 w-12 text-center">序号</th>
-                  <th className="py-2.5 px-4">物料编码与名称</th>
+                  <th className="py-2 px-4 w-12 text-center">序号</th>
+                  <th className="py-2 px-4">物料编码与名称</th>
                   {keyDisplayColumns.map(col => (
-                    <th key={col.fieldCode} className="py-2.5 px-4">
+                    <th key={col.fieldCode} className="py-2 px-4">
                       {col.displayName}
                     </th>
                   ))}
-                  <th className="py-2.5 px-4">生命周期状态</th>
-                  <th className="py-2.5 px-4">相似度</th>
-                  <th className="py-2.5 px-4">等级 / 覆盖率</th>
-                  <th className="py-2.5 px-4 text-right">操作</th>
+                  <th className="py-2 px-4">生命周期状态</th>
+                  <th className="py-2 px-4">相似度</th>
+                  <th className="py-2 px-4">等级 / 覆盖率</th>
+                  <th className="py-2 px-4 text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -530,7 +518,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
                     {/* 状态 */}
                     <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-0.5 text-ty-2xs font-medium bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 rounded-ty-xs">
+                      <span className="inline-flex items-center min-h-6 px-2 inline-flex items-center text-ty-2xs font-medium bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30 rounded-ty-xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1"></span>
                         {cand.lifecycleState}
                       </span>
@@ -555,7 +543,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     <td className="py-3 px-4">
                       <div className="flex flex-col gap-0.5 items-start">
                         <span
-                          className={`px-1.5 py-0.2 text-ty-2xs font-bold rounded-ty-xs ${
+                          className={`px-2 py-0.2 text-ty-2xs font-bold rounded-ty-xs ${
                             cand.similarityTier === '高相似'
                               ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                               : cand.similarityTier === '中相似'
@@ -575,7 +563,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     <td className="py-3 px-4 text-right">
                       <button
                         onClick={() => setSelectedForCompare(cand)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-ty-xs font-semibold text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"
+                        className="h-7 min-w-16 inline-flex items-center gap-1 px-3 text-ty-xs font-semibold text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"
                         id={`client-view-compare-${cand.objectId}`}
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -594,18 +582,18 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
               <span className="text-[var(--ty-font-sub-color)]">
                 第 {currentPage} 页 / 共 {totalPages} 页 (共 {searchResult.scoredCandidates.length} 条)
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  className="px-2.5 py-1 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
+                  className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
                 >
                   上一页
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  className="px-2.5 py-1 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
+                  className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
                 >
                   下一页
                 </button>
@@ -623,11 +611,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           role="presentation"
           onMouseDown={event => { if (event.target === event.currentTarget) setSelectedForCompare(null); }}
         >
-          <section role="dialog" aria-modal="true" aria-labelledby="client-compare-drawer-title" className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
+          <section role="dialog" aria-modal="true" aria-labelledby="client-compare-drawer-title" className="w-[min(800px,100vw)] bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
             {/* 抽屉头部 */}
             <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
               <div>
-                <h2 id="client-compare-drawer-title" className="text-ty-md font-semibold text-[var(--ty-font-main-color)] flex items-center gap-2">
+                <h2 id="client-compare-drawer-title" className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center gap-2">
                   <span>物料属性差异对比</span>
                   <span className="text-ty-sm font-mono text-[var(--ty-primary-color)] font-bold">
                     综合匹配度 {selectedForCompare.similarityScore.toFixed(2)}%
@@ -640,7 +628,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
               <button
                 aria-label="关闭物料属性差异对比"
                 onClick={() => setSelectedForCompare(null)}
-                className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
+                className="p-2 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -652,7 +640,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                 提示：本对比展示当前候选物料与基准物料的核心属性吻合情况，供研发工程师与物料管理员决策是否直接复用或改型。
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {selectedForCompare.compareFields.map(f => (
                   <div
                     key={f.fieldKey}
@@ -661,7 +649,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
                       <span
-                        className={`font-semibold px-2 py-0.5 rounded-ty-xs text-ty-2xs ${
+                        className={`font-semibold min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs ${
                           f.status === 'FULL'
                             ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                             : f.status === 'PARTIAL'
@@ -677,7 +665,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-2.5 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs">
+                    <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs">
                        <div>
                          <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">基准物料值</span>
                          <span className="font-semibold text-[var(--ty-font-main-color)]">
@@ -705,7 +693,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex justify-end">
               <button
                 onClick={() => setSelectedForCompare(null)}
-                className="px-4 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer"
+                className="h-8 min-w-[68px] px-4 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer"
               >
                 关闭
               </button>

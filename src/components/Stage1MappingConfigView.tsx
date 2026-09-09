@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Database } from 'lucide-react';
 import {
   MappingObjectType,
   FieldMappingItem,
@@ -346,6 +347,16 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
   return (
     <div className="space-y-4">
+      <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Database className="w-5 h-5 shrink-0 text-[var(--ty-primary-color)]" />
+          <div className="min-w-0">
+            <h1 className="text-ty-xl font-semibold">接入配置</h1>
+            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">维护各根类型从 PLM 到 Manticore 的字段映射、发布状态与同步入口。</p>
+          </div>
+        </div>
+        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">配置范围按根类型隔离</span>
+      </header>
       {operationMessage && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] px-3 py-2 text-ty-xs">
           <span>{operationMessage}</span>

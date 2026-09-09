@@ -218,7 +218,7 @@ export default function App() {
           <Sidebar currentView={currentView} onNavigate={handleNavigate} />
 
           {/* Dynamic View Dispatcher */}
-          <main className="flex-1 min-w-0 flex flex-col overflow-y-auto p-6 bg-[var(--ty-fill-color)]">
+          <main className="flex-1 min-w-0 flex flex-col overflow-y-auto px-4 py-3 bg-[var(--ty-fill-color)]">
             {scheduleTarget && <ExecutionScheduleDialog rootTypeCode={scheduleTarget}
               roots={mappingObjects} schedules={schedules}
               onSave={value => setSchedules(previous => [...previous.filter(item => item.rootTypeCode !== value.rootTypeCode), value])}
@@ -344,8 +344,8 @@ export default function App() {
       </div>
 
       {showUnsavedConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ty-fill-darkest-color)]/60 backdrop-blur-xs" id="unsaved-modal-overlay">
-          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-6" id="unsaved-modal-content">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ty-fill-darkest-color)]/60 backdrop-blur-xs p-4" id="unsaved-modal-overlay">
+          <section role="dialog" aria-modal="true" aria-labelledby="unsaved-modal-title" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(480px,calc(100vw-32px))] p-4" id="unsaved-modal-content">
             <div className="flex items-start space-x-3">
               <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 p-2 rounded-full text-[var(--ty-orange-color)] shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,11 +353,11 @@ export default function App() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[var(--ty-font-main-color)]">未应用配置更改警告</h3>
-                <p className="text-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
+                <h2 id="unsaved-modal-title" className="text-ty-lg font-semibold text-[var(--ty-font-main-color)]">未应用配置更改警告</h2>
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
                   检测到您当前在<strong>「字段属性相似度配置」</strong>中有尚未应用的编辑中草稿（即临时未保存更改）。
                 </p>
-                <p className="text-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-2 leading-relaxed">
                   如果您现在切换页面，所有未保存的编辑内容都将丢失。是否确认放弃更改并离开？
                 </p>
               </div>
@@ -365,20 +365,20 @@ export default function App() {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={handleCancelDiscard}
-                className="px-4 py-2 border border-[var(--ty-border-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-xs font-semibold text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-16 px-4 border border-[var(--ty-border-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-main-color)] transition-colors cursor-pointer"
                 id="btn-unsaved-cancel"
               >
                 留在当前页面 (返回保存)
               </button>
               <button
                 onClick={handleConfirmDiscard}
-                className="px-4 py-2 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 rounded-ty-sm text-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-16 px-4 bg-[var(--ty-orange-color)] hover:opacity-90 active:opacity-100 rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
                 id="btn-unsaved-discard"
               >
                 放弃更改并离开
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>

@@ -16,6 +16,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { ThresholdRule, HardRule, CategoryCoverage, ObjectType } from '../types';
+import { useFeedback } from './ui/FeedbackProvider';
 
 interface ThreeStandardDecisionViewProps {
   thresholdRules: ThresholdRule[];
@@ -34,6 +35,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
   coverages,
   onUpdateCoverages
 }) => {
+  const { notify, confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'threshold' | 'hard' | 'coverage'>('threshold');
   const [keyword, setKeyword] = useState('');
 
@@ -137,7 +139,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
     if (type === 'threshold') {
       if (!item.ruleName || !item.applicableCategory) {
-        alert('请填写必填项：规则名称、适用物料分类。');
+        notify('请填写必填项：规则名称、适用物料分类。', 'warning');
         return;
       }
       let updated: ThresholdRule[];
@@ -154,7 +156,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       onUpdateThresholdRules(updated);
     } else if (type === 'hard') {
       if (!item.ruleName || !item.triggerField || !item.triggerCondition) {
-        alert('请填写必填项：规则名称、触发条件字段、触发逻辑。');
+        notify('请填写必填项：规则名称、触发条件字段、触发逻辑。', 'warning');
         return;
       }
       let updated: HardRule[];
@@ -170,7 +172,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       onUpdateHardRules(updated);
     } else if (type === 'coverage') {
       if (!item.categoryPath) {
-        alert('请填写必填项：分类层级路径。');
+        notify('请填写必填项：分类层级路径。', 'warning');
         return;
       }
       let updated: CategoryCoverage[];
@@ -190,8 +192,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
     setEditingRule(null);
   };
 
-  const handleDelete = (type: 'threshold' | 'hard' | 'coverage', id: string) => {
-    if (window.confirm('确定要删除这条决策处理规则吗？(评审原型支持即时生效)')) {
+  const handleDelete = async (type: 'threshold' | 'hard' | 'coverage', id: string) => {
+    if (await confirm({ title: '删除规则', message: '确定要删除这条决策处理规则吗？评审原型将即时生效。', confirmText: '删除', tone: 'danger' })) {
       if (type === 'threshold') {
         onUpdateThresholdRules(thresholdRules.filter(r => r.id !== id));
       } else if (type === 'hard') {
@@ -220,17 +222,17 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         <div className="flex items-start justify-between mb-2">
           <div className="w-full">
             <div className="flex items-center space-x-2">
-              <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] flex items-center space-x-2">
+              <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] flex items-center space-x-2">
                 <ShieldAlert className="w-5 h-5 text-[var(--ty-orange-color)]" />
                 <span>三化决策规则配置</span>
               </h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-ty-xs text-ty-2xs font-semibold border border-[var(--ty-orange-color)]/30">
+              <span className="inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] rounded-ty-xs text-ty-2xs font-semibold border border-[var(--ty-orange-color)]/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
                 三阶段后续概念原型
               </span>
             </div>
 
-            <div className="mt-2.5 p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
+            <div className="mt-2 p-3 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed">
               <p className="font-semibold text-[var(--ty-font-main-color)] mb-1 flex items-center">
                 <Info className="w-4 h-4 mr-1 text-[var(--ty-primary-color)]" />
                 三阶段后续决策规则行为说明
@@ -243,7 +245,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
               </ul>
             </div>
           </div>
-          <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-main-light-color)] font-semibold bg-[var(--ty-orange-lightest-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-orange-color)]/30 shrink-0 self-start mt-1">
+          <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-main-light-color)] font-semibold bg-[var(--ty-orange-lightest-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30 shrink-0 self-start mt-1">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
             <span>参考规则集 V1.2.0（草案）</span>
           </div>
@@ -253,7 +255,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         <div className="flex border-b border-[var(--ty-border-color)] mt-4">
           <button
             onClick={() => { setActiveTab('threshold'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'threshold'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -263,7 +265,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           </button>
           <button
             onClick={() => { setActiveTab('hard'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'hard'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -273,7 +275,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           </button>
           <button
             onClick={() => { setActiveTab('coverage'); setKeyword(''); }}
-            className={`px-4 py-2 text-ty-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 text-ty-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'coverage'
                 ? 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)]'
                 : 'border-transparent text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -306,7 +308,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
         <div>
           <button
             onClick={() => handleAddNew(activeTab)}
-            className="flex items-center space-x-1.5 px-3.5 h-8 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center space-x-2 px-4 h-8 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-semibold transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>
@@ -326,28 +328,30 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <table className="w-full min-w-[960px] text-left border-collapse text-ty-xs">
                   <thead>
                     <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                      <th className="px-4 py-2.5 whitespace-nowrap">规则名称</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">适用对象类型</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">适用物料分类</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-green-color)]">建议复用线</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-orange-color)]">建议复核区间</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-[var(--ty-font-sub-color)]">允许新建线</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">生效版本</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                      <th className="w-12 px-2 py-2 text-center">序号</th>
+                      <th className="px-4 py-2 whitespace-nowrap">规则名称</th>
+                      <th className="px-4 py-2 whitespace-nowrap">适用对象类型</th>
+                      <th className="px-4 py-2 whitespace-nowrap">适用物料分类</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-[var(--ty-green-color)]">建议复用线</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-[var(--ty-orange-color)]">建议复核区间</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-[var(--ty-font-sub-color)]">允许新建线</th>
+                      <th className="px-4 py-2 whitespace-nowrap">状态</th>
+                      <th className="px-4 py-2 whitespace-nowrap">生效版本</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                     {filteredThresholds.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的阈值规则</td>
+                        <td colSpan={10} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的阈值规则</td>
                       </tr>
                     ) : (
-                      filteredThresholds.map(r => (
+                      filteredThresholds.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                           <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] px-1.5 py-0.5 rounded-ty-xs text-ty-2xs">
+                            <span className="bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">
                               {r.applicableObjectType === 'PART_MECHANICAL' ? '机械零件' : '电气元器件'}
                             </span>
                           </td>
@@ -367,7 +371,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                               title="点击快速启用/禁用"
                               className="cursor-pointer"
                             >
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs font-bold text-ty-2xs ${
+                              <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs font-bold text-ty-2xs ${
                                 r.isEnabled
                                   ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                   : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -379,7 +383,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           </td>
                           <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap">{r.version}</td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center space-x-1.5">
+                            <div className="flex items-center justify-center space-x-2">
                               <button onClick={() => handleEdit('threshold', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑阈值">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -405,41 +409,43 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <table className="w-full min-w-[1000px] text-left border-collapse text-ty-xs">
                   <thead>
                     <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                      <th className="px-4 py-2.5 whitespace-nowrap">强制/硬性控制规则名称</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">决策建议分类</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">适用物料分类</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">触发条件字段</th>
-                      <th className="px-4 py-2.5 min-w-[160px]">判断触发逻辑</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">命中后强制转换流程动作</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">状态</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                      <th className="w-12 px-2 py-2 text-center">序号</th>
+                      <th className="px-4 py-2 whitespace-nowrap">强制/硬性控制规则名称</th>
+                      <th className="px-4 py-2 whitespace-nowrap">决策建议分类</th>
+                      <th className="px-4 py-2 whitespace-nowrap">适用物料分类</th>
+                      <th className="px-4 py-2 whitespace-nowrap">触发条件字段</th>
+                      <th className="px-4 py-2 min-w-[160px]">判断触发逻辑</th>
+                      <th className="px-4 py-2 whitespace-nowrap">命中后强制转换流程动作</th>
+                      <th className="px-4 py-2 whitespace-nowrap">状态</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                     {filteredHardRules.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
+                        <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
                       </tr>
                     ) : (
-                      filteredHardRules.map(r => (
+                      filteredHardRules.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</div>
                             <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">测试示例：{r.triggerExample}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {r.ruleType === 'FORCE_REVIEW' ? (
-                              <span className="bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold inline-flex items-center gap-1">
+                              <span className="bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold inline-flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
                                 强制复核
                               </span>
                             ) : r.ruleType === 'NON_REUSABLE' ? (
-                              <span className="bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 px-2 py-0.5 rounded-ty-xs text-ty-2xs font-bold inline-flex items-center gap-1">
+                              <span className="bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold inline-flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-red-color)]" />
                                 禁止复用
                               </span>
                             ) : (
-                              <span className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] px-2 py-0.5 rounded-ty-xs text-ty-2xs">风险预警</span>
+                              <span className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs">风险预警</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-medium whitespace-nowrap">{r.applicableCategory}</td>
@@ -469,7 +475,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                               title="点击启用/停用"
                               className="cursor-pointer"
                             >
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${
+                              <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold ${
                                 r.isEnabled
                                   ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                   : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -480,7 +486,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                             </button>
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center space-x-1.5">
+                            <div className="flex items-center justify-center space-x-2">
                               <button onClick={() => handleEdit('hard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑强控">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -515,24 +521,26 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                 <table className="w-full min-w-[980px] text-left border-collapse text-ty-xs">
                   <thead>
                     <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                      <th className="px-4 py-2.5 whitespace-nowrap">分类层级路径</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">层级关系</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">绑定阈值规则</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">绑定白名单对照</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">绑定计算字段规则</th>
-                      <th className="px-4 py-2.5 min-w-[160px]">核心权重覆盖详情描述</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap">生效状态</th>
-                      <th className="px-4 py-2.5 whitespace-nowrap text-center">操作</th>
+                      <th className="w-12 px-2 py-2 text-center">序号</th>
+                      <th className="px-4 py-2 whitespace-nowrap">分类层级路径</th>
+                      <th className="px-4 py-2 whitespace-nowrap">层级关系</th>
+                      <th className="px-4 py-2 whitespace-nowrap">绑定阈值规则</th>
+                      <th className="px-4 py-2 whitespace-nowrap">绑定白名单对照</th>
+                      <th className="px-4 py-2 whitespace-nowrap">绑定计算字段规则</th>
+                      <th className="px-4 py-2 min-w-[160px]">核心权重覆盖详情描述</th>
+                      <th className="px-4 py-2 whitespace-nowrap">生效状态</th>
+                      <th className="px-4 py-2 whitespace-nowrap text-center">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                     {filteredCoverages.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类覆盖绑定关系</td>
+                        <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的分类覆盖绑定关系</td>
                       </tr>
                     ) : (
-                      filteredCoverages.map(r => (
+                      filteredCoverages.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
+                          <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
                           <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] font-mono whitespace-nowrap">{r.categoryPath}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {r.inheritParent ? (
@@ -541,7 +549,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                                 <span>继承父级</span>
                               </span>
                             ) : (
-                              <span className="text-[var(--ty-font-main-light-color)] font-bold flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] px-1.5 py-0.5 rounded-ty-xs border border-[var(--ty-orange-color)]/30 text-ty-2xs">
+                              <span className="text-[var(--ty-font-main-light-color)] font-bold flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30 text-ty-2xs">
                                 <ToggleLeft className="w-3.5 h-3.5 text-[var(--ty-orange-color)]" />
                                 <span>首层策略重设</span>
                               </span>
@@ -559,7 +567,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                               title="点击启动/停用"
                               className="cursor-pointer"
                             >
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-ty-xs text-ty-2xs font-bold ${
+                              <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold ${
                                 r.isEnabled
                                   ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                                   : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
@@ -570,7 +578,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                             </button>
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center space-x-1.5">
+                            <div className="flex items-center justify-center space-x-2">
                               <button onClick={() => handleEdit('coverage', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑覆盖绑定">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -594,7 +602,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
       {/* 业务指南 */}
       <div className="p-4 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm space-y-3">
         <div className="flex items-center space-x-2">
-          <span className="px-2 py-0.5 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] rounded-ty-xs text-ty-2xs font-bold">
+          <span className="min-h-6 px-2 inline-flex items-center bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] rounded-ty-xs text-ty-2xs font-bold">
             业务指南
           </span>
           <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">三化决策规则与管理阈值说明</h4>
@@ -612,15 +620,15 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
           <div className="pt-2 border-t border-[var(--ty-border-color)]">
             <span className="font-semibold text-[var(--ty-font-main-color)] block mb-1">📊 三化审核阈值口径划分（供参考）：</span>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="flex items-center space-x-1 bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-green-color)]/30 font-bold">
+              <span className="flex items-center space-x-1 bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-green-color)]/30 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)]" />
                 <span>建议复用: &gt;= 86%</span>
               </span>
-              <span className="flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-orange-color)]/30 font-bold">
+              <span className="flex items-center space-x-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-orange-color)]" />
                 <span>建议复核: 68% - 86%</span>
               </span>
-              <span className="flex items-center space-x-1 bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] px-2 py-0.5 rounded-ty-xs border border-[var(--ty-border-color)] font-bold">
+              <span className="flex items-center space-x-1 bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] font-bold">
                 <span>允许新建: &lt; 68%</span>
               </span>
             </div>
@@ -628,8 +636,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
           {/* Hard Control Examples */}
           <div className="pt-2 border-t border-[var(--ty-border-color)]">
-            <span className="font-semibold text-[var(--ty-font-main-color)] block mb-1.5">🚫 典型硬控降级业务场景示例：</span>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+            <span className="font-semibold text-[var(--ty-font-main-color)] block mb-2">🚫 典型硬控降级业务场景示例：</span>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="bg-[var(--ty-fill-white-color)] p-2 rounded-ty-sm border border-[var(--ty-border-color)]">
                 <span className="font-semibold text-[var(--ty-font-main-color)] block mb-0.5">材质大类不一致</span>
                 <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">关键用料冲突，相似度再高也必须强制判定为 <strong className="text-[var(--ty-orange-color)] font-medium">强制复核</strong></span>
@@ -653,27 +661,27 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
 
       {/* RENDER POPUP EDITING FOR DECISION RULES */}
       {editingRule && (
-        <div className="fixed inset-0 bg-ty-overlay backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm shadow-ty-lg max-w-xl w-full border border-[var(--ty-border-color)] flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-ty-overlay backdrop-blur-xs flex items-center justify-center z-50 px-4 py-[60px]">
+          <section role="dialog" aria-modal="true" aria-labelledby="three-standard-dialog-title" className="standard-form-dialog bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg w-[min(600px,calc(100vw-32px))] border border-[var(--ty-border-color)] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden">
 
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] rounded-t-[4px] shrink-0">
+            <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
               <div className="flex items-center space-x-2">
                 <ShieldAlert className="w-4 h-4 text-[var(--ty-orange-color)]" />
-                <h3 className="font-bold text-[var(--ty-font-main-color)] text-ty-sm">
+                <h2 id="three-standard-dialog-title" className="font-semibold text-[var(--ty-font-main-color)] text-ty-lg">
                   {editingRule.isNew ? '新建' : '编辑'}
                   {editingRule.type === 'threshold' ? '三化管理决策阈值线' : editingRule.type === 'hard' ? '强制复核与硬性控制规则' : '分类大类覆盖决策绑定'}
-                </h3>
+                </h2>
               </div>
-              <button onClick={() => setEditingRule(null)} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] p-1 rounded-ty-xs cursor-pointer">
+              <button type="button" aria-label="关闭三化决策规则弹窗" onClick={() => setEditingRule(null)} className="h-7 w-7 flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] rounded-ty-sm cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Form Content */}
-            <form onSubmit={handleSave} className="flex-1 overflow-auto p-6 space-y-4">
+            <form onSubmit={handleSave} className="flex-1 overflow-auto p-4 space-y-4">
 
-              <div className="p-2.5 bg-[var(--ty-primary-lighter-color)]/20 rounded-ty-sm text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-1.5 border border-[var(--ty-primary-lighter-color)]">
+              <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 rounded-ty-sm text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-2 border border-[var(--ty-primary-lighter-color)]">
                 <Info className="w-3.5 h-3.5 text-[var(--ty-primary-color)] shrink-0 mt-0.5" />
                 <span>
                   <strong>阶段导视：</strong>此处的改动不作用于相似度字段算分。它主要负责把相似度得分 (0-100) 的计算结果，转义为应用端新建时的业务建议逻辑。
@@ -732,7 +740,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           min="1" max="100"
                           value={editingRule.item.reuseThreshold}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reuseThreshold: parseInt(e.target.value) || 85 }})}
-                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-1.5 text-center text-ty-xs font-bold font-mono text-[var(--ty-green-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
+                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2 text-center text-ty-xs font-bold font-mono text-[var(--ty-green-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
                         />
                       </div>
 
@@ -743,7 +751,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           min="1" max="100"
                           value={editingRule.item.reviewThresholdMin}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reviewThresholdMin: parseInt(e.target.value) || 65 }})}
-                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-1.5 text-center text-ty-xs font-bold font-mono text-[var(--ty-orange-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
+                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2 text-center text-ty-xs font-bold font-mono text-[var(--ty-orange-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
                         />
                       </div>
 
@@ -754,7 +762,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           min="1" max="100"
                           value={editingRule.item.reviewThresholdMax}
                           onChange={(e) => setEditingRule({ ...editingRule, item: { ...editingRule.item, reviewThresholdMax: parseInt(e.target.value) || 85 }})}
-                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-1.5 text-center text-ty-xs font-bold font-mono text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
+                          className="w-full bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-2 text-center text-ty-xs font-bold font-mono text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] outline-hidden"
                         />
                       </div>
                     </div>
@@ -997,24 +1005,24 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
             </form>
 
             {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-[var(--ty-border-color)] flex justify-end space-x-3 bg-[var(--ty-fill-weak-dark-color)] rounded-b-[4px] shrink-0">
+            <div className="px-4 py-3 border-t border-[var(--ty-border-color)] flex justify-end space-x-3 bg-[var(--ty-fill-weak-dark-color)] shrink-0">
               <button
                 type="button"
                 onClick={() => setEditingRule(null)}
-                className="px-4 py-1.5 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-sub-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-[68px] px-4 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-sub-color)] transition-colors cursor-pointer"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-1.5 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
+                className="h-8 min-w-[68px] px-4 bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] rounded-ty-sm text-ty-xs font-semibold text-[var(--ty-font-white-color)] transition-colors cursor-pointer"
               >
                 保存规则 (立即生效)
               </button>
             </div>
 
-          </div>
+          </section>
         </div>
       )}
 

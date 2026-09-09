@@ -573,21 +573,21 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     switch (c.conflictType) {
       case 'UNMAPPED':
         return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+          <span className="h-6 inline-flex items-center px-2 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
             <CheckCircle2 className="w-2.5 h-2.5 mr-1 text-[var(--ty-green-color)] shrink-0" />
             未映射 (可导入)
           </span>
         );
       case 'ALREADY_CONFIGURED':
         return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30">
+          <span className="h-6 inline-flex items-center px-2 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30">
             <Check className="w-2.5 h-2.5 mr-1 text-[var(--ty-primary-color)] shrink-0" />
             已配置
           </span>
         );
       case 'HAS_DRAFT':
         return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+          <span className="h-6 inline-flex items-center px-2 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
             <Clock className="w-2.5 h-2.5 mr-1 text-[var(--ty-orange-color)] shrink-0" />
             已有草稿
           </span>
@@ -596,7 +596,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       case 'METADATA_MISSING':
       default:
         return (
-          <span className="h-5 inline-flex items-center px-1.5 py-0.5 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)]">
+          <span className="h-6 inline-flex items-center px-2 rounded-ty-sm text-ty-2xs font-medium bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)]">
             <AlertCircle className="w-2.5 h-2.5 mr-1 text-[var(--ty-font-sub-light-color)] shrink-0" />
             不可导入
           </span>
@@ -607,16 +607,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-6xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="dialog" aria-modal="true" aria-label="批量属性配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Header - 已精简顶部信息，收回高度并保持右对齐操作 */}
         <div className="px-5 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 bg-[var(--ty-fill-weak-dark-color)] shrink-0">
           <div className="space-y-0.5">
-            <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
-              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
+            <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
+              <FileSpreadsheet className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
               批量发现并导入 PLM 字段映射
               <span className="ml-2 text-ty-2xs font-normal text-[var(--ty-font-sub-color)]">原型示例数据</span>
-            </h3>
+            </h2>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
               主动读取来源系统元数据定义，自动完成类型推断与来源显示名兜底。勾选后生成草稿，需生效配置后方能进入正式底座。
             </p>
@@ -628,7 +628,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleFetchPlmMetadata(false)}
-                className="h-8 px-3 bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
+                className="h-8 px-3 bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />
                 <span>重新读取元数据</span>
@@ -638,7 +638,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 type="button"
                 onClick={() => handleFetchPlmMetadata(false)}
                 disabled={fetchStatus === 'FETCHING'}
-                className={`h-8 px-3.5 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors ${
+                className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors ${
                   fetchStatus === 'FETCHING'
                     ? 'bg-[var(--ty-primary-color)]/70 text-[var(--ty-font-white-color)] cursor-wait'
                     : 'bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)]'
@@ -651,6 +651,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
             <button
               type="button"
+              aria-label="关闭批量属性配置"
               onClick={handleRequestClose}
               className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors ml-1"
             >
@@ -673,7 +674,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleFetchPlmMetadata(false)}
-                className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer transition-colors flex items-center space-x-1.5"
+                className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium cursor-pointer transition-colors flex items-center space-x-2"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>立即读取 PLM 元数据</span>
@@ -720,7 +721,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
           {/* 错误提示横幅 */}
           {batchErrorMessage && (
-            <div className="mx-5 my-2.5 p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] flex items-center justify-between shrink-0 animate-in fade-in duration-150">
+            <div className="mx-5 my-3 p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] flex items-center justify-between shrink-0 animate-in fade-in duration-150">
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 text-[var(--ty-red-color)] shrink-0" />
                 <span className="font-medium text-[var(--ty-red-color)]">{batchErrorMessage}</span>
@@ -738,13 +739,13 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           {fetchStatus === 'SUCCESS' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* 筛选条 (统一 32px 控件) */}
-              <div className="px-5 py-2.5 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="px-5 py-2 bg-[var(--ty-fill-white-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center bg-[var(--ty-fill-weak-dark-color)] p-0.5 rounded-ty-sm text-ty-xs font-medium h-8 border border-[var(--ty-border-color)]">
                     <button
                       type="button"
                       onClick={() => setConflictFilter('ALL')}
-                      className={`h-7 px-2.5 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
+                      className={`h-7 px-3 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
                         conflictFilter === 'ALL'
                           ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-semibold'
                           : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -755,7 +756,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setConflictFilter('UNMAPPED')}
-                      className={`h-7 px-2.5 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
+                      className={`h-7 px-3 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
                         conflictFilter === 'UNMAPPED'
                           ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-green-color)] font-semibold'
                           : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -766,7 +767,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setConflictFilter('ALREADY_CONFIGURED')}
-                      className={`h-7 px-2.5 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
+                      className={`h-7 px-3 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
                         conflictFilter === 'ALREADY_CONFIGURED'
                           ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] font-semibold'
                           : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -777,7 +778,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setConflictFilter('HAS_DRAFT')}
-                      className={`h-7 px-2.5 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
+                      className={`h-7 px-3 rounded-ty-xs transition-colors cursor-pointer flex items-center ${
                         conflictFilter === 'HAS_DRAFT'
                           ? 'bg-[var(--ty-fill-white-color)] text-[var(--ty-orange-color)] font-semibold'
                           : 'text-[var(--ty-font-sub-color)] hover:text-[var(--ty-font-main-color)]'
@@ -815,7 +816,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 <table className="w-full text-left text-ty-xs">
                   <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
                     <tr>
-                      <th className="py-2.5 px-3 w-10 text-center">
+                      <th className="py-2 px-3 w-10 text-center">
                         <button
                           type="button"
                           onClick={toggleSelectAll}
@@ -832,11 +833,11 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                           )}
                         </button>
                       </th>
-                      <th className="py-2.5 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
-                      <th className="py-2.5 px-3 min-w-[200px]">PLM 属性定义（只读）</th>
-                      <th className="py-2.5 px-3 min-w-[210px]">建议映射</th>
-                      <th className="py-2.5 px-3 min-w-[130px]">比对状态与说明</th>
-                      <th className="py-2.5 px-3 min-w-[110px] text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky">
+                      <th className="py-2 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
+                      <th className="py-2 px-3 min-w-[200px]">PLM 属性定义（只读）</th>
+                      <th className="py-2 px-3 min-w-[210px]">建议映射</th>
+                      <th className="py-2 px-3 min-w-[130px]">比对状态与说明</th>
+                      <th className="py-2 px-3 min-w-[110px] text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky">
                         配置与操作
                       </th>
                     </tr>
@@ -876,7 +877,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                 : 'hover:bg-[var(--ty-fill-weak-dark-color)] cursor-pointer'
                             }`}
                           >
-                            <td className="py-2.5 px-3 text-center" onClick={e => e.stopPropagation()}>
+                            <td className="py-2 px-3 text-center" onClick={e => e.stopPropagation()}>
                               {c.isSelectable ? (
                                 <input
                                   type="checkbox"
@@ -890,7 +891,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                             </td>
 
                             {/* PLM 来源元数据 (只读) */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2 px-3">
                               <div className="font-mono font-semibold text-[var(--ty-font-main-color)]">
                                 {c.sourceFieldMeta.sourceFieldName}
                               </div>
@@ -907,7 +908,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               </div>
                             </td>
 
-                            <td className="py-2.5 px-3 text-[var(--ty-font-sub-color)]">
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)]">
                               <span>数据类型：{c.sourceFieldMeta.sourceDataTypeLabel}</span>
                               {c.sourceFieldMeta.defaultUnit && (
                                 <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">
@@ -917,7 +918,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <SourceAttributeDetails meta={c.sourceFieldMeta} compact />
                             </td>
 
-                            <td className="py-2.5 px-3">
+                            <td className="py-2 px-3">
                               <div className="font-medium text-[var(--ty-font-main-color)]">{currentTitle}</div>
                               <div className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
                                 <code className="text-[var(--ty-primary-color)]">{currentManticore}</code>
@@ -927,7 +928,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                             </td>
 
                             {/* 比对状态与提示 */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2 px-3">
                               <div className="space-y-0.5">
                                 {renderConflictBadge(c)}
                                 {custom && (
@@ -945,14 +946,14 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
                             {/* 配置与操作入口 */}
                             <td
-                              className="py-2.5 px-3 text-center sticky right-0 bg-[var(--ty-fill-white-color)]/95 border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky"
+                              className="py-2 px-3 text-center sticky right-0 bg-[var(--ty-fill-white-color)]/95 border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky"
                               onClick={e => e.stopPropagation()}
                             >
                               {c.conflictType === 'UNMAPPED' ? (
                                 <button
                                   type="button"
                                   onClick={() => handleOpenConfigureCandidate(c)}
-                                  className="h-7 px-2.5 bg-[var(--ty-primary-lighter-color)] hover:opacity-90 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-ty-sm text-ty-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
+                                  className="h-7 px-3 bg-[var(--ty-primary-lighter-color)] hover:opacity-90 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-ty-sm text-ty-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
                                   title="打开完整配置表单，编辑显示名、顺序号、列宽、Manticore属性与检索能力"
                                 >
                                   <Sliders className="w-3 h-3 text-[var(--ty-primary-color)]" />
@@ -1004,7 +1005,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between shrink-0">
             <div className="flex items-center space-x-2 text-ty-xs text-[var(--ty-font-sub-color)]">
               <span className="font-semibold text-[var(--ty-font-main-color)]">
-                已勾选 <span className="font-mono text-[var(--ty-primary-color)] text-sm">{selectedCount}</span> 项
+                已勾选 <span className="font-mono text-[var(--ty-primary-color)] text-ty-sm">{selectedCount}</span> 项
               </span>
               <span className="text-[var(--ty-border-color)]">|</span>
               <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
@@ -1012,7 +1013,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center space-x-2.5">
+            <div className="flex items-center space-x-3">
               <button
                 type="button"
                 onClick={handleRequestClose}
@@ -1024,7 +1025,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 type="button"
                 onClick={handleConfirmBatch}
                 disabled={selectedCount === 0 || !hasPermission}
-                className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer ${
+                className={`h-8 px-4 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 transition-colors cursor-pointer ${
                   selectedCount > 0 && hasPermission
                     ? 'bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)]'
                     : 'bg-[var(--ty-fill-dark-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed'
@@ -1040,15 +1041,15 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         {/* 单行完整属性配置子弹窗 (使用公共 FieldMappingForm，避免代码与校验分裂) */}
         {configuringCandidate && configuringFormData && (
           <div className="fixed inset-0 z-60 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-            <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-              <div className="px-5 py-3.5 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
+            <section role="dialog" aria-modal="true" aria-label="批量属性单项配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1000px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
                 <div className="space-y-0.5">
                   <div className="flex items-center space-x-2">
-                    <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
-                      <Sliders className="w-4 h-4 mr-1.5 text-[var(--ty-primary-color)]" />
+                    <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
+                      <Sliders className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
                       配置导入字段属性 - {configuringCandidate.sourceFieldMeta.sourceFieldName}
-                    </h3>
-                    <span className="px-2 py-0.5 text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+                    </h2>
+                    <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
                       根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
                     </span>
                   </div>
@@ -1058,6 +1059,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 </div>
                 <button
                   type="button"
+                  aria-label="关闭单项属性配置"
                   onClick={() => {
                     setConfiguringCandidate(null);
                     setConfiguringFormData(null);
@@ -1085,7 +1087,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 <span className="text-ty-xs text-[var(--ty-font-sub-color)]">
                   * 确认配置后将更新此字段在批量导入中的设定，并自动将其标记为勾选状态
                 </span>
-                <div className="flex items-center space-x-2.5">
+                <div className="flex items-center space-x-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1100,14 +1102,14 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveCandidateConfig}
-                    className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-1.5 cursor-pointer transition-colors"
+                    className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>确认配置</span>
                   </button>
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         )}
 
@@ -1149,7 +1151,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

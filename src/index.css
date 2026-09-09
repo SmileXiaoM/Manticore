@@ -99,6 +99,7 @@
 .text-ty-xs { font-size: var(--ty-font-xs-size); line-height: 1.4; }
 .text-ty-ss { font-size: var(--ty-font-ss-size); line-height: 1.4; }
 .text-ty-sm { font-size: var(--ty-font-sm-size); line-height: 1.5; }
+.text-ty-md { font-size: var(--ty-font-base-size); line-height: 1.5; }
 .text-ty-base { font-size: var(--ty-font-base-size); line-height: 1.5; }
 .text-ty-lg { font-size: var(--ty-font-lg-size); line-height: 1.4; }
 .text-ty-xl { font-size: var(--ty-font-xl-size); line-height: 1.3; }
@@ -129,6 +130,22 @@ body {
   color: var(--ty-font-main-color);
 }
 
+/* 弹层打开时锁定应用主滚动区，避免背景与弹层同时滚动。 */
+body:has([aria-modal="true"]) {
+  overflow: hidden;
+}
+body:has([aria-modal="true"]) main {
+  overflow: hidden;
+}
+
+/* 标准规则弹窗中的单行表单控件统一为 32px。 */
+.standard-form-dialog input:not([type="checkbox"]):not([type="radio"]),
+.standard-form-dialog select {
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* Custom scrollbars for high-density tables */
 ::-webkit-scrollbar {
   width: 6px;
@@ -144,4 +161,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ty-font-sub-light-color);
 }
-

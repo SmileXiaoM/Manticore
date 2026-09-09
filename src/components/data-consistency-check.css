@@ -169,13 +169,15 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 12px;
+  height: 32px;
+  min-width: 68px;
+  padding: 0 12px;
   border: 1px solid var(--ty-border-color);
   border-radius: var(--ty-ui-border-radius-normal);
   background: var(--ty-fill-white-color);
   color: var(--ty-font-main-color);
   font: inherit;
-  font-size: var(--ty-font-sm-size);
+  font-size: var(--ty-font-xs-size);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -204,6 +206,8 @@
   border-color: var(--ty-primary-light-color);
 }
 .data-consistency-check button.text-button {
+  height: 28px;
+  min-width: 64px;
   background: transparent;
   border-color: transparent;
   color: var(--ty-primary-link-color);
@@ -233,7 +237,19 @@
   width: 16px;
   height: 16px;
 }
-.data-consistency-check :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+.data-consistency-check :is(input:not([type='checkbox']):not([type='radio']), select) {
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--ty-border-color);
+  border-radius: var(--ty-ui-border-radius-normal);
+  color: var(--ty-font-main-color);
+  background: var(--ty-fill-white-color);
+  font: inherit;
+  font-weight: 400;
+}
+.data-consistency-check textarea {
   width: 100%;
   min-width: 0;
   padding: 8px 12px;
@@ -312,6 +328,12 @@
   color: var(--ty-font-sub-color);
   background: var(--ty-fill-color);
   border-radius: var(--ty-ui-border-radius-normal);
+}
+.data-consistency-check .sequence-column {
+  width: 48px;
+  min-width: 48px;
+  text-align: center;
+  color: var(--ty-font-sub-color);
 }
 .data-consistency-check .empty-state.compact {
   text-align: left;
@@ -468,7 +490,7 @@
   padding: 24px;
 }
 .data-consistency-check .detail-dialog {
-  width: min(1120px, 100%);
+  width: min(1000px, 100%);
   max-height: calc(100dvh - 48px);
   overflow: auto;
   padding: 24px;
@@ -505,6 +527,9 @@
 }
 .data-consistency-check .pagination {
   display: flex;
+  min-height: 52px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--ty-border-light-color);
   gap: 12px;
   align-items: center;
   justify-content: flex-end;
@@ -512,7 +537,7 @@
   flex-wrap: wrap;
 }
 .data-consistency-check .plan-dialog.field-detail-modal {
-  width: min(1080px, calc(100vw - 48px));
+  width: min(1000px, calc(100vw - 32px));
 }
 .data-consistency-check .field-detail-dialog {
   display: flex;
@@ -612,9 +637,9 @@
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(800px, calc(100vw - 48px));
+  width: min(800px, calc(100vw - 32px));
   max-width: none;
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - 120px);
   padding: 0;
   border: 0;
   border-radius: 8px;

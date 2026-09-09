@@ -396,6 +396,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <table className="records-table">
             <thead>
               <tr>
+                <th className="sequence-column">序号</th>
                 <th>方案 / 核验时间</th>
                 <th>对象类型 / 运行方式</th>
                 <th>状态</th>
@@ -404,8 +405,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </tr>
             </thead>
             <tbody>
-              {visibleBatches.map((batch) => (
+              {visibleBatches.map((batch, index) => (
                 <tr key={batch.id}>
+                  <td className="sequence-column">{index + 1}</td>
                   <td>
                     <strong>{batch.planName}</strong>
                     <small className="muted">{batch.executedAt}</small>
@@ -453,7 +455,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               ))}
               {!visibleBatches.length && (
                 <tr>
-                  <td colSpan={5} className="empty-state">
+                  <td colSpan={6} className="empty-state">
                     暂无核验记录
                   </td>
                 </tr>

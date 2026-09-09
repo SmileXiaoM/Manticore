@@ -29,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        <button onClick={() => onNavigate('dashboard')} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium text-left ${currentView === 'dashboard' ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]' : 'text-[var(--ty-font-placeholder-color)] hover:bg-[var(--ty-fill-darkest-color)]'}`}><Grid className="w-3.5 h-3.5" />运行看板</button>
+        <button onClick={() => onNavigate('dashboard')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium text-left ${currentView === 'dashboard' ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]' : 'text-[var(--ty-font-placeholder-color)] hover:bg-[var(--ty-fill-darkest-color)]'}`}><Grid className="w-3.5 h-3.5" />运行看板</button>
 
         {/* Section 0: 一阶段：检索底座 */}
         <div>
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('stage1-mapping-config')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'stage1-mapping-config'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('source-ingestion-logs')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'source-ingestion-logs'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('data-sync-quality')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-sync-quality'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('data-consistency-check')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-consistency-check'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('field-rules')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'field-rules'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('query-preview')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'query-preview'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -122,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('client-find-similar')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'client-find-similar'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('publish-records')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'publish-records'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -154,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           <div className="space-y-1">
             <button
               onClick={() => onNavigate('data-processing')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'data-processing'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
@@ -167,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
 
             <button
               onClick={() => onNavigate('decision-rules')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'decision-rules'
                   ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
                   : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
