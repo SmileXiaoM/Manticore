@@ -107,7 +107,7 @@ export function OperationsDashboard({
   ];
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto space-y-4">
+    <div className="min-w-0 space-y-4">
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />

@@ -34,7 +34,7 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
       : 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30';
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto space-y-4">
+    <div className="min-w-0 space-y-4">
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <button onClick={onBack} className="text-ty-xs text-[var(--ty-font-sub-color)] inline-flex items-center gap-1 hover:text-[var(--ty-primary-color)]"><ArrowLeft className="w-3.5 h-3.5" />返回运行看板</button>

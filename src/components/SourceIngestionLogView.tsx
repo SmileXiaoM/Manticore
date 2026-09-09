@@ -24,19 +24,32 @@ export function SourceIngestionLogView({
   const [rootType, setRootType] = useState(initialRootTypeFilter);
   const [status, setStatus] = useState<'ALL' | IngestionStatus>('ALL');
   const [keyword, setKeyword] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const scopedLogs = useMemo(
     () => logs.filter((log) => rootType === 'ALL' || log.rootTypeCode === rootType),
     [logs, rootType],
   );
-  const visible = useMemo(() => scopedLogs.filter((log) => {
-    if (status !== 'ALL' && log.status !== status) return false;
-    const term = keyword.trim().toLowerCase();
-    return !term || [log.id, log.sourceTable, log.stagingTable, log.errorSummary].some((value) => value?.toLowerCase().includes(term));
-  }), [scopedLogs, status, keyword]);
+  const visible = useMemo(
+    () => scopedLogs
+      .filter((log) => {
+        if (status !== 'ALL' && log.status !== status) return false;
+        const term = keyword.trim().toLowerCase();
+        return !term || [log.id, log.sourceTable, log.stagingTable, log.errorSummary]
+          .some((value) => value?.toLowerCase().includes(term));
+      })
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+    [scopedLogs, status, keyword],
+  );
   const unresolved = scopedLogs.filter((log) => log.status === 'FAILED' || log.status === 'PARTIAL_SUCCESS').length;
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const firstVisibleRow = visible.length ? (currentPage - 1) * pageSize + 1 : 0;
+  const lastVisibleRow = Math.min(currentPage * pageSize, visible.length);
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" />
@@ -67,7 +80,7 @@ export function SourceIngestionLogView({
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3.5 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">对象类型</span>
-          <select aria-label="采集日志对象类型" value={rootType} onChange={(event) => setRootType(event.target.value)} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
+          <select aria-label="采集日志对象类型" value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
             <option value="ALL">全部类型</option>
             <option value="PART">零部件</option>
             <option value="DOCUMENT">文档</option>
@@ -76,16 +89,16 @@ export function SourceIngestionLogView({
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">执行状态</span>
-          <select aria-label="采集日志状态" value={status} onChange={(event) => setStatus(event.target.value as 'ALL' | IngestionStatus)} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
+          <select aria-label="采集日志状态" value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
             <option value="ALL">全部状态</option>
             {Object.entries(ingestionStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56">
           <span className="block">批次 / 来源表 / 中间表</span>
-          <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索采集日志" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2.5 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
+          <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索采集日志" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2.5 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
         </label>
-        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-1.5 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
+        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-1.5 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
       </div>
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
@@ -93,7 +106,7 @@ export function SourceIngestionLogView({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-ty-xs border-collapse">
             <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="px-4 py-2.5 font-medium">批次 / 时间</th><th className="px-4 py-2.5 font-medium">采集链路</th><th className="px-4 py-2.5 font-medium">方式</th><th className="px-4 py-2.5 font-medium">读取 / 写入 / 失败</th><th className="px-4 py-2.5 font-medium">状态</th><th className="px-4 py-2.5 font-medium">异常摘要</th></tr></thead>
-            <tbody>{visible.map((log) => (
+            <tbody>{pageRows.map((log) => (
               <tr key={log.id} className="border-t border-[var(--ty-border-light-color)] align-top">
                 <td className="px-4 py-3"><strong className="font-mono block">{log.id}</strong><span className="text-[var(--ty-font-sub-color)] mt-1 block">{log.startedAt}</span></td>
                 <td className="px-4 py-3"><strong>{log.sourceSystemName} · {log.sourceTable}</strong><span className="text-[var(--ty-font-sub-color)] mt-1 block">→ {log.stagingTable}</span></td>
@@ -106,6 +119,27 @@ export function SourceIngestionLogView({
           </table>
         </div>
         {!visible.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无采集日志</div>}
+        <div className="px-4 py-3 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3 text-ty-xs">
+          <span className="text-[var(--ty-font-sub-color)]">共 {visible.length} 条，当前显示第 {firstVisibleRow}–{lastVisibleRow} 条</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-[var(--ty-font-sub-color)]">
+              每页
+              <select
+                aria-label="采集日志每页条数"
+                value={pageSize}
+                onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+                className="h-8 px-2 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
+              >
+                <option value={10}>10 条</option>
+                <option value={20}>20 条</option>
+                <option value={50}>50 条</option>
+              </select>
+            </label>
+            <button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm disabled:text-[var(--ty-font-placeholder-color)] disabled:bg-[var(--ty-fill-color)]">上一页</button>
+            <span>{currentPage} / {totalPages}</span>
+            <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm disabled:text-[var(--ty-font-placeholder-color)] disabled:bg-[var(--ty-fill-color)]">下一页</button>
+          </div>
+        </div>
       </section>
     </div>
   );
