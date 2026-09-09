@@ -31,7 +31,7 @@ import {
   initialCategoryCoverages
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
-import { initialTargetSyncRecords } from './data/targetSyncRecords';
+import { initialTargetSyncRecords, TargetSyncRecord } from './data/targetSyncRecords';
 import { SyncBatch } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
@@ -138,6 +138,7 @@ export default function App() {
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
+  const [targetSyncRecords, setTargetSyncRecords] = useState<TargetSyncRecord[]>(initialTargetSyncRecords);
 
   const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>(initialConsistencyPlans);
 
@@ -228,7 +229,7 @@ export default function App() {
                 setMappingObjects(previous => previous.map(root => root.id === value.rootTypeCode ? { ...root, pollingIntervalMinutes: value.intervalMinutes } : root));
               }}
               onClose={() => setScheduleTarget(null)} />}
-            {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs} syncRecords={initialTargetSyncRecords} schedules={schedules}
+            {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs} syncRecords={targetSyncRecords} schedules={schedules}
               onIngestion={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('source-ingestion-logs'); }}
               onSync={(root) => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-sync-quality'); }}
               onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
@@ -259,7 +260,12 @@ export default function App() {
                 initialRootTypeFilter={selectedRootFilter === 'ALL' ? 'ALL' : selectedRootFilter}
                 roots={mappingObjects}
                 schedules={schedules}
-                records={initialTargetSyncRecords}
+                records={targetSyncRecords}
+                onRetryRecord={(recordId) => setTargetSyncRecords((previous) => previous.map((record) => (
+                  record.id === recordId
+                    ? { ...record, status: 'PENDING', processedAt: undefined, retryCount: record.retryCount + 1 }
+                    : record
+                )))}
               />
             )}
 
