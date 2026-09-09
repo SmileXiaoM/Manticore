@@ -44,6 +44,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 }) => {
   const isEditingExisting = !!editingField;
   const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
+  const schemaLocked = Boolean(currentRootType.serviceStarted && isEditingExisting);
 
   const prevOpenRef = useRef(false);
   const prevEditingFieldIdRef = useRef<string | null>(null);
@@ -258,7 +259,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
   const handleFormChange = (partial: Partial<FieldMappingFormData>) => {
     setFormData(prev => ({
       ...prev,
-      ...partial
+      ...partial,
+      ...(schemaLocked ? { manticoreType: prev.manticoreType, isUniqueKey: prev.isUniqueKey } : {})
     }));
   };
 
@@ -495,6 +497,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             errors={errors}
             isEditingConfigured={isEditingConfigured}
             sourceReadonly={isEditingExisting}
+            schemaLocked={schemaLocked}
           />
         </div>
 

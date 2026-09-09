@@ -38,6 +38,7 @@ export interface FieldMappingFormProps {
   errors: Record<string, string>;
   isEditingConfigured?: boolean;
   sourceReadonly?: boolean;
+  schemaLocked?: boolean;
 }
 
 export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
@@ -47,7 +48,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
   onChange,
   errors,
   isEditingConfigured = false,
-  sourceReadonly = false
+  sourceReadonly = false,
+  schemaLocked = false
 }) => {
   // 解析显示名与兜底判断
   const displayNameResolved = useMemo(() => {
@@ -202,7 +204,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             type="text"
             value={formData.manticoreField}
             onChange={e => onChange({ manticoreField: e.target.value.toLowerCase() })}
-            disabled={isEditingConfigured}
+            disabled={isEditingConfigured || schemaLocked}
             placeholder="例如：part_number"
             className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border rounded-ty-sm text-ty-xs font-mono text-[var(--ty-primary-color)] font-semibold focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
               errors.manticoreField ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'
@@ -224,9 +226,9 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           <select
             value={formData.manticoreType}
             onChange={e => onChange({ manticoreType: e.target.value as ManticoreFieldType })}
-            disabled={isEditingConfigured}
+            disabled={isEditingConfigured || schemaLocked}
             className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
-              isEditingConfigured ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : 'cursor-pointer'
+              isEditingConfigured || schemaLocked ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : 'cursor-pointer'
             }`}
           >
             <option value="STRING">STRING (标量字符串)</option>
@@ -312,11 +314,13 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               <input
                 type="checkbox"
                 checked={formData.isUniqueKey}
+                disabled={schemaLocked}
                 onChange={e => onChange({ isUniqueKey: e.target.checked })}
-                className="rounded text-[var(--ty-orange-color)] cursor-pointer"
+                className="rounded text-[var(--ty-orange-color)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               />
               <span className="text-[var(--ty-font-main-color)] font-medium">作为业务唯一键 (Unique Key)</span>
             </label>
+            {schemaLocked && <p className="text-ty-2xs text-[var(--ty-font-sub-color)] px-1">同步服务已开启，字段类型与业务唯一键不可修改。</p>}
           </div>
 
           {/* 超链接参数配置区 (启用超链接后展开) */}

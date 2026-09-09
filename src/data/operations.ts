@@ -2,83 +2,46 @@ import { MappingObjectType } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
 import { ConsistencyBatchRecord } from '../types/consistencyCheck';
 
+/** 每个根类型独立配置的中间表轮询间隔。 */
 export interface ExecutionSchedule {
   rootTypeCode: string;
-  enabled: boolean;
-  frequency: 'HOURLY' | 'DAILY' | 'WEEKLY';
-  intervalHours: number;
-  time: string;
-  weekday: number;
+  intervalMinutes: number;
   savedAt?: string;
 }
+
+export const POLLING_INTERVAL_OPTIONS = [1, 5, 10, 30, 60] as const;
+
 export const newSchedule = (rootTypeCode: string): ExecutionSchedule => ({
   rootTypeCode,
-  enabled: false,
-  frequency: 'DAILY',
-  intervalHours: 1,
-  time: '02:00',
-  weekday: 1,
+  intervalMinutes: 5,
 });
+
 export function validateSchedule(schedule: ExecutionSchedule) {
-  if (!['PART', 'DOCUMENT', 'PROCESS'].includes(schedule.rootTypeCode)) return '请选择根类型';
-  if (!schedule.enabled) return '';
-  if (!['HOURLY', 'DAILY', 'WEEKLY'].includes(schedule.frequency)) return '请选择执行周期';
-  if (
-    schedule.frequency === 'HOURLY' &&
-    (!Number.isInteger(schedule.intervalHours) || schedule.intervalHours < 1 || schedule.intervalHours > 168)
-  )
-    return '间隔请输入 1–168 小时的整数';
-  if (schedule.frequency !== 'HOURLY' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)) return '请选择执行时间';
-  if (
-    schedule.frequency === 'WEEKLY' &&
-    (!Number.isInteger(schedule.weekday) || schedule.weekday < 0 || schedule.weekday > 6)
-  )
-    return '请选择星期';
+  if (!['PART', 'DOCUMENT', 'PROCESS'].includes(schedule.rootTypeCode)) return '请选择对象类型';
+  if (!POLLING_INTERVAL_OPTIONS.includes(schedule.intervalMinutes as (typeof POLLING_INTERVAL_OPTIONS)[number])) {
+    return '请选择有效的检查间隔';
+  }
   return '';
 }
+
 export function nextScheduledAt(schedule: ExecutionSchedule, after: Date): string | undefined {
-  if (!schedule.enabled || !Number.isFinite(after.getTime())) return undefined;
-  if (schedule.frequency === 'HOURLY') {
-    if (!Number.isInteger(schedule.intervalHours) || schedule.intervalHours < 1 || schedule.intervalHours > 168)
-      return undefined;
-    const anchor = schedule.savedAt ? Date.parse(schedule.savedAt) : after.getTime();
-    if (!Number.isFinite(anchor)) return undefined;
-    const interval = schedule.intervalHours * 3600000;
-    return new Date(
-      anchor + Math.max(1, Math.floor((after.getTime() - anchor) / interval) + 1) * interval,
-    ).toISOString();
-  }
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)) return undefined;
-  const local = new Date(after.getTime() + 8 * 3600000);
-  const [hour, minute] = schedule.time.split(':').map(Number);
-  let next = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), hour - 8, minute);
-  if (schedule.frequency === 'WEEKLY') {
-    if (!Number.isInteger(schedule.weekday) || schedule.weekday < 0 || schedule.weekday > 6) return undefined;
-    next += ((schedule.weekday - local.getUTCDay() + 7) % 7) * 86400000;
-    if (next <= after.getTime()) next += 7 * 86400000;
-  } else if (schedule.frequency === 'DAILY') {
-    if (next <= after.getTime()) next += 86400000;
-  } else return undefined;
-  return new Date(next).toISOString();
+  if (!Number.isFinite(after.getTime()) || validateSchedule(schedule)) return undefined;
+  return new Date(after.getTime() + schedule.intervalMinutes * 60_000).toISOString();
 }
+
 export const beijingTime = (value?: string) =>
   value && Number.isFinite(Date.parse(value))
     ? new Intl.DateTimeFormat('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
+        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
       }).format(new Date(value))
     : '—';
-export function scheduleLabel(schedule?: ExecutionSchedule) {
-  if (!schedule) return '未设置';
-  if (!schedule.enabled) return '未启用';
-  if (schedule.frequency === 'HOURLY') return `每 ${schedule.intervalHours} 小时`;
-  return `${schedule.frequency === 'DAILY' ? '每天' : `每周${'日一二三四五六'[schedule.weekday]}`} ${schedule.time}`;
+
+export function scheduleLabel(schedule?: ExecutionSchedule, fallbackMinutes = 5) {
+  const minutes = schedule?.intervalMinutes ?? fallbackMinutes;
+  return minutes === 60 ? '每 1 小时检查' : `每 ${minutes} 分钟检查`;
 }
+
 const stamp = (value: string) => Date.parse(value.includes('T') ? value : value.replace(' ', 'T') + '+08:00') || 0;
 export function buildOverview(roots: MappingObjectType[], batches: SyncBatch[], checks: ConsistencyBatchRecord[]) {
   return roots.map((root) => {
@@ -94,11 +57,8 @@ export function buildOverview(roots: MappingObjectType[], batches: SyncBatch[], 
       latestCheck,
       running: syncs.filter((batch) => batch.executionStatus === 'RUNNING').length,
       unresolvedTasks: syncs.filter(
-        (batch) =>
-          batch.executionStatus === 'FAILED' ||
-          (batch.executionStatus === 'PARTIAL_SUCCESS' &&
-            (!batch.failedRecords.length ||
-              batch.failedRecords.some((record) => record.latestRetryResult !== 'SUCCESS'))),
+        (batch) => batch.executionStatus === 'FAILED' ||
+          (batch.executionStatus === 'PARTIAL_SUCCESS' && (!batch.failedRecords.length || batch.failedRecords.some((record) => record.latestRetryResult !== 'SUCCESS'))),
       ).length,
     };
   });

@@ -1,234 +1,71 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Search, X } from 'lucide-react';
-import {
-  IngestionStatus,
-  SourceIngestionLog,
-  ingestionStatusLabel,
-  initialSourceIngestionLogs,
-} from '../data/sourceIngestionLogs';
+import { AlertTriangle, CheckCircle2, Clock3, DatabaseZap, Eye, LoaderCircle, RotateCcw, Search, X } from 'lucide-react';
+import { IngestionStatus, SourceIngestionLog, ingestionStatusLabel, initialSourceIngestionLogs } from '../data/sourceIngestionLogs';
 
 const statusClass: Record<IngestionStatus, string> = {
+  PENDING: 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]',
+  PROCESSING: 'bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-color)]/30',
   SUCCESS: 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30',
-  PARTIAL_SUCCESS: 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border-[var(--ty-orange-color)]/30',
   FAILED: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30',
 };
+const rootName: Record<string, string> = { PART: '零部件', DOCUMENT: '文档', PROCESS: '工艺路线' };
 
-export function SourceIngestionLogView({
-  logs = initialSourceIngestionLogs,
-  initialRootTypeFilter = 'ALL',
-}: {
-  logs?: SourceIngestionLog[];
-  initialRootTypeFilter?: string;
-}) {
+export function SourceIngestionLogView({ logs = initialSourceIngestionLogs, initialRootTypeFilter = 'ALL' }: { logs?: SourceIngestionLog[]; initialRootTypeFilter?: string }) {
   const [rootType, setRootType] = useState(initialRootTypeFilter);
   const [status, setStatus] = useState<'ALL' | IngestionStatus>('ALL');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [detailLogId, setDetailLogId] = useState<string | null>(null);
-  const scopedLogs = useMemo(
-    () => logs.filter((log) => rootType === 'ALL' || log.rootTypeCode === rootType),
-    [logs, rootType],
-  );
-  const visible = useMemo(
-    () => scopedLogs
-      .filter((log) => {
-        if (status !== 'ALL' && log.status !== status) return false;
-        const term = keyword.trim().toLowerCase();
-        return !term || [
-          log.id,
-          log.sourceTable,
-          log.stagingTable,
-          log.errorSummary,
-          ...(log.issues?.flatMap((issue) => [issue.name, issue.code, issue.description, ...(issue.exampleObjectIds || [])]) || []),
-        ]
-          .some((value) => value?.toLowerCase().includes(term));
-      })
-      .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
-    [scopedLogs, status, keyword],
-  );
-  const successfulBatches = scopedLogs.filter((log) => log.status === 'SUCCESS').length;
-  const abnormalBatches = scopedLogs.filter((log) => log.status !== 'SUCCESS').length;
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const scoped = useMemo(() => logs.filter((row) => rootType === 'ALL' || row.rootTypeCode === rootType), [logs, rootType]);
+  const visible = useMemo(() => scoped.filter((row) => {
+    if (status !== 'ALL' && row.status !== status) return false;
+    const term = keyword.trim().toLowerCase();
+    return !term || [row.id, row.objectId, row.sourceTable, row.stagingTable, row.errorCode, row.errorSummary, row.traceId].some((value) => value?.toLowerCase().includes(term));
+  }), [scoped, status, keyword]);
+  const counts = (target: IngestionStatus) => scoped.filter((row) => row.status === target).length;
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageRows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const firstVisibleRow = visible.length ? (currentPage - 1) * pageSize + 1 : 0;
-  const lastVisibleRow = Math.min(currentPage * pageSize, visible.length);
-  const detailLog = logs.find((log) => log.id === detailLogId);
-
+  const rows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const detail = logs.find((row) => row.id === detailId);
   useEffect(() => {
-    if (!detailLogId) return undefined;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDetailLogId(null);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [detailLogId]);
+    if (!detailId) return;
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && setDetailId(null);
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [detailId]);
 
-  return (
-    <div className="min-w-0 space-y-4">
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-ty-xl font-semibold">中间表写入日志</h1>
-              <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span>
-            </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">记录中间件从 PLM 源表读取数据并写入中间表的每次结果；本系统仅用于发现和定位，源端数据问题需反馈源端责任方处理。</p>
-          </div>
-        </div>
-        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">只读日志 · 不提供问题处置</span>
-      </div>
+  return <div className="min-w-0 space-y-4">
+    <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2"><DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" /><div><div className="flex items-center gap-2"><h1 className="text-ty-xl font-semibold">中间表写入队列</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span></div><p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">按单条对象查看上游中间件的接收与写入结果；本系统只读展示，源端问题由源端责任方处理。</p></div></div>
+      <span className="text-ty-xs text-[var(--ty-font-sub-color)]">消息级记录 · 只读</span>
+    </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          ['写入批次', scopedLogs.length, <DatabaseZap className="w-4 h-4" />],
-          ['成功批次', successfulBatches, <CheckCircle2 className="w-4 h-4" />],
-          ['异常批次', abnormalBatches, <AlertTriangle className="w-4 h-4" />],
-        ].map(([label, value, icon]) => (
-          <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center justify-between">
-            <div><span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span><strong className="text-ty-xl mt-0.5 block">{value}</strong></div>
-            <div className="w-9 h-9 rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] flex items-center justify-center">{icon}</div>
-          </div>
-        ))}
-      </div>
+    <section className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+      {[
+        ['待写入', counts('PENDING'), <Clock3 className="w-4 h-4" />],
+        ['写入中', counts('PROCESSING'), <LoaderCircle className="w-4 h-4" />],
+        ['已处理', counts('SUCCESS') + counts('FAILED'), <DatabaseZap className="w-4 h-4" />],
+        ['写入成功', counts('SUCCESS'), <CheckCircle2 className="w-4 h-4" />],
+        ['写入失败', counts('FAILED'), <AlertTriangle className="w-4 h-4" />],
+      ].map(([label, value, icon]) => <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex items-center justify-between"><div><span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span><strong className="text-ty-xl mt-0.5 block font-mono">{value}</strong></div><div className="w-9 h-9 rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] flex items-center justify-center">{icon}</div></div>)}
+    </section>
 
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-end gap-3">
-        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
-          <span className="block">对象类型</span>
-          <select aria-label="中间表写入日志对象类型" value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
-            <option value="ALL">全部类型</option>
-            <option value="PART">零部件</option>
-            <option value="DOCUMENT">文档</option>
-            <option value="PROCESS">工艺路线</option>
-          </select>
-        </label>
-        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
-          <span className="block">写入结果</span>
-          <select aria-label="中间表写入结果" value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">
-            <option value="ALL">全部结果</option>
-            {Object.entries(ingestionStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56">
-          <span className="block">批次 / 源表 / 中间表 / 摘要</span>
-          <span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索中间表写入日志" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span>
-        </label>
-        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
-      </div>
+    <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">对象类型</span><select aria-label="中间表写入队列对象类型" value={rootType} onChange={(e) => { setRootType(e.target.value); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white"><option value="ALL">全部类型</option><option value="PART">零部件</option><option value="DOCUMENT">文档</option><option value="PROCESS">工艺路线</option></select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">消息状态</span><select aria-label="中间表写入队列状态" value={status} onChange={(e) => { setStatus(e.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white"><option value="ALL">全部状态</option>{Object.entries(ingestionStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56"><span className="block">消息 / 对象 / 表 / 异常</span><span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索中间表写入队列" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span></label>
+      <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
+    </section>
 
-      <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between"><div><h2 className="text-ty-sm font-semibold">写入记录</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 个批次，执行频率由上游中间件决定。</p></div></div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left text-ty-xs border-collapse">
-            <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="w-12 px-2 py-2 text-center font-medium">序号</th><th className="px-4 py-2 font-medium">批次编号</th><th className="px-4 py-2 font-medium">写入时间</th><th className="px-4 py-2 font-medium">数据链路</th><th className="px-4 py-2 font-medium">方式</th><th className="px-4 py-2 font-medium">读取 / 写入 / 失败</th><th className="px-4 py-2 font-medium">写入结果</th><th className="px-4 py-2 font-medium">结果摘要</th></tr></thead>
-            <tbody>{pageRows.map((log, index) => (
-              <tr key={log.id} className="border-t border-[var(--ty-border-light-color)] align-top">
-                <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
-                <td className="px-4 py-3 font-mono whitespace-nowrap">{log.id}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{log.endedAt || log.startedAt}</td>
-                <td className="px-4 py-3 font-medium whitespace-nowrap">{log.sourceTable} → {log.stagingTable}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{log.mode === 'FULL' ? '全量写入' : '增量写入'}</td>
-                <td className="px-4 py-3">
-                  <span className="font-mono">{log.readCount ?? '待获取'} / {log.writtenCount ?? '待获取'} / </span>
-                  <strong className={(log.failedCount || 0) > 0 ? 'font-mono text-[var(--ty-red-color)]' : 'font-mono font-normal'}>{log.failedCount ?? '待获取'}</strong>
-                </td>
-                <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 min-h-6 px-2 rounded-ty-xs border whitespace-nowrap ${statusClass[log.status]}`}>{log.status === 'SUCCESS' && <CheckCircle2 className="w-3 h-3" />}{ingestionStatusLabel[log.status]}</span></td>
-                <td className="px-4 py-3 max-w-72">
-                  {log.issues?.length ? (
-                    <div>
-                      <strong className="text-[var(--ty-red-color)]">{log.failedCount} 条失败 · {log.issues.length} 类异常</strong>
-                      <button type="button" onClick={() => setDetailLogId(log.id)} className="ml-3 text-[var(--ty-primary-link-color)] hover:underline">查看失败明细</button>
-                    </div>
-                  ) : <span>{log.errorSummary || (log.readCount === 0 ? '本次无待写入数据' : '—')}</span>}
-                  {log.traceId && <code className="text-[var(--ty-font-sub-color)] mt-1 block">{log.traceId}</code>}
-                </td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-        {!visible.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无中间表写入日志</div>}
-        <div className="min-h-[52px] px-4 py-2 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3 text-ty-xs">
-          <span className="text-[var(--ty-font-sub-color)]">共 {visible.length} 条，当前显示第 {firstVisibleRow}–{lastVisibleRow} 条</span>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 text-[var(--ty-font-sub-color)]">
-              每页
-              <select
-                aria-label="中间表写入日志每页条数"
-                value={pageSize}
-                onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
-                className="h-8 px-2 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
-              >
-                <option value={10}>10 条</option>
-                <option value={20}>20 条</option>
-                <option value={50}>50 条</option>
-              </select>
-            </label>
-            <button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm disabled:text-[var(--ty-font-placeholder-color)] disabled:bg-[var(--ty-fill-color)]">上一页</button>
-            <span>{currentPage} / {totalPages}</span>
-            <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm disabled:text-[var(--ty-font-placeholder-color)] disabled:bg-[var(--ty-fill-color)]">下一页</button>
-          </div>
-        </div>
-      </section>
+    <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex justify-between"><div><h2 className="text-ty-sm font-semibold">消息明细</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条，每条对象单独记录状态与追踪编号。</p></div></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-ty-xs"><thead className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]"><tr><th className="px-3 py-2 text-left">消息 / 接收时间</th><th className="px-3 py-2 text-left">对象 / 类型</th><th className="px-3 py-2 text-left">写入链路</th><th className="px-3 py-2 text-left">状态</th><th className="px-3 py-2 text-left">处理时间</th><th className="px-3 py-2 text-left">结果摘要</th><th className="px-3 py-2 text-center">操作</th></tr></thead>
+      <tbody className="divide-y divide-[var(--ty-border-light-color)]">{rows.map((row) => <tr key={row.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50"><td className="px-3 py-2"><strong className="font-mono">{row.id}</strong><span className="block text-[var(--ty-font-sub-color)] mt-1">{row.receivedAt}</span></td><td className="px-3 py-2"><strong>{row.objectId}</strong><span className="block text-[var(--ty-font-sub-color)] mt-1">{rootName[row.rootTypeCode]}</span></td><td className="px-3 py-2"><span>{row.sourceSystemName} · {row.sourceTable}</span><span className="block text-[var(--ty-font-sub-color)] mt-1">→ {row.stagingTable}</span></td><td className="px-3 py-2"><span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-medium ${statusClass[row.status]}`}>{row.status === 'PROCESSING' && <LoaderCircle className="w-3 h-3 mr-1 animate-spin" />}{ingestionStatusLabel[row.status]}</span></td><td className="px-3 py-2 font-mono text-[var(--ty-font-sub-color)]">{row.processedAt || '—'}</td><td className="px-3 py-2"><span className={row.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'}>{row.errorSummary || (row.status === 'SUCCESS' ? '已写入中间表' : row.status === 'PROCESSING' ? '正在写入中间表' : '等待上游中间件写入')}</span></td><td className="px-3 py-2 text-center"><button type="button" onClick={() => setDetailId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><Eye className="w-3.5 h-3.5" />详情</button></td></tr>)}</tbody></table></div>
+      {!rows.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无消息</div>}
+      <div className="px-4 py-3 border-t border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 text-ty-xs text-[var(--ty-font-sub-color)]"><span>第 {visible.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, visible.length)} 条 / 共 {visible.length} 条</span><div className="flex items-center gap-2"><select aria-label="每页条数" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-white"><option value={10}>10 条/页</option><option value={20}>20 条/页</option></select><button className="h-8 px-3 border rounded-ty-sm disabled:opacity-40" disabled={currentPage <= 1} onClick={() => setPage((p) => p - 1)}>上一页</button><span>{currentPage} / {totalPages}</span><button className="h-8 px-3 border rounded-ty-sm disabled:opacity-40" disabled={currentPage >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</button></div></div>
+    </section>
 
-      {detailLog?.issues?.length ? (
-        <div
-          className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center px-4 py-[60px]"
-          role="presentation"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailLogId(null); }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ingestion-error-title"
-            className="w-[min(800px,calc(100vw-32px))] max-h-[calc(100dvh-120px)] bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg flex flex-col overflow-hidden"
-          >
-            <header className="px-5 py-4 border-b border-[var(--ty-border-light-color)] flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-[var(--ty-orange-color)]" />
-                  <h2 id="ingestion-error-title" className="text-ty-lg font-semibold">写入失败明细</h2>
-                </div>
-                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{detailLog.id} · {detailLog.startedAt}</p>
-              </div>
-              <button type="button" aria-label="关闭写入失败明细" onClick={() => setDetailLogId(null)} className="p-2 text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-color)] rounded-ty-sm"><X className="w-5 h-5" /></button>
-            </header>
-            <div className="p-5 overflow-y-auto min-h-0 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  ['读取', detailLog.readCount ?? '待获取'],
-                  ['写入', detailLog.writtenCount ?? '待获取'],
-                  ['失败记录', detailLog.failedCount ?? '待获取'],
-                  ['异常类型', detailLog.issues.length],
-                ].map(([label, value]) => (
-                  <div key={label} className="p-3 bg-[var(--ty-fill-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm">
-                    <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span>
-                    <strong className="text-ty-lg mt-1 block">{value}</strong>
-                  </div>
-                ))}
-              </div>
-              <div className="overflow-x-auto border border-[var(--ty-border-color)] rounded-ty-sm">
-                <table className="w-full min-w-[720px] text-left text-ty-xs border-collapse">
-                  <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="px-4 py-2 font-medium">异常类型</th><th className="px-4 py-2 font-medium">失败记录</th><th className="px-4 py-2 font-medium">异常说明</th><th className="px-4 py-2 font-medium">示例对象标识</th></tr></thead>
-                  <tbody>{detailLog.issues.map((issue) => (
-                    <tr key={issue.code} className="border-t border-[var(--ty-border-light-color)] align-top">
-                      <td className="px-4 py-3"><strong className="block">{issue.name}</strong><code className="text-[var(--ty-font-sub-color)] mt-1 block">{issue.code}</code></td>
-                      <td className="px-4 py-3 font-mono text-[var(--ty-red-color)]">{issue.failedCount}</td>
-                      <td className="px-4 py-3">{issue.description}</td>
-                      <td className="px-4 py-3 font-mono">{issue.exampleObjectIds?.join('、') || '—'}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            </div>
-            <footer className="px-5 py-3 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3">
-              <span className="text-ty-xs text-[var(--ty-font-sub-color)]">只读日志 · 追踪标识：<code className="inline">{detailLog.traceId || '待获取'}</code></span>
-              <button type="button" onClick={() => setDetailLogId(null)} className="h-8 min-w-[68px] px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-color)]">关闭</button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
-    </div>
-  );
+    {detail && <div className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center p-4" onMouseDown={(e) => e.target === e.currentTarget && setDetailId(null)}><section role="dialog" aria-modal="true" aria-label="中间表写入消息详情" className="w-[min(640px,calc(100vw-32px))] bg-white border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden"><header className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-b flex justify-between items-center"><div><h2 className="text-ty-lg font-semibold">{detail.objectId} · 写入详情</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 font-mono">{detail.id}</p></div><button aria-label="关闭详情" onClick={() => setDetailId(null)} className="w-8 h-8 flex items-center justify-center rounded-ty-sm hover:bg-[var(--ty-fill-color)]"><X className="w-4 h-4" /></button></header><div className="p-4 grid grid-cols-2 gap-4 text-ty-xs"><div><span className="text-[var(--ty-font-sub-color)] block">对象类型</span><strong>{rootName[detail.rootTypeCode]}</strong></div><div><span className="text-[var(--ty-font-sub-color)] block">状态</span><strong>{ingestionStatusLabel[detail.status]}</strong></div><div><span className="text-[var(--ty-font-sub-color)] block">来源</span><strong>{detail.sourceTable}</strong></div><div><span className="text-[var(--ty-font-sub-color)] block">中间表</span><strong>{detail.stagingTable}</strong></div><div><span className="text-[var(--ty-font-sub-color)] block">接收时间</span><strong className="font-mono">{detail.receivedAt}</strong></div><div><span className="text-[var(--ty-font-sub-color)] block">处理时间</span><strong className="font-mono">{detail.processedAt || '—'}</strong></div><div className="col-span-2"><span className="text-[var(--ty-font-sub-color)] block">追踪编号</span><strong className="font-mono">{detail.traceId}</strong></div>{detail.errorSummary && <div className="col-span-2 p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30"><strong className="text-[var(--ty-red-color)]">{detail.errorCode}</strong><p className="mt-1">{detail.errorSummary}</p><p className="mt-2 text-[var(--ty-font-sub-color)]">本系统只负责发现与定位，请将追踪编号反馈给源端责任方处理。</p></div>}</div><footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t flex justify-end"><button className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white" onClick={() => setDetailId(null)}>关闭</button></footer></section></div>}
+  </div>;
 }

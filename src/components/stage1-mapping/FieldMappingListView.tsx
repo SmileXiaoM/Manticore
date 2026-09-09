@@ -4,7 +4,8 @@ import {
   Search,
   Plus,
   Send,
-  RefreshCw,
+  PlayCircle,
+  PauseCircle,
   Eye,
   HelpCircle,
   FileSpreadsheet,
@@ -38,10 +39,9 @@ interface FieldMappingListViewProps {
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
   onPublishConfig: () => void;
-  onTriggerDataSync: () => void;
+  onToggleAccess: () => void;
   onResetAccess: () => void;
   onOpenQueryPreview: () => void;
-  onNavigateToSyncQuality: (batchId?: string) => void;
   syncSchedule?: ExecutionSchedule;
   onConfigureSyncSchedule: () => void;
   hasPermission?: boolean;
@@ -56,10 +56,9 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onEditField,
   onViewFieldDetail,
   onPublishConfig,
-  onTriggerDataSync,
+  onToggleAccess,
   onResetAccess,
   onOpenQueryPreview,
-  onNavigateToSyncQuality,
   syncSchedule,
   onConfigureSyncSchedule,
   hasPermission = true
@@ -127,16 +126,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     return filteredFields.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredFields, currentPage, pageSize]);
 
-  // 同步按钮状态判定
-  const canTriggerSync =
-    currentRootType.configuredFieldCount > 0 &&
-    hasPermission &&
-    currentRootType.syncStatus !== 'RUNNING';
-
-  const isSyncFailed = currentRootType.syncStatus === 'FAILED';
-  const isSyncError = currentRootType.syncStatus === 'COMPLETED_WITH_ERRORS';
-  const hasPendingSync = currentRootType.syncStatus === 'PENDING' || currentRootType.hasPendingSyncChanges;
-
   const renderConfigStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'CONFIGURED') {
       if (field.hasDraftModification) {
@@ -173,7 +162,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
         </span>
         {field.isDataImpactingChange && (
           <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs font-medium whitespace-normal max-w-full">
-            生效后需同步
+            发布后由服务处理
           </div>
         )}
       </div>
@@ -292,7 +281,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     1. 映射以一条条字段为基本单元，直接归属根类型。
                   </p>
                   <p className="text-[var(--ty-font-sub-light-color)]">
-                    2. 生效保存不生成配置版本；仅当数据同步执行成功后，才原子更新正式查询底座数据。
+                    2. 配置发布后由常驻服务轮询中间表；服务逐条处理成功后更新正式查询底座。
                   </p>
                 </div>
               )}
@@ -350,7 +339,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             )}
           </div>
 
-          {/* 2. 生效发布配置 */}
+          {/* 2. 发布配置 */}
           <button
             type="button"
             onClick={onPublishConfig}
@@ -362,12 +351,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             }`}
             title={
               totalDraftWorkItemCount === 0
-                ? '当前没有待生效的草稿修改'
-                : `生效 ${totalDraftWorkItemCount} 项草稿配置`
+                ? '当前没有待发布的草稿修改'
+                : `发布 ${totalDraftWorkItemCount} 项草稿配置`
             }
           >
             <Send className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">生效配置</span>
+            <span className="whitespace-nowrap">发布配置</span>
             {totalDraftWorkItemCount > 0 && (
               <span className="bg-[var(--ty-fill-white-color)]/20 text-[var(--ty-font-white-color)] text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs font-mono font-semibold shrink-0">
                 {totalDraftWorkItemCount}
@@ -375,46 +364,26 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             )}
           </button>
 
-          {/* 3. 数据同步触发：统一文案为“同步数据”，系统自动判定执行方式 */}
+          {/* 3. 根类型接入启停：停用后常驻服务跳过该中间表 */}
           <button
             type="button"
-            onClick={onTriggerDataSync}
-            disabled={
-              currentRootType.configuredFieldCount === 0 ||
-              !hasPermission ||
-              currentRootType.syncStatus === 'RUNNING' ||
-              currentRootType.syncStatus === 'RESETTING'
-            }
-            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 transition-colors whitespace-nowrap ${
-              currentRootType.configuredFieldCount === 0 || !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
-                ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'
-                : isSyncFailed || isSyncError || hasPendingSync
-                ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] active:bg-[var(--ty-primary-active-color)] text-[var(--ty-font-white-color)] cursor-pointer'
-                : 'bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] cursor-pointer'
-            }`}
-            title={
-              currentRootType.configuredFieldCount === 0
-                ? '当前根类型没有已生效字段，无法同步数据'
-                : !hasPermission
-                ? '无数据同步权限'
-                : currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING'
-                ? '任务正在执行中，无法重复触发'
-                : '按当前已生效字段同步当前根类型的数据，系统将自动选择执行方式'
-            }
+            onClick={onToggleAccess}
+            disabled={!hasPermission || !currentRootType.serviceStarted}
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed"
+            title={!currentRootType.serviceStarted ? '首次发布并开启同步服务后可控制接入状态' : currentRootType.accessEnabled ? '停用后不再轮询该类型中间表' : '启用后恢复轮询该类型中间表'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${currentRootType.syncStatus === 'RUNNING' ? 'animate-spin' : ''}`} />
-            <span className="whitespace-nowrap">同步数据</span>
-            {hasPendingSync && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-0.5 shrink-0"></span>}
+            {currentRootType.accessEnabled ? <PauseCircle className="w-3.5 h-3.5" /> : <PlayCircle className="w-3.5 h-3.5" />}
+            <span>{currentRootType.accessEnabled ? '停用接入' : '启用接入'}</span>
           </button>
 
           <button
             type="button"
             onClick={onConfigureSyncSchedule}
             className="h-8 px-3 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
-            title="设置当前根类型从中间表同步到 Manticore 的执行频率"
+            title="设置常驻服务检查当前根类型中间表的间隔"
           >
             <Clock className="w-3.5 h-3.5 text-[var(--ty-icon-color)]" />
-            <span>同步计划：{scheduleLabel(syncSchedule)}</span>
+            <span>检查频率：{currentRootType.accessEnabled ? scheduleLabel(syncSchedule, currentRootType.pollingIntervalMinutes) : '已停用'}</span>
           </button>
 
           {/* 4. 查询预览 */}

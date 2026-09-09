@@ -1,120 +1,39 @@
-export type IngestionStatus = 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
-
-export interface SourceIngestionIssue {
-  code: string;
-  name: string;
-  failedCount: number;
-  description: string;
-  exampleObjectIds?: string[];
-}
+export type IngestionStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
 
 export interface SourceIngestionLog {
   id: string;
+  objectId: string;
   rootTypeCode: 'PART' | 'DOCUMENT' | 'PROCESS';
   sourceSystemName: string;
   sourceTable: string;
   stagingTable: string;
-  mode: 'FULL' | 'INCREMENTAL';
-  startedAt: string;
-  endedAt?: string;
-  readCount?: number;
-  writtenCount?: number;
-  failedCount?: number;
+  receivedAt: string;
+  processedAt?: string;
   status: IngestionStatus;
+  errorCode?: string;
   errorSummary?: string;
-  issues?: SourceIngestionIssue[];
-  traceId?: string;
+  traceId: string;
 }
 
 export const initialSourceIngestionLogs: SourceIngestionLog[] = [
-  {
-    id: 'ING-20260908-003', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part',
-    mode: 'INCREMENTAL', startedAt: '2026-09-08 09:00:02', endedAt: '2026-09-08 09:01:18',
-    readCount: 382, writtenCount: 376, failedCount: 6, status: 'PARTIAL_SUCCESS',
-    errorSummary: '共 6 条失败，涉及 3 类异常',
-    issues: [
-      {
-        code: 'FIELD_LENGTH_EXCEEDED', name: '字段长度超限', failedCount: 3,
-        description: '来源字段内容超过中间表字段长度限制，记录未写入。',
-        exampleObjectIds: ['PART-2026-003821', 'PART-2026-003846', 'PART-2026-003879'],
-      },
-      {
-        code: 'REQUIRED_FIELD_MISSING', name: '必填字段缺失', failedCount: 2,
-        description: '对象唯一标识或必要业务字段为空，记录未写入。',
-        exampleObjectIds: ['PART-2026-003894', 'PART-2026-003901'],
-      },
-      {
-        code: 'TYPE_CONVERSION_FAILED', name: '字段类型转换失败', failedCount: 1,
-        description: '来源值无法转换为中间表定义的数据类型，记录未写入。',
-        exampleObjectIds: ['PART-2026-003917'],
-      },
-    ],
-    traceId: 'TRC-ING-0908-003',
-  },
-  {
-    id: 'ING-20260908-002', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',
-    mode: 'INCREMENTAL', startedAt: '2026-09-08 08:30:01', endedAt: '2026-09-08 08:31:05',
-    readCount: 126, writtenCount: 126, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0908-002',
-  },
-  {
-    id: 'ING-20260908-001', rootTypeCode: 'PROCESS', sourceSystemName: 'PLM', sourceTable: 'WTProcessPlan', stagingTable: 'stg_process',
-    mode: 'INCREMENTAL', startedAt: '2026-09-08 08:00:00', endedAt: '2026-09-08 08:00:16',
-    status: 'FAILED', errorSummary: '读取账号凭证失效，未取得源表数据量', traceId: 'TRC-ING-0908-001',
-  },
-  {
-    id: 'ING-20260907-006', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 18:00:03', endedAt: '2026-09-07 18:01:29',
-    readCount: 514, writtenCount: 514, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0907-006',
-  },
-  {
-    id: 'ING-20260907-005', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 16:30:02', endedAt: '2026-09-07 16:31:08',
-    readCount: 208, writtenCount: 208, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0907-005',
-  },
-  {
-    id: 'ING-20260907-004', rootTypeCode: 'PROCESS', sourceSystemName: 'PLM', sourceTable: 'WTProcessPlan', stagingTable: 'stg_process',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 14:00:01', endedAt: '2026-09-07 14:00:44',
-    readCount: 86, writtenCount: 86, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0907-004',
-  },
-  {
-    id: 'ING-20260907-003', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 12:00:04', endedAt: '2026-09-07 12:01:17',
-    readCount: 463, writtenCount: 463, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0907-003',
-  },
-  {
-    id: 'ING-20260907-002', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 10:30:02', endedAt: '2026-09-07 10:31:16',
-    readCount: 194, writtenCount: 192, failedCount: 2, status: 'PARTIAL_SUCCESS',
-    errorSummary: '2 条记录的分类路径为空，已跳过并记录', traceId: 'TRC-ING-0907-002',
-  },
-  {
-    id: 'ING-20260907-001', rootTypeCode: 'PROCESS', sourceSystemName: 'PLM', sourceTable: 'WTProcessPlan', stagingTable: 'stg_process',
-    mode: 'INCREMENTAL', startedAt: '2026-09-07 08:00:02', endedAt: '2026-09-07 08:00:39',
-    readCount: 72, writtenCount: 72, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0907-001',
-  },
-  {
-    id: 'ING-20260906-003', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part',
-    mode: 'INCREMENTAL', startedAt: '2026-09-06 18:00:01', endedAt: '2026-09-06 18:00:22',
-    status: 'FAILED', errorSummary: '源端连接超时，未取得本批次读取数量', traceId: 'TRC-ING-0906-003',
-  },
-  {
-    id: 'ING-20260906-002', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',
-    mode: 'INCREMENTAL', startedAt: '2026-09-06 16:30:03', endedAt: '2026-09-06 16:31:11',
-    readCount: 176, writtenCount: 176, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0906-002',
-  },
-  {
-    id: 'ING-20260906-001', rootTypeCode: 'PROCESS', sourceSystemName: 'PLM', sourceTable: 'WTProcessPlan', stagingTable: 'stg_process',
-    mode: 'INCREMENTAL', startedAt: '2026-09-06 14:00:02', endedAt: '2026-09-06 14:00:48',
-    readCount: 91, writtenCount: 90, failedCount: 1, status: 'PARTIAL_SUCCESS',
-    errorSummary: '1 条工艺路线缺少版本标识，已跳过并记录', traceId: 'TRC-ING-0906-001',
-  },
-  {
-    id: 'ING-20260906-000', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',
-    mode: 'INCREMENTAL', startedAt: '2026-09-06 12:30:00', endedAt: '2026-09-06 12:30:08',
-    readCount: 0, writtenCount: 0, failedCount: 0, status: 'SUCCESS', traceId: 'TRC-ING-0906-000',
-  },
+  { id: 'MSG-IN-0908-0016', objectId: 'PART-2026-003917', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:14', status: 'PENDING', traceId: 'TRC-IN-0908-0016' },
+  { id: 'MSG-IN-0908-0015', objectId: 'DOC-SPEC-2026-0208', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 09:01:12', status: 'PENDING', traceId: 'TRC-IN-0908-0015' },
+  { id: 'MSG-IN-0908-0014', objectId: 'PART-2026-003901', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:10', status: 'PROCESSING', traceId: 'TRC-IN-0908-0014' },
+  { id: 'MSG-IN-0908-0013', objectId: 'PART-2026-003894', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:08', processedAt: '2026-09-08 09:01:09', status: 'FAILED', errorCode: 'REQUIRED_FIELD_MISSING', errorSummary: '对象唯一标识为空，记录未写入中间表。', traceId: 'TRC-IN-0908-0013' },
+  { id: 'MSG-IN-0908-0012', objectId: 'PART-2026-003879', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:06', processedAt: '2026-09-08 09:01:07', status: 'FAILED', errorCode: 'FIELD_LENGTH_EXCEEDED', errorSummary: '规格描述超过中间表字段长度限制。', traceId: 'TRC-IN-0908-0012' },
+  { id: 'MSG-IN-0908-0011', objectId: 'PART-2026-003846', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:04', processedAt: '2026-09-08 09:01:05', status: 'FAILED', errorCode: 'TYPE_CONVERSION_FAILED', errorSummary: '公称直径无法转换为中间表数值类型。', traceId: 'TRC-IN-0908-0011' },
+  { id: 'MSG-IN-0908-0010', objectId: 'PART-2026-003821', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:02', processedAt: '2026-09-08 09:01:03', status: 'SUCCESS', traceId: 'TRC-IN-0908-0010' },
+  { id: 'MSG-IN-0908-0009', objectId: 'DOC-DWG-88142', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 08:31:02', processedAt: '2026-09-08 08:31:03', status: 'SUCCESS', traceId: 'TRC-IN-0908-0009' },
+  { id: 'MSG-IN-0908-0008', objectId: 'DOC-DWG-88141', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 08:31:00', processedAt: '2026-09-08 08:31:01', status: 'SUCCESS', traceId: 'TRC-IN-0908-0008' },
+  { id: 'MSG-IN-0908-0007', objectId: 'PROC-PP-2026-0097', rootTypeCode: 'PROCESS', sourceSystemName: 'PLM', sourceTable: 'WTProcessPlan', stagingTable: 'stg_process', receivedAt: '2026-09-08 08:00:12', processedAt: '2026-09-08 08:00:13', status: 'FAILED', errorCode: 'SOURCE_CREDENTIAL_EXPIRED', errorSummary: '上游读取账号凭证失效，未取得完整对象数据。', traceId: 'TRC-IN-0908-0007' },
+  { id: 'MSG-IN-0908-0006', objectId: 'PART-2026-003802', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 07:59:58', processedAt: '2026-09-08 07:59:59', status: 'SUCCESS', traceId: 'TRC-IN-0908-0006' },
+  { id: 'MSG-IN-0908-0005', objectId: 'DOC-SPEC-2026-0199', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 07:59:56', processedAt: '2026-09-08 07:59:57', status: 'SUCCESS', traceId: 'TRC-IN-0908-0005' },
+  { id: 'MSG-IN-0908-0004', objectId: 'PART-2026-003790', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 07:59:54', processedAt: '2026-09-08 07:59:55', status: 'SUCCESS', traceId: 'TRC-IN-0908-0004' },
+  { id: 'MSG-IN-0908-0003', objectId: 'DOC-DWG-88138', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 07:59:52', processedAt: '2026-09-08 07:59:53', status: 'SUCCESS', traceId: 'TRC-IN-0908-0003' },
+  { id: 'MSG-IN-0908-0002', objectId: 'PART-2026-003788', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 07:59:50', processedAt: '2026-09-08 07:59:51', status: 'SUCCESS', traceId: 'TRC-IN-0908-0002' },
+  { id: 'MSG-IN-0908-0001', objectId: 'DOC-DWG-88135', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 07:59:48', processedAt: '2026-09-08 07:59:49', status: 'SUCCESS', traceId: 'TRC-IN-0908-0001' },
 ];
 
 export const ingestionStatusLabel: Record<IngestionStatus, string> = {
-  SUCCESS: '成功', PARTIAL_SUCCESS: '部分写入', FAILED: '任务失败',
+  PENDING: '待写入', PROCESSING: '写入中', SUCCESS: '写入成功', FAILED: '写入失败',
 };

@@ -17,7 +17,7 @@ import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
 import { DataProcessingView } from './components/DataProcessingView';
 import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
-import { DataSyncQualityView } from './components/DataSyncQualityView';
+import { ManticoreSyncQueueView } from './components/ManticoreSyncQueueView';
 import { DataConsistencyCheckView } from './components/DataConsistencyCheckView';
 
 // Data
@@ -31,7 +31,8 @@ import {
   initialCategoryCoverages
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
-import { SyncBatch, toSyncRootType } from './syncQualityTypes';
+import { initialTargetSyncRecords } from './data/targetSyncRecords';
+import { SyncBatch } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
 import { initialConsistencyBatches, initialConsistencyPlans } from './data/consistencyCheckData';
@@ -130,11 +131,12 @@ export default function App() {
   // View Router State
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedRootFilter, setSelectedRootFilter] = useState<string>('ALL');
-  const [schedules, setSchedules] = useState<ExecutionSchedule[]>([]);
+  const [schedules, setSchedules] = useState<ExecutionSchedule[]>(() =>
+    initialMappingObjectTypes.map((root) => ({ rootTypeCode: root.id, intervalMinutes: root.pollingIntervalMinutes })),
+  );
   const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
-  const [selectedSyncBatchId, setSelectedSyncBatchId] = useState<string | null>(null);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
 
   const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>(initialConsistencyPlans);
@@ -221,16 +223,19 @@ export default function App() {
           <main className="flex-1 min-w-0 flex flex-col overflow-y-auto px-4 py-3 bg-[var(--ty-fill-color)]">
             {scheduleTarget && <ExecutionScheduleDialog rootTypeCode={scheduleTarget}
               roots={mappingObjects} schedules={schedules}
-              onSave={value => setSchedules(previous => [...previous.filter(item => item.rootTypeCode !== value.rootTypeCode), value])}
+              onSave={value => {
+                setSchedules(previous => [...previous.filter(item => item.rootTypeCode !== value.rootTypeCode), value]);
+                setMappingObjects(previous => previous.map(root => root.id === value.rootTypeCode ? { ...root, pollingIntervalMinutes: value.intervalMinutes } : root));
+              }}
               onClose={() => setScheduleTarget(null)} />}
-            {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} syncs={syncBatches} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs}
+            {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs} syncRecords={initialTargetSyncRecords} schedules={schedules}
               onIngestion={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('source-ingestion-logs'); }}
-              onSync={(root, batchId) => { setSelectedRootFilter(root || 'ALL'); setSelectedSyncBatchId(batchId || null); handleNavigate('data-sync-quality'); }}
+              onSync={(root) => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-sync-quality'); }}
               onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
               onPresence={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }} />}
             {currentView === 'target-presence' && <TargetPresenceView roots={mappingObjects} initialRoot={selectedRootFilter === 'ALL' ? 'PART' : selectedRootFilter}
               onBack={() => handleNavigate('dashboard')}
-              onSync={root => { setSelectedRootFilter(root); setSelectedSyncBatchId(null); handleNavigate('data-sync-quality'); }} />}
+              onSync={root => { setSelectedRootFilter(root); handleNavigate('data-sync-quality'); }} />}
             {currentView === 'source-ingestion-logs' && <SourceIngestionLogView logs={initialSourceIngestionLogs} initialRootTypeFilter={selectedRootFilter} />}
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
@@ -241,8 +246,7 @@ export default function App() {
                 fieldMappings={flatFieldMappings}
                 onUpdateFieldMappings={setFlatFieldMappings}
                 onCommitStage1State={setStage1State}
-                onNavigateToSyncQuality={(batchId) => {
-                  setSelectedSyncBatchId(batchId ?? null);
+                onNavigateToSyncQuality={() => {
                   handleNavigate('data-sync-quality');
                 }}
                 syncSchedules={schedules}
@@ -251,12 +255,11 @@ export default function App() {
             )}
 
             {currentView === 'data-sync-quality' && (
-              <DataSyncQualityView
-                initialRootTypeFilter={toSyncRootType(selectedRootFilter) || 'ALL'}
-                batches={syncBatches}
-                onUpdateBatches={setSyncBatches}
-                initialSelectedBatchId={selectedSyncBatchId}
-                onClearSelectedBatchId={() => setSelectedSyncBatchId(null)}
+              <ManticoreSyncQueueView
+                initialRootTypeFilter={selectedRootFilter === 'ALL' ? 'ALL' : selectedRootFilter}
+                roots={mappingObjects}
+                schedules={schedules}
+                records={initialTargetSyncRecords}
               />
             )}
 
@@ -271,8 +274,7 @@ export default function App() {
                 onUpdatePlans={setConsistencyPlans}
                 batches={consistencyBatches}
                 onUpdateBatches={setConsistencyBatches}
-                onNavigateToSyncQuality={(batchId) => {
-                  setSelectedSyncBatchId(batchId ?? null);
+                onNavigateToSyncQuality={() => {
                   handleNavigate('data-sync-quality');
                 }}
               />

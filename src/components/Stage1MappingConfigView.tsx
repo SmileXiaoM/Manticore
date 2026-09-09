@@ -26,7 +26,6 @@ import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
 import { BatchImportModal } from './stage1-mapping/BatchImportModal';
 import {
   PublishConfigModal,
-  TriggerSyncModal,
   Stage1QueryPreviewModal,
   FieldDetailModal,
   ResetAccessModal
@@ -115,7 +114,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-  const [isTriggerSyncModalOpen, setIsTriggerSyncModalOpen] = useState(false);
   const [isQueryPreviewOpen, setIsQueryPreviewOpen] = useState(false);
 
   // 重置相关模态框状态
@@ -226,7 +224,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
-  const handleConfirmPublish = () => {
+  const handleConfirmPublish = (startService: boolean) => {
     const nowTime = '刚刚';
     let hasDataImpacting = false;
 
@@ -279,12 +277,27 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           draftFieldCount: 0,
           configStatus: 'CONFIGURED' as const,
           syncStatus: hasDataImpacting ? 'PENDING' : root.syncStatus,
-          hasPendingSyncChanges: hasDataImpacting
+          hasPendingSyncChanges: hasDataImpacting,
+          serviceStarted: root.serviceStarted || startService,
+          accessEnabled: root.serviceStarted ? root.accessEnabled : startService
         };
       })
     );
 
     setIsPublishModalOpen(false);
+    setOperationMessage(startService && !currentRootType.serviceStarted
+      ? '配置已发布，同步服务已接入并开始按检查频率轮询中间表。'
+      : '配置已发布；同步服务将按当前检查频率处理新增记录。');
+  };
+
+  const handleToggleAccess = (rootTypeId: string) => {
+    setMappingObjects(previous => previous.map(root => root.id === rootTypeId
+      ? { ...root, accessEnabled: !root.accessEnabled }
+      : root));
+    const root = mappingObjects.find(item => item.id === rootTypeId);
+    setOperationMessage(root?.accessEnabled
+      ? `${root.name} 已停用，常驻服务将跳过该类型的中间表。`
+      : `${root?.name || rootTypeId} 已启用，将按配置频率恢复轮询。`);
   };
 
   const checkTaskStart = (rootTypeId: string, confirmedCode?: string) => {
@@ -305,7 +318,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     commitRuntime(previous => beginStage1Task(previous, request));
     setLastCreatedBatchId(request.id);
     setOperationMessage(`${taskType === 'RESET' ? '重置' : '同步'}任务已提交。`);
-    setIsTriggerSyncModalOpen(false);
     setIsResetAccessModalOpen(false);
     const delayMs = typeof options.delayMs === 'number' && Number.isFinite(options.delayMs) && options.delayMs >= 0
       ? options.delayMs : 1200;
@@ -316,19 +328,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     }, delayMs);
   };
 
-  const handleConfirmDataSync = () => {
-    startTask('SYNC', selectedRootTypeId);
-  };
-
   const handleOpenQueryPreview = (rootTypeId?: string) => {
     if (rootTypeId) setSelectedRootTypeId(rootTypeId);
     setIsQueryPreviewOpen(true);
-  };
-
-  const handleTriggerQuickSync = (rootId: string) => {
-    if (!checkTaskStart(rootId).ok) return;
-    setSelectedRootTypeId(rootId);
-    setIsTriggerSyncModalOpen(true);
   };
 
   const handleRequestResetAccess = (rootId: string) => {
@@ -352,7 +354,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           <Database className="w-5 h-5 shrink-0 text-[var(--ty-primary-color)]" />
           <div className="min-w-0">
             <h1 className="text-ty-xl font-semibold">接入配置</h1>
-            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">维护各根类型从 PLM 到 Manticore 的字段映射、发布状态与同步入口。</p>
+            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">维护字段映射、接入启停与中间表检查频率；常驻服务逐条写入 Manticore。</p>
           </div>
         </div>
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">配置范围按根类型隔离</span>
@@ -370,11 +372,13 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         <ObjectTypeListView
           sourceSystems={sourceSystems}
           mappingObjects={displayMappingObjects}
+          schedules={syncSchedules}
           onSelectRootType={handleSelectRootType}
           onOpenQueryPreview={handleOpenQueryPreview}
-          onTriggerSync={handleTriggerQuickSync}
+          onToggleAccess={handleToggleAccess}
+          onConfigurePolling={(rootId) => onConfigureSyncSchedule?.(rootId)}
           onResetAccess={handleRequestResetAccess}
-          onNavigateToSyncQuality={onNavigateToSyncQuality}
+          onNavigateToSyncQuality={() => onNavigateToSyncQuality()}
           hasPermission={hasPermission}
         />
       ) : (
@@ -387,10 +391,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
           onPublishConfig={() => setIsPublishModalOpen(true)}
-          onTriggerDataSync={() => handleTriggerQuickSync(currentRootType.id)}
+          onToggleAccess={() => handleToggleAccess(currentRootType.id)}
           onResetAccess={() => handleRequestResetAccess(currentRootType.id)}
           onOpenQueryPreview={() => handleOpenQueryPreview(currentRootType.id)}
-          onNavigateToSyncQuality={onNavigateToSyncQuality}
           syncSchedule={syncSchedules.find(schedule => schedule.rootTypeCode === currentRootType.id)}
           onConfigureSyncSchedule={() => onConfigureSyncSchedule?.(currentRootType.id)}
           hasPermission={hasPermission}
@@ -430,17 +433,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         onConfirmPublish={handleConfirmPublish}
       />
 
-      {/* 模态框 4：发起数据同步 (系统自动选择执行策略) */}
-      <TriggerSyncModal
-        isOpen={isTriggerSyncModalOpen && mappingObjects.some(root => root.id === selectedRootTypeId)}
-        onClose={() => setIsTriggerSyncModalOpen(false)}
-        currentRootType={currentRootType}
-        fields={fieldMappings}
-        onConfirmSync={handleConfirmDataSync}
-        onNavigateToSyncQuality={onNavigateToSyncQuality}
-      />
-
-      {/* 模态框 5：一阶段正式查询预览 (正式底座快照保护) */}
+      {/* 模态框 4：一阶段正式查询预览 (正式底座快照保护) */}
       <Stage1QueryPreviewModal
         isOpen={isQueryPreviewOpen}
         onClose={() => setIsQueryPreviewOpen(false)}

@@ -42,7 +42,7 @@ interface PublishConfigModalProps {
   onClose: () => void;
   currentRootType: MappingObjectType;
   fields: FieldMappingItem[];
-  onConfirmPublish: () => void;
+  onConfirmPublish: (startService: boolean) => void;
 }
 
 export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
@@ -52,6 +52,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   fields,
   onConfirmPublish
 }) => {
+  const [startService, setStartService] = useState(true);
   const currentFields = fields.filter(f => f.rootTypeId === currentRootType.id);
 
   const draftOnlyFields = currentFields.filter(f => f.configStatus === 'DRAFT');
@@ -77,9 +78,9 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
               <Send className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">生效配置确认</h3>
+              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">发布配置确认</h3>
               <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                将草稿配置项正式生效为当前根类型的配置
+                将草稿配置发布为当前根类型的正式配置
               </p>
             </div>
           </div>
@@ -116,7 +117,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
             <div className="bg-[var(--ty-orange-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-orange-color)]/30 text-[var(--ty-font-main-light-color)]">
               <div className="font-bold text-[var(--ty-orange-color)]">数据影响变更: {dataImpactingCount} 项</div>
               <div className="text-ty-2xs opacity-80 mt-0.5">
-                {dataImpactingCount > 0 ? '生效后根类型转为「待同步」' : '无数据底层变更'}
+                {dataImpactingCount > 0 ? '下一轮检查开始处理' : '无数据底层变更'}
               </div>
             </div>
             <div className="bg-[var(--ty-green-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-green-color)]/30 text-[var(--ty-font-main-light-color)]">
@@ -130,14 +131,21 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
         <div className="bg-[var(--ty-primary-lighter-color)]/30 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm p-3 text-ty-xs text-[var(--ty-primary-color)] flex items-start space-x-2">
           <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <p className="font-semibold">生效操作不生成配置版本，不会自动触发数据同步</p>
+            <p className="font-semibold">发布后由常驻服务按检查频率处理新增记录</p>
             <p className="text-ty-2xs opacity-90 leading-relaxed">
-              {dataImpactingCount > 0
-                ? '本次包含数据影响变更，生效后标记根类型为「待同步」。正式查询将继续使用当前正式底座数据，直至触发数据同步执行成功。'
-                : '本次仅包含纯展示名称或样式变更，生效后即刻生效，无需执行数据同步。'}
+              {currentRootType.serviceStarted
+                ? '同步服务已接入，本次发布后无需手工同步；服务将在下一次检查时逐条处理新增记录。'
+                : '这是该对象类型首次接入。开启同步服务后，服务持续运行；后续可停用该类型的轮询。'}
             </p>
           </div>
         </div>
+
+        {!currentRootType.serviceStarted && (
+          <label className="flex items-start gap-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-3 text-ty-xs cursor-pointer">
+            <input type="checkbox" checked={startService} onChange={(event) => setStartService(event.target.checked)} className="mt-0.5" />
+            <span><strong className="block text-[var(--ty-font-main-color)]">发布后开启同步服务</strong><span className="mt-1 block text-ty-2xs text-[var(--ty-font-sub-color)]">开启后字段类型与业务唯一键锁定；此勾选项后续不再显示。</span></span>
+          </label>
+        )}
 
         <div className="flex justify-end space-x-3 pt-2">
           <button
@@ -149,122 +157,11 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={onConfirmPublish}
+            onClick={() => onConfirmPublish(currentRootType.serviceStarted ? false : startService)}
             className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>确认生效配置 ({totalDraftCount} 项)</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== 2. 手工发起数据同步模态框 (精简业务确认) ====================
-interface TriggerSyncModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentRootType: MappingObjectType;
-  fields: FieldMappingItem[];
-  onConfirmSync: () => void;
-  onNavigateToSyncQuality?: (batchId?: string) => void;
-}
-
-export const TriggerSyncModal: React.FC<TriggerSyncModalProps> = ({
-  isOpen,
-  onClose,
-  currentRootType,
-  fields,
-  onConfirmSync
-}) => {
-  if (!isOpen) return null;
-
-  // 检查是否有待同步的数据影响变更
-  const hasPendingChanges = Boolean(
-    currentRootType.hasPendingSyncChanges ||
-    fields.some(f => f.rootTypeId === currentRootType.id && f.configStatus === 'CONFIGURED' && !f.isInFormalQueryBase)
-  );
-
-  const previousErrorCount = currentRootType.lastSyncErrorRecords?.length ?? 0;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-md w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
-        <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-ty-sm border bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)] border-[var(--ty-primary-color)]/30">
-              <RefreshCw className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">
-                确认同步“{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}”数据？
-              </h3>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* 核心信息卡片 */}
-        <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 space-y-3 text-ty-xs">
-          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
-            <span>当前已生效字段数：</span>
-            <span className="font-mono font-bold text-[var(--ty-green-color)]">
-              {currentRootType.configuredFieldCount} 个
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-[var(--ty-font-sub-color)]">
-            <span>当前草稿字段数：</span>
-            <span className="font-mono font-medium text-[var(--ty-orange-color)]">
-              {currentRootType.draftFieldCount} 个
-            </span>
-          </div>
-          <div className="text-ty-2xs text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] p-2 rounded-ty-xs border border-[var(--ty-border-light-color)]">
-            当前有 {currentRootType.draftFieldCount} 个草稿字段，草稿不参与本次同步。
-          </div>
-
-          {/* 若存在待同步的数据影响变更 */}
-          {hasPendingChanges && (
-            <div className="bg-[var(--ty-primary-lightest-color)]/60 border border-[var(--ty-primary-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-primary-color)] flex items-center space-x-2 font-medium">
-              <Info className="w-3.5 h-3.5 shrink-0" />
-              <span>同步成功后更新正式查询底座。</span>
-            </div>
-          )}
-
-          {/* 上次同步异常简短提示 */}
-          {previousErrorCount > 0 && (
-            <div className="bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm p-2 text-ty-2xs text-[var(--ty-orange-color)] flex items-center space-x-2 font-medium">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>上次同步有 {previousErrorCount} 条异常。本次异常以本次执行结果为准。</span>
-            </div>
-          )}
-        </div>
-
-        {/* 底部按钮 */}
-        <div className="flex justify-end space-x-3 pt-2 border-t border-[var(--ty-border-light-color)]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onConfirmSync();
-              onClose();
-            }}
-            className="h-8 px-4 bg-[var(--ty-primary-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>开始同步</span>
+            <span>{!currentRootType.serviceStarted && startService ? '发布并开启同步' : '确认发布'} ({totalDraftCount} 项)</span>
           </button>
         </div>
       </div>

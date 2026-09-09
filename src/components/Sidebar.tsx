@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               }`}
             >
               <ScrollText className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
-              <span>中间表写入日志</span>
+              <span>中间表写入队列</span>
               {currentView === 'source-ingestion-logs' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 
@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
               }`}
             >
               <Database className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
-              <span>数据同步记录</span>
+              <span>Manticore 同步队列</span>
               {currentView === 'data-sync-quality' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
             </button>
 

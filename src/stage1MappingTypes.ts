@@ -85,6 +85,12 @@ export interface MappingObjectType {
   // 状态
   configStatus: RootTypeConfigStatus;
   syncStatus: RootTypeSyncStatus;
+  /** 单个根类型的轮询开关；停用后常驻服务跳过该中间表。 */
+  accessEnabled: boolean;
+  /** 该根类型是否已经随首次发布接入常驻同步服务；一旦开启不可回退。 */
+  serviceStarted: boolean;
+  /** 常驻服务检查该根类型中间表的间隔（分钟）。 */
+  pollingIntervalMinutes: number;
 
   // 同步执行细节
   lastSyncedAt?: string;

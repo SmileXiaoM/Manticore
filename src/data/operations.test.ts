@@ -4,6 +4,7 @@ import {
   buildOverview,
   newSchedule,
   nextScheduledAt,
+  scheduleLabel,
   validateSchedule,
   classifyPresence,
   PresenceSnapshot,
@@ -12,24 +13,12 @@ import { initialMappingObjectTypes } from '../stage1MappingData';
 import { initialSyncBatches } from '../syncQualityData';
 import { initialConsistencyBatches } from './consistencyCheckData';
 
-test('schedule computes the next Beijing daily, weekly and anchored hourly occurrence', () => {
-  const base = { ...newSchedule('PART'), enabled: true, time: '02:00' };
-  assert.equal(nextScheduledAt(base, new Date('2026-09-08T17:59:00Z')), '2026-09-08T18:00:00.000Z');
-  assert.equal(nextScheduledAt(base, new Date('2026-09-08T18:00:00Z')), '2026-09-09T18:00:00.000Z');
-  assert.equal(
-    nextScheduledAt({ ...base, frequency: 'WEEKLY', weekday: 3 }, new Date('2026-09-08T18:00:00Z')),
-    '2026-09-15T18:00:00.000Z',
-  );
-  assert.equal(
-    nextScheduledAt(
-      { ...base, frequency: 'HOURLY', intervalHours: 3, savedAt: '2026-09-08T00:00:00Z' },
-      new Date('2026-09-08T04:00:00Z'),
-    ),
-    '2026-09-08T06:00:00.000Z',
-  );
-  assert.equal(nextScheduledAt({ ...base, enabled: false }, new Date()), undefined);
-  assert.equal(nextScheduledAt({ ...base, time: '25:00' }, new Date()), undefined);
-  assert.equal(validateSchedule({ ...base, frequency: 'HOURLY', intervalHours: 0 }).length > 0, true);
+test('polling schedule validates fixed minute intervals and calculates next check', () => {
+  const base = { ...newSchedule('PART'), intervalMinutes: 30 };
+  assert.equal(validateSchedule(base), '');
+  assert.equal(nextScheduledAt(base, new Date('2026-09-08T18:00:00Z')), '2026-09-08T18:30:00.000Z');
+  assert.equal(scheduleLabel(base), '每 30 分钟检查');
+  assert.ok(validateSchedule({ ...base, intervalMinutes: 2 }));
 });
 
 test('dashboard isolates roots, orders by time, and ignores RESET as a sync', () => {
@@ -44,24 +33,13 @@ test('dashboard isolates roots, orders by time, and ignores RESET as a sync', ()
   assert.equal(rows.find((row) => row.root.id === 'PART')?.latestSync?.id, 'later');
   assert.notEqual(rows.find((row) => row.root.id === 'DOCUMENT')?.latestSync?.id, 'later');
   assert.equal(rows.find((row) => row.root.id === 'DOCUMENT')?.latestCheck?.rootTypeCode, 'DOCUMENT');
-  assert.equal(
-    buildOverview(initialMappingObjectTypes, [], []).every(
-      (row) => !row.latestSync && !row.latestCheck && row.unresolvedTasks === 0,
-    ),
-    true,
-  );
+  assert.equal(buildOverview(initialMappingObjectTypes, [], []).every((row) => !row.latestSync && !row.latestCheck && row.unresolvedTasks === 0), true);
 });
 
 test('target-only classification requires authoritative complete same-scope source evidence', () => {
   const snapshot: PresenceSnapshot = {
-    rootTypeCode: 'PART',
-    snapshotId: 's',
-    capturedAt: '2026-09-08T00:00:00Z',
-    sourceComplete: true,
-    sameScope: true,
-    authoritative: true,
-    targetComplete: true,
-    records: [],
+    rootTypeCode: 'PART', snapshotId: 's', capturedAt: '2026-09-08T00:00:00Z',
+    sourceComplete: true, sameScope: true, authoritative: true, targetComplete: true, records: [],
   };
   const row = { objectId: 'P-1', targetId: '1', sourceResult: 'NOT_FOUND' as const };
   assert.equal(classifyPresence(snapshot, row).status, 'EXTRA');
