@@ -226,13 +226,14 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   };
 
   // 批量调整已有属性的展示顺序。展示顺序只影响前台排列，不改变底层字段结构。
-  const handleBatchUpdateDisplayOrder = (fieldIds: string[], displayOrder: number) => {
-    const selectedIds = new Set(fieldIds);
+  const handleBatchUpdateDisplayOrder = (updates: Array<{ fieldId: string; displayOrder: number }>) => {
+    const orderByFieldId = new Map(updates.map(update => [update.fieldId, update.displayOrder]));
     let nextMappings: FieldMappingItem[] = [];
 
     setFieldMappings(previous => {
       nextMappings = previous.map(field => {
-        if (field.rootTypeId !== currentRootType.id || !selectedIds.has(field.id)) return field;
+        const displayOrder = orderByFieldId.get(field.id);
+        if (field.rootTypeId !== currentRootType.id || displayOrder === undefined) return field;
 
         if (field.configStatus === 'CONFIGURED') {
           return {
@@ -260,7 +261,11 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     });
 
     updateRootTypeStats(currentRootType.id, nextMappings);
-    setOperationMessage(`已将 ${fieldIds.length} 个属性的展示顺序统一调整为 ${displayOrder}，并保存为草稿。`);
+    const uniqueOrders = new Set(updates.map(update => update.displayOrder));
+    const summary = uniqueOrders.size === 1
+      ? `统一调整为 ${updates[0]?.displayOrder}`
+      : `按当前列表顺序连续调整为 ${Math.min(...uniqueOrders)}–${Math.max(...uniqueOrders)}`;
+    setOperationMessage(`已将 ${updates.length} 个属性的展示顺序${summary}，并保存为草稿。`);
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)

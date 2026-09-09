@@ -13,6 +13,54 @@ import {
   SyncErrorRecord
 } from './stage1MappingTypes';
 
+// 零部件大数据量原型样本：与 6 个业务示例字段合计 100 个属性，用于验证分页、批量选择与排序交互。
+const partExtendedFieldSamples: FieldMappingItem[] = Array.from({ length: 94 }, (_, index) => {
+  const displayOrder = index + 7;
+  const suffix = String(displayOrder).padStart(3, '0');
+  return {
+    id: `MAP-P-DEMO-${suffix}`,
+    rootTypeId: 'PART',
+    sourceSystemId: 'PLM_WINCHILL',
+    sourceFieldKey: `iba_demo_attribute_${suffix}`,
+    sourceFieldName: `demoAttribute${suffix}`,
+    sourceDisplayName: `扩展属性 ${suffix}`,
+    sourceDataType: 'TEXT',
+    sourceDataTypeLabel: '文本',
+    sourceMetadata: {
+      sourceTables: ['WTPart', 'StringValue'],
+      attributeKind: 'EXTENDED',
+      isMultiValue: displayOrder % 10 === 0,
+      hasEnumDefinition: false,
+      sourceFieldKey: `iba_demo_attribute_${suffix}`,
+      sourceFieldName: `demoAttribute${suffix}`,
+      sourceDisplayName: `扩展属性 ${suffix}`,
+      sourceDataType: 'TEXT',
+      sourceDataTypeLabel: '文本',
+      isRequired: false,
+      description: '用于验证 100 个属性场景的原型示例字段'
+    },
+    manticoreField: `demo_attribute_${suffix}`,
+    manticoreType: 'STRING',
+    displayTitle: `扩展属性 ${suffix}`,
+    displayType: 'CONDITION_QUERY',
+    queryCapability: 'QUERY_CONDITION',
+    isQueryCondition: true,
+    isSortable: false,
+    isDisplayInResult: true,
+    isFulltextSearch: false,
+    isUniqueKey: false,
+    defaultColumnWidth: 140,
+    displayOrder,
+    defaultDisplayOrder: displayOrder,
+    configStatus: 'CONFIGURED',
+    hasDraftModification: false,
+    isDataImpactingChange: false,
+    isInFormalQueryBase: true,
+    updatedAt: '2026-09-09 10:00:00',
+    updatedBy: '原型示例数据'
+  };
+});
+
 // 1. 来源系统适配器
 export const initialSourceSystems: SourceSystemInfo[] = [
   {
@@ -44,8 +92,8 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     sourceSystemId: 'PLM_WINCHILL',
     sourceSystemName: 'Windchill PLM 核心系统',
     description: '工程物料、标准件、电子元器件及装配体根对象',
-    configuredFieldCount: 5,
-    formalQueryableFieldCount: 5,
+    configuredFieldCount: 99,
+    formalQueryableFieldCount: 99,
     draftFieldCount: 2, // 1 个纯草稿 + 1 个已配置字段的草稿修改
     manticoreDocCount: 38400, // 当前 Manticore 检索底座中的索引记录总数
     configStatus: 'CONFIGURED_WITH_DRAFT',
@@ -350,7 +398,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isInFormalQueryBase: false,
       updatedAt: '2026-09-02 10:15:00',
       updatedBy: '张强 (工艺工程师)'
-    }
+    },
+    ...partExtendedFieldSamples
   ],
   DOCUMENT: [
     {
