@@ -1,4 +1,4 @@
-export type IngestionStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
+export type IngestionStatus = 'SUCCESS' | 'FAILED';
 
 export interface SourceIngestionLog {
   id: string;
@@ -8,7 +8,7 @@ export interface SourceIngestionLog {
   sourceTable: string;
   stagingTable: string;
   receivedAt: string;
-  processedAt?: string;
+  processedAt: string;
   status: IngestionStatus;
   errorCode?: string;
   errorSummary?: string;
@@ -16,9 +16,9 @@ export interface SourceIngestionLog {
 }
 
 export const initialSourceIngestionLogs: SourceIngestionLog[] = [
-  { id: 'MSG-IN-0908-0016', objectId: 'PART-2026-003917', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:14', status: 'PENDING', traceId: 'TRC-IN-0908-0016' },
-  { id: 'MSG-IN-0908-0015', objectId: 'DOC-SPEC-2026-0208', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 09:01:12', status: 'PENDING', traceId: 'TRC-IN-0908-0015' },
-  { id: 'MSG-IN-0908-0014', objectId: 'PART-2026-003901', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:10', status: 'PROCESSING', traceId: 'TRC-IN-0908-0014' },
+  { id: 'MSG-IN-0908-0016', objectId: 'PART-2026-003917', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:14', processedAt: '2026-09-08 09:01:15', status: 'SUCCESS', traceId: 'TRC-IN-0908-0016' },
+  { id: 'MSG-IN-0908-0015', objectId: 'DOC-SPEC-2026-0208', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document', receivedAt: '2026-09-08 09:01:12', processedAt: '2026-09-08 09:01:13', status: 'SUCCESS', traceId: 'TRC-IN-0908-0015' },
+  { id: 'MSG-IN-0908-0014', objectId: 'PART-2026-003901', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:10', processedAt: '2026-09-08 09:01:11', status: 'SUCCESS', traceId: 'TRC-IN-0908-0014' },
   { id: 'MSG-IN-0908-0013', objectId: 'PART-2026-003894', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:08', processedAt: '2026-09-08 09:01:09', status: 'FAILED', errorCode: 'REQUIRED_FIELD_MISSING', errorSummary: '对象唯一标识为空，记录未写入中间表。', traceId: 'TRC-IN-0908-0013' },
   { id: 'MSG-IN-0908-0012', objectId: 'PART-2026-003879', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:06', processedAt: '2026-09-08 09:01:07', status: 'FAILED', errorCode: 'FIELD_LENGTH_EXCEEDED', errorSummary: '规格描述超过中间表字段长度限制。', traceId: 'TRC-IN-0908-0012' },
   { id: 'MSG-IN-0908-0011', objectId: 'PART-2026-003846', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part', receivedAt: '2026-09-08 09:01:04', processedAt: '2026-09-08 09:01:05', status: 'FAILED', errorCode: 'TYPE_CONVERSION_FAILED', errorSummary: '公称直径无法转换为中间表数值类型。', traceId: 'TRC-IN-0908-0011' },
@@ -35,5 +35,5 @@ export const initialSourceIngestionLogs: SourceIngestionLog[] = [
 ];
 
 export const ingestionStatusLabel: Record<IngestionStatus, string> = {
-  PENDING: '待写入', PROCESSING: '写入中', SUCCESS: '写入成功', FAILED: '写入失败',
+  SUCCESS: '写入成功', FAILED: '写入失败',
 };
