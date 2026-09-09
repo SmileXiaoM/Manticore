@@ -202,7 +202,7 @@ export interface FieldMappingItem {
   isUniqueKey?: boolean;
 
   defaultColumnWidth?: number;
-  displayOrder?: number; // 顺序号 (大于0的正整数，同一根类型内唯一)
+  displayOrder?: number; // 展示顺序（大于0的正整数；允许重复，相同值的属性相邻展示）
   defaultDisplayOrder?: number; // 兼容历史引用
   hyperlinkConfig?: HyperlinkConfig;
 
@@ -218,7 +218,7 @@ export interface FieldMappingItem {
   updatedBy: string;
 }
 
-// 获取字段顺序号 (优先取草稿顺序号)
+// 获取字段展示顺序（优先取草稿值）
 export function getFieldDisplayOrder(field: Partial<FieldMappingItem>): number {
   if (field.hasDraftModification && field.draftData?.displayOrder !== undefined) {
     return field.draftData.displayOrder;
@@ -226,52 +226,32 @@ export function getFieldDisplayOrder(field: Partial<FieldMappingItem>): number {
   return field.displayOrder ?? field.defaultDisplayOrder ?? 1;
 }
 
-// 获取当前根类型下已占用的最大顺序号 (若无字段则为 0)
+// 获取当前根类型下的最大展示顺序（若无字段则为 0）
 export function getMaxDisplayOrder(fields: FieldMappingItem[], rootTypeId: string): number {
   const rootFields = fields.filter(f => f.rootTypeId === rootTypeId);
   if (rootFields.length === 0) return 0;
   return Math.max(...rootFields.map(f => getFieldDisplayOrder(f)));
 }
 
-// 检查顺序号在同一根类型内是否被其他字段占用
-export function isDisplayOrderOccupied(
-  fields: FieldMappingItem[],
-  rootTypeId: string,
-  targetOrder: number,
-  excludeFieldId?: string
-): boolean {
-  return fields.some(f =>
-    f.rootTypeId === rootTypeId &&
-    f.id !== excludeFieldId &&
-    getFieldDisplayOrder(f) === targetOrder
-  );
-}
-
-// 顺序号校验：必须为大于 0 的整数，并在同一根类型内保持唯一；重复时阻止保存并明确提示“顺序号已被占用”
+// 展示顺序校验：必须为大于 0 的整数；允许重复，相同值的属性归为同一展示组
 export function validateDisplayOrder(
   order: any,
-  existingFields?: FieldMappingItem[],
-  rootTypeId?: string,
-  excludeFieldId?: string
+  _existingFields?: FieldMappingItem[],
+  _rootTypeId?: string,
+  _excludeFieldId?: string
 ): { valid: boolean; errorMsg?: string; errorMessage?: string } {
   if (order === undefined || order === null || order === '' || Number.isNaN(Number(order))) {
-    const msg = '顺序号为必填项，请输入正整数';
+    const msg = '展示顺序为必填项，请输入正整数';
     return { valid: false, errorMsg: msg, errorMessage: msg };
   }
   const num = Number(order);
   if (!Number.isInteger(num)) {
-    const msg = '顺序号必须为整数，不可输入小数';
+    const msg = '展示顺序必须为整数，不可输入小数';
     return { valid: false, errorMsg: msg, errorMessage: msg };
   }
   if (num <= 0) {
-    const msg = '顺序号必须为大于 0 的整数';
+    const msg = '展示顺序必须为大于 0 的整数';
     return { valid: false, errorMsg: msg, errorMessage: msg };
-  }
-  if (existingFields && rootTypeId) {
-    if (isDisplayOrderOccupied(existingFields, rootTypeId, num, excludeFieldId)) {
-      const msg = '顺序号已被占用';
-      return { valid: false, errorMsg: msg, errorMessage: msg };
-    }
   }
   return { valid: true };
 }

@@ -106,7 +106,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           </div>
           <div>
             <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">映射与业务展示</h4>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">前台显示名称、顺序号与列宽</p>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">前台显示名称、展示顺序与列宽</p>
           </div>
         </div>
 
@@ -129,11 +129,11 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           )}
         </div>
 
-        {/* 顺序号 (displayOrder) 数字输入框 */}
+        {/* 展示顺序数字输入框 */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
-              顺序号 (displayOrder) <span className="text-[var(--ty-red-color)]">*</span>
+              展示顺序 <span className="text-[var(--ty-red-color)]">*</span>
             </label>
             <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">控制结果列展示排位</span>
           </div>
@@ -160,7 +160,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             <p className="text-ty-2xs text-[var(--ty-red-color)] font-medium">{errors.displayOrder}</p>
           ) : (
             <p className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
-              大于 0 的整数，在当前根类型内唯一。查询结果列将从小到大排列。
+              数字越小越靠前；允许与其他属性相同，相同顺序的属性会排在一起。
             </p>
           )}
         </div>

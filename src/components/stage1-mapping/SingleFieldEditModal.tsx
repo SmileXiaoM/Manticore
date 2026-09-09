@@ -149,7 +149,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       setFormData(initialData);
       setInitialSnapshot(JSON.stringify(initialData));
     } else {
-      // 新建字段：默认顺序号必须为当前根类型最大顺序号加 1
+      // 新建字段默认追加到现有展示顺序之后，用户也可以改为已有顺序并归入同组
       const nextOrder = getMaxDisplayOrder(existingFields, currentRootType.id) + 1;
       const firstAvailable = availablePlmFields[0];
       const defaultKey = firstAvailable ? firstAvailable.sourceFieldKey : '';
@@ -275,7 +275,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       newErrors.displayTitle = '前台显示名称为必填项，不可为空';
     }
 
-    // 校验顺序号
+    // 展示顺序只校验正整数，允许与其他属性相同
     const orderValidation = validateDisplayOrder(
       formData.displayOrder,
       existingFields,
@@ -349,7 +349,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     );
 
     if (isEditingExisting && isEditingConfigured && editingField) {
-      // 已配置字段保存草稿修改 (顺序号修改属于展示调整，进入草稿)
+      // 已配置字段保存草稿修改（展示顺序修改属于展示调整，进入草稿）
       const updatedField: FieldMappingItem = {
         ...editingField,
         hasDraftModification: true,
@@ -438,7 +438,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
               </span>
             </div>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-              单字段直接归属根类型，配置 PLM 来源元数据、业务展示、顺序号及 Manticore 底层检索属性。
+              单字段直接归属根类型，配置 PLM 来源元数据、业务展示、展示顺序及 Manticore 底层检索属性。
             </p>
           </div>
           <button

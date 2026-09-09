@@ -73,7 +73,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  // 过滤当前根类型的字段列表并严格按顺序号 (displayOrder) 从小到大排列
+  // 按展示顺序从小到大排列；相同值依靠稳定排序保持原有相对顺序并相邻展示
   const rootTypeFields = useMemo(() => {
     return [...fields.filter(f => f.rootTypeId === currentRootType.id)].sort((a, b) => {
       const orderA = a.draftData?.displayOrder ?? a.draftData?.defaultDisplayOrder ?? a.displayOrder ?? a.defaultDisplayOrder ?? 999;
@@ -493,7 +493,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 <th className="py-2 px-1 w-[11%] whitespace-normal">PLM 来源字段</th>
                 <th className="py-2 px-1 w-[11%] whitespace-normal">Manticore 检索字段</th>
                 <th className="py-2 px-1 w-[9%] whitespace-normal">前台显示名称</th>
-                <th className="py-2 px-1 w-[5%] whitespace-normal text-center">顺序号</th>
+                <th className="py-2 px-1 w-[7%] whitespace-normal text-center" title="数字越小越靠前；相同顺序的属性排在一起">展示顺序</th>
                 <th className="py-2 px-1 w-[8%] whitespace-normal">PLM 业务类型</th>
                 <th className="py-2 px-1 w-[7%] whitespace-normal">底层类型</th>
                 <th className="py-2 px-1 w-[8%] whitespace-normal">查询能力</th>
@@ -543,7 +543,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       )}
                     </td>
 
-                    {/* 顺序号 */}
+                    {/* 展示顺序 */}
                     <td className="py-2 px-1 text-center">
                       {field.hasDraftModification && field.draftData?.displayOrder !== undefined ? (
                         <div className="font-mono font-bold text-[var(--ty-font-main-color)]">

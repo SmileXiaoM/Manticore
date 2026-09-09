@@ -65,6 +65,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   // 针对候选字段的完整自定义配置 (使用统一 FieldMappingFormData)
   const [candidateCustomConfigs, setCandidateCustomConfigs] = useState<Record<string, FieldMappingFormData>>({});
+  const [sharedDisplayOrder, setSharedDisplayOrder] = useState('');
 
   // 4. 单行配置抽屉/子弹窗状态
   const [configuringCandidate, setConfiguringCandidate] = useState<BatchImportCandidate | null>(null);
@@ -83,6 +84,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setConflictFilter('ALL');
       setSelectedKeys([]);
       setCandidateCustomConfigs({});
+      setSharedDisplayOrder('');
       setConfiguringCandidate(null);
       setConfiguringFormData(null);
       setConfiguringErrors({});
@@ -166,7 +168,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         suggestedType = 'STRING';
       }
 
-      // 只有“未映射”且可直接导入的候选字段才分配建议顺序号，按待导入顺序递增，避免被已存在或不可导入字段占位空耗
+      // 未映射字段默认自动连续编排；用户也可以为整批设置同一个展示顺序
       let suggestedDisplayOrder: number | undefined = undefined;
       if (conflictType === 'UNMAPPED' && isSelectable) {
         unmappedCounter += 1;
@@ -327,36 +329,14 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
 
     const currentKey = configuringCandidate.sourceFieldMeta.sourceFieldKey;
-    const currentOrder = configuringFormData.displayOrder;
 
     const orderVal = validateDisplayOrder(
-      currentOrder,
+      configuringFormData.displayOrder,
       existingFieldMappings,
       currentRootType.id
     );
     if (!orderVal.valid && orderVal.errorMessage) {
       newErrors.displayOrder = orderVal.errorMessage;
-    }
-
-    // 校验与当前已有字段是否冲突
-    if (!newErrors.displayOrder) {
-      const conflictExisting = existingFieldMappings.find(
-        f => f.rootTypeId === currentRootType.id && getFieldDisplayOrder(f) === currentOrder
-      );
-      if (conflictExisting) {
-        newErrors.displayOrder = `顺序号 ${currentOrder} 已被当前已有字段「${conflictExisting.displayTitle}」占用`;
-      }
-    }
-
-    // 校验与其他已定制的候选配置是否冲突
-    if (!newErrors.displayOrder) {
-      for (const [otherKey, config] of Object.entries(candidateCustomConfigs)) {
-        const otherConfig = config as FieldMappingFormData;
-        if (otherKey !== currentKey && otherConfig && otherConfig.displayOrder === currentOrder) {
-          newErrors.displayOrder = `顺序号 ${currentOrder} 与已定制候选字段「${otherConfig.displayTitle}」冲突`;
-          break;
-        }
-      }
     }
 
     if (!configuringFormData.manticoreField.trim()) {
@@ -415,7 +395,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     onEditField(target);
   };
 
-  const isDirty = selectedKeys.length > 0 || Object.keys(candidateCustomConfigs).length > 0;
+  const isDirty = selectedKeys.length > 0 || Object.keys(candidateCustomConfigs).length > 0 || sharedDisplayOrder.trim() !== '';
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -425,7 +405,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  // 确认批量保存为草稿 (严格校验整批顺序号唯一性，列表与保存完全一致)
+  // 确认批量保存为草稿；可自动连续编排，也可把整批归入同一展示顺序
   const handleConfirmBatch = () => {
     setBatchErrorMessage(null);
 
@@ -438,12 +418,18 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       return;
     }
 
-    // 1. 提取所有待导入项与其确切最终顺序号（严格与表格显示一致）
+    const normalizedSharedOrder = sharedDisplayOrder.trim() === '' ? undefined : Number(sharedDisplayOrder);
+    if (normalizedSharedOrder !== undefined && (!Number.isInteger(normalizedSharedOrder) || normalizedSharedOrder <= 0)) {
+      setBatchErrorMessage('统一展示顺序必须为大于 0 的正整数');
+      return;
+    }
+
+    // 提取所有待导入项与最终展示顺序；统一值优先于单项建议值
     const pendingItems = selectedCandidateList.map(c => {
       const key = c.sourceFieldMeta.sourceFieldKey;
       const custom = candidateCustomConfigs[key];
       const title = custom ? custom.displayTitle.trim() : c.suggestedDisplayTitle;
-      const order = custom && custom.displayOrder > 0 ? custom.displayOrder : (c.suggestedDisplayOrder ?? 0);
+      const order = normalizedSharedOrder ?? (custom && custom.displayOrder > 0 ? custom.displayOrder : (c.suggestedDisplayOrder ?? 0));
       return {
         candidate: c,
         custom,
@@ -452,41 +438,15 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       };
     });
 
-    // 2. 基础有效性校验：必须为正整数
+    // 基础有效性校验：必须为正整数；允许已有字段和本批字段使用相同值
     for (const item of pendingItems) {
       if (!Number.isInteger(item.order) || item.order <= 0) {
-        setBatchErrorMessage(`字段「${item.title}」的顺序号无效 (${item.order})，必须为大于 0 的正整数`);
+        setBatchErrorMessage(`字段「${item.title}」的展示顺序无效 (${item.order})，必须为大于 0 的正整数`);
         return;
       }
     }
 
-    // 3. 校验与当前根类型已有字段的冲突
-    for (const item of pendingItems) {
-      const conflictExisting = existingFieldMappings.find(
-        f => f.rootTypeId === currentRootType.id && getFieldDisplayOrder(f) === item.order
-      );
-      if (conflictExisting) {
-        setBatchErrorMessage(
-          `顺序号冲突：待导入字段「${item.title}」的顺序号 (${item.order}) 与当前根类型已有字段「${conflictExisting.displayTitle}」重复，请修改后再保存`
-        );
-        return;
-      }
-    }
-
-    // 4. 校验整批内部的顺序号唯一性
-    const seenOrders = new Map<number, string>();
-    for (const item of pendingItems) {
-      if (seenOrders.has(item.order)) {
-        const prevTitle = seenOrders.get(item.order);
-        setBatchErrorMessage(
-          `顺序号冲突：待导入字段「${item.title}」与「${prevTitle}」设置了相同的顺序号 (${item.order})，请修改后再保存`
-        );
-        return;
-      }
-      seenOrders.set(item.order, item.title);
-    }
-
-    // 5. 校验通过，生成草稿映射项
+    // 校验通过，生成草稿映射项
     const newDrafts: FieldMappingItem[] = pendingItems.map((item, idx) => {
       const c = item.candidate;
       const custom = item.custom;
@@ -858,8 +818,11 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         const currentTitle = custom ? custom.displayTitle : c.suggestedDisplayTitle;
                         const currentManticore = custom ? custom.manticoreField : c.suggestedManticoreField;
                         const currentType = custom ? custom.manticoreType : c.suggestedManticoreType;
+                        const normalizedSharedOrder = sharedDisplayOrder.trim() === '' ? undefined : Number(sharedDisplayOrder);
                         const currentOrder =
-                          c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
+                          isChecked && normalizedSharedOrder !== undefined && Number.isInteger(normalizedSharedOrder) && normalizedSharedOrder > 0
+                            ? normalizedSharedOrder
+                            : c.conflictType === 'ALREADY_CONFIGURED' || c.conflictType === 'HAS_DRAFT'
                             ? c.realDisplayOrder
                             : custom && custom.displayOrder > 0
                             ? custom.displayOrder
@@ -923,7 +886,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                               <div className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
                                 <code className="text-[var(--ty-primary-color)]">{currentManticore}</code>
                                 <span className="mx-1">·</span>{currentType}
-                                <span className="mx-1">·</span>顺序 {currentOrder ?? '-'}
+                                <span className="mx-1">·</span>展示顺序 {currentOrder ?? '-'}
                               </div>
                             </td>
 
@@ -954,7 +917,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                   type="button"
                                   onClick={() => handleOpenConfigureCandidate(c)}
                                   className="h-7 px-3 bg-[var(--ty-primary-lighter-color)] hover:opacity-90 text-[var(--ty-primary-color)] border border-[var(--ty-primary-lighter-color)] rounded-ty-sm text-ty-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-colors mx-auto"
-                                  title="打开完整配置表单，编辑显示名、顺序号、列宽、Manticore属性与检索能力"
+                                  title="打开完整配置表单，编辑显示名、展示顺序、列宽、Manticore属性与检索能力"
                                 >
                                   <Sliders className="w-3 h-3 text-[var(--ty-primary-color)]" />
                                   <span>配置</span>
@@ -1002,18 +965,19 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
         {/* 底部固定操作条 */}
         {fetchStatus === 'SUCCESS' && (
-          <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between shrink-0">
-            <div className="flex items-center space-x-2 text-ty-xs text-[var(--ty-font-sub-color)]">
+          <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-end justify-between gap-3 shrink-0">
+            <div className="flex flex-wrap items-end gap-3 text-ty-xs text-[var(--ty-font-sub-color)]">
               <span className="font-semibold text-[var(--ty-font-main-color)]">
                 已勾选 <span className="font-mono text-[var(--ty-primary-color)] text-ty-sm">{selectedCount}</span> 项
               </span>
-              <span className="text-[var(--ty-border-color)]">|</span>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
-                * 批量导入的字段将自动生成为草稿项，顺序号连续编排，需生效配置后方能进入正式底座
-              </span>
+              <label className="space-y-1">
+                <span className="block text-ty-2xs">所选统一展示顺序（可选）</span>
+                <input type="number" min="1" step="1" value={sharedDisplayOrder} onChange={(event) => setSharedDisplayOrder(event.target.value)} disabled={selectedCount === 0} placeholder="留空则自动排列" className="h-8 w-40 px-3 bg-white border border-[var(--ty-border-color)] rounded-ty-sm disabled:opacity-40" />
+              </label>
+              <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">填写后，所选属性使用同一顺序并排在一起；留空则按来源顺序连续编排。</span>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 ml-auto">
               <button
                 type="button"
                 onClick={handleRequestClose}
@@ -1054,7 +1018,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     </span>
                   </div>
                   <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                    使用与单字段相同的完整配置结构。推断值仅为默认建议，您可在导入前自由修改前台显示名、顺序号、Manticore 物理类型及检索能力。
+                    使用与单字段相同的完整配置结构。推断值仅为默认建议，您可在导入前自由修改前台显示名、展示顺序、Manticore 物理类型及检索能力。
                   </p>
                 </div>
                 <button

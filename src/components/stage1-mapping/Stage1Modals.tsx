@@ -390,7 +390,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 }) => {
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 1. 严格过滤：仅取当前根类型下已进入正式底座可查的字段，并严格按顺序号 (displayOrder) 从小到大排列
+  // 仅取当前根类型下已进入正式底座可查的字段，并按展示顺序从小到大排列
   const formalQueryFields = fields
     .filter(
       f =>
@@ -477,7 +477,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
           <div className="flex items-center space-x-2 text-[var(--ty-font-main-light-color)]">
             <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
             <span>
-              当前正式查询底座展示 <strong>{displayQueryFields.length}</strong> 个结果列，已按顺序号从小到大排布。
+              当前正式查询底座展示 <strong>{displayQueryFields.length}</strong> 个结果列，已按展示顺序从小到大排布；相同顺序的属性相邻展示。
             </span>
           </div>
 
@@ -668,7 +668,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
             <div className="grid grid-cols-2 gap-2 text-ty-2xs">
               <div><span className="text-[var(--ty-font-sub-light-color)]">物理字段:</span> <span className="font-mono font-semibold text-[var(--ty-primary-color)]">{field.manticoreField}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">数据类型:</span> <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{field.manticoreType}</span></div>
-              <div><span className="text-[var(--ty-font-sub-light-color)]">顺序号:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">展示顺序:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">唯一主键:</span> <span className="text-[var(--ty-font-main-color)]">{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">排序支持:</span> <span className="text-[var(--ty-font-main-color)]">{field.isSortable ? '支持' : '不支持'}</span></div>
             </div>
