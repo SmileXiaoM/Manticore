@@ -228,19 +228,20 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div>
-            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Search className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              查询预览与沙盒试算
-            </h1>
+              <h1 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] tracking-tight">相似度查询预览</h1>
+              <span className="text-ty-2xs px-2 py-0.5 rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] font-normal">沙盒试算</span>
+            </div>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              验证不同规则版本（编辑中/已保存/启用发布）在已有件或表单字段值基准下的算分与门槛排除效果
+              选择规则版本和基准对象，验证候选召回、相似度计算与门槛排除效果。
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置参数
@@ -248,7 +249,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <button
               onClick={handleRunTrial}
               disabled={isSearching}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-ty-xs font-bold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -263,7 +264,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              1. 根类型
+              对象类型
             </label>
             <select
               value={rootTypeId}
@@ -283,7 +284,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              2. 软类型
+              业务分类
             </label>
             <select
               value={softTypeId}
@@ -303,7 +304,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <FileText className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              3. 基准来源
+              基准来源
             </label>
             <select
               value={baselineSourceType}
@@ -319,7 +320,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           {/* 4. 基准参考对象选择 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] block">
-              {baselineSourceType === 'EXISTING_PART' ? '4. 基准已有件' : '4. 业务申请表单'}
+              {baselineSourceType === 'EXISTING_PART' ? '基准已有件' : '业务申请表单'}
             </label>
             {baselineSourceType === 'EXISTING_PART' ? (
               availableExistingParts.length > 0 ? (
@@ -366,7 +367,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              5. 调试规则版本
+              规则版本
             </label>
             <select
               value={ruleVersion}
@@ -374,9 +375,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-2.5 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-rule-version-select"
             >
-              <option value="DRAFT_POOL">当前编辑中内容 (Draft Pool)</option>
-              <option value="SAVED_DRAFT">已保存配置 (Saved Draft)</option>
-              <option value="ACTIVE_RELEASE">当前启用配置 (Active Release)</option>
+              <option value="DRAFT_POOL">当前编辑版本</option>
+              <option value="SAVED_DRAFT">已保存版本</option>
+              <option value="ACTIVE_RELEASE">当前启用版本</option>
             </select>
           </div>
         </div>
@@ -394,10 +395,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               <span className="text-[var(--ty-font-sub-light-color)]">规则版本：</span>
               <span className="font-semibold text-[var(--ty-primary-color)]">
                 {ruleVersion === 'DRAFT_POOL'
-                  ? '当前编辑中内容'
+                  ? '当前编辑版本'
                   : ruleVersion === 'SAVED_DRAFT'
-                  ? '已保存配置'
-                  : '当前启用配置'}
+                  ? '已保存版本'
+                  : '当前启用版本'}
               </span>
             </div>
             <div>
@@ -444,7 +445,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            选择对应的根类型、软类型以及基准对象，系统将基于所选规则版本进行候选件召回、门槛过滤与算分模拟。
+            选择对象类型、业务分类和基准对象，系统将基于所选规则版本进行候选召回、门槛过滤与算分模拟。
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
@@ -452,7 +453,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前软类型尚未配置相似度规则</h3>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前业务分类尚未配置相似度规则</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {lastRunContext.searchResult.errorMessage}
           </p>
@@ -780,22 +781,25 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         <div
           className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex justify-end"
           id="score-detail-drawer-backdrop"
+          role="presentation"
+          onMouseDown={event => { if (event.target === event.currentTarget) setSelectedCandidate(null); }}
         >
-          <div className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
+          <section role="dialog" aria-modal="true" aria-labelledby="score-detail-drawer-title" className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
             {/* 抽屉头部 */}
             <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
               <div>
-                <h3 className="text-ty-md font-bold text-[var(--ty-font-main-color)] flex items-center gap-2">
+                <h2 id="score-detail-drawer-title" className="text-ty-md font-semibold text-[var(--ty-font-main-color)] flex items-center gap-2">
                   <span>算分明细与属性比对</span>
                   <span className="text-ty-sm font-mono text-[var(--ty-primary-color)] font-bold">
                     {selectedCandidate.similarityScore.toFixed(2)}%
                   </span>
-                </h3>
+                </h2>
                 <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5 font-mono">
                   {selectedCandidate.objectId} - {selectedCandidate.objectName}
                 </p>
               </div>
               <button
+                aria-label="关闭算分明细"
                 onClick={() => setSelectedCandidate(null)}
                 className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
@@ -882,7 +886,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 关闭
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>

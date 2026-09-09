@@ -1,5 +1,13 @@
 export type IngestionStatus = 'RUNNING' | 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED';
 
+export interface SourceIngestionIssue {
+  code: string;
+  name: string;
+  failedCount: number;
+  description: string;
+  exampleObjectIds?: string[];
+}
+
 export interface SourceIngestionLog {
   id: string;
   rootTypeCode: 'PART' | 'DOCUMENT' | 'PROCESS';
@@ -14,6 +22,7 @@ export interface SourceIngestionLog {
   failedCount?: number;
   status: IngestionStatus;
   errorSummary?: string;
+  issues?: SourceIngestionIssue[];
   traceId?: string;
 }
 
@@ -21,8 +30,26 @@ export const initialSourceIngestionLogs: SourceIngestionLog[] = [
   {
     id: 'ING-20260908-003', rootTypeCode: 'PART', sourceSystemName: 'PLM', sourceTable: 'WTPart', stagingTable: 'stg_part',
     mode: 'INCREMENTAL', startedAt: '2026-09-08 09:00:02', endedAt: '2026-09-08 09:01:18',
-    readCount: 382, writtenCount: 381, failedCount: 1, status: 'PARTIAL_SUCCESS',
-    errorSummary: '1 条记录字段长度超出中间表限制', traceId: 'TRC-ING-0908-003',
+    readCount: 382, writtenCount: 376, failedCount: 6, status: 'PARTIAL_SUCCESS',
+    errorSummary: '共 6 条失败，涉及 3 类异常',
+    issues: [
+      {
+        code: 'FIELD_LENGTH_EXCEEDED', name: '字段长度超限', failedCount: 3,
+        description: '来源字段内容超过中间表字段长度限制，记录未写入。',
+        exampleObjectIds: ['PART-2026-003821', 'PART-2026-003846', 'PART-2026-003879'],
+      },
+      {
+        code: 'REQUIRED_FIELD_MISSING', name: '必填字段缺失', failedCount: 2,
+        description: '对象唯一标识或必要业务字段为空，记录未写入。',
+        exampleObjectIds: ['PART-2026-003894', 'PART-2026-003901'],
+      },
+      {
+        code: 'TYPE_CONVERSION_FAILED', name: '字段类型转换失败', failedCount: 1,
+        description: '来源值无法转换为中间表定义的数据类型，记录未写入。',
+        exampleObjectIds: ['PART-2026-003917'],
+      },
+    ],
+    traceId: 'TRC-ING-0908-003',
   },
   {
     id: 'ING-20260908-002', rootTypeCode: 'DOCUMENT', sourceSystemName: 'PLM', sourceTable: 'EPMDocument', stagingTable: 'stg_document',

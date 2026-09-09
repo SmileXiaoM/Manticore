@@ -87,8 +87,8 @@ export const softTypeOptions: SoftTypeOption[] = [
     id: 'STAMPING_UNCONFIGURED',
     rootTypeId: 'PART',
     code: 'STAMPING',
-    name: '冲压结构件 (未配置规则测试)',
-    description: '用于测试未配置软类型规则时的空态与未配置保护',
+    name: '冲压结构件（暂未配置）',
+    description: '该业务分类尚未配置相似度规则',
     exampleFieldsHint: '尚未配置任何属性相似度字段规则'
   },
 

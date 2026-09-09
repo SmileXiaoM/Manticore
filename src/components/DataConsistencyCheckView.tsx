@@ -297,20 +297,54 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   return (
     <div className="data-consistency-check">
       <header className="page-heading">
-        <div className="page-heading-copy">
-          <div className="page-title-line">
-            <FileCheck2 size={20} className="page-title-icon" />
-            <h1>数据一致性核验</h1>
-            <span className="prototype-note">原型演示</span>
+        <div className="page-heading-main">
+          <div className="page-heading-copy">
+            <div className="page-title-line">
+              <FileCheck2 size={20} className="page-title-icon" />
+              <h1>数据一致性核验</h1>
+              <span className="prototype-note">原型演示</span>
+            </div>
+            <p className="muted">查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。</p>
           </div>
-          <p className="muted">查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。</p>
-        </div>
-        <div className="page-actions">
-          {onInspectTarget && (
-            <button onClick={() => onInspectTarget(rootFilter === 'ALL' ? undefined : rootFilter)}>
-              目标多余数据排查
+          <div className="page-actions">
+            {onInspectTarget && (
+              <button onClick={() => onInspectTarget(rootFilter === 'ALL' ? undefined : rootFilter)}>
+                目标多余数据排查
+              </button>
+            )}
+            <button
+              className="primary"
+              disabled={running}
+              onClick={() => {
+                choosePlan(visiblePlans.length === 1 ? visiblePlans[0].id : '');
+                setRunOpen(true);
+              }}
+            >
+              {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+              {running ? '核验中' : '发起核验'}
             </button>
-          )}
+          </div>
+        </div>
+        <div className="page-context-toolbar">
+          <label className="root-filter">
+            对象类型
+            <select
+              aria-label="核验对象类型筛选"
+              value={rootFilter}
+              onChange={(event) => {
+                setRootFilter(event.target.value);
+                setSelectedBatchId(null);
+                choosePlan('');
+              }}
+            >
+              <option value="ALL">全部类型</option>
+              {mappingObjects.map((root) => (
+                <option key={root.id} value={root.id}>
+                  {root.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             aria-expanded={showPlanManagement}
             aria-controls="consistency-plan-management"
@@ -319,41 +353,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <Settings2 size={16} />
             核验方案
           </button>
-          <button
-            className="primary"
-            disabled={running}
-            onClick={() => {
-              choosePlan(visiblePlans.length === 1 ? visiblePlans[0].id : '');
-              setRunOpen(true);
-            }}
-          >
-            {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            {running ? '核验中' : '发起核验'}
-          </button>
+          <span className="muted context-note">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
         </div>
       </header>
-      <div className="record-toolbar">
-        <label className="root-filter">
-          对象类型
-          <select
-            aria-label="核验对象类型筛选"
-            value={rootFilter}
-            onChange={(event) => {
-              setRootFilter(event.target.value);
-              setSelectedBatchId(null);
-              choosePlan('');
-            }}
-          >
-            <option value="ALL">全部类型</option>
-            {mappingObjects.map((root) => (
-              <option key={root.id} value={root.id}>
-                {root.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="muted">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
-      </div>
       {notice && (
         <p role="status" className="notice">
           {notice}

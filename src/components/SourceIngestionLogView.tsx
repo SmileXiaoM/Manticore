@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { DatabaseZap, RotateCcw, Search, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { DatabaseZap, RotateCcw, Search, AlertTriangle, CheckCircle2, RefreshCw, X } from 'lucide-react';
 import {
   IngestionStatus,
   SourceIngestionLog,
@@ -26,6 +26,7 @@ export function SourceIngestionLogView({
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [detailLogId, setDetailLogId] = useState<string | null>(null);
   const scopedLogs = useMemo(
     () => logs.filter((log) => rootType === 'ALL' || log.rootTypeCode === rootType),
     [logs, rootType],
@@ -35,7 +36,13 @@ export function SourceIngestionLogView({
       .filter((log) => {
         if (status !== 'ALL' && log.status !== status) return false;
         const term = keyword.trim().toLowerCase();
-        return !term || [log.id, log.sourceTable, log.stagingTable, log.errorSummary]
+        return !term || [
+          log.id,
+          log.sourceTable,
+          log.stagingTable,
+          log.errorSummary,
+          ...(log.issues?.flatMap((issue) => [issue.name, issue.code, issue.description, ...(issue.exampleObjectIds || [])]) || []),
+        ]
           .some((value) => value?.toLowerCase().includes(term));
       })
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
@@ -47,6 +54,16 @@ export function SourceIngestionLogView({
   const pageRows = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const firstVisibleRow = visible.length ? (currentPage - 1) * pageSize + 1 : 0;
   const lastVisibleRow = Math.min(currentPage * pageSize, visible.length);
+  const detailLog = logs.find((log) => log.id === detailLogId);
+
+  useEffect(() => {
+    if (!detailLogId) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDetailLogId(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [detailLogId]);
 
   return (
     <div className="min-w-0 space-y-4">
@@ -111,9 +128,20 @@ export function SourceIngestionLogView({
                 <td className="px-4 py-3"><strong className="font-mono block">{log.id}</strong><span className="text-[var(--ty-font-sub-color)] mt-1 block">{log.startedAt}</span></td>
                 <td className="px-4 py-3"><strong>{log.sourceSystemName} · {log.sourceTable}</strong><span className="text-[var(--ty-font-sub-color)] mt-1 block">→ {log.stagingTable}</span></td>
                 <td className="px-4 py-3">{log.mode === 'FULL' ? '全量' : '增量'}</td>
-                <td className="px-4 py-3 font-mono">{log.readCount ?? '待获取'} / {log.writtenCount ?? '待获取'} / {log.failedCount ?? '待获取'}</td>
+                <td className="px-4 py-3">
+                  <span className="font-mono">{log.readCount ?? '待获取'} / {log.writtenCount ?? '待获取'} / </span>
+                  <strong className={(log.failedCount || 0) > 0 ? 'font-mono text-[var(--ty-red-color)]' : 'font-mono font-normal'}>{log.failedCount ?? '待获取'}</strong>
+                </td>
                 <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-ty-xs border ${statusClass[log.status]}`}>{log.status === 'SUCCESS' && <CheckCircle2 className="w-3 h-3" />}{ingestionStatusLabel[log.status]}</span></td>
-                <td className="px-4 py-3 max-w-72"><span>{log.errorSummary || '—'}</span>{log.traceId && <code className="text-[var(--ty-font-sub-color)] mt-1 block">{log.traceId}</code>}</td>
+                <td className="px-4 py-3 max-w-72">
+                  {log.issues?.length ? (
+                    <div>
+                      <strong className="text-[var(--ty-red-color)]">{log.failedCount} 条失败 · {log.issues.length} 类异常</strong>
+                      <button type="button" onClick={() => setDetailLogId(log.id)} className="ml-3 text-[var(--ty-primary-link-color)] hover:underline">查看失败明细</button>
+                    </div>
+                  ) : <span>{log.errorSummary || '—'}</span>}
+                  {log.traceId && <code className="text-[var(--ty-font-sub-color)] mt-1 block">{log.traceId}</code>}
+                </td>
               </tr>
             ))}</tbody>
           </table>
@@ -141,6 +169,64 @@ export function SourceIngestionLogView({
           </div>
         </div>
       </section>
+
+      {detailLog?.issues?.length ? (
+        <div
+          className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center p-6"
+          role="presentation"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailLogId(null); }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ingestion-error-title"
+            className="w-[min(880px,calc(100vw-48px))] max-h-[calc(100dvh-48px)] bg-[var(--ty-fill-white-color)] rounded-ty-sm shadow-ty-lg flex flex-col overflow-hidden"
+          >
+            <header className="px-5 py-4 border-b border-[var(--ty-border-light-color)] flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-[var(--ty-orange-color)]" />
+                  <h2 id="ingestion-error-title" className="text-ty-md font-semibold">失败明细</h2>
+                </div>
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{detailLog.id} · {detailLog.startedAt}</p>
+              </div>
+              <button type="button" aria-label="关闭失败明细" onClick={() => setDetailLogId(null)} className="p-1.5 text-[var(--ty-icon-color)] hover:bg-[var(--ty-fill-color)] rounded-ty-sm"><X className="w-5 h-5" /></button>
+            </header>
+            <div className="p-5 overflow-y-auto min-h-0 space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  ['读取', detailLog.readCount ?? '待获取'],
+                  ['写入', detailLog.writtenCount ?? '待获取'],
+                  ['失败记录', detailLog.failedCount ?? '待获取'],
+                  ['异常类型', detailLog.issues.length],
+                ].map(([label, value]) => (
+                  <div key={label} className="p-3 bg-[var(--ty-fill-color)] border border-[var(--ty-border-light-color)] rounded-ty-sm">
+                    <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span>
+                    <strong className="text-ty-lg mt-1 block">{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="overflow-x-auto border border-[var(--ty-border-color)] rounded-ty-sm">
+                <table className="w-full min-w-[720px] text-left text-ty-xs border-collapse">
+                  <thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="px-4 py-2.5 font-medium">异常类型</th><th className="px-4 py-2.5 font-medium">失败记录</th><th className="px-4 py-2.5 font-medium">异常说明</th><th className="px-4 py-2.5 font-medium">示例对象标识</th></tr></thead>
+                  <tbody>{detailLog.issues.map((issue) => (
+                    <tr key={issue.code} className="border-t border-[var(--ty-border-light-color)] align-top">
+                      <td className="px-4 py-3"><strong className="block">{issue.name}</strong><code className="text-[var(--ty-font-sub-color)] mt-1 block">{issue.code}</code></td>
+                      <td className="px-4 py-3 font-mono text-[var(--ty-red-color)]">{issue.failedCount}</td>
+                      <td className="px-4 py-3">{issue.description}</td>
+                      <td className="px-4 py-3 font-mono">{issue.exampleObjectIds?.join('、') || '—'}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+            <footer className="px-5 py-3 border-t border-[var(--ty-border-light-color)] flex flex-wrap items-center justify-between gap-3">
+              <span className="text-ty-xs text-[var(--ty-font-sub-color)]">追踪标识：<code className="inline">{detailLog.traceId || '待获取'}</code></span>
+              <button type="button" onClick={() => setDetailLogId(null)} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-color)]">关闭</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

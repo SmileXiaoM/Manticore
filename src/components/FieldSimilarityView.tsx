@@ -225,7 +225,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // 打开新建规则模态框
   const handleOpenCreateModal = () => {
     if (availableStage1Fields.length === 0) {
-      alert('当前软类型下一阶段暂无可配置的已映射字段！');
+      alert('当前业务分类暂无可配置的已映射字段！');
       return;
     }
     // 默认选取第一个未配置的字段
@@ -475,7 +475,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
-    alert('配置已成功保存为已保存草稿！可在查询预览中选择“已保存配置”进行验证。');
+    alert('配置已成功保存为草稿！可在查询预览中选择“已保存版本”进行验证。');
   };
 
   // 发布并启用当前软类型配置
@@ -645,17 +645,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
+            <h1 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
               <SlidersHorizontal className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              字段相似度规则配置
+              字段相似度规则
             </h1>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              按【根类型 + 软类型】业务上下文定义二阶段属性相似度权重、匹配方式与门槛排除策略
+              按对象类型和业务分类定义相似度权重、匹配方式与候选排除规则。
             </p>
           </div>
 
           {/* 操作按钮区 */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isModified && (
               <span className="text-ty-xs font-semibold px-2.5 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm animate-pulse inline-flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
@@ -664,7 +664,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             )}
             <button
               onClick={handleSaveDraft}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
               id="save-draft-btn"
             >
               <Save className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />
@@ -672,7 +672,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </button>
             <button
               onClick={handlePublishActive}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-3.5 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
               id="publish-active-btn"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -681,7 +681,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {onNavigate && (
               <button
                 onClick={() => onNavigate('query-preview')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"
+                className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"
                 id="goto-query-preview-btn"
               >
                 前往查询预览
@@ -697,7 +697,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              1. 根类型 (一阶段元数据)
+              对象类型
             </label>
             <select
               value={selectedRootTypeId}
@@ -717,7 +717,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              2. 软类型 (只读选择)
+              业务分类
             </label>
             <select
               value={selectedSoftTypeId}
@@ -727,7 +727,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             >
               {availableSoftTypes.map(st => (
                 <option key={st.id} value={st.id}>
-                  {st.name} {st.id === 'STAMPING_UNCONFIGURED' ? '(空态测试)' : ''}
+                  {st.name}
                 </option>
               ))}
             </select>
@@ -735,7 +735,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
           {/* 3. 软类型说明与特征 */}
           <div className="flex flex-col justify-center bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-3 py-1.5">
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-medium">当前业务口径重点：</span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-medium">当前分类业务口径：</span>
             <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] truncate">
               {currentSoftTypeObj?.exampleFieldsHint || '标准属性配置'}
             </span>
@@ -847,7 +847,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
           <button
             onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors self-start md:self-auto cursor-pointer"
+            className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors self-start md:self-auto cursor-pointer"
             id="add-new-rule-btn"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -861,16 +861,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前软类型尚未配置相似度规则</h3>
+            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前业务分类尚未配置相似度规则</h3>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1.5 leading-relaxed">
-              当前软类型尚未配置相似度规则。是否回退使用根类型规则仍待业务确认，请先新建本软类型规则。
+              当前业务分类尚未配置相似度规则。是否回退使用对象类型规则仍待业务确认，请先为当前分类新建规则。
             </p>
             <button
               onClick={handleOpenCreateModal}
               className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              立即为该软类型配置规则
+              为当前分类配置规则
             </button>
           </div>
         ) : filteredRules.length === 0 ? (
@@ -1020,14 +1020,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         <div
           className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
           id="rule-modal-backdrop"
+          role="presentation"
+          onMouseDown={event => { if (event.target === event.currentTarget) setIsModalOpen(false); }}
         >
-          <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <section role="dialog" aria-modal="true" aria-labelledby="field-rule-dialog-title" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* 模态框顶部 */}
             <div className="px-6 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)]">
               <div>
-                <h3 className="text-ty-md font-bold text-[var(--ty-font-main-color)]">
+                <h2 id="field-rule-dialog-title" className="text-ty-md font-semibold text-[var(--ty-font-main-color)]">
                   {editingRuleId ? '编辑字段相似度规则' : '新建字段相似度规则'}
-                </h3>
+                </h2>
                 <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
                   当前上下文：
                   <span className="font-semibold text-[var(--ty-font-main-color)]">
@@ -1036,6 +1038,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 </p>
               </div>
               <button
+                aria-label="关闭字段规则弹窗"
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
@@ -1367,7 +1370,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 保存规则
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>

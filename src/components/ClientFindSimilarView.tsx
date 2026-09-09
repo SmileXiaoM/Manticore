@@ -247,19 +247,19 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div>
-            <h1 className="text-ty-lg font-bold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
+            <h1 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              查找相似物料 (相似件查询)
+              应用端查找相似件
             </h1>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              支持基于已有物料或新建申请单表单字段值，快速检索企业物料库中高度相似的可复用件
+              基于已有物料或业务表单字段值，查找企业物料库中可复用的相似件。
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置
@@ -267,7 +267,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <button
               onClick={handleSearch}
               disabled={isSearching}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-ty-xs font-bold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
+              className="h-8 inline-flex items-center gap-1.5 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="client-search-btn"
             >
               <Search className="w-3.5 h-3.5" />
@@ -282,7 +282,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              根类型
+              对象类型
             </label>
             <select
               value={rootTypeId}
@@ -302,7 +302,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              软类型 (业务分类)
+              业务分类
             </label>
             <select
               value={softTypeId}
@@ -620,22 +620,25 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
         <div
           className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex justify-end"
           id="client-compare-drawer-backdrop"
+          role="presentation"
+          onMouseDown={event => { if (event.target === event.currentTarget) setSelectedForCompare(null); }}
         >
-          <div className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
+          <section role="dialog" aria-modal="true" aria-labelledby="client-compare-drawer-title" className="w-full max-w-2xl bg-[var(--ty-fill-white-color)] h-full shadow-ty-lg flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 border-l border-[var(--ty-border-color)]">
             {/* 抽屉头部 */}
             <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
               <div>
-                <h3 className="text-ty-md font-bold text-[var(--ty-font-main-color)] flex items-center gap-2">
+                <h2 id="client-compare-drawer-title" className="text-ty-md font-semibold text-[var(--ty-font-main-color)] flex items-center gap-2">
                   <span>物料属性差异对比</span>
                   <span className="text-ty-sm font-mono text-[var(--ty-primary-color)] font-bold">
                     综合匹配度 {selectedForCompare.similarityScore.toFixed(2)}%
                   </span>
-                </h3>
+                </h2>
                 <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5 font-mono">
                   {selectedForCompare.objectId} - {selectedForCompare.objectName}
                 </p>
               </div>
               <button
+                aria-label="关闭物料属性差异对比"
                 onClick={() => setSelectedForCompare(null)}
                 className="p-1.5 text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] rounded-ty-sm transition-colors cursor-pointer"
               >
@@ -707,7 +710,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                 关闭
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>
