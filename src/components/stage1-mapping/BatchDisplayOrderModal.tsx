@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Check,
   CheckSquare,
   ChevronDown,
   ChevronUp,
@@ -312,7 +313,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
             <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-1">
                 <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">已选属性 <span className="font-mono text-[var(--ty-primary-color)]">{selectedFields.length}</span></h3>
-                <HelpTooltip label="查看已选属性布局调整方法" content="拖动整行或使用右侧位置按钮调整顺序；列宽可逐项填写，也可统一应用到全部已选属性。" />
+                <HelpTooltip label="查看已选属性布局调整方法" content="拖动整行，或输入目标位置后按回车、点击确认图标调整顺序；列宽可逐项填写，也可统一应用到全部已选属性。" />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 <label className="h-7 inline-flex items-center gap-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
@@ -343,9 +344,11 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                         <button type="button" onClick={() => moveToIndex(field.id, index + 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}下移`} title="下移" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronDown className="w-3.5 h-3.5" /></button>
                         <button type="button" onClick={() => moveToIndex(field.id, selectedIds.length - 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}置底`} title="置底" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsDown className="w-3.5 h-3.5" /></button>
                       </span>
-                      <span className="inline-flex items-center gap-1">
-                        <input type="number" min="1" max={selectedIds.length} step="1" value={positionInputs[field.id] || ''} onChange={event => setPositionInputs(previous => ({ ...previous, [field.id]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter') moveToEnteredPosition(field.id, currentPosition); }} placeholder={String(currentPosition)} aria-label={`${field.sourceDisplayName}移动到第 N 位`} className="h-7 w-12 px-1.5 text-ty-2xs font-mono border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
-                        <button type="button" onClick={() => moveToEnteredPosition(field.id, currentPosition)} className="h-7 px-1.5 rounded-ty-xs border border-[var(--ty-border-color)] text-ty-2xs hover:bg-[var(--ty-fill-weak-dark-color)] cursor-pointer">移动</button>
+                      <span className="h-7 inline-flex items-center gap-1 px-1.5 rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-2xs text-[var(--ty-font-sub-color)]">
+                        <span>移至</span>
+                        <input type="number" min="1" max={selectedIds.length} step="1" value={positionInputs[field.id] || ''} onChange={event => { setPositionInputs(previous => ({ ...previous, [field.id]: event.target.value })); setErrorMessage(''); }} onKeyDown={event => { if (event.key === 'Enter') moveToEnteredPosition(field.id, currentPosition); }} placeholder={String(currentPosition)} aria-label={`${field.sourceDisplayName}移动到第 N 位`} className="h-6 w-10 px-1 text-center text-ty-2xs font-mono text-[var(--ty-font-main-color)] border-0 border-b border-[var(--ty-border-color)] bg-transparent focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
+                        <span>位</span>
+                        <button type="button" onClick={() => moveToEnteredPosition(field.id, currentPosition)} aria-label={`确认将${field.sourceDisplayName}移动到指定位置`} title="确认移动" className="w-5 h-5 inline-flex items-center justify-center rounded-ty-xs text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lightest-color)] cursor-pointer"><Check className="w-3.5 h-3.5" /></button>
                       </span>
                       <label className="h-7 inline-flex items-center gap-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
                         列宽
@@ -364,10 +367,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
         </div>
 
         <footer className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后按右侧先后重新分配已选属性的原有顺序位置，并保存列宽；未选属性不变。</p>
-            {errorMessage && <p role="alert" className="mt-1 text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
-          </div>
+          {errorMessage && <p role="alert" className="text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
           <div className="flex items-center gap-3 ml-auto">
             <button type="button" onClick={onClose} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
             <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存布局草稿（{selectedIds.length}）</button>
