@@ -212,7 +212,7 @@ export function ManticoreSyncQueueView({
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条；失败记录可查看详情，并重新放回待处理队列。</p>
         </div>
         <div className="overflow-auto max-h-88">
-          <table className="w-full min-w-[1720px] text-ty-xs">
+          <table className="ty-data-table w-full min-w-[1720px] text-ty-xs">
             <thead className="sticky top-0 z-20 bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
               <tr>
                 <th className="w-12 px-3 py-2 text-center">序号</th>

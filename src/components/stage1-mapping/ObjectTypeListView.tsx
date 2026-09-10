@@ -50,7 +50,7 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
 
     <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1480px] text-ty-xs">
+        <table className="ty-data-table w-full min-w-[1480px] text-ty-xs">
           <thead className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
             <tr><th className="w-12 px-3 py-2 text-center">序号</th><th className="px-3 py-2 text-left">对象类型</th><th className="px-3 py-2 text-left">来源系统</th><th className="px-3 py-2 text-left">接入状态</th><th className="px-3 py-2 text-left">同步服务</th><th className="px-3 py-2 text-left">中间表检查频率</th><th className="px-3 py-2 text-right">已配置</th><th className="px-3 py-2 text-right">待发布草稿</th><th className="px-3 py-2 text-left">配置状态</th><th className="px-3 py-2 text-left">字段约束</th><th className="px-3 py-2 text-left">最近处理</th><th className="px-3 py-2 text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)]">操作</th></tr>
           </thead>

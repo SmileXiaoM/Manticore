@@ -236,7 +236,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0">
-              <table className="w-full text-left text-ty-xs">
+              <table className="ty-data-table w-full text-left text-ty-xs">
                 <thead className="sticky top-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <tr>
                     <th className="w-12 px-3 py-2 text-center">

@@ -890,7 +890,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1320px] text-left text-ty-xs border-collapse">
+            <table className="ty-data-table w-full min-w-[1320px] text-left text-ty-xs border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <th className="py-2 px-4 w-12 text-center">序号</th>

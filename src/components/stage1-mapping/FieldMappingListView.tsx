@@ -413,7 +413,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1540px] text-left text-ty-xs">
+          <table className="ty-data-table w-full min-w-[1540px] text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
                 <th className="w-12 py-2 px-2 text-center">序号</th>

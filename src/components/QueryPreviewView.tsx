@@ -587,7 +587,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               ) : (
                 <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1600px] text-left text-ty-xs border-collapse">
+                  <table className="ty-data-table w-full min-w-[1600px] text-left text-ty-xs border-collapse">
                     <thead>
                       <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                         <th className="py-2 px-4 w-12 text-center">排序</th>
@@ -702,7 +702,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               ) : (
                 <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1200px] text-left text-ty-xs border-collapse">
+                  <table className="ty-data-table w-full min-w-[1200px] text-left text-ty-xs border-collapse">
                     <thead>
                       <tr className="bg-[var(--ty-orange-light-color)]/30 border-b border-[var(--ty-orange-color)]/20 text-[var(--ty-font-main-color)] font-semibold">
                         <th className="py-2 px-4 w-12 text-center">序号</th>

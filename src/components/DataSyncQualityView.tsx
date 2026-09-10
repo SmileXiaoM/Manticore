@@ -451,7 +451,7 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
         {/* 任务表格卡片：长任务 ID 在单元格内换行，状态与操作保持可见 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1560px] text-left border-collapse">
+            <table className="ty-data-table w-full min-w-[1560px] text-left border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-sm font-semibold border-b border-[var(--ty-border-color)]">
                   <th className="py-3 px-2 w-12 text-center">序号</th>

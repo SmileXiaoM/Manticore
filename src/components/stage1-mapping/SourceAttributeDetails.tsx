@@ -30,7 +30,7 @@ export function SourceAttributeDetails({ meta, compact = false }: { meta: Source
           {meta.enumOptions?.length ? (
             <div className="source-enum-options">
               <p>已返回 {meta.enumOptions.length} 项</p>
-              <table aria-label="枚举编码与名称">
+              <table className="ty-data-table" aria-label="枚举编码与名称">
                 <thead><tr><th>编码</th><th>名称</th></tr></thead>
                 <tbody>{meta.enumOptions.map((option, index) => <tr key={`${option.code}-${index}`}><td><code>{option.code}</code></td><td>{option.label || '未返回'}</td></tr>)}</tbody>
               </table>

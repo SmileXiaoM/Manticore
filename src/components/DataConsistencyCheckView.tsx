@@ -382,7 +382,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
         {visiblePlans.length ? (
           <>
           <div className="table-scroll">
-            <table>
+            <table className="ty-data-table">
               <thead>
                 <tr>
                   <th className="sequence-column">序号</th>
@@ -476,7 +476,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <span className="muted">{visibleBatches.length} 次记录</span>
         </div>
         <div className="table-scroll">
-          <table className="records-table">
+          <table className="ty-data-table records-table">
             <thead>
               <tr>
                 <th className="sequence-column">序号</th>
@@ -984,7 +984,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </select>
             </label>
             <div className="table-scroll">
-              <table>
+              <table className="ty-data-table">
                 <thead>
                   <tr>
                     <th className="sequence-column">序号</th>
@@ -1079,7 +1079,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </label>
             </div>
             <div className="table-scroll field-detail-table">
-              <table>
+              <table className="ty-data-table">
                 <thead>
                   <tr>
                     <th className="sequence-column">序号</th>

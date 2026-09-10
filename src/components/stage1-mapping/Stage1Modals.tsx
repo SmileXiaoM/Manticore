@@ -521,7 +521,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
 
         {/* 查询结果表格 */}
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-left text-ty-xs">
+          <table className="ty-data-table w-full text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
                 {displayQueryFields.length > 0 ? (

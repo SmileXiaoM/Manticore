@@ -146,6 +146,82 @@ body:has([aria-modal="true"]) main {
   padding-bottom: 0;
 }
 
+/*
+ * Standard management table.
+ * Header cells use a white surface with short vertical separators; body rows
+ * only use horizontal dividers. This mirrors the product table specification
+ * while allowing each page to keep its own column widths and sticky columns.
+ */
+.ty-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--ty-font-main-color);
+  font-size: var(--ty-font-sm-size);
+  line-height: 1.4;
+  text-align: left;
+}
+
+.ty-data-table thead {
+  color: var(--ty-font-main-light-color);
+  background: var(--ty-fill-white-color);
+}
+
+.ty-data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 40px;
+  padding: 8px 12px;
+  color: var(--ty-font-main-light-color);
+  background: var(--ty-fill-white-color);
+  border-bottom: 1px solid var(--ty-border-color);
+  font-size: var(--ty-font-sm-size);
+  font-weight: 600;
+  line-height: 20px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ty-data-table thead th:not(:last-child)::after {
+  position: absolute;
+  top: 11px;
+  right: 0;
+  width: 1px;
+  height: 18px;
+  background: var(--ty-border-light-color);
+  content: '';
+}
+
+.ty-data-table tbody td {
+  height: 44px;
+  padding: 8px 12px;
+  background: var(--ty-fill-white-color);
+  border-bottom: 1px solid var(--ty-border-light-color);
+  font-size: var(--ty-font-sm-size);
+  vertical-align: middle;
+}
+
+.ty-data-table tbody tr:hover > td {
+  background: var(--ty-fill-color);
+}
+
+.ty-data-table :is(th, td).sticky {
+  z-index: 3;
+}
+
+.ty-data-table thead :is(th, td).sticky {
+  background: var(--ty-fill-white-color);
+}
+
+.ty-data-table tbody tr:hover > td.sticky {
+  background: var(--ty-fill-color);
+}
+
+.ty-data-table :is(th, td).sticky.right-0 {
+  box-shadow: var(--ty-shadow-sticky-col);
+}
+
 /* Custom scrollbars for high-density tables */
 ::-webkit-scrollbar {
   width: 6px;

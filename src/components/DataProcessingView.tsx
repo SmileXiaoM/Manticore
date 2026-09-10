@@ -354,7 +354,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         {activeTab === 'standard' && (
           <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-left border-collapse text-ty-xs">
+              <table className="ty-data-table w-full min-w-[960px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                     <th className="w-12 px-2 py-2 text-center">序号</th>
@@ -432,7 +432,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         {activeTab === 'synonym' && (
           <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left border-collapse text-ty-xs">
+              <table className="ty-data-table w-full min-w-[920px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                     <th className="w-12 px-2 py-2 text-center">序号</th>
@@ -514,7 +514,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
         {activeTab === 'align' && (
           <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left border-collapse text-ty-xs">
+              <table className="ty-data-table w-full min-w-[920px] text-left border-collapse text-ty-xs">
                 <thead>
                   <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                     <th className="w-12 px-2 py-2 text-center">序号</th>

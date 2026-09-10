@@ -772,7 +772,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
               {/* 候选表格 */}
               <div className="flex-1 overflow-auto">
-                <table className="w-full min-w-[2100px] text-left text-ty-xs">
+                <table className="ty-data-table w-full min-w-[2100px] text-left text-ty-xs">
                   <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
                     <tr>
                       <th className="py-2 px-3 w-10 text-center">
