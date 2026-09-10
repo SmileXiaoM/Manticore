@@ -20,7 +20,6 @@ import {
 } from '../../stage1MappingTypes';
 
 type StatusFilter = 'ALL' | 'CONFIGURED' | 'DRAFT';
-type SaveMode = 'SEQUENTIAL' | 'GROUPED';
 
 interface DisplayOrderUpdate {
   fieldId: string;
@@ -48,8 +47,6 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [positionInputs, setPositionInputs] = useState<Record<string, string>>({});
-  const [saveMode, setSaveMode] = useState<SaveMode>('SEQUENTIAL');
-  const [orderValue, setOrderValue] = useState('1');
   const [draggedId, setDraggedId] = useState<string>();
   const [dragOverId, setDragOverId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState('');
@@ -94,8 +91,6 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
     setStatusFilter('ALL');
     setSelectedIds([]);
     setPositionInputs({});
-    setSaveMode('SEQUENTIAL');
-    setOrderValue('1');
     setDraggedId(undefined);
     setDragOverId(undefined);
     setErrorMessage('');
@@ -116,8 +111,9 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   const draftCount = rootTypeFields.filter(field => field.configStatus === 'DRAFT' || field.hasDraftModification).length;
   const filteredIds = filteredFields.map(field => field.id);
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedIds.includes(id));
-  const parsedOrder = Number(orderValue);
-  const isOrderValid = Number.isInteger(parsedOrder) && parsedOrder > 0;
+  const selectedOrderSlots = selectedFields
+    .map(field => getFieldDisplayOrder(field))
+    .sort((left, right) => left - right);
 
   const toggleField = (fieldId: string) => {
     setSelectedIds(previous => previous.includes(fieldId)
@@ -179,14 +175,9 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
       setErrorMessage('请至少选择一个需要调整的属性');
       return;
     }
-    if (!isOrderValid) {
-      setErrorMessage(saveMode === 'SEQUENTIAL' ? '起始顺序请输入大于 0 的整数' : '统一顺序请输入大于 0 的整数');
-      return;
-    }
-
     onSave(selectedIds.map((fieldId, index) => ({
       fieldId,
-      displayOrder: saveMode === 'SEQUENTIAL' ? parsedOrder + index : parsedOrder
+      displayOrder: selectedOrderSlots[index]
     })));
     onClose();
   };
@@ -290,13 +281,13 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
             <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-1.5 bg-[var(--ty-fill-color)]/40" role="list" aria-label="全部已选属性">
               {selectedFields.length > 0 ? selectedFields.map((field, index) => {
                 const currentPosition = index + 1;
-                const previewOrder = isOrderValid ? saveMode === 'SEQUENTIAL' ? parsedOrder + index : parsedOrder : undefined;
+                const previewOrder = selectedOrderSlots[index];
                 return (
                   <div key={field.id} role="listitem" draggable onDragStart={() => setDraggedId(field.id)} onDragOver={event => { event.preventDefault(); setDragOverId(field.id); }} onDrop={event => { event.preventDefault(); if (draggedId) moveBefore(draggedId, field.id); }} onDragEnd={() => { setDraggedId(undefined); setDragOverId(undefined); }} className={`grid grid-cols-[34px_minmax(110px,1fr)_116px_118px] items-center gap-2 px-2 py-2 rounded-ty-sm border bg-[var(--ty-fill-white-color)] transition-colors ${dragOverId === field.id && draggedId !== field.id ? 'border-[var(--ty-primary-color)]' : 'border-[var(--ty-border-color)]'} ${draggedId === field.id ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-1 text-[var(--ty-font-sub-light-color)] cursor-grab" title="拖动排序"><GripVertical className="w-3.5 h-3.5" /><span className="font-mono text-ty-2xs">{currentPosition}</span></div>
                     <div className="min-w-0">
                       <div className="font-medium text-ty-xs text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</div>
-                      <div className="mt-0.5 text-ty-2xs text-[var(--ty-font-sub-color)] truncate">当前 {getFieldDisplayOrder(field)} · 保存后 {previewOrder ?? '—'} · {field.configStatus === 'DRAFT' ? '草稿' : field.hasDraftModification ? '有草稿' : '已配置'}</div>
+                      <div className="mt-0.5 text-ty-2xs text-[var(--ty-font-sub-color)] truncate">当前 {getFieldDisplayOrder(field)} · 保存后 {previewOrder} · {field.configStatus === 'DRAFT' ? '草稿' : field.hasDraftModification ? '有草稿' : '已配置'}</div>
                     </div>
                     <div className="flex items-center gap-0.5">
                       <button type="button" onClick={() => moveToIndex(field.id, 0)} disabled={index === 0} aria-label={`将${field.sourceDisplayName}置顶`} title="置顶" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsUp className="w-3.5 h-3.5" /></button>
@@ -318,21 +309,14 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
           </section>
         </div>
 
-        <footer className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-end justify-between gap-3 shrink-0">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-4 text-ty-xs">
-              <span className="font-medium text-[var(--ty-font-main-color)]">保存方式</span>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="radio" name="batch-order-save-mode" checked={saveMode === 'SEQUENTIAL'} onChange={() => setSaveMode('SEQUENTIAL')} /><span>连续排序</span></label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="radio" name="batch-order-save-mode" checked={saveMode === 'GROUPED'} onChange={() => setSaveMode('GROUPED')} /><span>同序归组</span></label>
-              <label htmlFor="batch-display-order" className="text-[var(--ty-font-sub-color)]">{saveMode === 'SEQUENTIAL' ? '起始顺序' : '统一顺序'}</label>
-              <input id="batch-display-order" type="number" min="1" step="1" value={orderValue} onChange={event => { setOrderValue(event.target.value); setErrorMessage(''); }} className="h-8 w-24 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
-              <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">{saveMode === 'SEQUENTIAL' ? '按右侧列表先后连续编号' : '所选属性使用同一顺序号并归在一起'}</span>
-            </div>
-            {errorMessage && <p role="alert" className="text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
+        <footer className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后按右侧先后重新分配已选属性的原有顺序位置；未选属性不变。</p>
+            {errorMessage && <p role="alert" className="mt-1 text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
           </div>
           <div className="flex items-center gap-3 ml-auto">
             <button type="button" onClick={onClose} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
-            <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0 || !isOrderValid} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存排序草稿（{selectedIds.length}）</button>
+            <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存排序草稿（{selectedIds.length}）</button>
           </div>
         </footer>
       </section>

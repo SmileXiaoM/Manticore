@@ -260,7 +260,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             onClick={onOpenBatchDisplayOrder}
             disabled={!hasPermission || rootTypeFields.length === 0}
             className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-            title="选择多个已有属性并统一设置展示顺序"
+            title="选择多个已有属性并调整展示先后"
           >
             <ListOrdered className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />批量调整顺序
           </button>
