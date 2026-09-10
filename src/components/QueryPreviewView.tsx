@@ -19,6 +19,7 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
+  similarityGroupingDefinition,
   mockFormBaselines,
   mockPartDatabase,
   runSimilaritySearch,
@@ -67,7 +68,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 }) => {
   const { notify } = useFeedback();
   // 1. 查询条件状态
-  const [rootTypeId, setRootTypeId] = useState<string>('PART');
+  const rootTypeId = 'PART';
   const [softTypeId, setSoftTypeId] = useState<string>('IN_HOUSE');
 
   // 基准来源：已有件 vs 表单字段值
@@ -95,17 +96,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const [selectedCandidate, setSelectedCandidate] = useState<ScoredCandidate | null>(null);
   const scoredPage = paginateRows<ScoredCandidate>(lastRunContext?.searchResult.scoredCandidates || [], page, pageSize);
   const excludedPage = paginateRows<ExcludedCandidate>(lastRunContext?.searchResult.excludedCandidates || [], page, pageSize);
-
-  // 根类型变更响应
-  const handleRootTypeChange = (newRootId: string) => {
-    setRootTypeId(newRootId);
-    const softs = softTypeOptions.filter(st => st.rootTypeId === newRootId);
-    if (softs.length > 0) {
-      setSoftTypeId(softs[0].id);
-    } else {
-      setSoftTypeId('');
-    }
-  };
 
   const availableSoftTypes = useMemo(() => {
     return softTypeOptions.filter(st => st.rootTypeId === rootTypeId);
@@ -154,6 +144,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   // 执行沙盒试算
   const handleRunTrial = () => {
+    const scoreWeight = currentScopeRules
+      .filter(rule => rule.isScoreActive && rule.enabled)
+      .reduce((sum, rule) => sum + rule.weight, 0);
+    if (scoreWeight !== 100) {
+      notify(`暂不能试算：参与评分字段权重合计必须为 100%，当前为 ${scoreWeight}%。`, 'warning');
+      return;
+    }
     let baseline: SimilarityBaseline;
 
     if (baselineSourceType === 'EXISTING_PART') {
@@ -211,7 +208,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   // 重置条件
   const handleReset = () => {
-    setRootTypeId('PART');
     setSoftTypeId('IN_HOUSE');
     setBaselineSourceType('EXISTING_PART');
     setExistingPartId('PART-2026-000100');
@@ -257,7 +253,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </button>
             <button
               onClick={handleRunTrial}
-              disabled={isSearching}
+              disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0}
+              title={totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
@@ -269,31 +266,22 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
         {/* 6 大查询条件配置行 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {/* 1. 根类型 */}
+          {/* 1. 固定根类型 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               对象类型
             </label>
-            <select
-              value={rootTypeId}
-              onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              id="preview-root-type-select"
-            >
-              {rootTypeOptions.map(rt => (
-                <option key={rt.id} value={rt.id}>
-                  {rt.name}
-                </option>
-              ))}
-            </select>
+            <div id="preview-root-type-select" className="w-full h-8 px-3 flex items-center justify-between text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)]">
+              <span>{currentRootTypeObj?.name}</span><span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span>
+            </div>
           </div>
 
-          {/* 2. 软类型 */}
+          {/* 2. 分组属性值 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              业务分类
+              {similarityGroupingDefinition.propertyName}值
             </label>
             <select
               value={softTypeId}
@@ -397,7 +385,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">上下文：</span>
               <span className="font-bold text-[var(--ty-font-main-color)]">
-                {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name.split(' ')[0]}
+                {currentRootTypeObj?.name.split(' ')[0]} / {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
               </span>
             </div>
             <div>
@@ -436,6 +424,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </span>
           )}
         </div>
+        {totalWeight !== 100 && currentScopeRules.length > 0 && (
+          <div className="px-3 py-2 bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 rounded-ty-sm text-ty-xs text-[var(--ty-red-color)] flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            当前版本权重未配平，暂不能生成相似度试算结果。请返回字段相似度规则调整至 100%。
+          </div>
+        )}
       </div>
 
       {/* 试算结果区域 */}
@@ -454,7 +448,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            选择对象类型、业务分类和基准对象，系统将基于所选规则版本进行候选召回、门槛过滤与算分模拟。
+            选择分组属性值、规则版本和基准对象，系统将进行候选召回、门槛过滤与算分模拟。
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
@@ -462,7 +456,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前业务分类尚未配置相似度规则</h3>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值尚未配置相似度规则</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {lastRunContext.searchResult.errorMessage}
           </p>

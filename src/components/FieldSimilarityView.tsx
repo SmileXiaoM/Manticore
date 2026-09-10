@@ -16,11 +16,11 @@ import {
   ShieldAlert,
   Layers,
   ArrowRight,
-  Clock
+  Clock,
+  Lock
 } from 'lucide-react';
 import {
   FieldSimilarityRule,
-  ObjectType,
   MatchConfig,
   ChangeRecord,
   isObjectRulesModified,
@@ -30,6 +30,7 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
+  similarityGroupingDefinition,
   stage1MappedFields,
   mockUnitCatalog,
   convertToBaseUnit,
@@ -40,6 +41,7 @@ import {
 } from '../data';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -61,8 +63,6 @@ interface FieldSimilarityViewProps {
     lastModifiedAt: string;
   }>) => void;
   onNavigate?: (view: string) => void;
-  activeObjectType?: ObjectType;
-  setActiveObjectType?: (type: ObjectType) => void;
 }
 
 const getAllowedMatchTypes = (fieldType: string): string[] => {
@@ -102,25 +102,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   onNavigate
 }) => {
   const { notify, confirm } = useFeedback();
-  // 1. 根类型与软类型上下文选择器 (默认: 零部件 PART + 自制件 IN_HOUSE)
-  const [selectedRootTypeId, setSelectedRootTypeId] = useState<string>('PART');
+  // 二阶段相似度搜索只面向零部件。softTypeId 继续承载既有数据中的“分组属性值”。
+  const selectedRootTypeId = 'PART';
   const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
 
   // 当前可用的软类型列表 (根据所选根类型过滤)
   const availableSoftTypes = useMemo(() => {
     return softTypeOptions.filter(st => st.rootTypeId === selectedRootTypeId);
   }, [selectedRootTypeId]);
-
-  // 当切换根类型时，默认选中该根类型下的第一个软类型
-  const handleRootTypeChange = (newRootId: string) => {
-    setSelectedRootTypeId(newRootId);
-    const softs = softTypeOptions.filter(st => st.rootTypeId === newRootId);
-    if (softs.length > 0) {
-      setSelectedSoftTypeId(softs[0].id);
-    } else {
-      setSelectedSoftTypeId('');
-    }
-  };
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
   const currentSoftTypeObj = softTypeOptions.find(st => st.id === selectedSoftTypeId);
@@ -221,6 +210,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const isModified = useMemo(() => {
     return isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
   }, [editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
+  const hasSavedDraft = useMemo(() => {
+    return isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId]);
 
   // 一阶段可选字段 (根据当前根类型及软类型过滤)
   const availableStage1Fields = useMemo(() => {
@@ -231,17 +223,21 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         f.enabled
     );
   }, [selectedRootTypeId, selectedSoftTypeId]);
+  const eligibleStage1Fields = useMemo(
+    () => availableStage1Fields.filter(field => !field.isMultiValue),
+    [availableStage1Fields]
+  );
 
   // 打开新建规则模态框
   const handleOpenCreateModal = () => {
-    if (availableStage1Fields.length === 0) {
-      notify('当前业务分类暂无可配置的已映射字段。', 'warning');
+    if (eligibleStage1Fields.length === 0) {
+      notify('当前分组值暂无可用于相似度计算的单值字段。', 'warning');
       return;
     }
     // 默认选取第一个未配置的字段
-    const unconfigured = availableStage1Fields.find(
+    const unconfigured = eligibleStage1Fields.find(
       f => !currentScopeEditingRules.some(r => r.propertyCode === f.fieldCode)
-    ) || availableStage1Fields[0];
+    ) || eligibleStage1Fields[0];
 
     setEditingRuleId(null);
     setFormFieldId(unconfigured.fieldId);
@@ -336,6 +332,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleFieldSelectChange = (fieldCode: string) => {
     const selectedField = availableStage1Fields.find(f => f.fieldCode === fieldCode);
     if (!selectedField) return;
+    if (selectedField.isMultiValue) {
+      notify('多值属性当前只支持同步、展示和查询，暂不支持相似度评分。', 'warning');
+      return;
+    }
 
     setFormFieldId(selectedField.fieldId);
     setFormFieldName(selectedField.displayName);
@@ -353,6 +353,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleSaveRule = () => {
     if (!formFieldName || !formPropertyCode) {
       notify('请选择有效的一阶段字段。', 'warning');
+      return;
+    }
+    if (!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100) {
+      notify('评分权重请输入 0～100 之间的数字。', 'warning');
+      return;
+    }
+    const selectedField = availableStage1Fields.find(field => field.fieldCode === formPropertyCode);
+    if (selectedField?.isMultiValue) {
+      notify('多值属性暂不支持相似度评分，请选择单值属性。', 'warning');
       return;
     }
 
@@ -480,7 +489,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       configVersion: 'v2.5.0-saved',
       operationType: '保存',
       summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】下的 ${thisSavedRules.length} 项字段相似度规则`,
-      operator: '系统管理员',
+      operator: '李晓华 (数据标准管理员)',
       time: new Date().toISOString().replace('T', ' ').slice(0, 19),
       result: 'SUCCESS'
     };
@@ -490,10 +499,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 发布并启用当前软类型配置
   const handlePublishActive = async () => {
-    if (totalScoreWeight !== 100) {
-      if (!(await confirm({ title: '发布并启用', message: `当前参与评分字段权重合计为 ${totalScoreWeight}%（非 100%），确定要发布启用吗？`, confirmText: '发布启用' }))) {
-        return;
-      }
+    if (activeScoreRulesCount === 0 || totalScoreWeight !== 100) {
+      notify(`发布失败：参与评分字段权重合计必须为 100%，当前为 ${totalScoreWeight}%。`, 'warning');
+      return;
     }
 
     const otherActiveRules = activeRules.filter(
@@ -516,7 +524,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       configVersion: 'v2.5.0-release',
       operationType: '启用',
       summary: `发布并启用了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的规则集（包含 ${activeScoreRulesCount} 个评分字段，${gateRulesCount} 个门槛字段）`,
-      operator: '系统管理员',
+      operator: '李晓华 (数据标准管理员)',
       time: new Date().toISOString().replace('T', ' ').slice(0, 19),
       result: 'SUCCESS'
     };
@@ -660,16 +668,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               字段相似度规则
             </h1>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              按对象类型和业务分类定义相似度权重、匹配方式与候选排除规则。
+              为零部件按固定分组属性的不同取值分别定义相似度规则。
             </p>
           </div>
 
           {/* 操作按钮区 */}
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {isModified && (
-              <span className="text-ty-xs font-semibold px-3 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm animate-pulse inline-flex items-center gap-2">
+            {(isModified || hasSavedDraft) && (
+              <span className="text-ty-xs font-semibold px-3 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm inline-flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
-                存在未保存草稿
+                {isModified ? '编辑中（未保存）' : '草稿已保存（未启用）'}
               </span>
             )}
             <button
@@ -682,7 +690,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </button>
             <button
               onClick={handlePublishActive}
-              className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
+              disabled={activeScoreRulesCount === 0 || totalScoreWeight !== 100}
+              title={totalScoreWeight === 100 ? '发布并启用当前规则' : `权重合计必须为 100%，当前为 ${totalScoreWeight}%`}
+              className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               id="publish-active-btn"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -701,33 +711,40 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
         </div>
 
-        {/* 根类型与软类型上下文切换条 */}
-        <div className="pt-3 border-t border-[var(--ty-border-color)] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* 1. 根类型选择器 */}
+        {/* 固定对象类型、分组属性定义与分组值 */}
+        <div className="pt-3 border-t border-[var(--ty-border-color)] grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               对象类型
             </label>
-            <select
-              value={selectedRootTypeId}
-              onChange={e => handleRootTypeChange(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              id="root-type-selector"
-            >
-              {rootTypeOptions.map(rt => (
-                <option key={rt.id} value={rt.id}>
-                  {rt.name}
-                </option>
-              ))}
-            </select>
+            <div id="root-type-selector" className="h-8 px-3 flex items-center justify-between border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium">
+              <span>{currentRootTypeObj?.name}</span>
+              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span>
+            </div>
           </div>
 
-          {/* 2. 软类型选择器 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
+              规则分组属性
+              <HelpTooltip
+                label="查看规则分组属性说明"
+                content={<span>从已发布的 Manticore 单值属性中定义一个分组维度，例如 PLM 分类、来源类型、产品族、工厂或视图。建立规则后该定义锁定；多值属性不能作为分组属性。</span>}
+              />
+            </label>
+            <div className="h-8 px-3 flex items-center justify-between gap-2 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium">
+              <span className="min-w-0 truncate" title={`${similarityGroupingDefinition.propertyName} (${similarityGroupingDefinition.propertyCode})`}>
+                {similarityGroupingDefinition.propertyName} <span className="font-mono text-[var(--ty-font-sub-color)]">({similarityGroupingDefinition.propertyCode})</span>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-ty-2xs text-[var(--ty-font-sub-color)]">已锁定</span>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              业务分类
+              分组属性值
             </label>
             <select
               value={selectedSoftTypeId}
@@ -743,14 +760,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </select>
           </div>
 
-          {/* 3. 软类型说明与特征 */}
-          <div className="flex flex-col justify-center bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-3 py-2">
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)] font-medium">当前分类业务口径：</span>
-            <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] truncate">
-              {currentSoftTypeObj?.exampleFieldsHint || '标准属性配置'}
-            </span>
-          </div>
         </div>
+        <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+          当前值：{currentSoftTypeObj?.description}。未命中已启用分组值的零部件不参与相似度搜索，不使用兜底规则。
+        </p>
       </div>
 
       {/* 规则配置摘要看板 (Compact Summary Bar) */}
@@ -759,7 +772,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">当前规则上下文</span>
             <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
-              {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name.split(' ')[0]}
+              {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
             </span>
           </div>
           <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-semibold bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-sm border border-[var(--ty-border-color)]">
@@ -807,7 +820,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 : 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-red-color)]/30'
             }`}
           >
-            {totalScoreWeight === 100 ? '权重已配平' : '建议调整为 100%'}
+            {totalScoreWeight === 100 ? '权重已配平' : '未配平，禁止发布'}
           </span>
         </div>
       </div>
@@ -871,16 +884,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前业务分类尚未配置相似度规则</h3>
+            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值尚未配置相似度规则</h3>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-2 leading-relaxed">
-              当前业务分类尚未配置相似度规则。是否回退使用对象类型规则仍待业务确认，请先为当前分类新建规则。
+              该分组值下的零部件暂不参与相似度搜索。请先配置规则并确保参与评分字段权重合计为 100%。
             </p>
             <button
               onClick={handleOpenCreateModal}
               className="mt-4 h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              为当前分类配置规则
+              为当前分组值配置规则
             </button>
           </div>
         ) : filteredRules.length === 0 ? (
@@ -1042,7 +1055,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
                   当前上下文：
                   <span className="font-semibold text-[var(--ty-font-main-color)]">
-                    {currentRootTypeObj?.name} &gt; {currentSoftTypeObj?.name}
+                    {currentRootTypeObj?.name} &gt; {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name}
                   </span>
                 </p>
               </div>
@@ -1078,12 +1091,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                     >
                       {availableStage1Fields.map(f => (
-                        <option key={f.fieldCode} value={f.fieldCode}>
-                          {f.displayName} ({f.fieldCode}) - {f.businessFieldType}
+                        <option key={f.fieldCode} value={f.fieldCode} disabled={f.isMultiValue}>
+                          {f.displayName} ({f.fieldCode}) - {f.businessFieldType}{f.isMultiValue ? ' · 多值，暂不支持评分' : ''}
                         </option>
                       ))}
                     </select>
                   )}
+                  <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
+                    多值属性可继续同步、展示和查询；当前版本不作为分组属性或相似度评分字段。
+                  </p>
                 </div>
 
                 {/* 2. 匹配方式与动态参数 */}
@@ -1115,13 +1131,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         min="0"
                         max="100"
                         value={formWeight}
-                        onChange={e => setFormWeight(Math.max(0, Math.min(100, Number(e.target.value))))}
-                        className="w-full h-8 text-ty-xs font-mono font-bold border border-[var(--ty-border-color)] rounded-ty-sm px-3 pr-8 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                        onChange={e => setFormWeight(Number(e.target.value))}
+                        aria-invalid={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100}
+                        className={`w-full h-8 text-ty-xs font-mono font-bold border rounded-ty-sm px-3 pr-8 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden ${!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 ? 'border-[var(--ty-red-color)] focus:border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)]'}`}
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ty-xs text-[var(--ty-font-sub-light-color)] font-bold">
                         %
                       </span>
                     </div>
+                    {(!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100) && (
+                      <p className="text-ty-2xs text-[var(--ty-red-color)] mt-1">请输入 0～100 之间的数字。</p>
+                    )}
                   </div>
                 </div>
 
@@ -1374,7 +1394,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </button>
               <button
                 onClick={handleSaveRule}
-                className="h-8 min-w-[68px] px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
+                disabled={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100}
+                title={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 ? '请先修正评分权重' : '保存字段规则'}
+                className="h-8 min-w-[68px] px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               >
                 保存规则
               </button>

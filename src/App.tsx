@@ -48,7 +48,6 @@ import {
   HardRule,
   CategoryCoverage,
   ChangeRecord,
-  ObjectType,
   isObjectRulesModified,
   restoreObjectRules
 } from './types';
@@ -125,12 +124,10 @@ export default function App() {
   const [hardRules, setHardRules] = useState<HardRule[]>(initialHardRules);
   const [coverages, setCoverages] = useState<CategoryCoverage[]>(initialCategoryCoverages);
 
-  // Track activeObjectType at App level to support precise unsaved guard
-  const [activeObjectType, setActiveObjectType] = useState<ObjectType>('PART_MECHANICAL');
-
   // View Router State
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedRootFilter, setSelectedRootFilter] = useState<string>('ALL');
+  const [targetPresenceReturnView, setTargetPresenceReturnView] = useState<string>('dashboard');
   const [schedules, setSchedules] = useState<ExecutionSchedule[]>(() =>
     initialMappingObjectTypes.map((root) => ({ rootTypeCode: root.id, intervalMinutes: root.pollingIntervalMinutes })),
   );
@@ -170,7 +167,7 @@ export default function App() {
 
   const handleNavigate = (newView: string) => {
     // R10-BLK-04: strict unsaved changes guard using the shared comparison function
-    const isModified = isObjectRulesModified(editingFieldRules, savedFieldRules, activeObjectType);
+    const isModified = isObjectRulesModified(editingFieldRules, savedFieldRules, 'PART');
 
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
@@ -182,7 +179,7 @@ export default function App() {
 
   const handleConfirmDiscard = () => {
     // R12-BLK-04: "Abandon modifications" only restores the current activeObjectType, keeping others intact
-    const restored = restoreObjectRules(editingFieldRules, savedFieldRules, activeObjectType);
+    const restored = restoreObjectRules(editingFieldRules, savedFieldRules, 'PART');
     setEditingFieldRules(restored);
     if (pendingView) {
       setCurrentView(pendingView);
@@ -233,9 +230,9 @@ export default function App() {
               onIngestion={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('source-ingestion-logs'); }}
               onSync={(root) => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-sync-quality'); }}
               onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
-              onPresence={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }} />}
+              onPresence={root => { setSelectedRootFilter(root || 'PART'); setTargetPresenceReturnView('dashboard'); handleNavigate('target-presence'); }} />}
             {currentView === 'target-presence' && <TargetPresenceView roots={mappingObjects} initialRoot={selectedRootFilter === 'ALL' ? 'PART' : selectedRootFilter}
-              onBack={() => handleNavigate('dashboard')}
+              onBack={() => handleNavigate(targetPresenceReturnView)}
               onSync={root => { setSelectedRootFilter(root); handleNavigate('data-sync-quality'); }} />}
             {currentView === 'source-ingestion-logs' && <SourceIngestionLogView logs={initialSourceIngestionLogs} initialRootTypeFilter={selectedRootFilter} />}
             {currentView === 'stage1-mapping-config' && (
@@ -272,7 +269,7 @@ export default function App() {
             {currentView === 'data-consistency-check' && (
               <DataConsistencyCheckView
                 initialRootTypeFilter={selectedRootFilter}
-                onInspectTarget={root => { setSelectedRootFilter(root || 'PART'); handleNavigate('target-presence'); }}
+                onInspectTarget={root => { setSelectedRootFilter(root || 'PART'); setTargetPresenceReturnView('data-consistency-check'); handleNavigate('target-presence'); }}
                 mappingObjects={mappingObjects}
                 fieldMappings={groupedFieldMappings}
                 syncBatches={syncBatches}
@@ -299,8 +296,6 @@ export default function App() {
                 objectConfigStatus={objectConfigStatus}
                 onUpdateConfigStatus={setObjectConfigStatus}
                 onNavigate={handleNavigate}
-                activeObjectType={activeObjectType}
-                setActiveObjectType={setActiveObjectType}
               />
             )}
 

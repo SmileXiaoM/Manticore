@@ -58,7 +58,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
   // 2. 来源与分类筛选
   const [searchTerm, setSearchTerm] = useState('');
-  const [conflictFilter, setConflictFilter] = useState<'ALL' | 'UNMAPPED' | 'ALREADY_CONFIGURED' | 'HAS_DRAFT' | 'SOURCE_CHANGED' | 'INCOMPATIBLE'>('ALL');
+  const [conflictFilter, setConflictFilter] = useState<'ALL' | 'UNMAPPED' | 'ALREADY_CONFIGURED' | 'HAS_DRAFT' | 'SOURCE_CHANGED' | 'INCOMPATIBLE'>('UNMAPPED');
 
   // 3. 选中的候选 keys 及各字段自定义完整配置
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -80,7 +80,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setFetchStatus('IDLE');
       setFetchErrorMsg('');
       setSearchTerm('');
-      setConflictFilter('ALL');
+      setConflictFilter('UNMAPPED');
       setSelectedKeys([]);
       setCandidateCustomConfigs({});
       setSharedDisplayOrder('');
@@ -209,20 +209,9 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         setFetchStatus('EMPTY');
       } else {
         setFetchStatus('SUCCESS');
-        // 默认自动勾选所有可直接导入的未映射项
-        const unmappedKeys = availablePlmFields
-          .filter(meta => {
-            const isBinary = meta.sourceDataType === 'LONG_TEXT' && meta.sourceFieldKey.includes('cad_binary');
-            const isUntyped = meta.sourceFieldKey.includes('legacy_untyped');
-            const existing = existingFieldMappings.some(
-              f =>
-                f.rootTypeId === currentRootType.id &&
-                f.sourceFieldKey === meta.sourceFieldKey
-            );
-            return !isBinary && !isUntyped && !existing;
-          })
-          .map(m => m.sourceFieldKey);
-        setSelectedKeys(unmappedKeys);
+        // 读取成功后仅展示可导入项，不替用户做批量选择。
+        setConflictFilter('UNMAPPED');
+        setSelectedKeys([]);
       }
     }, 450);
   };
@@ -644,9 +633,9 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           {fetchStatus === 'FETCHING' && (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <RefreshCw className="w-8 h-8 text-[var(--ty-primary-color)] animate-spin mb-3" />
-              <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在连接 PLM 系统读取元数据...</h4>
-              <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1 font-mono">
-                FETCH /api/plm/schema/metadata?rootType={currentRootType.id}
+              <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在读取 PLM 属性定义...</h4>
+              <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">
+                正在读取 {formatRootTypeDisplayName(currentRootType)} 的属性类型、多值和枚举定义。
               </p>
             </div>
           )}

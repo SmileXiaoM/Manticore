@@ -40,21 +40,19 @@ export const rootTypeOptions: RootTypeOption[] = [
     id: 'PART',
     code: 'PART',
     name: '零部件 (PART)',
-    description: '机械与通用结构零组件底座对象'
-  },
-  {
-    id: 'COMPONENT',
-    code: 'COMPONENT',
-    name: '电子元器件 (COMPONENT)',
-    description: '电子电气原理与贴片元器件对象'
-  },
-  {
-    id: 'FASTENER',
-    code: 'FASTENER',
-    name: '标准紧固件 (FASTENER)',
-    description: '国标/行标/企标螺纹与联接紧固件'
+    description: '当前相似度搜索仅面向零部件根类型'
   }
 ];
+
+// 二阶段相似度规则的分组定义。分组属性由管理员在首次建规则前确定；
+// 当前示例已基于 PLM 业务分类建立规则，因此只读锁定，避免不同属性的值域混用。
+export const similarityGroupingDefinition = {
+  propertyCode: 'business_classification',
+  propertyName: 'PLM 业务分类',
+  sourceLabel: '已发布的 Manticore 单值属性',
+  locked: true,
+  alternativeExamples: ['来源类型', '产品族', '工厂', '视图']
+};
 
 // 2. 软类型定义 (依赖根类型，来自一阶段元数据只读映射)
 export const softTypeOptions: SoftTypeOption[] = [
@@ -233,6 +231,7 @@ export interface Stage1MappedField {
   enabled: boolean;
   displayUnit?: string;
   isKeyDisplayColumn?: boolean; // 应用端展示列标记
+  isMultiValue?: boolean; // 多值字段可同步和展示，当前不参与相似度评分
 }
 
 export const stage1MappedFields: Stage1MappedField[] = [
@@ -341,7 +340,8 @@ export const stage1MappedFields: Stage1MappedField[] = [
     unitFamily: '无',
     baseUnit: '无',
     indexStatus: '已索引',
-    enabled: true
+    enabled: true,
+    isMultiValue: true
   },
 
   // 零部件 - 外购件 (PURCHASED)

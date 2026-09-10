@@ -12,7 +12,7 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
   evidence?: PresenceSnapshot[];
 }) {
   const [root, setRoot] = useState(initialRoot);
-  const [example, setExample] = useState(false);
+  const [example, setExample] = useState(true);
   const [scenario, setScenario] = useState('COMPLETE');
   const [filter, setFilter] = useState('ALL');
   const [selected, setSelected] = useState<string | null>(null);
@@ -41,18 +41,18 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
     <div className="min-w-0 space-y-4">
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <button onClick={onBack} className="text-ty-xs text-[var(--ty-font-sub-color)] inline-flex items-center gap-1 hover:text-[var(--ty-primary-color)]"><ArrowLeft className="w-3.5 h-3.5" />返回运行看板</button>
-          <div className="flex items-center gap-2 mt-2"><Database className="w-5 h-5 text-[var(--ty-primary-color)]" /><h1 className="text-ty-xl font-semibold">目标端多余数据排查</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">Manticore → 源端反查</span></div>
+          <button onClick={onBack} className="text-ty-xs text-[var(--ty-font-sub-color)] inline-flex items-center gap-1 hover:text-[var(--ty-primary-color)]"><ArrowLeft className="w-3.5 h-3.5" />返回上一页</button>
+          <div className="flex items-center gap-2 mt-2"><Database className="w-5 h-5 text-[var(--ty-primary-color)]" /><h1 className="text-ty-xl font-semibold">目标端多余数据排查</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">Manticore → 源端反查</span>{example && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">模拟结果</span>}</div>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">按对象标识反查源端存在性，在证据完整后确认多余数据。</p>
         </div>
-        <button onClick={() => { setExample(!example); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)]">{example ? '返回实际数据' : '查看判断示例'}</button>
+        <button onClick={() => { setExample(!example); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)]">{example ? '查看实际接入状态' : '查看模拟结果'}</button>
       </header>
 
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">对象类型</span><select aria-label="排查对象类型" value={root} onChange={(event) => { setRoot(event.target.value); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">{roots.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         {example && <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">示例场景</span><select aria-label="排查示例场景" value={scenario} onChange={(event) => { setScenario(event.target.value); setSelected(null); }} className="h-8 min-w-52 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"><option value="COMPLETE">完整查询：确认多余</option><option value="INCOMPLETE">源端查询不完整</option><option value="FORBIDDEN">源端权限不足</option><option value="ERROR">源端读取失败</option></select></label>}
-        <button disabled title="源端与目标端存在性查询未接入" className="h-8 px-3 rounded-ty-sm text-ty-xs bg-[var(--ty-primary-lighter-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed inline-flex items-center gap-2"><Search className="w-3.5 h-3.5" />开始排查</button>
-        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">实际查询能力待接入</span>
+        <button disabled={!example} title={example ? '按当前模拟场景刷新结果' : '源端与目标端存在性查询未接入'} onClick={() => { setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 rounded-ty-sm text-ty-xs bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] disabled:bg-[var(--ty-primary-lighter-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed inline-flex items-center gap-2"><Search className="w-3.5 h-3.5" />{example ? '刷新模拟结果' : '开始排查'}</button>
+        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">{example ? '当前内容仅用于方案评审和截图展示' : '实际查询能力待接入'}</span>
       </div>
 
       <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 text-ty-xs flex items-start gap-2"><Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0 mt-0.5" /><p><strong>目标数量更多只是排查线索。</strong><span className="text-[var(--ty-font-sub-color)] ml-1">同根类型、同范围、完整且有权限的源端查询未找到对象后，才可确认多余。</span></p></div>
