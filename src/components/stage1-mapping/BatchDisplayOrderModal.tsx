@@ -18,12 +18,14 @@ import {
   formatRootTypeDisplayName,
   getFieldDisplayOrder
 } from '../../stage1MappingTypes';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 type StatusFilter = 'ALL' | 'CONFIGURED' | 'DRAFT';
 
-interface DisplayOrderUpdate {
+interface DisplayLayoutUpdate {
   fieldId: string;
   displayOrder: number;
+  defaultColumnWidth: number;
 }
 
 interface BatchDisplayOrderModalProps {
@@ -31,7 +33,7 @@ interface BatchDisplayOrderModalProps {
   currentRootType: MappingObjectType;
   fields: FieldMappingItem[];
   onClose: () => void;
-  onSave: (updates: DisplayOrderUpdate[]) => void;
+  onSave: (updates: DisplayLayoutUpdate[]) => void;
   hasPermission?: boolean;
 }
 
@@ -47,6 +49,8 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [positionInputs, setPositionInputs] = useState<Record<string, string>>({});
+  const [widthInputs, setWidthInputs] = useState<Record<string, string>>({});
+  const [sharedWidthInput, setSharedWidthInput] = useState('150');
   const [draggedId, setDraggedId] = useState<string>();
   const [dragOverId, setDragOverId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState('');
@@ -91,6 +95,8 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
     setStatusFilter('ALL');
     setSelectedIds([]);
     setPositionInputs({});
+    setWidthInputs({});
+    setSharedWidthInput('150');
     setDraggedId(undefined);
     setDragOverId(undefined);
     setErrorMessage('');
@@ -114,6 +120,14 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   const selectedOrderSlots = selectedFields
     .map(field => getFieldDisplayOrder(field))
     .sort((left, right) => left - right);
+  const getFieldColumnWidth = (field: FieldMappingItem) => field.hasDraftModification && field.draftData?.defaultColumnWidth !== undefined
+    ? field.draftData.defaultColumnWidth
+    : field.defaultColumnWidth ?? 150;
+
+  const parseColumnWidth = (rawValue: string) => {
+    const value = Number(rawValue);
+    return Number.isInteger(value) && value >= 80 && value <= 350 ? value : null;
+  };
 
   const toggleField = (fieldId: string) => {
     setSelectedIds(previous => previous.includes(fieldId)
@@ -170,15 +184,37 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
     setPositionInputs(previous => ({ ...previous, [fieldId]: '' }));
   };
 
+  const applySharedWidth = () => {
+    const width = parseColumnWidth(sharedWidthInput);
+    if (width === null) {
+      setErrorMessage('统一列宽请输入 80–350 之间的整数');
+      return;
+    }
+    setWidthInputs(previous => ({
+      ...previous,
+      ...Object.fromEntries(selectedIds.map(fieldId => [fieldId, String(width)]))
+    }));
+    setErrorMessage('');
+  };
+
   const handleSave = () => {
     if (selectedIds.length === 0) {
       setErrorMessage('请至少选择一个需要调整的属性');
       return;
     }
-    onSave(selectedIds.map((fieldId, index) => ({
-      fieldId,
-      displayOrder: selectedOrderSlots[index]
-    })));
+    const invalidField = selectedFields.find(field => parseColumnWidth(widthInputs[field.id] ?? String(getFieldColumnWidth(field))) === null);
+    if (invalidField) {
+      setErrorMessage(`${invalidField.draftData?.displayTitle ?? invalidField.displayTitle}的列宽请输入 80–350 之间的整数`);
+      return;
+    }
+    onSave(selectedIds.map((fieldId, index) => {
+      const field = fieldsById.get(fieldId)!;
+      return {
+        fieldId,
+        displayOrder: selectedOrderSlots[index],
+        defaultColumnWidth: parseColumnWidth(widthInputs[fieldId] ?? String(getFieldColumnWidth(field)))!
+      };
+    }));
     onClose();
   };
 
@@ -187,20 +223,21 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="批量调整属性展示顺序"
+        aria-label="批量调整属性展示顺序与列宽"
         className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col h-[min(820px,calc(100dvh-120px))] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         <header className="px-5 py-3 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-start justify-between gap-4 shrink-0">
-          <div className="min-w-0">
+          <div className="min-w-0 flex flex-wrap items-center gap-2">
             <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
               <ListOrdered className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
-              批量调整展示顺序
+              批量调整展示顺序与列宽
             </h2>
-            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">
-              {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)} · 从左侧选择属性，在右侧集中拖动或使用位置操作调整先后。
-            </p>
+            <HelpTooltip label="查看批量调整展示布局说明" content="从左侧选择属性，在右侧调整顺序和表格列宽；顺序支持拖动、置顶、上下移动、置底和移动到第 N 位。" />
+            <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-mono font-medium rounded-ty-sm bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+              根类型：{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
+            </span>
           </div>
-          <button type="button" aria-label="关闭批量调整展示顺序" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
+          <button type="button" aria-label="关闭批量调整展示顺序与列宽" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
             <X className="w-4 h-4" />
           </button>
         </header>
@@ -227,18 +264,19 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0">
-              <table className="ty-data-table w-full text-left text-ty-xs">
+              <table className="ty-data-table table-fixed w-full text-left text-ty-xs">
                 <thead className="sticky top-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <tr>
-                    <th className="w-12 px-3 py-2 text-center">
+                    <th className="w-10 px-2 py-2 text-center">
                       <button type="button" onClick={toggleAllFiltered} disabled={filteredFields.length === 0} aria-label={allFilteredSelected ? '取消选择当前结果' : '选择当前全部结果'} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
                         {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-[var(--ty-primary-color)]" /> : <Square className="w-4 h-4" />}
                       </button>
                     </th>
-                    <th className="px-3 py-2">属性名称</th>
-                    <th className="px-3 py-2">字段编码</th>
-                    <th className="w-24 px-3 py-2 text-center">当前顺序</th>
-                    <th className="w-28 px-3 py-2">状态</th>
+                    <th className="w-[24%] px-2 py-2">属性名称</th>
+                    <th className="w-[23%] px-2 py-2">字段编码</th>
+                    <th className="w-16 px-2 py-2 text-center">顺序</th>
+                    <th className="w-20 px-2 py-2 text-center">列宽</th>
+                    <th className="w-[22%] px-2 py-2">状态</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -247,21 +285,22 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                     const hasOrderDraft = field.configStatus === 'CONFIGURED' && field.hasDraftModification && field.draftData?.displayOrder !== undefined;
                     return (
                       <tr key={field.id} className={selected ? 'bg-[var(--ty-blue-lightest-color)]/60' : 'hover:bg-[var(--ty-fill-weak-dark-color)]/50'}>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-2 py-2 text-center">
                           <button type="button" onClick={() => toggleField(field.id)} className="h-7 w-7 inline-flex items-center justify-center cursor-pointer text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)]" aria-label={`${selected ? '取消选择' : '选择'}${field.sourceDisplayName}`}>
                             {selected ? <CheckSquare className="w-4 h-4 text-[var(--ty-primary-color)]" /> : <Square className="w-4 h-4" />}
                           </button>
                         </td>
-                        <td className="px-3 py-2 min-w-0 font-medium text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</td>
-                        <td className="px-3 py-2 min-w-0 font-mono text-ty-2xs text-[var(--ty-font-sub-color)] truncate">{field.manticoreField}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-2 py-2 min-w-0 font-medium text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</td>
+                        <td className="px-2 py-2 min-w-0 font-mono text-ty-2xs text-[var(--ty-font-sub-color)] truncate">{field.manticoreField}</td>
+                        <td className="px-2 py-2 text-center">
                           <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-mono font-semibold ${hasOrderDraft ? 'bg-[var(--ty-blue-lightest-color)] border-[var(--ty-blue-color)]/30 text-[var(--ty-font-main-light-color)]' : 'bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]'}`}>{getFieldDisplayOrder(field)}</span>
                         </td>
-                        <td className="px-3 py-2 text-[var(--ty-font-sub-color)]">{field.configStatus === 'DRAFT' ? '草稿' : field.hasDraftModification ? '已配置（有草稿）' : '已配置'}</td>
+                        <td className="px-2 py-2 text-center font-mono text-[var(--ty-font-sub-color)]">{getFieldColumnWidth(field)} px</td>
+                        <td className="px-2 py-2 text-[var(--ty-font-sub-color)]">{field.configStatus === 'DRAFT' ? '草稿' : field.hasDraftModification ? '已配置 · 有草稿' : '已配置'}</td>
                       </tr>
                     );
                   }) : (
-                    <tr><td colSpan={5} className="py-10 text-center text-[var(--ty-font-sub-light-color)]">未找到符合条件的属性</td></tr>
+                    <tr><td colSpan={6} className="py-10 text-center text-[var(--ty-font-sub-light-color)]">未找到符合条件的属性</td></tr>
                   )}
                 </tbody>
               </table>
@@ -271,11 +310,19 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
 
           <section className="flex flex-col min-h-0" aria-label="已选属性排序">
             <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-2 shrink-0">
-              <div>
+              <div className="flex items-center gap-1">
                 <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">已选属性 <span className="font-mono text-[var(--ty-primary-color)]">{selectedFields.length}</span></h3>
-                <p className="mt-0.5 text-ty-2xs text-[var(--ty-font-sub-color)]">拖动整行，或使用右侧按钮精确调整在已选列表中的位置。</p>
+                <HelpTooltip label="查看已选属性布局调整方法" content="拖动整行或使用右侧位置按钮调整顺序；列宽可逐项填写，也可统一应用到全部已选属性。" />
               </div>
-              <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} className="h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Trash2 className="w-3.5 h-3.5" />清空</button>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <label className="h-7 inline-flex items-center gap-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                  统一列宽
+                  <input type="number" min="80" max="350" step="10" value={sharedWidthInput} onChange={event => setSharedWidthInput(event.target.value)} aria-label="统一列宽" className="h-7 w-16 px-1.5 font-mono text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
+                  px
+                </label>
+                <button type="button" onClick={applySharedWidth} disabled={selectedIds.length === 0} className="h-7 px-2.5 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">应用</button>
+                <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} className="h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Trash2 className="w-3.5 h-3.5" />清空</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-1.5 bg-[var(--ty-fill-color)]/40" role="list" aria-label="全部已选属性">
@@ -283,21 +330,28 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                 const currentPosition = index + 1;
                 const previewOrder = selectedOrderSlots[index];
                 return (
-                  <div key={field.id} role="listitem" draggable onDragStart={() => setDraggedId(field.id)} onDragOver={event => { event.preventDefault(); setDragOverId(field.id); }} onDrop={event => { event.preventDefault(); if (draggedId) moveBefore(draggedId, field.id); }} onDragEnd={() => { setDraggedId(undefined); setDragOverId(undefined); }} className={`grid grid-cols-[34px_minmax(110px,1fr)_116px_118px] items-center gap-2 px-2 py-2 rounded-ty-sm border bg-[var(--ty-fill-white-color)] transition-colors ${dragOverId === field.id && draggedId !== field.id ? 'border-[var(--ty-primary-color)]' : 'border-[var(--ty-border-color)]'} ${draggedId === field.id ? 'opacity-50' : ''}`}>
+                  <div key={field.id} role="listitem" draggable onDragStart={() => setDraggedId(field.id)} onDragOver={event => { event.preventDefault(); setDragOverId(field.id); }} onDrop={event => { event.preventDefault(); if (draggedId) moveBefore(draggedId, field.id); }} onDragEnd={() => { setDraggedId(undefined); setDragOverId(undefined); }} className={`grid grid-cols-[34px_minmax(110px,1fr)_auto] items-center gap-2 px-2 py-2 rounded-ty-sm border bg-[var(--ty-fill-white-color)] transition-colors ${dragOverId === field.id && draggedId !== field.id ? 'border-[var(--ty-primary-color)]' : 'border-[var(--ty-border-color)]'} ${draggedId === field.id ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-1 text-[var(--ty-font-sub-light-color)] cursor-grab" title="拖动排序"><GripVertical className="w-3.5 h-3.5" /><span className="font-mono text-ty-2xs">{currentPosition}</span></div>
                     <div className="min-w-0">
                       <div className="font-medium text-ty-xs text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</div>
                       <div className="mt-0.5 text-ty-2xs text-[var(--ty-font-sub-color)] truncate">当前 {getFieldDisplayOrder(field)} · 保存后 {previewOrder} · {field.configStatus === 'DRAFT' ? '草稿' : field.hasDraftModification ? '有草稿' : '已配置'}</div>
                     </div>
-                    <div className="flex items-center gap-0.5">
-                      <button type="button" onClick={() => moveToIndex(field.id, 0)} disabled={index === 0} aria-label={`将${field.sourceDisplayName}置顶`} title="置顶" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsUp className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => moveToIndex(field.id, index - 1)} disabled={index === 0} aria-label={`将${field.sourceDisplayName}上移`} title="上移" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronUp className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => moveToIndex(field.id, index + 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}下移`} title="下移" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronDown className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => moveToIndex(field.id, selectedIds.length - 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}置底`} title="置底" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsDown className="w-3.5 h-3.5" /></button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input type="number" min="1" max={selectedIds.length} step="1" value={positionInputs[field.id] || ''} onChange={event => setPositionInputs(previous => ({ ...previous, [field.id]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter') moveToEnteredPosition(field.id, currentPosition); }} placeholder={String(currentPosition)} aria-label={`${field.sourceDisplayName}移动到第 N 位`} className="h-7 w-12 px-1.5 text-ty-2xs font-mono border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
-                      <button type="button" onClick={() => moveToEnteredPosition(field.id, currentPosition)} className="h-7 px-1.5 rounded-ty-xs border border-[var(--ty-border-color)] text-ty-2xs hover:bg-[var(--ty-fill-weak-dark-color)] cursor-pointer">移动</button>
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <span className="inline-flex items-center gap-0.5">
+                        <button type="button" onClick={() => moveToIndex(field.id, 0)} disabled={index === 0} aria-label={`将${field.sourceDisplayName}置顶`} title="置顶" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsUp className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => moveToIndex(field.id, index - 1)} disabled={index === 0} aria-label={`将${field.sourceDisplayName}上移`} title="上移" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronUp className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => moveToIndex(field.id, index + 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}下移`} title="下移" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronDown className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => moveToIndex(field.id, selectedIds.length - 1)} disabled={index === selectedIds.length - 1} aria-label={`将${field.sourceDisplayName}置底`} title="置底" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><ChevronsDown className="w-3.5 h-3.5" /></button>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <input type="number" min="1" max={selectedIds.length} step="1" value={positionInputs[field.id] || ''} onChange={event => setPositionInputs(previous => ({ ...previous, [field.id]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter') moveToEnteredPosition(field.id, currentPosition); }} placeholder={String(currentPosition)} aria-label={`${field.sourceDisplayName}移动到第 N 位`} className="h-7 w-12 px-1.5 text-ty-2xs font-mono border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
+                        <button type="button" onClick={() => moveToEnteredPosition(field.id, currentPosition)} className="h-7 px-1.5 rounded-ty-xs border border-[var(--ty-border-color)] text-ty-2xs hover:bg-[var(--ty-fill-weak-dark-color)] cursor-pointer">移动</button>
+                      </span>
+                      <label className="h-7 inline-flex items-center gap-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                        列宽
+                        <input type="number" min="80" max="350" step="10" value={widthInputs[field.id] ?? String(getFieldColumnWidth(field))} onChange={event => { setWidthInputs(previous => ({ ...previous, [field.id]: event.target.value })); setErrorMessage(''); }} aria-label={`${field.sourceDisplayName}列宽`} className="h-7 w-16 px-1.5 font-mono text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
+                        px
+                      </label>
                       <button type="button" onClick={() => toggleField(field.id)} aria-label={`移除${field.sourceDisplayName}`} title="从已选属性移除" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -311,12 +365,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
 
         <footer className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后按右侧先后重新分配已选属性的原有顺序位置；未选属性不变。</p>
+            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">保存后按右侧先后重新分配已选属性的原有顺序位置，并保存列宽；未选属性不变。</p>
             {errorMessage && <p role="alert" className="mt-1 text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
           </div>
           <div className="flex items-center gap-3 ml-auto">
             <button type="button" onClick={onClose} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
-            <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存排序草稿（{selectedIds.length}）</button>
+            <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存布局草稿（{selectedIds.length}）</button>
           </div>
         </footer>
       </section>

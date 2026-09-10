@@ -30,6 +30,7 @@ import {
   validateDisplayOrder
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -559,15 +560,13 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       <section role="dialog" aria-modal="true" aria-label="批量属性配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Header - 已精简顶部信息，收回高度并保持右对齐操作 */}
         <div className="px-5 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3 bg-[var(--ty-fill-weak-dark-color)] shrink-0">
-          <div className="space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
               <FileSpreadsheet className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
               批量发现并导入 PLM 字段映射
               <span className="ml-2 text-ty-2xs font-normal text-[var(--ty-font-sub-color)]">原型示例数据</span>
             </h2>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-              主动读取来源系统元数据定义，自动完成类型推断与来源显示名兜底。勾选后生成草稿，需生效配置后方能进入正式底座。
-            </p>
+            <HelpTooltip label="查看批量导入说明" content="主动读取来源系统元数据定义，自动完成类型推断与来源显示名兜底。勾选后生成草稿，需生效配置后方能进入正式底座。" />
           </div>
 
           {/* 右对齐的读取 PLM 元数据控制按钮 */}
@@ -1008,8 +1007,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           <div className="fixed inset-0 z-60 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
             <section role="dialog" aria-modal="true" aria-label="批量属性单项配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1000px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
               <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
-                <div className="space-y-0.5">
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <div className="flex items-center space-x-2 min-w-0">
                     <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
                       <Sliders className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
                       配置导入字段属性 - {configuringCandidate.sourceFieldMeta.sourceFieldName}
@@ -1018,9 +1017,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                       根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
                     </span>
                   </div>
-                  <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-                    使用与单字段相同的完整配置结构。推断值仅为默认建议，您可在导入前自由修改前台显示名、展示顺序、Manticore 物理类型及检索能力。
-                  </p>
+                  <HelpTooltip label="查看导入字段配置说明" content="使用与单字段相同的完整配置结构。推断值仅为默认建议，可在导入前修改前台显示名、展示顺序、Manticore 物理类型及检索能力。" />
                 </div>
                 <button
                   type="button"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, DatabaseZap, Eye, RotateCcw, Search, X } from 'lucide-react';
 import { IngestionStatus, SourceIngestionLog, ingestionStatusLabel, initialSourceIngestionLogs } from '../data/sourceIngestionLogs';
 import { formatCompactNumber, paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 const statusClass: Record<IngestionStatus, string> = {
   SUCCESS: 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30',
@@ -50,7 +51,12 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs, init
 
   return <div className="min-w-0 space-y-4">
     <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2"><DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" /><div><div className="flex items-center gap-2"><h1 className="text-ty-xl font-semibold">中间表写入日志</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span></div><p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">查看上游中间件已经产生的写入结果；本系统只负责发现与定位，源端问题由源端责任方处理。</p></div></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" />
+        <h1 className="text-ty-xl font-semibold">中间表写入日志</h1>
+        <HelpTooltip label="查看中间表写入日志说明" content="查看上游中间件已经产生的写入结果。本系统只负责发现与定位，源端问题由源端责任方处理。" />
+        <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span>
+      </div>
       <span className="text-ty-xs text-[var(--ty-font-sub-color)]">结果日志 · 只读</span>
     </header>
 

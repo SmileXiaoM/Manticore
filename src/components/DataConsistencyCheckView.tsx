@@ -311,9 +311,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <div className="page-title-line">
               <FileCheck2 size={20} className="page-title-icon" />
               <h1>数据一致性核验</h1>
+              <HelpTooltip label="查看数据一致性核验说明" content="查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。" />
               <span className="prototype-note">原型演示</span>
             </div>
-            <p className="muted">查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。</p>
           </div>
           <div className="page-actions">
             {onInspectTarget && (

@@ -662,14 +662,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       {/* 顶部标题与上下文控制栏 */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div>
-            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
-              <SlidersHorizontal className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              字段相似度规则
-            </h1>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              为零部件按固定分组属性的不同取值分别定义相似度规则。
-            </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <SlidersHorizontal className="w-5 h-5 text-[var(--ty-primary-color)]" />
+            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">字段相似度规则</h1>
+            <HelpTooltip label="查看字段相似度规则说明" content="为零部件按固定分组属性的不同取值分别定义相似度规则。" />
           </div>
 
           {/* 操作按钮区 */}
@@ -1048,16 +1044,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <section role="dialog" aria-modal="true" aria-labelledby="field-rule-dialog-title" className="standard-form-dialog bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg w-full max-w-[800px] max-h-[calc(100dvh-120px)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* 模态框顶部 */}
             <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)]">
-              <div>
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <h2 id="field-rule-dialog-title" className="text-ty-lg font-semibold text-[var(--ty-font-main-color)]">
                   {editingRuleId ? '编辑字段相似度规则' : '新建字段相似度规则'}
                 </h2>
-                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-                  当前上下文：
-                  <span className="font-semibold text-[var(--ty-font-main-color)]">
-                    {currentRootTypeObj?.name} &gt; {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name}
-                  </span>
-                </p>
+                <span className="min-h-6 px-2 inline-flex items-center rounded-ty-sm bg-[var(--ty-fill-color)] text-ty-2xs text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+                  {currentRootTypeObj?.name}
+                </span>
+                <span className="min-h-6 px-2 inline-flex items-center rounded-ty-sm bg-[var(--ty-fill-color)] text-ty-2xs text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
+                  {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name}
+                </span>
               </div>
               <button
                 aria-label="关闭字段规则弹窗"

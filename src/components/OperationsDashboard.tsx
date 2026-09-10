@@ -78,7 +78,12 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
 
   return <div className="min-w-0 space-y-4">
     <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2"><FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" /><div><div className="flex items-center gap-2"><h1 className="text-ty-xl font-semibold">Manticore 运行看板</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span></div><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">统一查看中间表写入、Manticore 同步队列、一致性核验与目标数据现状。</p></div></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
+        <h1 className="text-ty-xl font-semibold">Manticore 运行看板</h1>
+        <HelpTooltip label="查看运行看板说明" content="统一查看中间表写入、Manticore 同步队列、一致性核验与目标数据现状。" />
+        <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
+      </div>
       <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 text-ty-xs"><Server className="w-3.5 h-3.5 mr-1" />同步服务运行中</span>
     </header>
 

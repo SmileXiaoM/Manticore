@@ -30,6 +30,7 @@ import {
   ObjectType
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
@@ -223,14 +224,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
       {/* 顶部标题与业务场景说明 */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
-          <div>
-            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight flex items-center gap-2">
-              <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
-              应用端查找相似件
-            </h1>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              基于已有物料或业务表单字段值，查找企业物料库中可复用的相似件。
-            </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
+            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">应用端查找相似件</h1>
+            <HelpTooltip label="查看应用端查找相似件说明" content="基于已有物料或业务表单字段值，查找企业物料库中可复用的相似件。" />
           </div>
 
           <div className="flex items-center gap-2">

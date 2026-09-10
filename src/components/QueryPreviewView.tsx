@@ -236,11 +236,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <Search className="w-5 h-5 text-[var(--ty-primary-color)]" />
               <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">相似度查询预览</h1>
+              <HelpTooltip label="查看相似度查询预览说明" content="选择规则版本和基准对象，验证候选召回、相似度计算与门槛排除效果。" />
               <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] font-normal">沙盒试算</span>
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-              选择规则版本和基准对象，验证候选召回、相似度计算与门槛排除效果。
-            </p>
           </div>
 
           <div className="flex items-center gap-2">

@@ -31,6 +31,7 @@ import {
   FieldDetailModal,
   ResetAccessModal
 } from './stage1-mapping/Stage1Modals';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface Stage1MappingConfigViewProps {
   batches?: SyncBatch[];
@@ -225,15 +226,16 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     }
   };
 
-  // 批量调整已有属性的展示顺序。展示顺序只影响前台排列，不改变底层字段结构。
-  const handleBatchUpdateDisplayOrder = (updates: Array<{ fieldId: string; displayOrder: number }>) => {
-    const orderByFieldId = new Map(updates.map(update => [update.fieldId, update.displayOrder]));
+  // 批量调整已有属性的展示顺序与列宽。两者只影响前台展示，不改变底层字段结构。
+  const handleBatchUpdateDisplayOrder = (updates: Array<{ fieldId: string; displayOrder: number; defaultColumnWidth: number }>) => {
+    const layoutByFieldId = new Map(updates.map(update => [update.fieldId, update]));
     let nextMappings: FieldMappingItem[] = [];
 
     setFieldMappings(previous => {
       nextMappings = previous.map(field => {
-        const displayOrder = orderByFieldId.get(field.id);
-        if (field.rootTypeId !== currentRootType.id || displayOrder === undefined) return field;
+        const layout = layoutByFieldId.get(field.id);
+        if (field.rootTypeId !== currentRootType.id || !layout) return field;
+        const { displayOrder, defaultColumnWidth } = layout;
 
         if (field.configStatus === 'CONFIGURED') {
           return {
@@ -242,9 +244,10 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
             draftData: {
               ...(field.draftData || {}),
               displayOrder,
-              defaultDisplayOrder: displayOrder
+              defaultDisplayOrder: displayOrder,
+              defaultColumnWidth
             },
-            updatedAt: '刚刚 (批量调整顺序)',
+            updatedAt: '刚刚 (批量调整布局)',
             updatedBy: '当前用户'
           };
         }
@@ -253,7 +256,8 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           ...field,
           displayOrder,
           defaultDisplayOrder: displayOrder,
-          updatedAt: '刚刚 (批量调整顺序)',
+          defaultColumnWidth,
+          updatedAt: '刚刚 (批量调整布局)',
           updatedBy: '当前用户'
         };
       });
@@ -265,7 +269,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     const summary = uniqueOrders.size === 1
       ? `统一调整为 ${updates[0]?.displayOrder}`
       : `按当前列表顺序连续调整为 ${Math.min(...uniqueOrders)}–${Math.max(...uniqueOrders)}`;
-    setOperationMessage(`已将 ${updates.length} 个属性的展示顺序${summary}，并保存为草稿。`);
+    setOperationMessage(`已将 ${updates.length} 个属性的展示顺序${summary}，并保存顺序与列宽草稿。`);
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
@@ -395,12 +399,10 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   return (
     <div className="space-y-4">
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <Database className="w-5 h-5 shrink-0 text-[var(--ty-primary-color)]" />
-          <div className="min-w-0">
-            <h1 className="text-ty-xl font-semibold">接入配置</h1>
-            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">维护字段映射、接入启停与中间表检查频率；常驻服务逐条写入 Manticore。</p>
-          </div>
+          <h1 className="text-ty-xl font-semibold">接入配置</h1>
+          <HelpTooltip label="查看接入配置说明" content="维护字段映射、接入启停与中间表检查频率；常驻服务逐条写入 Manticore。" />
         </div>
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">配置范围按根类型隔离</span>
       </header>

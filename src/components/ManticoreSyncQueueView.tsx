@@ -24,6 +24,7 @@ import {
   targetSyncStatusLabel,
 } from '../data/targetSyncRecords';
 import { formatCompactNumber, paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 const rootName: Record<string, string> = { PART: '零部件', DOCUMENT: '文档', PROCESS: '工艺路线' };
 const statusClass: Record<TargetSyncStatus, string> = {
@@ -139,12 +140,10 @@ export function ManticoreSyncQueueView({
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-ty-xl font-semibold">Manticore 同步队列</h1>
-              <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">中间表 → Manticore</span>
-            </div>
-            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">同步服务轮询中间表，并按单条记录写入目标表。</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-ty-xl font-semibold">Manticore 同步队列</h1>
+            <HelpTooltip label="查看 Manticore 同步队列说明" content="同步服务轮询中间表，并按单条记录写入目标表。" />
+            <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">中间表 → Manticore</span>
           </div>
         </div>
         <div className="flex items-center gap-2 text-ty-xs">

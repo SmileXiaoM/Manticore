@@ -18,6 +18,7 @@ import {
   validateDisplayOrder
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 const EMPTY_EXISTING_FIELDS: FieldMappingItem[] = [];
 
@@ -423,7 +424,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       <section role="dialog" aria-modal="true" aria-label="字段映射配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1000px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Header (固定顶部) */}
         <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
-          <div className="space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <div className="flex items-center space-x-2">
               <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
                 <Sliders className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
@@ -437,9 +438,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
                 根类型: {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
               </span>
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-              单字段直接归属根类型，配置 PLM 来源元数据、业务展示、展示顺序及 Manticore 底层检索属性。
-            </p>
+            <HelpTooltip label="查看字段映射配置说明" content="单字段直接归属根类型，配置 PLM 来源元数据、业务展示、展示顺序及 Manticore 底层检索属性。" />
           </div>
           <button
             type="button"

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ChangeRecord } from '../types';
 import { paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface PublishRecordViewProps {
   changeRecords: ChangeRecord[];
@@ -43,10 +44,10 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
           <ChevronRight className="w-3 h-3" />
           <span className="text-[var(--ty-font-main-color)] font-medium">变更记录</span>
         </div>
-        <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
-        <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-0.5">
-          追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
+          <HelpTooltip label="查看配置变更审计历史说明" content="追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。" />
+        </div>
       </div>
 
       {/* Filters bar */}

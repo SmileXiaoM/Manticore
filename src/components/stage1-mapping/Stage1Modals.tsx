@@ -35,6 +35,7 @@ import {
   isFieldColumnHiddenByMissingParam,
   isFieldHyperlinkValid
 } from '../../stage1HyperlinkUtils';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 // ==================== 1. 生效配置影响确认弹窗 (无配置版本，草稿生效) ====================
 interface PublishConfigModalProps {
@@ -446,7 +447,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
       <section role="dialog" aria-modal="true" aria-label="正式查询底座数据预览" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
-          <div className="space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <div className="flex items-center space-x-2">
               <h2 className="text-ty-lg font-semibold text-[var(--ty-font-main-color)] flex items-center">
                 <Eye className="w-4 h-4 mr-2 text-[var(--ty-primary-color)]" />
@@ -464,9 +465,7 @@ export const Stage1QueryPreviewModal: React.FC<Stage1QueryPreviewModalProps> = (
                 </span>
               )}
             </div>
-            <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
-              只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，严格遵循 URL 模板与缺参策略。
-            </p>
+            <HelpTooltip label="查看正式查询底座数据预览说明" content="只读当前已成功同步的正式查询底座数据。超链接配置已真实生效，并遵循 URL 模板与缺参策略。" />
           </div>
           <button type="button" aria-label="关闭查询预览" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />

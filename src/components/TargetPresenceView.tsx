@@ -3,6 +3,7 @@ import { ArrowLeft, Database, Info, Search } from 'lucide-react';
 import { MappingObjectType } from '../stage1MappingTypes';
 import { PresenceSnapshot, classifyPresence } from '../data/operations';
 import { paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync, evidence = [] }: {
   roots: MappingObjectType[];
@@ -42,8 +43,13 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
       <header className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <button onClick={onBack} className="text-ty-xs text-[var(--ty-font-sub-color)] inline-flex items-center gap-1 hover:text-[var(--ty-primary-color)]"><ArrowLeft className="w-3.5 h-3.5" />返回上一页</button>
-          <div className="flex items-center gap-2 mt-2"><Database className="w-5 h-5 text-[var(--ty-primary-color)]" /><h1 className="text-ty-xl font-semibold">目标端多余数据排查</h1><span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">Manticore → 源端反查</span>{example && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">模拟结果</span>}</div>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">按对象标识反查源端存在性，在证据完整后确认多余数据。</p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
+            <h1 className="text-ty-xl font-semibold">目标端多余数据排查</h1>
+            <HelpTooltip label="查看目标端多余数据排查说明" content="按对象标识反查源端存在性，在证据完整后确认多余数据。" />
+            <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">Manticore → 源端反查</span>
+            {example && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">模拟结果</span>}
+          </div>
         </div>
         <button onClick={() => { setExample(!example); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)]">{example ? '查看实际接入状态' : '查看模拟结果'}</button>
       </header>
