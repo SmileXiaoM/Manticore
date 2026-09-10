@@ -192,12 +192,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[44px] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
       <section
         role="dialog"
         aria-modal="true"
         aria-label="批量调整属性展示顺序"
-        className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1240px,calc(100vw-32px))] flex flex-col h-[min(820px,calc(100dvh-88px))] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1200px,calc(100vw-32px))] flex flex-col h-[min(820px,calc(100dvh-120px))] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         <header className="px-5 py-3 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-start justify-between gap-4 shrink-0">
           <div className="min-w-0">
@@ -209,7 +209,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
               {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)} · 从左侧选择属性，在右侧集中拖动或使用位置操作调整先后。
             </p>
           </div>
-          <button type="button" aria-label="关闭批量调整展示顺序" onClick={onClose} className="p-1 rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
+          <button type="button" aria-label="关闭批量调整展示顺序" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
             <X className="w-4 h-4" />
           </button>
         </header>
@@ -240,11 +240,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                 <thead className="sticky top-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <tr>
                     <th className="w-12 px-3 py-2 text-center">
-                      <button type="button" onClick={toggleAllFiltered} disabled={filteredFields.length === 0} className="p-0.5 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed" title={allFilteredSelected ? '取消选择当前结果' : '选择当前全部结果'}>
+                      <button type="button" onClick={toggleAllFiltered} disabled={filteredFields.length === 0} aria-label={allFilteredSelected ? '取消选择当前结果' : '选择当前全部结果'} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
                         {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-[var(--ty-primary-color)]" /> : <Square className="w-4 h-4" />}
                       </button>
                     </th>
-                    <th className="px-3 py-2">属性</th>
+                    <th className="px-3 py-2">属性名称</th>
+                    <th className="px-3 py-2">字段编码</th>
                     <th className="w-24 px-3 py-2 text-center">当前顺序</th>
                     <th className="w-28 px-3 py-2">状态</th>
                   </tr>
@@ -256,14 +257,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                     return (
                       <tr key={field.id} className={selected ? 'bg-[var(--ty-blue-lightest-color)]/60' : 'hover:bg-[var(--ty-fill-weak-dark-color)]/50'}>
                         <td className="px-3 py-2 text-center">
-                          <button type="button" onClick={() => toggleField(field.id)} className="p-0.5 cursor-pointer text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)]" aria-label={`${selected ? '取消选择' : '选择'}${field.sourceDisplayName}`}>
+                          <button type="button" onClick={() => toggleField(field.id)} className="h-7 w-7 inline-flex items-center justify-center cursor-pointer text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)]" aria-label={`${selected ? '取消选择' : '选择'}${field.sourceDisplayName}`}>
                             {selected ? <CheckSquare className="w-4 h-4 text-[var(--ty-primary-color)]" /> : <Square className="w-4 h-4" />}
                           </button>
                         </td>
-                        <td className="px-3 py-2 min-w-0">
-                          <div className="font-medium text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</div>
-                          <div className="mt-0.5 font-mono text-ty-2xs text-[var(--ty-font-sub-color)] truncate">{field.manticoreField}</div>
-                        </td>
+                        <td className="px-3 py-2 min-w-0 font-medium text-[var(--ty-font-main-color)] truncate">{field.draftData?.displayTitle ?? field.displayTitle}</td>
+                        <td className="px-3 py-2 min-w-0 font-mono text-ty-2xs text-[var(--ty-font-sub-color)] truncate">{field.manticoreField}</td>
                         <td className="px-3 py-2 text-center">
                           <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-mono font-semibold ${hasOrderDraft ? 'bg-[var(--ty-blue-lightest-color)] border-[var(--ty-blue-color)]/30 text-[var(--ty-font-main-light-color)]' : 'bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]'}`}>{getFieldDisplayOrder(field)}</span>
                         </td>
@@ -271,7 +270,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                       </tr>
                     );
                   }) : (
-                    <tr><td colSpan={4} className="py-10 text-center text-[var(--ty-font-sub-light-color)]">未找到符合条件的属性</td></tr>
+                    <tr><td colSpan={5} className="py-10 text-center text-[var(--ty-font-sub-light-color)]">未找到符合条件的属性</td></tr>
                   )}
                 </tbody>
               </table>
@@ -285,7 +284,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                 <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">已选属性 <span className="font-mono text-[var(--ty-primary-color)]">{selectedFields.length}</span></h3>
                 <p className="mt-0.5 text-ty-2xs text-[var(--ty-font-sub-color)]">拖动整行，或使用右侧按钮精确调整在已选列表中的位置。</p>
               </div>
-              <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} className="h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Trash2 className="w-3.5 h-3.5" />清空</button>
+              <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} className="h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Trash2 className="w-3.5 h-3.5" />清空</button>
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-1.5 bg-[var(--ty-fill-color)]/40" role="list" aria-label="全部已选属性">

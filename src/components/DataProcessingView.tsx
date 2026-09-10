@@ -396,8 +396,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         <td className="px-4 py-3 whitespace-nowrap">
                           <button
                             onClick={() => handleStatusToggle('standard', r)}
-                            title="点击快速启用/禁用"
-                            className="flex items-center space-x-1 cursor-pointer"
+                            aria-label={`${r.status === 'ACTIVE' ? '停用' : '启用'}${r.ruleName}`}
+                            className="h-8 flex items-center space-x-1 cursor-pointer"
                           >
                             <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
@@ -411,10 +411,10 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-2">
-                            <button onClick={() => handleEdit('standard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
+                            <button onClick={() => handleEdit('standard', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.ruleName}`}>
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => handleDelete('standard', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除规则">
+                            <button onClick={() => handleDelete('standard', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.ruleName}`}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -478,8 +478,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         <td className="px-4 py-3 whitespace-nowrap">
                           <button
                             onClick={() => handleStatusToggle('synonym', r)}
-                            title="点击快速启用/禁用"
-                            className="flex items-center space-x-1 cursor-pointer"
+                            aria-label={`${r.status === 'ACTIVE' ? '停用' : '启用'}${r.primaryWord}同义词规则`}
+                            className="h-8 flex items-center space-x-1 cursor-pointer"
                           >
                             <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
@@ -493,10 +493,10 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-2">
-                            <button onClick={() => handleEdit('synonym', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
+                            <button onClick={() => handleEdit('synonym', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.primaryWord}同义词规则`}>
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => handleDelete('synonym', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除规则">
+                            <button onClick={() => handleDelete('synonym', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.primaryWord}同义词规则`}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -554,8 +554,8 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         <td className="px-4 py-3 whitespace-nowrap">
                           <button
                             onClick={() => handleStatusToggle('align', r)}
-                            title="点击快速启用/禁用"
-                            className="flex items-center space-x-1 cursor-pointer"
+                            aria-label={`${r.status === 'ACTIVE' ? '停用' : '启用'}${r.sourcePath}归一规则`}
+                            className="h-8 flex items-center space-x-1 cursor-pointer"
                           >
                             <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold transition-colors ${
                               r.status === 'ACTIVE'
@@ -569,10 +569,10 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-2">
-                            <button onClick={() => handleEdit('align', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑规则">
+                            <button onClick={() => handleEdit('align', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.sourcePath}归一规则`}>
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => handleDelete('align', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除规则">
+                            <button onClick={() => handleDelete('align', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.sourcePath}归一规则`}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>

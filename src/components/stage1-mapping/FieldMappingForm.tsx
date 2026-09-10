@@ -12,6 +12,7 @@ import {
   HyperlinkConfig,
   resolveSourceDisplayName
 } from '../../stage1MappingTypes';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 export interface FieldMappingFormData {
   selectedSourceKey: string;
@@ -85,7 +86,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
       {/* 1. PLM 来源定义：只读摘要，避免与目标配置争抢页面空间 */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-3">
         <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">1</div><div><h4 className="text-ty-xs font-bold">PLM 来源定义</h4><p className="text-ty-2xs text-[var(--ty-font-sub-color)]">随所选来源属性自动带出，只读</p></div></div>
+          <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">1</div><h4 className="text-ty-xs font-bold">PLM 来源定义</h4><HelpTooltip label="查看 PLM 来源定义说明" content="随所选来源属性自动带出，仅供核对。" /></div>
           {sourceMeta?.isExampleMetadata && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] rounded-ty-xs">示例元数据</span>}
         </div>
         {sourceMeta ? (
@@ -104,10 +105,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           <div className="w-6 h-6 rounded-full bg-[var(--ty-green-lightest-color)] border border-[var(--ty-green-color)]/30 text-[var(--ty-green-color)] flex items-center justify-center font-bold text-ty-xs">
             2
           </div>
-          <div>
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">映射与业务展示</h4>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">前台显示名称、展示顺序与列宽</p>
-          </div>
+          <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">映射与业务展示</h4>
+          <HelpTooltip label="查看映射与业务展示说明" content="配置前台显示名称、展示顺序和默认列宽。" />
         </div>
 
         {/* 前台显示名称 */}
@@ -189,10 +188,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           <div className="w-6 h-6 rounded-full bg-[var(--ty-primary-lighter-color)] text-[var(--ty-primary-color)] flex items-center justify-center font-bold text-ty-xs">
             3
           </div>
-          <div>
-            <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">Manticore 底层配置</h4>
-            <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">检索物理字段与检索展示能力</p>
-          </div>
+          <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">Manticore 底层配置</h4>
+          <HelpTooltip label="查看 Manticore 底层配置说明" content="配置检索物理字段、存储类型以及检索和结果展示能力。" />
         </div>
 
         {/* Manticore 物理字段名 */}

@@ -96,6 +96,19 @@
 .data-consistency-check .section-heading {
   margin-bottom: 16px;
 }
+.data-consistency-check .section-title-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.data-consistency-check .section-title-with-help button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
 .data-consistency-check .panel {
   border: 1px solid var(--ty-border-color);
   border-radius: var(--ty-ui-border-radius-normal);
@@ -440,6 +453,10 @@
   gap: 4px 8px;
   margin-top: 4px;
 }
+.data-consistency-check .result-breakdown.compact {
+  margin-top: 0;
+  min-width: 220px;
+}
 .data-consistency-check .record-result-cell {
   min-width: 192px;
 }
@@ -491,11 +508,11 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 24px;
+  padding: 60px 16px;
 }
 .data-consistency-check .detail-dialog {
   width: min(1000px, 100%);
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - 120px);
   overflow: auto;
   padding: 24px;
   border-radius: 8px;

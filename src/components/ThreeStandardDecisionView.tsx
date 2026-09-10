@@ -374,8 +374,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <button
                               onClick={() => handleStatusToggle('threshold', r)}
-                              title="点击快速启用/禁用"
-                              className="cursor-pointer"
+                              aria-label={`${r.isEnabled ? '停用' : '启用'}${r.ruleName}`}
+                              className="h-8 inline-flex items-center cursor-pointer"
                             >
                               <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs font-bold text-ty-2xs ${
                                 r.isEnabled
@@ -390,10 +390,10 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap">{r.version}</td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center space-x-2">
-                              <button onClick={() => handleEdit('threshold', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑阈值">
+                              <button onClick={() => handleEdit('threshold', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.ruleName}`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => handleDelete('threshold', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除阈值">
+                              <button onClick={() => handleDelete('threshold', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.ruleName}`}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -418,6 +418,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                     <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                       <th className="w-12 px-2 py-2 text-center">序号</th>
                       <th className="px-4 py-2 whitespace-nowrap">强制/硬性控制规则名称</th>
+                      <th className="px-4 py-2 whitespace-nowrap">测试示例</th>
                       <th className="px-4 py-2 whitespace-nowrap">决策建议分类</th>
                       <th className="px-4 py-2 whitespace-nowrap">适用物料分类</th>
                       <th className="px-4 py-2 whitespace-nowrap">触发条件字段</th>
@@ -430,16 +431,14 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                   <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                     {filteredHardRules.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
+                        <td colSpan={10} className="px-4 py-8 text-center text-[var(--ty-font-sub-light-color)]">暂无符合条件的硬控规则</td>
                       </tr>
                     ) : (
                       hardRulePage.rows.map((r, index) => (
                         <tr key={r.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
                           <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(hardRulePage.currentPage - 1) * pageSize + index + 1}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="font-semibold text-[var(--ty-font-main-color)]">{r.ruleName}</div>
-                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">测试示例：{r.triggerExample}</div>
-                          </td>
+                          <td className="px-4 py-3 font-semibold text-[var(--ty-font-main-color)] whitespace-nowrap">{r.ruleName}</td>
+                          <td className="px-4 py-3 text-[var(--ty-font-sub-color)] font-mono whitespace-nowrap">{r.triggerExample}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {r.ruleType === 'FORCE_REVIEW' ? (
                               <span className="bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold inline-flex items-center gap-1">
@@ -479,8 +478,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <button
                               onClick={() => handleStatusToggle('hard', r)}
-                              title="点击启用/停用"
-                              className="cursor-pointer"
+                              aria-label={`${r.isEnabled ? '停用' : '启用'}${r.ruleName}`}
+                              className="h-8 inline-flex items-center cursor-pointer"
                             >
                               <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold ${
                                 r.isEnabled
@@ -494,10 +493,10 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center space-x-2">
-                              <button onClick={() => handleEdit('hard', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑强控">
+                              <button onClick={() => handleEdit('hard', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.ruleName}`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => handleDelete('hard', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除强控">
+                              <button onClick={() => handleDelete('hard', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.ruleName}`}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -572,8 +571,8 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <button
                               onClick={() => handleStatusToggle('coverage', r)}
-                              title="点击启动/停用"
-                              className="cursor-pointer"
+                              aria-label={`${r.isEnabled ? '停用' : '启用'}${r.categoryPath}覆盖策略`}
+                              className="h-8 inline-flex items-center cursor-pointer"
                             >
                               <span className={`inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-bold ${
                                 r.isEnabled
@@ -587,10 +586,10 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center space-x-2">
-                              <button onClick={() => handleEdit('coverage', r)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" title="编辑覆盖绑定">
+                              <button onClick={() => handleEdit('coverage', r)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] transition-all cursor-pointer" aria-label={`编辑${r.categoryPath}覆盖策略`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => handleDelete('coverage', r.id)} className="p-1 hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" title="删除覆盖绑定">
+                              <button onClick={() => handleDelete('coverage', r.id)} className="h-8 w-8 inline-flex items-center justify-center hover:bg-[var(--ty-fill-weak-dark-color)] rounded-ty-xs text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] transition-all cursor-pointer" aria-label={`删除${r.categoryPath}覆盖策略`}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>

@@ -34,6 +34,7 @@ import {
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface QueryPreviewViewProps {
   editingRules: FieldSimilarityRule[];
@@ -586,18 +587,21 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               ) : (
                 <>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-ty-xs border-collapse">
+                  <table className="w-full min-w-[1600px] text-left text-ty-xs border-collapse">
                     <thead>
                       <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                         <th className="py-2 px-4 w-12 text-center">排序</th>
-                        <th className="py-2 px-4">对象标识 / 名称</th>
+                        <th className="py-2 px-4">对象名称</th>
+                        <th className="py-2 px-4">对象标识</th>
                         <th className="py-2 px-4">规格参数</th>
                         <th className="py-2 px-4">材质</th>
                         <th className="py-2 px-4">分类路径</th>
                         <th className="py-2 px-4">相似度得分</th>
-                        <th className="py-2 px-4">分级与覆盖率</th>
-                        <th className="py-2 px-4">命中 / 差异</th>
-                        <th className="py-2 px-4 text-right">操作</th>
+                        <th className="py-2 px-4">相似等级</th>
+                        <th className="py-2 px-4">覆盖率</th>
+                        <th className="py-2 px-4">命中</th>
+                        <th className="py-2 px-4">差异</th>
+                        <th className="py-2 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -611,13 +615,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                             {(scoredPage.currentPage - 1) * pageSize + idx + 1}
                           </td>
 
-                          {/* 标识与名称 */}
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-[var(--ty-font-main-color)]">{cand.objectName}</div>
-                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
-                              {cand.objectId}
-                            </div>
-                          </td>
+                          <td className="py-3 px-4 font-bold text-[var(--ty-font-main-color)]">{cand.objectName}</td>
+                          <td className="py-3 px-4 text-[var(--ty-font-sub-color)] font-mono">{cand.objectId}</td>
 
                           {/* 规格 */}
                           <td className="py-3 px-4 text-[var(--ty-font-main-color)] font-medium">
@@ -649,14 +648,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                                 {cand.similarityScore.toFixed(2)}%
                               </span>
                             </div>
-                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">
-                              原始: {cand.rawSimilarityScore.toFixed(4)}%
-                            </div>
+                            <HelpTooltip label="查看未舍入相似度" content={`未舍入值：${cand.rawSimilarityScore.toFixed(4)}%；排序按未舍入值计算。`} />
                           </td>
 
-                          {/* 分级与覆盖率 */}
+                          {/* 分级 */}
                           <td className="py-3 px-4">
-                            <div className="flex flex-col gap-1 items-start">
                               <span
                                 className={`min-h-6 px-2 inline-flex items-center text-ty-2xs font-bold rounded-ty-xs ${
                                   cand.similarityTier === '高相似'
@@ -668,27 +664,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               >
                                 {cand.similarityTier}
                               </span>
-                              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-                                覆盖率: {cand.coverageRate}%
-                              </span>
-                            </div>
                           </td>
+                          <td className="py-3 px-4 font-mono">{cand.coverageRate}%</td>
 
-                          {/* 命中 / 差异 */}
-                          <td className="py-3 px-4">
-                            <div className="text-ty-2xs">
-                              <span className="text-[var(--ty-green-color)] font-semibold">
-                                全中 {cand.fullHitCount}
-                              </span>
-                              {' / '}
-                              <span className="text-[var(--ty-red-color)] font-semibold">
-                                差异 {cand.differenceCount}
-                              </span>
-                            </div>
-                          </td>
+                          <td className="py-3 px-4 text-[var(--ty-green-color)] font-semibold">{cand.fullHitCount}</td>
+                          <td className="py-3 px-4 text-[var(--ty-red-color)] font-semibold">{cand.differenceCount}</td>
 
                           {/* 操作 */}
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-white-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">
                             <button
                               onClick={() => setSelectedCandidate(cand)}
                               className="h-7 min-w-16 inline-flex items-center gap-1 px-3 text-ty-xs font-semibold text-[var(--ty-primary-color)] hover:opacity-80 hover:bg-[var(--ty-primary-lighter-color)]/20 rounded-ty-sm transition-colors cursor-pointer"
@@ -719,11 +702,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               ) : (
                 <>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-ty-xs border-collapse">
+                  <table className="w-full min-w-[1200px] text-left text-ty-xs border-collapse">
                     <thead>
                       <tr className="bg-[var(--ty-orange-light-color)]/30 border-b border-[var(--ty-orange-color)]/20 text-[var(--ty-font-main-color)] font-semibold">
                         <th className="py-2 px-4 w-12 text-center">序号</th>
-                        <th className="py-2 px-4">被排除对象</th>
+                        <th className="py-2 px-4">对象名称</th>
+                        <th className="py-2 px-4">对象标识</th>
                         <th className="py-2 px-4">被排除门槛字段</th>
                         <th className="py-2 px-4">基准值 (源值)</th>
                         <th className="py-2 px-4">候选值 (目标值)</th>
@@ -742,13 +726,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                             {(excludedPage.currentPage - 1) * pageSize + idx + 1}
                           </td>
 
-                          {/* 被排除对象 */}
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-[var(--ty-font-main-color)]">{exc.objectName}</div>
-                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
-                              {exc.objectId}
-                            </div>
-                          </td>
+                          <td className="py-3 px-4 font-bold text-[var(--ty-font-main-color)]">{exc.objectName}</td>
+                          <td className="py-3 px-4 text-[var(--ty-font-sub-color)] font-mono">{exc.objectId}</td>
 
                           {/* 门槛字段 */}
                           <td className="py-3 px-4">

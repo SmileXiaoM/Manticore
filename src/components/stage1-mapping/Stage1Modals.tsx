@@ -70,21 +70,21 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="publish-config-dialog-title" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full max-h-[calc(100dvh-120px)] p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4 overflow-y-auto">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div className="flex items-center space-x-3">
             <div className="bg-[var(--ty-green-lightest-color)] p-2 rounded-ty-sm text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
               <Send className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">发布配置确认</h3>
+              <h3 id="publish-config-dialog-title" className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">发布配置确认</h3>
               <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
                 将草稿配置发布为当前根类型的正式配置
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" aria-label="关闭发布配置确认" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -164,7 +164,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
             <span>{!currentRootType.serviceStarted && startService ? '发布并开启同步' : '确认发布'} ({totalDraftCount} 项)</span>
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
@@ -205,8 +205,8 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
     : '待获取';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-red-color)]/30 max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="reset-access-dialog-title" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-red-color)]/30 max-w-lg w-full max-h-[calc(100dvh-120px)] p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4 overflow-y-auto">
         {/* 1. 标题 */}
         <div className="flex items-start justify-between border-b border-[var(--ty-red-color)]/20 pb-3">
           <div className="flex items-center space-x-3">
@@ -214,7 +214,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-ty-sm font-bold text-[var(--ty-red-color)]">
+              <h3 id="reset-access-dialog-title" className="text-ty-sm font-bold text-[var(--ty-red-color)]">
                 确认重置“{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}”接入？
               </h3>
             </div>
@@ -222,7 +222,8 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
+            aria-label="关闭重置接入确认"
+            className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -322,7 +323,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
             <span>重置接入</span>
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
@@ -342,8 +343,8 @@ export const ResetBlockModal: React.FC<ResetBlockModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-orange-color)]/40 max-w-md w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="alertdialog" aria-modal="true" aria-label="当前无法重置接入" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-orange-color)]/40 max-w-md w-full max-h-[calc(100dvh-120px)] p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4 overflow-y-auto">
         <div className="flex items-start space-x-3">
           <div className="p-2 rounded-ty-sm bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30 shrink-0">
             <AlertTriangle className="w-5 h-5" />
@@ -367,7 +368,7 @@ export const ResetBlockModal: React.FC<ResetBlockModalProps> = ({
             我知道了
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
@@ -631,14 +632,14 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
   if (!isOpen || !field) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-4">
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
+      <section role="dialog" aria-modal="true" aria-labelledby="field-detail-dialog-title" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] max-w-lg w-full max-h-[calc(100dvh-120px)] p-5 animate-in fade-in zoom-in-95 duration-150 space-y-4 overflow-y-auto">
         <div className="flex items-start justify-between border-b border-[var(--ty-border-light-color)] pb-3">
           <div>
-            <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">字段映射详细定义</h3>
+            <h3 id="field-detail-dialog-title" className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">字段映射详细定义</h3>
             <p className="text-ty-xs font-mono text-[var(--ty-primary-color)]">{field.manticoreField} ({field.displayTitle})</p>
           </div>
-          <button type="button" onClick={onClose} className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" aria-label="关闭字段映射详情" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -760,7 +761,7 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
             关闭
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

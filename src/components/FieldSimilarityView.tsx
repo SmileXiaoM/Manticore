@@ -890,17 +890,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-ty-xs border-collapse">
+            <table className="w-full min-w-[1320px] text-left text-ty-xs border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <th className="py-2 px-4 w-12 text-center">序号</th>
-                  <th className="py-2 px-4">字段名称 / 编码</th>
+                  <th className="py-2 px-4">字段名称</th>
+                  <th className="py-2 px-4">字段编码</th>
                   <th className="py-2 px-4">字段类型</th>
                   <th className="py-2 px-4">权重 (Weight)</th>
-                  <th className="py-2 px-4">匹配方式与门槛处理</th>
+                  <th className="py-2 px-4">匹配方式</th>
+                  <th className="py-2 px-4">不匹配处理</th>
                   <th className="py-2 px-4">缺失值处理</th>
                   <th className="py-2 px-4 text-center">参与评分</th>
-                  <th className="py-2 px-4 text-right">操作</th>
+                  <th className="py-2 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -916,7 +918,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         {(currentPage - 1) * pageSize + idx + 1}
                       </td>
 
-                      {/* 字段名称 / 编码 */}
+                      {/* 字段名称 */}
                       <td className="py-3 px-4">
                         <div className="font-bold text-[var(--ty-font-main-color)] flex items-center gap-2">
                           {rule.fieldName}
@@ -926,10 +928,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
-                          {rule.propertyCode}
-                        </div>
                       </td>
+                      <td className="py-3 px-4 font-mono text-[var(--ty-font-sub-color)]">{rule.propertyCode}</td>
 
                       {/* 字段类型 */}
                       <td className="py-3 px-4">
@@ -951,12 +951,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </div>
                       </td>
 
-                      {/* 匹配方式与门槛处理 */}
+                      {/* 匹配方式 */}
+                      <td className="py-3 px-4 font-medium text-[var(--ty-font-main-color)]">{rule.matchType}</td>
                       <td className="py-3 px-4">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="font-medium text-[var(--ty-font-main-color)] text-ty-2xs">
-                            {rule.matchType}
-                          </span>
                           {isGate ? (
                             <span
                               className="inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/40 rounded-ty-xs"
@@ -970,7 +967,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                               记 0 分继续计算
                             </span>
                           )}
-                        </div>
                       </td>
 
                       {/* 缺失值处理 */}
@@ -982,10 +978,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <td className="py-3 px-4 text-center">
                         <button
                           onClick={() => handleToggleScoreActive(rule)}
-                          className={`w-9 h-5 inline-flex items-center rounded-full transition-colors p-0.5 cursor-pointer ${
+                          className={`w-10 h-6 inline-flex items-center rounded-full transition-colors p-1 cursor-pointer ${
                             rule.isScoreActive ? 'bg-[var(--ty-primary-color)]' : 'bg-[var(--ty-border-color)]'
                           }`}
-                          title={rule.isScoreActive ? '点击停用评分' : '点击启用评分'}
+                          aria-label={rule.isScoreActive ? `停用${rule.fieldName}评分` : `启用${rule.fieldName}评分`}
                           id={`toggle-score-active-${rule.id}`}
                         >
                           <span
@@ -997,20 +993,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       </td>
 
                       {/* 操作 */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-white-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenEditModal(rule)}
-                            className="p-2 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lighter-color)]/30 rounded-ty-sm transition-colors cursor-pointer"
-                            title="编辑规则"
+                            className="h-8 w-8 inline-flex items-center justify-center text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lighter-color)]/30 rounded-ty-sm transition-colors cursor-pointer"
+                            aria-label={`编辑${rule.fieldName}规则`}
                             id={`edit-rule-${rule.id}`}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteRule(rule.id)}
-                            className="p-2 text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] rounded-ty-sm transition-colors cursor-pointer"
-                            title="删除规则"
+                            className="h-8 w-8 inline-flex items-center justify-center text-[var(--ty-font-sub-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] rounded-ty-sm transition-colors cursor-pointer"
+                            aria-label={`删除${rule.fieldName}规则`}
                             id={`delete-rule-${rule.id}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

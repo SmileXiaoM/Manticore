@@ -471,11 +471,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
           {/* 嵌入式业务结果列表 (按一阶段动态展示列呈现) */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-ty-xs border-collapse">
+            <table className="w-full min-w-[1500px] text-left text-ty-xs border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
                   <th className="py-2 px-4 w-12 text-center">序号</th>
-                  <th className="py-2 px-4">物料编码与名称</th>
+                  <th className="py-2 px-4">物料名称</th>
+                  <th className="py-2 px-4">物料编码</th>
                   {keyDisplayColumns.map(col => (
                     <th key={col.fieldCode} className="py-2 px-4">
                       {col.displayName}
@@ -483,8 +484,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                   ))}
                   <th className="py-2 px-4">生命周期状态</th>
                   <th className="py-2 px-4">相似度</th>
-                  <th className="py-2 px-4">等级 / 覆盖率</th>
-                  <th className="py-2 px-4 text-right">操作</th>
+                  <th className="py-2 px-4">相似等级</th>
+                  <th className="py-2 px-4">覆盖率</th>
+                  <th className="py-2 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
@@ -498,13 +500,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       {(currentPage - 1) * pageSize + idx + 1}
                     </td>
 
-                    {/* 物料编码与名称 */}
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-[var(--ty-font-main-color)]">{cand.objectName}</div>
-                      <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono mt-0.5">
-                        {cand.objectId}
-                      </div>
-                    </td>
+                    <td className="py-3 px-4 font-bold text-[var(--ty-font-main-color)]">{cand.objectName}</td>
+                    <td className="py-3 px-4 text-[var(--ty-font-sub-color)] font-mono">{cand.objectId}</td>
 
                     {/* 动态一阶段业务属性列 */}
                     {keyDisplayColumns.map(col => {
@@ -539,9 +536,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       </span>
                     </td>
 
-                    {/* 等级 / 覆盖率 */}
+                    {/* 等级 */}
                     <td className="py-3 px-4">
-                      <div className="flex flex-col gap-0.5 items-start">
                         <span
                           className={`px-2 py-0.2 text-ty-2xs font-bold rounded-ty-xs ${
                             cand.similarityTier === '高相似'
@@ -553,14 +549,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                         >
                           {cand.similarityTier}
                         </span>
-                        <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
-                          覆盖率 {cand.coverageRate}%
-                        </span>
-                      </div>
                     </td>
+                    <td className="py-3 px-4 font-mono">{cand.coverageRate}%</td>
 
                     {/* 操作 */}
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-white-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">
                       <button
                         onClick={() => setSelectedForCompare(cand)}
                         className="h-7 min-w-16 inline-flex items-center gap-1 px-3 text-ty-xs font-semibold text-[var(--ty-font-main-light-color)] hover:text-[var(--ty-primary-color)] bg-[var(--ty-fill-weak-dark-color)] hover:bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-border-color)] rounded-ty-sm transition-colors cursor-pointer"

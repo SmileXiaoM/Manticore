@@ -7,7 +7,6 @@ import {
   PlayCircle,
   PauseCircle,
   Eye,
-  HelpCircle,
   FileSpreadsheet,
   ListOrdered,
   CheckCircle2,
@@ -15,7 +14,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Database,
-  Info,
   RotateCcw,
   AlertCircle,
   Link,
@@ -29,6 +27,7 @@ import {
 } from '../../stage1MappingTypes';
 import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
 import { FloatingMoreMenu } from './FloatingMoreMenu';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -68,7 +67,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   // 筛选与搜索
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONFIGURED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showTooltip, setShowTooltip] = useState(false);
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,44 +127,18 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
 
   const renderConfigStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'CONFIGURED') {
-      if (field.hasDraftModification) {
-        return (
-          <div className="space-y-1">
-            <span className="h-6 inline-flex items-center min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
-              <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
-              已配置
-            </span>
-            <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs font-medium flex flex-wrap items-center gap-y-1 whitespace-normal max-w-full">
-              <Clock className="w-2.5 h-2.5 mr-1 text-[var(--ty-blue-color)] shrink-0" />
-              <span>有草稿修改</span>
-              {field.isDataImpactingChange && (
-                <span className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-ty-xs font-normal shrink-0">
-                  含数据影响
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      }
       return (
-        <span className="h-6 inline-flex items-center min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
+        <span className="h-6 inline-flex items-center px-2 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30">
           <CheckCircle2 className="w-3 h-3 mr-1 text-[var(--ty-green-color)] shrink-0" />
-          已配置
+          {field.hasDraftModification ? '已配置 · 有草稿' : '已配置'}
         </span>
       );
     }
     return (
-      <div className="space-y-1">
-        <span className="h-6 inline-flex items-center min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-xs font-medium whitespace-normal max-w-full bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
-          <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
-          草稿
-        </span>
-        {field.isDataImpactingChange && (
-          <div className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs font-medium whitespace-normal max-w-full">
-            发布后由服务处理
-          </div>
-        )}
-      </div>
+      <span className="h-6 inline-flex items-center px-2 rounded-ty-xs text-ty-xs font-medium whitespace-nowrap bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30">
+        <Clock className="w-3 h-3 mr-1 text-[var(--ty-orange-color)] shrink-0" />
+        {field.isDataImpactingChange ? '草稿 · 数据影响' : '草稿'}
+      </span>
     );
   };
 
@@ -174,8 +146,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const renderBaseStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'DRAFT') {
       return (
-        <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs italic whitespace-normal max-w-full" title="草稿未生效，不进入正式查询底座">
-          - (草稿未生效)
+        <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs whitespace-nowrap">
+          草稿未生效
         </span>
       );
     }
@@ -183,15 +155,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     if (field.isInFormalQueryBase) {
       if (field.hasDraftModification && field.isDataImpactingChange) {
         return (
-          <div className="space-y-0.5">
-            <span className="h-6 inline-flex items-center text-ty-xs font-medium whitespace-normal max-w-full text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 min-h-6 px-2 inline-flex items-center rounded-ty-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-blue-color)] mr-2 shrink-0"></span>
-              已在正式底座
-            </span>
-            <div className="text-ty-2xs text-[var(--ty-orange-color)] font-medium leading-tight whitespace-normal max-w-full">
-              新修改待生效同步
-            </div>
-          </div>
+          <span className="h-6 inline-flex items-center text-ty-xs font-medium whitespace-nowrap text-[var(--ty-font-main-light-color)] bg-[var(--ty-blue-lightest-color)] border border-[var(--ty-blue-color)]/30 px-2 rounded-ty-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-blue-color)] mr-2 shrink-0"></span>
+            正式底座 · 待更新
+          </span>
         );
       }
       return (
@@ -260,33 +227,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             <h2 className="text-ty-sm font-bold text-[var(--ty-font-main-color)] flex items-center">
               {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)} - 字段配置明细
             </h2>
-            <div className="relative">
-              <button
-                type="button"
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-                onClick={() => setShowTooltip(!showTooltip)}
-                className="text-[var(--ty-icon-light-color)] hover:text-[var(--ty-icon-main-color)] cursor-pointer p-0.5 rounded"
-                title="查看根类型映射业务规则"
-              >
-                <HelpCircle className="w-3.5 h-3.5" />
-              </button>
-
-              {showTooltip && (
-                <div className="absolute left-0 top-6 z-30 w-80 p-3 bg-[var(--ty-fill-darkest-color)] text-[var(--ty-font-white-color)] rounded-ty-lg shadow-ty-lg text-ty-xs leading-relaxed space-y-2">
-                  <div className="font-bold flex items-center text-[var(--ty-orange-light-color)]">
-                    <Info className="w-3.5 h-3.5 mr-1" />
-                    根类型字段映射规则说明
-                  </div>
-                  <p className="text-[var(--ty-font-sub-light-color)]">
-                    1. 映射以一条条字段为基本单元，直接归属根类型。
-                  </p>
-                  <p className="text-[var(--ty-font-sub-light-color)]">
-                    2. 配置发布后由常驻服务轮询中间表；服务逐条处理成功后更新正式查询底座。
-                  </p>
-                </div>
-              )}
-            </div>
+            <HelpTooltip
+              label="查看根类型映射业务规则"
+              content="字段映射直接归属根类型；配置发布后，由常驻服务按检查频率轮询中间表并逐条写入 Manticore。"
+            />
           </div>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)]">
             已配置生效 <span className="font-mono font-semibold text-[var(--ty-font-main-color)]">{currentRootType.configuredFieldCount}</span> 个 | 正式可查 <span className="font-mono font-semibold text-[var(--ty-blue-color)]">{currentRootType.formalQueryableFieldCount}</span> 个 | 草稿项 <span className="font-mono font-semibold text-[var(--ty-orange-color)]">{totalDraftWorkItemCount}</span> 项
@@ -299,7 +243,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             type="button"
             onClick={onOpenCreateSingle}
             disabled={!hasPermission}
-            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${hasPermission ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-white' : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'}`}
+            className={`h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${hasPermission ? 'bg-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-hover-color)] text-[var(--ty-font-white-color)]' : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] border border-[var(--ty-border-color)] cursor-not-allowed'}`}
           >
             <Plus className="w-3.5 h-3.5" />新建属性
           </button>
@@ -307,7 +251,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             type="button"
             onClick={onOpenBatchImport}
             disabled={!hasPermission}
-            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />批量同步属性
           </button>
@@ -315,7 +259,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             type="button"
             onClick={onOpenBatchDisplayOrder}
             disabled={!hasPermission || rootTypeFields.length === 0}
-            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
             title="选择多个已有属性并统一设置展示顺序"
           >
             <ListOrdered className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />批量调整顺序
@@ -351,7 +295,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             type="button"
             onClick={onToggleAccess}
             disabled={!hasPermission || !currentRootType.serviceStarted}
-            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-white hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-8 px-3 rounded-ty-sm text-ty-xs font-medium flex items-center gap-2 border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-40 disabled:cursor-not-allowed"
             title={!currentRootType.serviceStarted ? '首次发布并开启同步服务后可控制接入状态' : currentRootType.accessEnabled ? '停用后不再轮询该类型中间表' : '启用后恢复轮询该类型中间表'}
           >
             {currentRootType.accessEnabled ? <PauseCircle className="w-3.5 h-3.5" /> : <PlayCircle className="w-3.5 h-3.5" />}
@@ -469,42 +413,39 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-left text-ty-xs">
+          <table className="w-full min-w-[1540px] text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
-                <th className="py-2 px-1 w-[11%] whitespace-normal">PLM 来源字段</th>
-                <th className="py-2 px-1 w-[11%] whitespace-normal">Manticore 检索字段</th>
-                <th className="py-2 px-1 w-[9%] whitespace-normal">前台显示名称</th>
-                <th className="py-2 px-1 w-[7%] whitespace-normal text-center" title="数字越小越靠前；相同顺序的属性排在一起">展示顺序</th>
-                <th className="py-2 px-1 w-[8%] whitespace-normal">PLM 业务类型</th>
-                <th className="py-2 px-1 w-[7%] whitespace-normal">底层类型</th>
-                <th className="py-2 px-1 w-[8%] whitespace-normal">查询能力</th>
-                <th className="py-2 px-1 w-[4%] whitespace-normal text-center">排序</th>
-                <th className="py-2 px-1 w-[9%] whitespace-normal text-center">结果展示</th>
-                <th className="py-2 px-1 w-[9%] whitespace-normal">配置状态</th>
-                <th className="py-2 px-1 w-[9%] whitespace-normal">底座状态</th>
-                <th className="py-2 px-1 w-[10%] whitespace-normal text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10">操作</th>
+                <th className="w-12 py-2 px-2 text-center">序号</th>
+                <th className="min-w-40 py-2 px-2">PLM 来源字段</th>
+                <th className="min-w-44 py-2 px-2">Manticore 检索字段</th>
+                <th className="min-w-40 py-2 px-2">前台显示名称</th>
+                <th className="min-w-24 py-2 px-2 text-center"><span className="inline-flex items-center gap-1">展示顺序<HelpTooltip label="查看展示顺序规则" content="数字越小越靠前；允许相同顺序号，相同顺序的属性会相邻展示。" /></span></th>
+                <th className="min-w-32 py-2 px-2">PLM 业务类型</th>
+                <th className="min-w-24 py-2 px-2">底层类型</th>
+                <th className="min-w-28 py-2 px-2">查询能力</th>
+                <th className="w-16 py-2 px-2 text-center">排序</th>
+                <th className="min-w-28 py-2 px-2 text-center">结果展示</th>
+                <th className="min-w-36 py-2 px-2">配置状态</th>
+                <th className="min-w-36 py-2 px-2">底座状态</th>
+                <th className="min-w-32 py-2 px-2 text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]">
               {paginatedFields.length > 0 ? (
-                paginatedFields.map(field => (
+                paginatedFields.map((field, index) => (
                   <tr key={field.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50 transition-colors group">
+                    <td className="py-2 px-2 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
                     {/* 1. PLM 来源字段 */}
-                    <td className="py-2 px-1 break-words">
-                      <div className="font-mono font-semibold break-all text-[var(--ty-font-main-color)]">{field.sourceFieldName}</div>
-                      <div className="text-ty-xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
-                        <span>{field.sourceDisplayName}</span>
-                        {field.isDisplayNameMissing && (
-                          <span className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-ty-xs font-normal" title="PLM 未返回显示名，已按字段名兜底">
-                            显示名兜底
-                          </span>
-                        )}
+                    <td className="py-2 px-2 break-words">
+                      <div className="font-mono font-semibold break-all text-[var(--ty-font-main-color)] inline-flex items-center gap-1">
+                        <span>{field.sourceFieldName}</span>
+                        <HelpTooltip label={`查看${field.sourceFieldName}来源定义`} content={`PLM 显示名：${field.sourceDisplayName}；源字段 Key：${field.sourceFieldKey}${field.isDisplayNameMissing ? '；PLM 未返回显示名，当前按字段名兜底' : ''}`} />
                       </div>
                     </td>
 
                     {/* 2. Manticore 检索字段 (紧邻源字段) */}
-                    <td className="py-2 px-1 break-words font-mono font-semibold text-[var(--ty-blue-color)]">
+                    <td className="py-2 px-2 break-words font-mono font-semibold text-[var(--ty-blue-color)]">
                       <div className="flex items-center space-x-1">
                         <ArrowRight className="w-3 h-3 text-[var(--ty-border-color)] shrink-0" />
                         <span className="min-w-0 break-all">{field.manticoreField}</span>
@@ -512,32 +453,28 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 3. 前台显示名称 */}
-                    <td className="py-2 px-1 break-words font-medium text-[var(--ty-font-main-color)]">
+                    <td className="py-2 px-2 break-words font-medium text-[var(--ty-font-main-color)]">
                       {field.hasDraftModification && field.draftData?.displayTitle ? (
-                        <div>
+                        <span className="inline-flex items-center gap-1">
                           <span className="text-[var(--ty-font-main-color)]">{field.displayTitle}</span>
-                          <div className="text-ty-2xs text-[var(--ty-blue-color)] font-semibold flex items-center mt-0.5">
-                            草稿修改: {field.draftData.displayTitle}
-                          </div>
-                        </div>
+                          <HelpTooltip label="查看显示名称草稿" content={`草稿拟修改为：${field.draftData.displayTitle}`} />
+                        </span>
                       ) : (
                         field.displayTitle
                       )}
                     </td>
 
                     {/* 展示顺序 */}
-                    <td className="py-2 px-1 text-center">
+                    <td className="py-2 px-2 text-center">
                       {field.hasDraftModification && field.draftData?.displayOrder !== undefined ? (
-                        <div className="font-mono font-bold text-[var(--ty-font-main-color)]">
+                        <span className="font-mono font-bold text-[var(--ty-font-main-color)] inline-flex items-center gap-1">
                           <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-blue-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-blue-color)]/30 text-ty-xs">
                             {field.draftData.displayOrder}
                           </span>
                           {field.draftData.displayOrder !== field.displayOrder && (
-                            <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-normal mt-0.5 line-through">
-                              原: {field.displayOrder}
-                            </div>
+                            <HelpTooltip label="查看正式展示顺序" content={`当前正式顺序：${field.displayOrder ?? field.defaultDisplayOrder ?? '-'}；发布后采用草稿顺序。`} />
                           )}
-                        </div>
+                        </span>
                       ) : (
                         <span className="font-mono font-semibold break-all text-[var(--ty-font-main-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] text-ty-xs">
                           {field.displayOrder ?? field.defaultDisplayOrder ?? '-'}
@@ -546,7 +483,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 4. PLM 业务类型 */}
-                    <td className="py-2 px-1 break-words text-[var(--ty-font-sub-color)]">
+                    <td className="py-2 px-2 break-words text-[var(--ty-font-sub-color)]">
                       <span>{field.sourceDataTypeLabel}</span>
                       {field.defaultUnit && (
                         <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">({field.defaultUnit})</span>
@@ -554,12 +491,12 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 5. Manticore 底层存储类型 */}
-                    <td className="py-2 px-1 break-words font-mono text-ty-xs text-[var(--ty-font-sub-color)]">
+                    <td className="py-2 px-2 break-words font-mono text-ty-xs text-[var(--ty-font-sub-color)]">
                       {field.manticoreType}
                     </td>
 
                     {/* 6. 查询能力 */}
-                    <td className="py-2 px-1 break-words">
+                    <td className="py-2 px-2 break-words">
                       {renderQueryCapabilityBadge(
                         field.hasDraftModification && field.draftData?.queryCapability
                           ? field.draftData.queryCapability
@@ -568,7 +505,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 7. 允许排序 */}
-                    <td className="py-2 px-1 text-center">
+                    <td className="py-2 px-2 text-center">
                       {(field.hasDraftModification && field.draftData?.isSortable !== undefined
                         ? field.draftData.isSortable
                         : field.isSortable) ? (
@@ -579,7 +516,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 8. 结果展示 (支持超链接标记，复用统一有效超链接判定口径) */}
-                    <td className="py-2 px-1 text-center">
+                    <td className="py-2 px-2 text-center">
                       {(() => {
                         if (!field.isDisplayInResult) {
                           return <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs">否</span>;
@@ -604,17 +541,17 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     </td>
 
                     {/* 9. 配置状态 */}
-                    <td className="py-2 px-1 break-words">
+                    <td className="py-2 px-2 break-words">
                       {renderConfigStatusBadge(field)}
                     </td>
 
                     {/* 11. 底座状态 */}
-                    <td className="py-2 px-1 break-words">
+                    <td className="py-2 px-2 break-words">
                       {renderBaseStatusBadge(field)}
                     </td>
 
                     {/* 12. 操作列 (粘性吸附) */}
-                    <td className="py-2 px-1 break-words text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] z-10 whitespace-nowrap">
+                    <td className="py-2 px-2 break-words text-center sticky right-0 bg-[var(--ty-fill-white-color)] group-hover:bg-[var(--ty-fill-weak-dark-color)]/50 border-l border-[var(--ty-border-color)] z-10 whitespace-nowrap">
                       <div className="flex items-center justify-center space-x-2 whitespace-nowrap">
                         <button
                           type="button"
@@ -641,7 +578,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                  <td colSpan={13} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                     <FileSpreadsheet className="w-8 h-8 text-[var(--ty-icon-lighter-color)] mx-auto mb-2" />
                     未找到符合条件的字段映射记录
                   </td>

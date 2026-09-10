@@ -157,7 +157,7 @@ export function ManticoreSyncQueueView({
 
       <section className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3" aria-label="同步队列概览">
         {metrics.map((metric) => (
-          <div key={metric.label} className="min-w-0 bg-white border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between gap-2">
+          <div key={metric.label} className="min-w-0 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{metric.label}</span>
               <strong className={`${metric.time ? 'text-ty-xs' : 'text-ty-xl'} mt-1 block font-mono truncate`} title={metric.exactValue === undefined ? metric.value : metric.exactValue.toLocaleString('zh-CN')}>{metric.value}</strong>
@@ -167,17 +167,17 @@ export function ManticoreSyncQueueView({
         ))}
       </section>
 
-      <section className="bg-white border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
+      <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">对象类型</span>
-          <select value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} aria-label="同步队列对象类型" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
+          <select value={rootType} onChange={(event) => { setRootType(event.target.value); setPage(1); }} aria-label="同步队列对象类型" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]">
             <option value="ALL">全部类型</option>
             {roots.map((root) => <option key={root.id} value={root.id}>{rootName[root.id]}</option>)}
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">处理状态</span>
-          <select value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | TargetSyncStatus); setPage(1); }} aria-label="同步队列状态" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">
+          <select value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | TargetSyncStatus); setPage(1); }} aria-label="同步队列状态" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]">
             <option value="ALL">全部状态</option>
             {Object.entries(targetSyncStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
@@ -206,7 +206,7 @@ export function ManticoreSyncQueueView({
         </div>
       )}
 
-      <section className="bg-white border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
+      <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--ty-border-color)]">
           <h2 className="text-ty-sm font-semibold">同步记录</h2>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条；失败记录可查看详情，并重新放回待处理队列。</p>
@@ -247,7 +247,7 @@ export function ManticoreSyncQueueView({
                       ? <span className={`${row.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'} block max-w-64 truncate`} title={row.failureReason}>{row.status === 'FAILED' ? row.failureReason : `上次失败：${row.failureReason}`}</span>
                       : <span className="text-[var(--ty-font-sub-light-color)]">—</span>}
                   </td>
-                  <td className="sticky right-0 px-3 py-3 text-center bg-white whitespace-nowrap">
+                  <td className="sticky right-0 px-3 py-3 text-center bg-[var(--ty-fill-white-color)] whitespace-nowrap">
                     <button type="button" onClick={() => setDetailId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><Eye className="w-3.5 h-3.5" />详情</button>
                     {row.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
                   </td>
@@ -261,8 +261,8 @@ export function ManticoreSyncQueueView({
       </section>
 
       {detail && (
-        <div className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center p-4" onMouseDown={(event) => event.target === event.currentTarget && setDetailId(null)}>
-          <section role="dialog" aria-modal="true" aria-label="同步记录详情" className="w-[min(800px,calc(100vw-32px))] max-h-[calc(100vh-32px)] flex flex-col bg-white border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center px-4 py-[60px] overflow-y-auto" onMouseDown={(event) => event.target === event.currentTarget && setDetailId(null)}>
+          <section role="dialog" aria-modal="true" aria-label="同步记录详情" className="w-[min(800px,calc(100vw-32px))] max-h-[calc(100dvh-120px)] flex flex-col bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
             <header className="shrink-0 px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex justify-between items-center">
               <div>
                 <h2 className="text-ty-lg font-semibold">同步记录详情</h2>
@@ -308,10 +308,10 @@ export function ManticoreSyncQueueView({
               )}
             </div>
             <footer className="shrink-0 px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex items-center justify-between gap-3">
-              <button type="button" onClick={() => setShowJson((current) => !current)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white inline-flex items-center gap-2 hover:bg-[var(--ty-fill-color)]"><FileJson className="w-3.5 h-3.5" />{showJson ? '收起原始 JSON' : '查看原始 JSON'}</button>
+              <button type="button" onClick={() => setShowJson((current) => !current)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] inline-flex items-center gap-2 hover:bg-[var(--ty-fill-color)]"><FileJson className="w-3.5 h-3.5" />{showJson ? '收起原始 JSON' : '查看原始 JSON'}</button>
               <div className="flex items-center gap-2">
-                {detail.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmId(detail.id)} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-white inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
-                <button type="button" className="h-8 min-w-16 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white" onClick={() => setDetailId(null)}>关闭</button>
+                {detail.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmId(detail.id)} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
+                <button type="button" className="h-8 min-w-16 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" onClick={() => setDetailId(null)}>关闭</button>
               </div>
             </footer>
           </section>
@@ -320,15 +320,15 @@ export function ManticoreSyncQueueView({
 
       {retryConfirmId && (
         <div className="fixed inset-0 z-[60] bg-ty-overlay flex items-center justify-center p-4" onMouseDown={(event) => event.target === event.currentTarget && setRetryConfirmId(null)}>
-          <section role="alertdialog" aria-modal="true" aria-label="确认重新入队" className="w-[min(480px,calc(100vw-32px))] bg-white border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
+          <section role="alertdialog" aria-modal="true" aria-label="确认重新入队" className="w-[min(480px,calc(100vw-32px))] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
             <header className="px-4 py-3 border-b border-[var(--ty-border-color)]"><h2 className="text-ty-lg font-semibold">确认重新入队</h2></header>
             <div className="p-4 text-ty-sm leading-6">
               <p>记录将变为“待处理”，并在该对象下一次同步任务执行时重试。</p>
               <p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">上次失败原因会保留，便于后续复盘；重新入队不会立即写入 Manticore。</p>
             </div>
             <footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex justify-end gap-2">
-              <button type="button" className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white" onClick={() => setRetryConfirmId(null)}>取消</button>
-              <button type="button" className="h-8 px-4 border border-[var(--ty-primary-color)] rounded-ty-sm bg-[var(--ty-primary-color)] text-white" onClick={() => retry(retryConfirmId)}>确认重新入队</button>
+              <button type="button" className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" onClick={() => setRetryConfirmId(null)}>取消</button>
+              <button type="button" className="h-8 px-4 border border-[var(--ty-primary-color)] rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]" onClick={() => retry(retryConfirmId)}>确认重新入队</button>
             </footer>
           </section>
         </div>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SourceAttributeDetails } from './SourceAttributeDetails';
 import {
   X,
   Search,
@@ -772,16 +771,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </div>
 
               {/* 候选表格 */}
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full text-left text-ty-xs">
+              <div className="flex-1 overflow-auto">
+                <table className="w-full min-w-[2100px] text-left text-ty-xs">
                   <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
                     <tr>
                       <th className="py-2 px-3 w-10 text-center">
                         <button
                           type="button"
                           onClick={toggleSelectAll}
-                          className="cursor-pointer text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)] p-0.5"
-                          title="全选/全不选"
+                          className="h-7 w-7 inline-flex items-center justify-center cursor-pointer text-[var(--ty-font-sub-color)] hover:text-[var(--ty-primary-color)]"
+                          aria-label="全选或取消全选"
                         >
                           {filteredCandidates.filter(c => c.isSelectable).length > 0 &&
                           filteredCandidates
@@ -793,10 +792,20 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                           )}
                         </button>
                       </th>
-                      <th className="py-2 px-3 min-w-[150px]">PLM 源字段 / 显示名</th>
-                      <th className="py-2 px-3 min-w-[200px]">PLM 属性定义（只读）</th>
-                      <th className="py-2 px-3 min-w-[210px]">建议映射</th>
-                      <th className="py-2 px-3 min-w-[130px]">比对状态与说明</th>
+                      <th className="py-2 px-3 w-12 text-center">序号</th>
+                      <th className="py-2 px-3 min-w-[140px]">PLM 源字段</th>
+                      <th className="py-2 px-3 min-w-[140px]">PLM 显示名</th>
+                      <th className="py-2 px-3 min-w-[130px]">PLM 数据类型</th>
+                      <th className="py-2 px-3 min-w-[170px]">来源表</th>
+                      <th className="py-2 px-3 min-w-[100px]">属性类型</th>
+                      <th className="py-2 px-3 min-w-[80px]">多值</th>
+                      <th className="py-2 px-3 min-w-[100px]">枚举定义</th>
+                      <th className="py-2 px-3 min-w-[140px]">前台显示名称</th>
+                      <th className="py-2 px-3 min-w-[150px]">Manticore 字段</th>
+                      <th className="py-2 px-3 min-w-[100px]">存储类型</th>
+                      <th className="py-2 px-3 min-w-[90px] text-center">展示顺序</th>
+                      <th className="py-2 px-3 min-w-[120px]">比对状态</th>
+                      <th className="py-2 px-3 min-w-[180px]">说明</th>
                       <th className="py-2 px-3 min-w-[110px] text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] z-10 shadow-ty-sticky">
                         配置与操作
                       </th>
@@ -804,7 +813,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                   </thead>
                   <tbody className="divide-y divide-[var(--ty-border-light-color)] text-[var(--ty-font-main-color)]">
                     {filteredCandidates.length > 0 ? (
-                      filteredCandidates.map(c => {
+                      filteredCandidates.map((c, index) => {
                         const key = c.sourceFieldMeta.sourceFieldKey;
                         const isChecked = selectedKeys.includes(key);
                         const custom = candidateCustomConfigs[key];
@@ -818,6 +827,16 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         const currentTitle = custom ? custom.displayTitle : c.suggestedDisplayTitle;
                         const currentManticore = custom ? custom.manticoreField : c.suggestedManticoreField;
                         const currentType = custom ? custom.manticoreType : c.suggestedManticoreType;
+                        const sourceTables = c.sourceFieldMeta.sourceTables === undefined
+                          ? '未返回'
+                          : c.sourceFieldMeta.sourceTables.length > 0
+                          ? c.sourceFieldMeta.sourceTables.join('、')
+                          : '无直接来源表';
+                        const sourceKind = c.sourceFieldMeta.attributeKind
+                          ? ({ HARD: '硬属性', EXTENDED: '扩展属性', VIRTUAL: '虚拟属性' } as const)[c.sourceFieldMeta.attributeKind]
+                          : '未返回';
+                        const enumDefined = c.sourceFieldMeta.hasEnumDefinition ??
+                          (c.sourceFieldMeta.enumDefinition || (c.sourceFieldMeta.enumOptions?.length ?? 0) > 0 ? true : undefined);
                         const normalizedSharedOrder = sharedDisplayOrder.trim() === '' ? undefined : Number(sharedDisplayOrder);
                         const currentOrder =
                           isChecked && normalizedSharedOrder !== undefined && Number.isInteger(normalizedSharedOrder) && normalizedSharedOrder > 0
@@ -852,60 +871,53 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                                 <span className="text-[var(--ty-font-sub-light-color)]">-</span>
                               )}
                             </td>
+                            <td className="py-2 px-3 text-center text-[var(--ty-font-sub-color)]">{index + 1}</td>
 
                             {/* PLM 来源元数据 (只读) */}
                             <td className="py-2 px-3">
                               <div className="font-mono font-semibold text-[var(--ty-font-main-color)]">
                                 {c.sourceFieldMeta.sourceFieldName}
                               </div>
-                                <div className="text-ty-2xs text-[var(--ty-font-sub-color)] flex items-center mt-0.5">
+                            </td>
+                            <td className="py-2 px-3 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                              <span className="inline-flex items-center gap-1">
                                 <span>{resolvedName}</span>
                                 {isMissing && (
                                   <span
-                                    className="ml-1 text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-ty-xs font-normal shrink-0"
+                                    className="text-ty-2xs text-[var(--ty-font-main-light-color)] bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 px-1 rounded-ty-xs font-normal shrink-0"
                                     title="PLM 未返回显示名，已按字段名兜底"
                                   >
                                     显示名兜底
                                   </span>
                                 )}
-                              </div>
+                              </span>
                             </td>
 
-                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)]">
-                              <span>数据类型：{c.sourceFieldMeta.sourceDataTypeLabel}</span>
-                              {c.sourceFieldMeta.defaultUnit && (
-                                <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">
-                                  ({c.sourceFieldMeta.defaultUnit})
-                                </span>
-                              )}
-                              <SourceAttributeDetails meta={c.sourceFieldMeta} compact />
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)] whitespace-nowrap">
+                              {c.sourceFieldMeta.sourceDataTypeLabel}{c.sourceFieldMeta.defaultUnit ? `（${c.sourceFieldMeta.defaultUnit}）` : ''}
                             </td>
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)]">{sourceTables}</td>
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)] whitespace-nowrap">{sourceKind}</td>
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)] whitespace-nowrap">{c.sourceFieldMeta.isMultiValue === undefined ? '未返回' : c.sourceFieldMeta.isMultiValue ? '是' : '否'}</td>
+                            <td className="py-2 px-3 text-[var(--ty-font-sub-color)] whitespace-nowrap">{enumDefined === undefined ? '未返回' : enumDefined ? `有${c.sourceFieldMeta.enumOptions?.length ? `（${c.sourceFieldMeta.enumOptions.length} 项）` : ''}` : '无'}</td>
 
-                            <td className="py-2 px-3">
-                              <div className="font-medium text-[var(--ty-font-main-color)]">{currentTitle}</div>
-                              <div className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
-                                <code className="text-[var(--ty-primary-color)]">{currentManticore}</code>
-                                <span className="mx-1">·</span>{currentType}
-                                <span className="mx-1">·</span>展示顺序 {currentOrder ?? '-'}
-                              </div>
-                            </td>
+                            <td className="py-2 px-3 font-medium text-[var(--ty-font-main-color)]">{currentTitle}</td>
+                            <td className="py-2 px-3 font-mono text-[var(--ty-primary-color)]">{currentManticore}</td>
+                            <td className="py-2 px-3 font-mono text-[var(--ty-font-sub-color)]">{currentType}</td>
+                            <td className="py-2 px-3 text-center font-mono">{currentOrder ?? '-'}</td>
 
                             {/* 比对状态与提示 */}
                             <td className="py-2 px-3">
-                              <div className="space-y-0.5">
+                              <div>
                                 {renderConflictBadge(c)}
                                 {custom && (
                                   <span className="ml-1 px-1 py-0.5 rounded-ty-xs text-ty-2xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-medium inline-block">
                                     已定制属性
                                   </span>
                                 )}
-                                {c.conflictReason && (
-                                  <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-tight">
-                                    {c.conflictReason}
-                                  </div>
-                                )}
                               </div>
                             </td>
+                            <td className="py-2 px-3 text-ty-2xs text-[var(--ty-font-sub-color)] leading-tight">{c.conflictReason || '—'}</td>
 
                             {/* 配置与操作入口 */}
                             <td
@@ -951,7 +963,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                       })
                     ) : (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                        <td colSpan={16} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                           未找到匹配的候选元数据
                         </td>
                       </tr>
@@ -972,7 +984,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </span>
               <label className="space-y-1">
                 <span className="block text-ty-2xs">所选统一展示顺序（可选）</span>
-                <input type="number" min="1" step="1" value={sharedDisplayOrder} onChange={(event) => setSharedDisplayOrder(event.target.value)} disabled={selectedCount === 0} placeholder="留空则自动排列" className="h-8 w-40 px-3 bg-white border border-[var(--ty-border-color)] rounded-ty-sm disabled:opacity-40" />
+                <input type="number" min="1" step="1" value={sharedDisplayOrder} onChange={(event) => setSharedDisplayOrder(event.target.value)} disabled={selectedCount === 0} placeholder="留空则自动排列" className="h-8 w-40 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm disabled:opacity-40" />
               </label>
               <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">填写后，所选属性使用同一顺序并排在一起；留空则按来源顺序连续编排。</span>
             </div>
@@ -1004,7 +1016,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
         {/* 单行完整属性配置子弹窗 (使用公共 FieldMappingForm，避免代码与校验分裂) */}
         {configuringCandidate && configuringFormData && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-ty-overlay backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-ty-overlay backdrop-blur-xs px-4 py-[60px] overflow-y-auto">
             <section role="dialog" aria-modal="true" aria-label="批量属性单项配置" className="bg-[var(--ty-fill-white-color)] rounded-ty-lg shadow-ty-lg border border-[var(--ty-border-color)] w-[min(1000px,calc(100vw-32px))] flex flex-col max-h-[calc(100dvh-120px)] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
               <div className="px-5 py-4 border-b border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] shrink-0">
                 <div className="space-y-0.5">
@@ -1029,7 +1041,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     setConfiguringFormData(null);
                     setConfiguringErrors({});
                   }}
-                  className="text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer p-1 rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
+                  className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>

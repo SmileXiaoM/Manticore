@@ -29,6 +29,7 @@ import { initialMappingObjectTypes, initialFieldMappings } from '../stage1Mappin
 import { MappingObjectType, FieldMappingItem } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
 import { paginateRows, TablePagination } from './ui/TablePagination';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface DataConsistencyCheckViewProps {
   initialRootTypeFilter?: string;
@@ -361,9 +362,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
       <section className="panel plan-management" id="consistency-plan-management" aria-label="核验方案定义">
         <div className="section-heading">
-          <div>
+          <div className="section-title-with-help">
             <h2>核验方案</h2>
-            <p className="muted">方案定义核验字段、可用运行方式及方案自己的自动核验频率。</p>
+            <HelpTooltip label="查看核验方案说明" content="方案定义核验字段、可用运行方式及该方案自己的自动核验频率。" />
           </div>
           <div className="actions">
             <span className="muted">{visiblePlans.length} 个方案</span>
@@ -384,6 +385,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <table>
               <thead>
                 <tr>
+                  <th className="sequence-column">序号</th>
                   <th>方案名称</th>
                   <th>适用根类型</th>
                   <th>范围规则</th>
@@ -394,8 +396,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </tr>
               </thead>
               <tbody>
-                {pagePlans.map((plan) => (
+                {pagePlans.map((plan, index) => (
                   <tr key={plan.id}>
+                    <td className="sequence-column">{(currentPlanPage - 1) * planPageSize + index + 1}</td>
                     <td>{plan.name}</td>
                     <td>{rootName(plan.rootTypeCode)}</td>
                     <td>{scopeLabel(plan.scopeRule)}</td>
@@ -466,9 +469,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
 
       <section className="panel" aria-label="核验结果">
         <div className="section-heading">
-          <div>
+          <div className="section-title-with-help">
             <h2>核验记录</h2>
-            <p className="muted">记录任务执行状态和本次核验结论；不一致对象可继续查看字段证据。</p>
+            <HelpTooltip label="查看核验记录说明" content="记录任务执行状态和本次核验结论；不一致对象可继续查看字段证据。" />
           </div>
           <span className="muted">{visibleBatches.length} 次记录</span>
         </div>
@@ -477,10 +480,14 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             <thead>
               <tr>
                 <th className="sequence-column">序号</th>
-                <th>方案 / 核验时间</th>
-                <th>对象类型 / 运行方式</th>
+                <th>方案</th>
+                <th>核验时间</th>
+                <th>对象类型</th>
+                <th>运行方式</th>
                 <th>状态</th>
-                <th>核验结果</th>
+                <th>处理进度</th>
+                <th>一致率</th>
+                <th>结果分布</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -488,33 +495,22 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               {pageBatches.map((batch, index) => (
                 <tr key={batch.id}>
                   <td className="sequence-column">{(currentRecordPage - 1) * recordPageSize + index + 1}</td>
-                  <td>
-                    <strong>{batch.planName}</strong>
-                    <small className="muted">{batch.executedAt}</small>
-                  </td>
-                  <td>
-                    <span>{batch.rootTypeName}</span>
-                    <small className="muted">{CONSISTENCY_MODE_LABELS[batch.scopeMode]}</small>
-                  </td>
+                  <td><strong>{batch.planName}</strong></td>
+                  <td>{batch.executedAt}</td>
+                  <td>{batch.rootTypeName}</td>
+                  <td>{CONSISTENCY_MODE_LABELS[batch.scopeMode]}</td>
                   <td>
                     <span className={`task-status ${batch.status === 'COMPLETED' && batch.actualCount === 0 ? 'empty' : batch.status.toLowerCase()}`}>{statusLabel(batch)}</span>
                   </td>
+                  <td>{batch.status === 'FAILED' ? '--' : batch.status === 'RUNNING' ? `-- / ${batch.plannedCount}` : `${batch.actualCount} / ${batch.plannedCount}`}</td>
+                  <td>{batch.status === 'FAILED' || batch.status === 'RUNNING' ? '--' : calculateConsistencyStats(batch).rateDisplay}</td>
                   <td>
-                    {batch.status === 'FAILED' ? (
-                      <span className="muted">未产生对象明细 · 一致率 --</span>
-                    ) : (
-                      <div className="record-result-cell">
-                        <span>
-                          {batch.status === 'RUNNING' ? `核验中 -- / ${batch.plannedCount}` : `已核验 ${batch.actualCount} / ${batch.plannedCount}`}
-                          {' · 一致率 '}
-                          {batch.status === 'RUNNING' ? '--' : calculateConsistencyStats(batch).rateDisplay}
-                        </span>
-                        <div className="result-breakdown" aria-label="核验结果分布">
-                          <span className="consistent">一致 {batch.consistentCount}</span>
-                          <span className="inconsistent">不一致 {batch.differenceCount}</span>
-                          <span className="pending">待复查 {batch.pendingRecheckCount}</span>
-                          <span className="unable">无法比对 {batch.incompleteCount}</span>
-                        </div>
+                    {batch.status === 'FAILED' ? <span className="muted">未产生对象明细</span> : (
+                      <div className="result-breakdown compact" aria-label="核验结果分布">
+                        <span className="consistent">一致 {batch.consistentCount}</span>
+                        <span className="inconsistent">不一致 {batch.differenceCount}</span>
+                        <span className="pending">待复查 {batch.pendingRecheckCount}</span>
+                        <span className="unable">无法比对 {batch.incompleteCount}</span>
                       </div>
                     )}
                   </td>
@@ -535,7 +531,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               ))}
               {!visibleBatches.length && (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     暂无核验记录
                   </td>
                 </tr>
@@ -991,6 +987,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               <table>
                 <thead>
                   <tr>
+                    <th className="sequence-column">序号</th>
                     <th>对象 ID</th>
                     <th>对象名称</th>
                     <th>状态</th>
@@ -999,8 +996,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredObjects.slice((page - 1) * 10, page * 10).map((object) => (
+                  {filteredObjects.slice((page - 1) * 10, page * 10).map((object, index) => (
                     <tr key={object.objectId}>
+                      <td className="sequence-column">{(page - 1) * 10 + index + 1}</td>
                       <td>{object.objectId}</td>
                       <td>{object.objectName}</td>
                       <td>
@@ -1022,7 +1020,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   ))}
                   {!filteredObjects.length && (
                     <tr>
-                      <td colSpan={5} className="empty-state">
+                      <td colSpan={6} className="empty-state">
                         暂无对象记录
                       </td>
                     </tr>
@@ -1084,7 +1082,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               <table>
                 <thead>
                   <tr>
-                    <th>核验字段</th>
+                    <th className="sequence-column">序号</th>
+                    <th>字段名称</th>
+                    <th>字段编码</th>
                     <th>PLM 原始值</th>
                     <th>映射预期值</th>
                     <th>Manticore 实际值</th>
@@ -1093,8 +1093,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </tr>
                 </thead>
                 <tbody>
-                  {fieldDetailRows.map((field) => (
+                  {fieldDetailRows.map((field, index) => (
                     <tr key={field.fieldCode}>
+                      <td className="sequence-column">{index + 1}</td>
                       <td>
                         <FieldName
                           field={{
@@ -1103,8 +1104,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                             isDisplayNameMissing: field.isDisplayNameMissing,
                           }}
                         />
-                        <code>{field.fieldCode}</code>
                       </td>
+                      <td><code>{field.fieldCode}</code></td>
                       <td>{field.plmRawValue ?? '--'}</td>
                       <td>{field.mappedExpectedValue ?? '--'}</td>
                       <td>{field.manticoreActualValue ?? '--'}</td>
@@ -1125,7 +1126,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   ))}
                   {!fieldDetailRows.length && (
                     <tr>
-                      <td colSpan={6} className="empty-state">当前没有差异字段，可切换为显示全部字段。</td>
+                      <td colSpan={8} className="empty-state">当前没有差异字段，可切换为显示全部字段。</td>
                     </tr>
                   )}
                 </tbody>

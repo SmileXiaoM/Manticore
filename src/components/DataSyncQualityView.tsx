@@ -451,21 +451,27 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
         {/* 任务表格卡片：长任务 ID 在单元格内换行，状态与操作保持可见 */}
         <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1560px] text-left border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-main-color)] text-ty-sm font-semibold border-b border-[var(--ty-border-color)]">
-                  <th className="py-3 px-2 w-[5%] text-center">序号</th>
-                  <th className="py-3 px-3 w-[22%]">任务编号 / 任务名称</th>
-                  <th className="py-3 px-2 w-[16%]">操作时间</th>
-                  <th className="py-3 px-2 w-[27%]">数据结果 / 影响</th>
-                  <th className="py-3 px-2 w-[18%] whitespace-nowrap">执行状态</th>
-                  <th className="py-3 px-2 w-[12%] text-right whitespace-nowrap">操作</th>
+                  <th className="py-3 px-2 w-12 text-center">序号</th>
+                  <th className="py-3 px-3 min-w-44">任务编号</th>
+                  <th className="py-3 px-3 min-w-44">任务名称</th>
+                  <th className="py-3 px-2 min-w-28">对象类型</th>
+                  <th className="py-3 px-2 min-w-24">任务类型</th>
+                  <th className="py-3 px-2 min-w-28">执行方式</th>
+                  <th className="py-3 px-2 min-w-24">触发方式</th>
+                  <th className="py-3 px-2 min-w-40">开始时间</th>
+                  <th className="py-3 px-2 min-w-24">耗时</th>
+                  <th className="py-3 px-2 min-w-64">数据结果</th>
+                  <th className="py-3 px-2 min-w-28 whitespace-nowrap">执行状态</th>
+                  <th className="py-3 px-2 min-w-24 text-right whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                 {filteredBatches.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                    <td colSpan={12} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <Info className="w-8 h-8 text-[var(--ty-font-sub-light-color)]" />
                         <span className="text-ty-sm font-medium">未找到符合筛选条件的同步记录</span>
@@ -494,68 +500,14 @@ export const DataSyncQualityView: React.FC<DataSyncQualityViewProps> = ({
                         } ${isNewlyCreated ? 'bg-[var(--ty-green-light-color)]/20' : ''}`}
                       >
                         <td className="py-3 px-2 text-center text-ty-xs text-[var(--ty-font-sub-color)]">{index + 1}</td>
-                        {/* 1. 任务编号 / 任务名称：合并展示根类型与轻量标签 */}
-                        <td className="py-3 px-3 break-all">
-                          <div className="flex flex-col">
-                            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                              <span className="font-semibold text-ty-sm text-[var(--ty-font-main-color)] hover:text-[var(--ty-primary-color)] transition-colors font-mono">
-                                {batch.id}
-                              </span>
-                              {batch.rootTypes.map(rt => (
-                                <span
-                                  key={rt}
-                                  className="inline-flex items-center min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] text-ty-2xs font-medium border border-[var(--ty-border-color)]"
-                                >
-                                  {getRootTypeDisplayName(rt)}
-                                </span>
-                              ))}
-                              {isResetBatch ? (
-                                <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-red-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-red-color)]/30 font-semibold whitespace-nowrap">
-                                  接入重置
-                                </span>
-                              ) : batch.triggerType === 'RETRY' ? (
-                                <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30 font-semibold whitespace-nowrap">
-                                  重试任务
-                                </span>
-                              ) : null}
-                            </div>
-                            <span className="text-ty-sm text-[var(--ty-font-main-color)] mt-0.5 line-clamp-1">
-                              {batch.jobName}
-                            </span>
-                            <div className="flex flex-wrap items-center gap-x-1.5 mt-0.5 text-ty-xs text-[var(--ty-font-sub-color)]">
-                              {isResetBatch ? (
-                                <>
-                                  <span className="text-[var(--ty-red-color)] font-medium">清空检索底座</span>
-                                  <span>·</span>
-                                  <span>保留映射转草稿</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span>{batch.actualStrategy || getSyncMethodLabel(batch.syncMethod)}</span>
-                                  <span>·</span>
-                                  <span>{getTriggerTypeLabel(batch.triggerType)}</span>
-                                  {batch.parentBatchId && (
-                                    <>
-                                      <span>·</span>
-                                      <span className="text-[var(--ty-font-sub-light-color)]">原任务: {batch.parentBatchId}</span>
-                                    </>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* 2. 操作时间 */}
-                        <td className="py-3 px-2">
-                          <div className="flex flex-col text-ty-xs">
-                            <span className="text-[var(--ty-font-main-color)] font-mono">{batch.startTime}</span>
-                            <span className="text-[var(--ty-font-sub-color)] mt-0.5 flex items-center">
-                              <Clock className="w-3 h-3 mr-1 text-[var(--ty-font-sub-light-color)] shrink-0" />
-                              {batch.executionStatus === 'RUNNING' ? '进行中' : batch.durationText || '已完成'}
-                            </span>
-                          </div>
-                        </td>
+                        <td className="py-3 px-3 break-all font-mono font-semibold" title={batch.parentBatchId ? `原任务：${batch.parentBatchId}` : undefined}>{batch.id}</td>
+                        <td className="py-3 px-3">{batch.jobName}</td>
+                        <td className="py-3 px-2"><span className="inline-flex flex-wrap gap-1">{batch.rootTypes.map(rt => <span key={rt} className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)]">{getRootTypeDisplayName(rt)}</span>)}</span></td>
+                        <td className="py-3 px-2">{isResetBatch ? '接入重置' : batch.triggerType === 'RETRY' ? '重试任务' : '同步任务'}</td>
+                        <td className="py-3 px-2">{isResetBatch ? '清空检索底座' : batch.actualStrategy || getSyncMethodLabel(batch.syncMethod)}</td>
+                        <td className="py-3 px-2">{getTriggerTypeLabel(batch.triggerType)}</td>
+                        <td className="py-3 px-2 font-mono whitespace-nowrap">{batch.startTime}</td>
+                        <td className="py-3 px-2 text-[var(--ty-font-sub-color)] whitespace-nowrap">{batch.executionStatus === 'RUNNING' ? '进行中' : batch.durationText || '已完成'}</td>
 
                         {/* 3. 数据结果 / 影响 */}
                         <td className="py-3 px-2">
