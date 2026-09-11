@@ -43,7 +43,7 @@ interface PublishConfigModalProps {
   onClose: () => void;
   currentRootType: MappingObjectType;
   fields: FieldMappingItem[];
-  onConfirmPublish: (startService: boolean) => void;
+  onConfirmPublish: (startService: boolean) => Promise<void>;
 }
 
 export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
@@ -54,6 +54,8 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
   onConfirmPublish
 }) => {
   const [startService, setStartService] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [publishError, setPublishError] = useState('');
   const currentFields = fields.filter(f => f.rootTypeId === currentRootType.id);
 
   const draftOnlyFields = currentFields.filter(f => f.configStatus === 'DRAFT');
@@ -67,6 +69,26 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
     draftOnlyFields.filter(f => f.isDataImpactingChange).length +
     modifiedDraftFields.filter(f => f.isDataImpactingChange).length;
   const displayOnlyCount = totalDraftCount - dataImpactingCount;
+
+  useEffect(() => {
+    if (isOpen) {
+      setSubmitting(false);
+      setPublishError('');
+      setStartService(true);
+    }
+  }, [isOpen, currentRootType.id]);
+
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setPublishError('');
+    try {
+      await onConfirmPublish(currentRootType.serviceStarted ? false : startService);
+    } catch (reason) {
+      setPublishError(reason instanceof Error && reason.message ? reason.message : '发布失败，请稍后重试。正式配置仍保持不变。');
+      setSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -85,7 +107,7 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" aria-label="关闭发布配置确认" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors">
+          <button type="button" aria-label="关闭发布配置确认" onClick={onClose} disabled={submitting} className="h-7 w-7 inline-flex items-center justify-center text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] cursor-pointer rounded-ty-sm hover:bg-[var(--ty-fill-dark-color)] transition-colors disabled:cursor-wait disabled:opacity-50">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -148,21 +170,31 @@ export const PublishConfigModal: React.FC<PublishConfigModalProps> = ({
           </label>
         )}
 
+        {publishError && (
+          <div role="alert" className="rounded-ty-sm border border-[var(--ty-red-color)]/30 bg-[var(--ty-red-lightest-color)] p-3 text-ty-xs text-[var(--ty-red-color)]">
+            <strong className="block">发布失败</strong>
+            <span className="mt-1 block">{publishError}</span>
+            <span className="mt-1 block text-[var(--ty-font-sub-color)]">草稿已保留；已有正式配置继续生效，首次发布失败时不会启动同步服务。</span>
+          </div>
+        )}
+
         <div className="flex justify-end space-x-3 pt-2">
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] bg-[var(--ty-fill-white-color)] cursor-pointer transition-colors"
           >
             取消
           </button>
           <button
             type="button"
-            onClick={() => onConfirmPublish(currentRootType.serviceStarted ? false : startService)}
-            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors"
+            onClick={submit}
+            disabled={submitting}
+            className="h-8 px-4 bg-[var(--ty-green-color)] hover:opacity-90 text-[var(--ty-font-white-color)] rounded-ty-sm text-ty-xs font-medium flex items-center space-x-2 cursor-pointer transition-colors disabled:cursor-wait disabled:opacity-50"
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>{!currentRootType.serviceStarted && startService ? '发布并开启同步' : '确认发布'} ({totalDraftCount} 项)</span>
+            <Send className={`w-3.5 h-3.5 ${submitting ? 'animate-pulse' : ''}`} />
+            <span>{submitting ? '正在发布…' : !currentRootType.serviceStarted && startService ? '发布并开启同步' : '确认发布'}{submitting ? '' : ` (${totalDraftCount} 项)`}</span>
           </button>
         </div>
       </section>

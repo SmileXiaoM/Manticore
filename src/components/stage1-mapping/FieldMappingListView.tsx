@@ -17,7 +17,7 @@ import {
   RotateCcw,
   AlertCircle,
   Link,
-  MoreHorizontal
+  Undo2
 } from 'lucide-react';
 import { ExecutionSchedule, scheduleLabel } from '../../data/operations';
 import {
@@ -39,6 +39,7 @@ interface FieldMappingListViewProps {
   onOpenBatchDisplayOrder: () => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
+  onDiscardDraft: (field: FieldMappingItem) => void;
   onPublishConfig: () => void;
   onToggleAccess: () => void;
   onResetAccess: () => void;
@@ -57,6 +58,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onOpenBatchDisplayOrder,
   onEditField,
   onViewFieldDetail,
+  onDiscardDraft,
   onPublishConfig,
   onToggleAccess,
   onResetAccess,
@@ -572,6 +574,21 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                         >
                           编辑
                         </button>
+                        {(field.configStatus === 'DRAFT' || field.hasDraftModification) && (
+                          <FloatingMoreMenu
+                            buttonTitle={`${field.displayTitle}更多操作`}
+                            buttonClassName="h-7 w-7 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] inline-flex items-center justify-center"
+                            items={[{
+                              id: `discard-draft-${field.id}`,
+                              label: field.configStatus === 'DRAFT' ? '删除草稿' : '放弃草稿修改',
+                              description: field.configStatus === 'DRAFT' ? '移除尚未发布的字段' : '恢复并继续使用正式配置',
+                              icon: <Undo2 className="w-3.5 h-3.5" />,
+                              danger: true,
+                              disabled: !hasPermission,
+                              onClick: () => onDiscardDraft(field)
+                            }]}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

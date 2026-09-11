@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Database, FileCheck2, RefreshCw, ScrollText, Server } from 'lucide-react';
+import { ArrowUpRight, Database, FileCheck2, ScrollText, Server } from 'lucide-react';
 import { MappingObjectType } from '../stage1MappingTypes';
 import { ConsistencyBatchRecord } from '../types/consistencyCheck';
 import { ExecutionSchedule, scheduleLabel } from '../data/operations';
@@ -7,6 +7,7 @@ import { SourceIngestionLog } from '../data/sourceIngestionLogs';
 import { TargetSyncRecord } from '../data/targetSyncRecords';
 import { formatCompactNumber, paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { ManualRefreshControl } from './ui/ManualRefreshControl';
 
 type StatisticPeriod = '1H' | '24H' | '7D';
 
@@ -47,8 +48,6 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
   const [period, setPeriod] = useState<StatisticPeriod>('24H');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [refreshedAt, setRefreshedAt] = useState(() => new Date());
-  const [refreshing, setRefreshing] = useState(false);
   const selected = filter === 'ALL' ? undefined : filter;
   const shownRoots = roots.filter((root) => !selected || root.id === selected);
   const { currentPage, rows: pageRoots } = paginateRows(shownRoots, page, pageSize);
@@ -70,14 +69,17 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
     return summary;
   }, { ...emptySnapshot });
   const successRate = aggregate.written ? `${(aggregate.writeSuccess / aggregate.written * 100).toFixed(2)}%` : '--';
-  const refreshDashboard = () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    window.setTimeout(() => {
-      setRefreshedAt(new Date());
-      setRefreshing(false);
-    }, 450);
-  };
+  const enabledRootCount = roots.filter((root) => root.accessEnabled).length;
+  const startedRootCount = roots.filter((root) => root.serviceStarted).length;
+  const serviceStatus = !roots.length
+    ? '暂无接入类型'
+    : enabledRootCount === roots.length
+      ? '全部类型已启用'
+      : enabledRootCount > 0
+        ? `已启用 ${enabledRootCount} / ${roots.length} 个类型`
+        : startedRootCount > 0
+          ? '全部类型已停用'
+          : '同步服务未启动';
 
   const cards = [
     { label: `中间表写入（${periodMeta[period].shortLabel}）`, value: formatCompactNumber(aggregate.written), exactValue: aggregate.written.toLocaleString(), note: `成功率 ${successRate} · 失败 ${formatCompactNumber(aggregate.writeFailed)}`, icon: <ScrollText className="w-4 h-4" />, action: () => onIngestion(selected) },
@@ -95,11 +97,8 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
         <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">数据更新时间：{refreshedAt.toLocaleString('zh-CN', { hour12: false })}</span>
-        <button type="button" onClick={refreshDashboard} disabled={refreshing} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-ty-xs inline-flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-50">
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? '刷新中' : '刷新'}
-        </button>
-        <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 text-ty-xs"><Server className="w-3.5 h-3.5 mr-1" />同步服务运行中</span>
+        <ManualRefreshControl ariaLabel="刷新运行看板" />
+        <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border text-ty-xs ${enabledRootCount > 0 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}><Server className="w-3.5 h-3.5 mr-1" />{serviceStatus}</span>
       </div>
     </header>
 
@@ -134,7 +133,7 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
           <td className="px-3 py-3"><strong>{latestCheck ? (latestCheck.status === 'FAILED' ? '任务失败' : latestCheck.differenceCount || latestCheck.pendingRecheckCount || latestCheck.incompleteCount ? '发现问题' : '核验通过') : '暂无记录'}</strong><span className="block mt-1 text-[var(--ty-font-sub-color)]">{latestCheck?.executedAt || '—'}</span><button className="h-7 min-w-16 px-2 inline-flex items-center text-[var(--ty-primary-color)] mt-1 rounded-ty-sm hover:bg-[var(--ty-primary-lightest-color)]" onClick={() => onCheck(root.id)}>核验记录</button></td>
           <td className="px-3 py-3"><strong className="font-mono" aria-label={`${(root.manticoreDocCount || 0).toLocaleString()} 条 Manticore 记录`}>{formatCompactNumber(root.manticoreDocCount || 0)}</strong><span className="block mt-1 text-[var(--ty-font-sub-color)]">Manticore 记录</span><button className="h-7 min-w-16 px-2 text-[var(--ty-primary-color)] mt-1 inline-flex items-center gap-1 rounded-ty-sm hover:bg-[var(--ty-primary-lightest-color)]" onClick={() => onPresence(root.id)}>多余数据排查<ArrowUpRight className="w-3 h-3" /></button></td>
         </tr>;
-      })}</tbody></table></div>
+      })}{!pageRoots.length && <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--ty-font-sub-color)]">暂无接入类型，请先前往“接入配置”完成对象类型配置。</td></tr>}</tbody></table></div>
       {shownRoots.length > 10 && <TablePagination total={shownRoots.length} page={currentPage} pageSize={pageSize} itemLabel="个类型" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}
     </section>
   </div>;

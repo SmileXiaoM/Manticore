@@ -1,194 +1,60 @@
-import React, { useState } from 'react';
-import {
-  History,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  Info,
-  SlidersHorizontal,
-  Search
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle2, ChevronRight, Eye, History, RotateCcw, Search, X, XCircle } from 'lucide-react';
 import { ChangeRecord } from '../types';
+import { softTypeOptions } from '../data';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { ManualRefreshControl } from './ui/ManualRefreshControl';
 
-interface PublishRecordViewProps {
-  changeRecords: ChangeRecord[];
-}
+interface PublishRecordViewProps { changeRecords: ChangeRecord[]; }
 
 export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeRecords }) => {
-  const [filterObjectType, setFilterObjectType] = useState<string>('ALL');
-  const [filterOpType, setFilterOpType] = useState<string>('ALL');
+  const [groupValue, setGroupValue] = useState('ALL');
+  const [operation, setOperation] = useState('ALL');
+  const [result, setResult] = useState('ALL');
+  const [keyword, setKeyword] = useState('');
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const filteredRecords = changeRecords.filter(r => {
-    const objectTypeMap: Record<string, string> = {
-      'PART_MECHANICAL': '机械零件',
-      'PART_ELECTRICAL': '电气元器件'
-    };
-    const targetLabel = objectTypeMap[filterObjectType] || filterObjectType;
-    const matchType = filterObjectType === 'ALL' || r.objectType.includes(targetLabel);
-    const matchOp = filterOpType === 'ALL' || r.operationType === filterOpType;
-    return matchType && matchOp;
-  });
-  const { currentPage, rows: pageRecords } = paginateRows<ChangeRecord>(filteredRecords, page, pageSize);
+  const partGroups = softTypeOptions.filter(item => item.rootTypeId === 'PART');
+  const filteredRecords = useMemo(() => changeRecords.filter(record => {
+    if (groupValue !== 'ALL' && record.groupValueId !== groupValue && !record.objectType.includes(groupValue)) return false;
+    if (operation !== 'ALL' && record.operationType !== operation) return false;
+    if (result !== 'ALL' && record.result !== result) return false;
+    const term = keyword.trim().toLowerCase();
+    return !term || [record.id, record.objectType, record.groupValueName, record.configVersion, record.summary, record.operator, record.failureReason]
+      .some(value => value?.toLowerCase().includes(term));
+  }), [changeRecords, groupValue, keyword, operation, result]);
+  const { currentPage, rows } = paginateRows<ChangeRecord>(filteredRecords, page, pageSize);
+  const detail = changeRecords.find(record => record.id === detailId);
+  const reset = () => { setGroupValue('ALL'); setOperation('ALL'); setResult('ALL'); setKeyword(''); setPage(1); };
 
-  return (
-    <div className="space-y-4" id="publish-record-view-container">
-
-      {/* Title Header */}
-      <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4">
-        <div className="flex items-center space-x-2 text-ty-2xs text-[var(--ty-font-sub-light-color)] mb-1">
-          <span>相似度配置</span>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-[var(--ty-font-main-color)] font-medium">变更记录</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-ty-xl font-bold text-[var(--ty-font-main-color)] tracking-tight">配置变更审计历史</h1>
-          <HelpTooltip label="查看配置变更审计历史说明" content="追溯各对象类型下 Manticore 属性相似度配置的保存、启用、停用及完整性校验审计日志。" />
-        </div>
+  return <div className="space-y-4" id="publish-record-view-container">
+    <header className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div className="flex items-center gap-2 text-ty-2xs text-[var(--ty-font-sub-light-color)] mb-1"><span>相似度配置</span><ChevronRight className="w-3 h-3" /><span className="text-[var(--ty-font-main-color)] font-medium">变更记录</span></div>
+        <div className="flex flex-wrap items-center gap-2"><History className="w-5 h-5 text-[var(--ty-primary-color)]" /><h1 className="text-ty-xl font-semibold">配置变更审计历史</h1><HelpTooltip label="查看配置变更审计历史说明" content="追溯零部件各分组属性值下相似度配置的保存、启用、停用、失败原因及变更前后摘要。" /></div>
       </div>
+      <ManualRefreshControl ariaLabel="刷新配置变更记录" />
+    </header>
 
-      {/* Filters bar */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-center gap-4">
-        <div className="flex items-center space-x-2">
-          <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">对象类型:</span>
-          <select
-            value={filterObjectType}
-            onChange={(e) => { setFilterObjectType(e.target.value); setPage(1); }}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
-          >
-            <option value="ALL">全部类型</option>
-            <option value="PART_MECHANICAL">机械零件</option>
-            <option value="PART_ELECTRICAL">电气元器件</option>
-          </select>
-        </div>
+    <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">分组属性值</span><select value={groupValue} onChange={event => { setGroupValue(event.target.value); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white"><option value="ALL">全部分组值</option>{partGroups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">操作类型</span><select value={operation} onChange={event => { setOperation(event.target.value); setPage(1); }} className="h-8 min-w-32 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white"><option value="ALL">全部操作</option><option value="保存">保存</option><option value="启用">启用</option><option value="停用">停用</option></select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">执行结果</span><select value={result} onChange={event => { setResult(event.target.value); setPage(1); }} className="h-8 min-w-32 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-white"><option value="ALL">全部结果</option><option value="SUCCESS">成功</option><option value="FAILED">失败</option></select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56"><span className="block">记录 / 版本 / 摘要 / 操作人</span><span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input value={keyword} onChange={event => { setKeyword(event.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span></label>
+      <button type="button" onClick={reset} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs inline-flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
+    </section>
 
-        <div className="flex items-center space-x-2">
-          <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)]">操作类型:</span>
-          <select
-            value={filterOpType}
-            onChange={(e) => { setFilterOpType(e.target.value); setPage(1); }}
-            className="text-ty-xs h-8 border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] outline-hidden font-medium cursor-pointer focus:border-[var(--ty-primary-color)]"
-          >
-            <option value="ALL">全部操作</option>
-            <option value="保存">保存</option>
-            <option value="启用">启用</option>
-            <option value="停用">停用</option>
-          </select>
-        </div>
+    <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--ty-border-color)]"><h2 className="text-ty-sm font-semibold">变更记录</h2><p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">共 {filteredRecords.length} 条，只读保留配置变更及执行结果。</p></div>
+      <div className="overflow-x-auto"><table className="ty-data-table w-full min-w-[1260px] text-left text-ty-xs"><thead><tr className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]"><th className="w-12 px-2 py-2 text-center">序号</th><th className="px-3 py-2">分组属性值</th><th className="px-3 py-2">配置版本</th><th className="px-3 py-2">操作类型</th><th className="px-3 py-2">变更摘要</th><th className="px-3 py-2">操作人</th><th className="px-3 py-2">操作时间</th><th className="px-3 py-2 text-center">结果</th><th className="px-3 py-2 text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)]">操作</th></tr></thead>
+      <tbody className="divide-y divide-[var(--ty-border-light-color)]">{rows.map((record, index) => <tr key={record.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50"><td className="px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td><td className="px-3 py-3"><strong>{record.groupValueName || record.objectType}</strong><span className="block font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">{record.groupValueId || '历史口径'}</span></td><td className="px-3 py-3 font-mono">{record.configVersion}</td><td className="px-3 py-3"><span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-color)]">{record.operationType}</span></td><td className="px-3 py-3 max-w-96"><span className="block truncate" title={record.summary}>{record.summary}</span></td><td className="px-3 py-3 whitespace-nowrap">{record.operator}</td><td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{record.time}</td><td className="px-3 py-3 text-center">{record.result === 'SUCCESS' ? <span className="inline-flex items-center gap-1 text-[var(--ty-green-color)]"><CheckCircle2 className="w-3.5 h-3.5" />成功</span> : <span className="inline-flex items-center gap-1 text-[var(--ty-red-color)]"><XCircle className="w-3.5 h-3.5" />失败</span>}</td><td className="px-3 py-3 text-center sticky right-0 bg-[var(--ty-fill-white-color)]"><button type="button" onClick={() => setDetailId(record.id)} className="h-7 px-2 inline-flex items-center gap-1 text-[var(--ty-primary-color)] hover:bg-[var(--ty-primary-lightest-color)] rounded-ty-sm"><Eye className="w-3.5 h-3.5" />详情</button></td></tr>)}</tbody></table></div>
+      {!rows.length && <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前条件下暂无变更记录</div>}
+      <TablePagination total={filteredRecords.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
+    </section>
 
-        <div className="text-ty-xs text-[var(--ty-font-sub-light-color)] font-mono ml-auto">
-          共 {filteredRecords.length} 条审计记录
-        </div>
-      </div>
-
-      {/* Change Records Table */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
-        <div className="bg-[var(--ty-fill-weak-dark-color)] px-4 py-2 border-b border-[var(--ty-border-color)] flex items-center justify-between">
-          <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center space-x-2">
-            <History className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
-            <span>操作变更审计日志 (只读安全审计记录)</span>
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="ty-data-table w-full min-w-[980px] text-left border-collapse text-ty-xs">
-            <thead>
-              <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                <th className="w-12 px-2 py-2 text-center">序号</th>
-                <th className="px-4 py-2 min-w-[150px]">对象类型</th>
-                <th className="px-4 py-2 min-w-[90px] whitespace-nowrap">配置版本</th>
-                <th className="px-3 py-2 text-center min-w-[80px] whitespace-nowrap">操作类型</th>
-                <th className="px-5 py-2 min-w-[280px]">变更摘要</th>
-                <th className="px-4 py-2 min-w-[100px] whitespace-nowrap">操作人</th>
-                <th className="px-4 py-2 min-w-[140px] whitespace-nowrap">操作时间</th>
-                <th className="px-3 py-2 text-center min-w-[90px] whitespace-nowrap">执行结果</th>
-                <th className="px-4 py-2 min-w-[160px]">失败原因</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-              {filteredRecords.length > 0 ? (
-                pageRecords.map((rec, index) => (
-                  <tr key={rec.id} className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors">
-                    <td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
-                    {/* Object Type */}
-                    <td className="px-4 py-3 font-medium text-[var(--ty-font-main-color)] whitespace-nowrap">
-                      {rec.objectType}
-                    </td>
-
-                    {/* Config Version */}
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--ty-font-main-color)] whitespace-nowrap">
-                      {rec.configVersion}
-                    </td>
-
-                    {/* Operation Type */}
-                    <td className="px-3 py-3 text-center whitespace-nowrap">
-                      <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs font-semibold inline-flex items-center space-x-1 ${
-                        rec.operationType === '启用' ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30' :
-                        rec.operationType === '停用' ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]' :
-                        'bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-lighter-color)]'
-                      }`}>
-                        {rec.operationType === '启用' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-green-color)] mr-1 shrink-0"></span>}
-                        <span>{rec.operationType}</span>
-                      </span>
-                    </td>
-
-                    {/* Change Summary */}
-                    <td className="px-5 py-3 text-[var(--ty-font-sub-color)] leading-relaxed font-medium text-ty-xs min-w-[280px]">
-                      {rec.summary}
-                    </td>
-
-                    {/* Operator */}
-                    <td className="px-4 py-3 text-[var(--ty-font-main-color)] whitespace-nowrap font-medium">
-                      {rec.operator}
-                    </td>
-
-                    {/* Operation Time */}
-                    <td className="px-4 py-3 font-mono text-[var(--ty-font-sub-light-color)] whitespace-nowrap text-ty-2xs">
-                      {rec.time}
-                    </td>
-
-                    {/* Execution Result */}
-                    <td className="px-3 py-3 text-center whitespace-nowrap">
-                      {rec.result === 'SUCCESS' ? (
-                        <span className="text-[var(--ty-green-color)] font-semibold flex items-center justify-center space-x-1 text-ty-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ty-green-color)]" />
-                          <span>成功</span>
-                        </span>
-                      ) : (
-                        <span className="text-[var(--ty-red-color)] font-semibold flex items-center justify-center space-x-1 text-ty-xs">
-                          <XCircle className="w-3.5 h-3.5 text-[var(--ty-red-color)]" />
-                          <span>失败</span>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Failure Reason */}
-                    <td className="px-4 py-3 text-[var(--ty-font-sub-color)] leading-normal">
-                      {rec.failureReason ? (
-                        <span className="text-[var(--ty-font-main-light-color)] font-medium text-ty-2xs bg-[var(--ty-red-lightest-color)] px-2 py-1 rounded-ty-xs border border-[var(--ty-red-color)]/30 block">
-                          {rec.failureReason}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--ty-font-sub-light-color)] font-mono">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="text-center py-8 text-[var(--ty-font-sub-light-color)]">
-                    暂无符合条件的变更记录。
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <TablePagination total={filteredRecords.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
-      </div>
-    </div>
-  );
+    {detail && <div className="fixed inset-0 z-50 bg-ty-overlay flex items-center justify-center p-4" onMouseDown={event => event.target === event.currentTarget && setDetailId(null)}><section role="dialog" aria-modal="true" aria-label="配置变更详情" className="w-[min(640px,calc(100vw-32px))] max-h-[calc(100dvh-120px)] overflow-hidden bg-white border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg"><header className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-b flex items-center justify-between"><div><h2 className="text-ty-lg font-semibold">配置变更详情</h2><p className="text-ty-xs font-mono text-[var(--ty-font-sub-color)]">{detail.id}</p></div><button aria-label="关闭配置变更详情" onClick={() => setDetailId(null)} className="w-8 h-8 inline-flex items-center justify-center"><X className="w-4 h-4" /></button></header><div className="p-4 overflow-y-auto space-y-4 text-ty-xs"><div className="grid grid-cols-2 gap-4"><div><span className="block text-[var(--ty-font-sub-color)]">对象 / 分组值</span><strong>{detail.objectType}</strong></div><div><span className="block text-[var(--ty-font-sub-color)]">版本 / 结果</span><strong>{detail.configVersion} · {detail.result === 'SUCCESS' ? '成功' : '失败'}</strong></div><div><span className="block text-[var(--ty-font-sub-color)]">操作人</span><strong>{detail.operator}</strong></div><div><span className="block text-[var(--ty-font-sub-color)]">操作时间</span><strong className="font-mono">{detail.time}</strong></div></div><div><span className="block text-[var(--ty-font-sub-color)]">变更摘要</span><p className="mt-1">{detail.summary}</p></div>{(detail.beforeSummary || detail.afterSummary) && <div className="grid grid-cols-2 gap-3"><div className="p-3 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border"><span className="block text-[var(--ty-font-sub-color)]">变更前</span><p className="mt-1">{detail.beforeSummary || '—'}</p></div><div className="p-3 rounded-ty-sm bg-[var(--ty-primary-lightest-color)]/35 border border-[var(--ty-primary-color)]/20"><span className="block text-[var(--ty-font-sub-color)]">变更后</span><p className="mt-1">{detail.afterSummary || '—'}</p></div></div>}{detail.failureReason && <div className="p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30"><strong className="text-[var(--ty-red-color)]">失败原因</strong><p className="mt-1">{detail.failureReason}</p></div>}</div><footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t flex justify-end"><button onClick={() => setDetailId(null)} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-white">关闭</button></footer></section></div>}
+  </div>;
 };

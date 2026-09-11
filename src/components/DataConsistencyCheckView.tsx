@@ -30,6 +30,7 @@ import { MappingObjectType, FieldMappingItem } from '../stage1MappingTypes';
 import { SyncBatch } from '../syncQualityTypes';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { ManualRefreshControl } from './ui/ManualRefreshControl';
 
 interface DataConsistencyCheckViewProps {
   initialRootTypeFilter?: string;
@@ -339,6 +340,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             </div>
           </div>
           <div className="page-actions">
+            <ManualRefreshControl ariaLabel="刷新数据一致性核验记录" />
             {onInspectTarget && (
               <button onClick={() => onInspectTarget(rootFilter === 'ALL' ? undefined : rootFilter)}>
                 目标多余数据排查

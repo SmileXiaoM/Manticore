@@ -32,6 +32,7 @@ import {
   ResetAccessModal
 } from './stage1-mapping/Stage1Modals';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { useFeedback } from './ui/FeedbackProvider';
 
 interface Stage1MappingConfigViewProps {
   batches?: SyncBatch[];
@@ -47,6 +48,7 @@ interface Stage1MappingConfigViewProps {
   onUpdateFieldMappings?: React.Dispatch<React.SetStateAction<FieldMappingItem[]>>;
   syncSchedules?: ExecutionSchedule[];
   onConfigureSyncSchedule?: (rootTypeCode: string) => void;
+  publishRunOptions?: { delayMs?: number; shouldFail?: boolean; failureReason?: string };
 }
 
 export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = ({
@@ -62,8 +64,10 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   syncRunOptions,
   resetRunOptions,
   syncSchedules = [],
-  onConfigureSyncSchedule
+  onConfigureSyncSchedule,
+  publishRunOptions
 }) => {
+  const { confirm } = useFeedback();
   // 1. 核心数据状态
   const [sourceSystems] = useState(initialSourceSystems);
   const [internalMappingObjects, setInternalMappingObjects] = useState<MappingObjectType[]>(initialMappingObjectTypes);
@@ -162,10 +166,9 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setIsDetailModalOpen(true);
   };
 
-  // 辅助重新计算根类型统计数据
-  const updateRootTypeStats = (rootId: string, currentFields: FieldMappingItem[]) => {
-    setMappingObjects(prev =>
-      prev.map(root => {
+  // 根据同一份字段快照重新计算根类型统计，避免多个 React setter 之间出现短暂不一致。
+  const deriveRootTypeStats = (roots: MappingObjectType[], rootId: string, currentFields: FieldMappingItem[]) =>
+    roots.map(root => {
         if (root.id !== rootId) return root;
         const targetFields = currentFields.filter(f => f.rootTypeId === rootId);
         const configuredCount = targetFields.filter(f => f.configStatus === 'CONFIGURED').length;
@@ -192,47 +195,74 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           draftFieldCount: draftCount,
           configStatus: derivedStatus
         };
-      })
-    );
-  };
+      });
 
   // 保存单个草稿 (包括对已配置字段的草稿微调)
   const handleSaveDraft = (savedField: FieldMappingItem) => {
-    let nextMappings: FieldMappingItem[] = [];
-    setFieldMappings(prev => {
-      const existsIndex = prev.findIndex(f => f.id === savedField.id);
+    commitRuntime(previous => {
+      const existsIndex = previous.fieldMappings.findIndex(f => f.id === savedField.id);
+      let nextMappings: FieldMappingItem[];
       if (existsIndex >= 0) {
-        nextMappings = [...prev];
+        nextMappings = [...previous.fieldMappings];
         nextMappings[existsIndex] = savedField;
       } else {
-        nextMappings = [...prev, savedField];
+        nextMappings = [...previous.fieldMappings, savedField];
       }
-      return nextMappings;
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, savedField.rootTypeId, nextMappings)
+      };
     });
-
-    updateRootTypeStats(savedField.rootTypeId, nextMappings);
   };
 
   // 批量生成草稿
   const handleSaveBatchDrafts = (newDrafts: FieldMappingItem[]) => {
-    let nextMappings: FieldMappingItem[] = [];
-    setFieldMappings(prev => {
-      nextMappings = [...prev, ...newDrafts];
-      return nextMappings;
+    if (!newDrafts.length) return;
+    commitRuntime(previous => {
+      const nextMappings = [...previous.fieldMappings, ...newDrafts];
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, newDrafts[0].rootTypeId, nextMappings)
+      };
     });
+  };
 
-    if (newDrafts.length > 0) {
-      updateRootTypeStats(newDrafts[0].rootTypeId, nextMappings);
-    }
+  const handleDiscardFieldDraft = async (field: FieldMappingItem) => {
+    const removingNewDraft = field.configStatus === 'DRAFT';
+    const accepted = await confirm({
+      title: removingNewDraft ? '删除字段草稿' : '放弃草稿修改',
+      message: removingNewDraft
+        ? `确定删除“${field.displayTitle}”草稿吗？该字段尚未发布。`
+        : `确定放弃“${field.displayTitle}”的草稿修改吗？正式配置不会受到影响。`,
+      confirmText: removingNewDraft ? '删除草稿' : '放弃修改',
+      tone: 'danger'
+    });
+    if (!accepted) return;
+
+    commitRuntime(previous => {
+      const nextMappings = removingNewDraft
+        ? previous.fieldMappings.filter(item => item.id !== field.id)
+        : previous.fieldMappings.map(item => item.id === field.id
+          ? { ...item, hasDraftModification: false, draftData: undefined, isDataImpactingChange: false }
+          : item);
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, field.rootTypeId, nextMappings)
+      };
+    });
+    setOperationMessage(removingNewDraft
+      ? `已删除“${field.displayTitle}”草稿。`
+      : `已放弃“${field.displayTitle}”的草稿修改，继续使用正式配置。`);
   };
 
   // 批量调整已有属性的展示顺序与列宽。两者只影响前台展示，不改变底层字段结构。
   const handleBatchUpdateDisplayOrder = (updates: Array<{ fieldId: string; displayOrder: number; defaultColumnWidth: number }>) => {
     const layoutByFieldId = new Map(updates.map(update => [update.fieldId, update]));
-    let nextMappings: FieldMappingItem[] = [];
-
-    setFieldMappings(previous => {
-      nextMappings = previous.map(field => {
+    commitRuntime(previous => {
+      const nextMappings = previous.fieldMappings.map(field => {
         const layout = layoutByFieldId.get(field.id);
         if (field.rootTypeId !== currentRootType.id || !layout) return field;
         const { displayOrder, defaultColumnWidth } = layout;
@@ -261,10 +291,12 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           updatedBy: '当前用户'
         };
       });
-      return nextMappings;
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, currentRootType.id, nextMappings)
+      };
     });
-
-    updateRootTypeStats(currentRootType.id, nextMappings);
     const uniqueOrders = new Set(updates.map(update => update.displayOrder));
     const summary = uniqueOrders.size === 1
       ? `统一调整为 ${updates[0]?.displayOrder}`
@@ -273,13 +305,17 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
-  const handleConfirmPublish = (startService: boolean) => {
-    const nowTime = '刚刚';
-    let hasDataImpacting = false;
+  const handleConfirmPublish = async (startService: boolean) => {
+    await new Promise(resolve => setTimeout(resolve, publishRunOptions?.delayMs ?? 360));
+    if (publishRunOptions?.shouldFail) {
+      throw new Error(publishRunOptions.failureReason || '发布服务暂时不可用，请稍后重试。正式配置仍保持不变。');
+    }
 
-    let nextFields: FieldMappingItem[] = [];
-    setFieldMappings(prev => {
-      nextFields = prev.map(f => {
+    const nowTime = '刚刚';
+    let startedForFirstTime = false;
+    commitRuntime(previous => {
+      let hasDataImpacting = false;
+      const nextFields = previous.fieldMappings.map(f => {
         if (f.rootTypeId !== currentRootType.id) return f;
 
         // 纯草稿生效
@@ -311,14 +347,11 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
         return f;
       });
-      return nextFields;
-    });
-
-    setMappingObjects(prev =>
-      prev.map(root => {
+      const nextRoots = previous.mappingObjects.map(root => {
         if (root.id !== currentRootType.id) return root;
         const configuredCount = nextFields.filter(f => f.rootTypeId === root.id && f.configStatus === 'CONFIGURED').length;
         const formalCount = nextFields.filter(f => f.rootTypeId === root.id && f.configStatus === 'CONFIGURED' && f.isInFormalQueryBase).length;
+        startedForFirstTime = !root.serviceStarted && startService;
         return {
           ...root,
           configuredFieldCount: configuredCount,
@@ -330,23 +363,34 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           serviceStarted: root.serviceStarted || startService,
           accessEnabled: root.serviceStarted ? root.accessEnabled : startService
         };
-      })
-    );
+      });
+      return { ...previous, fieldMappings: nextFields, mappingObjects: nextRoots };
+    });
 
     setIsPublishModalOpen(false);
-    setOperationMessage(startService && !currentRootType.serviceStarted
+    setOperationMessage(startedForFirstTime
       ? '配置已发布，同步服务已接入并开始按检查频率轮询中间表。'
       : '配置已发布；同步服务将按当前检查频率处理新增记录。');
   };
 
-  const handleToggleAccess = (rootTypeId: string) => {
+  const handleToggleAccess = async (rootTypeId: string) => {
+    const root = mappingObjects.find(item => item.id === rootTypeId);
+    if (!root) return;
+    if (root.accessEnabled) {
+      const accepted = await confirm({
+        title: `停用“${root.name}”接入`,
+        message: '停用后不再轮询该类型中间表；已有队列、日志和 Manticore 数据仍保留并可查询。确定停用吗？',
+        confirmText: '确认停用',
+        tone: 'danger'
+      });
+      if (!accepted) return;
+    }
     setMappingObjects(previous => previous.map(root => root.id === rootTypeId
       ? { ...root, accessEnabled: !root.accessEnabled }
       : root));
-    const root = mappingObjects.find(item => item.id === rootTypeId);
-    setOperationMessage(root?.accessEnabled
+    setOperationMessage(root.accessEnabled
       ? `${root.name} 已停用，常驻服务将跳过该类型的中间表。`
-      : `${root?.name || rootTypeId} 已启用，将按配置频率恢复轮询。`);
+      : `${root.name} 已启用，将按配置频率恢复轮询。`);
   };
 
   const checkTaskStart = (rootTypeId: string, confirmedCode?: string) => {
@@ -438,6 +482,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onOpenBatchDisplayOrder={() => setIsBatchDisplayOrderOpen(true)}
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
+          onDiscardDraft={handleDiscardFieldDraft}
           onPublishConfig={() => setIsPublishModalOpen(true)}
           onToggleAccess={() => handleToggleAccess(currentRootType.id)}
           onResetAccess={() => handleRequestResetAccess(currentRootType.id)}

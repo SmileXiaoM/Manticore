@@ -27,7 +27,8 @@ import {
   ScoredCandidate,
   SearchRunResult,
   SimilarityBaseline,
-  ObjectType
+  ObjectType,
+  SimilarityGroupConfigStatus
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { HelpTooltip } from './ui/HelpTooltip';
@@ -35,11 +36,7 @@ import { TablePagination } from './ui/TablePagination';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
-  objectConfigStatus: Record<string, {
-    enabled: boolean;
-    configVersion: string;
-    lastModifiedAt: string;
-  }>;
+  objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   onNavigate?: (view: string) => void;
 }
 
@@ -97,6 +94,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   // 执行业务相似件查询
   const handleSearch = () => {
+    if (objectConfigStatus[softTypeId]?.enabled !== true) {
+      notify('当前物料的分组属性值未启用相似度规则，因此不参与搜索，也不会使用其他分组规则兜底。', 'warning');
+      setSearchResult({ reference: null, baselineType, scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '当前分组值已停用或尚未发布启用。' });
+      return;
+    }
     let baseline: SimilarityBaseline;
     if (baselineType === 'EXISTING_PART') {
       if (!existingPartId) {
@@ -211,6 +213,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
   const currentSoftTypeObj = softTypeOptions.find(st => st.id === softTypeId);
+  const groupEnabled = objectConfigStatus[softTypeId]?.enabled === true;
 
   const paginatedCandidates = useMemo(() => {
     if (!searchResult) return [];
@@ -239,7 +242,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             </button>
             <button
               onClick={handleSearch}
-              disabled={isSearching}
+              disabled={isSearching || !groupEnabled}
+              title={groupEnabled ? '查询相似件' : '当前分组值已停用，不参与相似度搜索'}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="client-search-btn"
             >
@@ -253,6 +257,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <span className="inline-flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">当前对象：</span><strong>{currentRootTypeObj?.name}</strong></span>
           <span className="inline-flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">{similarityGroupingDefinition.propertyName}：</span><strong>{currentSoftTypeObj?.name}</strong></span>
           <span className="text-[var(--ty-font-sub-color)]">由当前物料上下文自动识别</span>
+          <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${groupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{groupEnabled ? '已启用' : '已停用 · 不参与计算'}</span>
         </div>
 
         {/* 业务用户只需要选择基准，规则上下文由当前物料自动带入 */}
@@ -331,6 +336,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在查询相似物料，请稍候...</h3>
         </div>
+      ) : !groupEnabled && !searchResult ? (
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3"><Info className="w-6 h-6" /></div>
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前分组值已停用</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">该分组值不参与相似度搜索，也不会改用其他分组值的规则。</p>
+        </div>
       ) : !searchResult ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] mx-auto flex items-center justify-center mb-3">
@@ -350,6 +361,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {searchResult.errorMessage}
           </p>
+        </div>
+      ) : searchResult.errorCode === 'REFERENCE_NOT_FOUND' ? (
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-[var(--ty-red-color)] mx-auto flex items-center justify-center mb-3"><Info className="w-6 h-6" /></div>
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">未找到基准物料</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{searchResult.errorMessage || '请检查物料编号，或改用表单录入属性后重新查询。'}</p>
         </div>
       ) : searchResult.scoredCandidates.length === 0 ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">

@@ -25,6 +25,8 @@ import {
 } from '../data/targetSyncRecords';
 import { formatCompactNumber, paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { ManualRefreshControl } from './ui/ManualRefreshControl';
+import { getSyncStatusMeta, SyncBatch, toStage1RootTypeId } from '../syncQualityTypes';
 
 const rootName: Record<string, string> = { PART: '零部件', DOCUMENT: '文档', PROCESS: '工艺路线' };
 const statusClass: Record<TargetSyncStatus, string> = {
@@ -44,6 +46,9 @@ interface ManticoreSyncQueueViewProps {
   records?: TargetSyncRecord[];
   initialRootTypeFilter?: string;
   onRetryRecord?: (recordId: string) => void;
+  taskBatches?: SyncBatch[];
+  focusedTaskId?: string;
+  onClearFocusedTask?: () => void;
 }
 
 export function ManticoreSyncQueueView({
@@ -52,6 +57,9 @@ export function ManticoreSyncQueueView({
   records = initialTargetSyncRecords,
   initialRootTypeFilter = 'ALL',
   onRetryRecord,
+  taskBatches = [],
+  focusedTaskId,
+  onClearFocusedTask,
 }: ManticoreSyncQueueViewProps) {
   const [rootType, setRootType] = useState(initialRootTypeFilter);
   const [status, setStatus] = useState<'ALL' | TargetSyncStatus>('ALL');
@@ -98,6 +106,20 @@ export function ManticoreSyncQueueView({
     .filter((value): value is string => Boolean(value))
     .sort((a, b) => b.localeCompare(a))[0] || '—';
   const activeRoots = roots.filter((root) => root.accessEnabled).length;
+  const focusedTask = taskBatches.find((batch) => batch.id === focusedTaskId);
+  const pausedRetryCount = records.filter((record) =>
+    retryConfirmIds.includes(record.id)
+    && !roots.find((root) => root.id === record.rootTypeCode)?.accessEnabled
+  ).length;
+
+  useEffect(() => {
+    if (!focusedTask) return;
+    const focusedRoot = focusedTask.rootTypes.length === 1 ? toStage1RootTypeId(focusedTask.rootTypes[0]) : 'ALL';
+    setRootType(focusedRoot);
+    setStatus('ALL');
+    setKeyword('');
+    setPage(1);
+  }, [focusedTask]);
 
   useEffect(() => {
     if (!detailId) return;
@@ -155,13 +177,39 @@ export function ManticoreSyncQueueView({
             <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">中间表 → Manticore</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-ty-xs">
-          <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30">
-            <Server className="w-3.5 h-3.5 mr-1" />同步服务运行中
+        <div className="flex flex-wrap items-center justify-end gap-3 text-ty-xs">
+          <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${activeRoots > 0 ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>
+            <Server className="w-3.5 h-3.5 mr-1" />{activeRoots > 0 ? '同步服务已启动' : '当前无启用类型'}
           </span>
           <span className="text-[var(--ty-font-sub-color)]">已启用 {activeRoots} / {roots.length} 个类型</span>
+          <ManualRefreshControl ariaLabel="刷新 Manticore 同步队列" />
         </div>
       </header>
+
+      {focusedTaskId && (
+        <section className={`rounded-ty-sm border px-4 py-3 ${focusedTask ? 'border-[var(--ty-primary-color)]/30 bg-[var(--ty-primary-lightest-color)]/35' : 'border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)]'}`} aria-label="关联任务定位结果">
+          {focusedTask ? (() => {
+            const meta = getSyncStatusMeta(focusedTask.executionStatus, focusedTask.taskType);
+            return <div className="flex flex-wrap items-center justify-between gap-3 text-ty-xs">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong>{focusedTask.taskType === 'RESET' ? '接入重置任务' : '关联同步任务'}</strong>
+                  <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${meta.bgClass} ${meta.textClass} ${meta.borderClass}`}>{meta.label}</span>
+                  <span className="font-mono text-[var(--ty-font-sub-color)]">{focusedTask.id}</span>
+                </div>
+                <p className="mt-1 text-[var(--ty-font-sub-color)]">{focusedTask.jobName} · 开始 {focusedTask.startTime}{focusedTask.endTime ? ` · 完成 ${focusedTask.endTime}` : ''}</p>
+                {focusedTask.taskFailureDetail?.failureReason && <p className="mt-1 text-[var(--ty-red-color)]">{focusedTask.taskFailureDetail.failureReason}</p>}
+              </div>
+              <button type="button" onClick={onClearFocusedTask} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)]">查看全部队列</button>
+            </div>;
+          })() : (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-ty-xs">
+              <span><strong>未找到关联任务：</strong><span className="font-mono">{focusedTaskId}</span>。任务可能已归档，请刷新后重试。</span>
+              <button type="button" onClick={onClearFocusedTask} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)]">返回全部队列</button>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3" aria-label="同步队列概览">
         {metrics.map((metric) => (
@@ -335,6 +383,7 @@ export function ManticoreSyncQueueView({
             <div className="p-4 text-ty-sm leading-6">
               <p>{retryConfirmIds.length === 1 ? '该记录' : `选中的 ${retryConfirmIds.length} 条失败记录`}将变为“待处理”，并在对应对象类型下一次同步调度时重试。</p>
               <p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">上次失败原因会保留，便于后续复盘；重新入队不会立即写入 Manticore。</p>
+              {pausedRetryCount > 0 && <p className="mt-2 rounded-ty-sm border border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)] px-3 py-2 text-ty-xs text-[var(--ty-orange-color)]">其中 {pausedRetryCount} 条所属对象类型已停用。确认后可以入队，但需重新启用接入才会被调度。</p>}
             </div>
             <footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex justify-end gap-2">
               <button type="button" className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" onClick={() => setRetryConfirmIds([])}>取消</button>

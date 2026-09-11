@@ -1989,7 +1989,7 @@ export function runSimilaritySearch(
       scoredCandidates: [],
       excludedCandidates: [],
       errorCode: 'NO_RULES',
-      errorMessage: '当前软类型尚未配置相似度规则。是否回退使用根类型规则仍待业务确认，请先新建本软类型规则。'
+      errorMessage: '当前分组值尚未配置相似度规则，因此不参与相似度搜索。请先完成规则配置并发布启用。'
     };
   }
 

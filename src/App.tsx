@@ -48,6 +48,7 @@ import {
   HardRule,
   CategoryCoverage,
   ChangeRecord,
+  SimilarityGroupConfigStatus,
   isObjectRulesModified,
   restoreObjectRules
 } from './types';
@@ -65,27 +66,38 @@ export default function App() {
   const [changeRecords, setChangeRecords] = useState<ChangeRecord[]>([
     {
       id: 'CR-001',
-      objectType: '机械零件 (PART_MECHANICAL)',
+      objectType: '零部件 / 自制件',
+      rootTypeId: 'PART',
+      groupValueId: 'IN_HOUSE',
+      groupValueName: '自制件',
       configVersion: 'v2.5.0',
       operationType: '启用',
       summary: '微调主要材质权重为25%，标称直径权重为15%，启用全套相似度计算规则，单位目录验证正常。',
+      beforeSummary: 'v2.4.9：主要材质 20%，标称直径 10%',
+      afterSummary: 'v2.5.0：主要材质 25%，标称直径 15%',
       operator: '李晓华 (数据标准管理员)',
       time: '2026-07-15 16:30:12',
       result: 'SUCCESS'
     },
     {
       id: 'CR-002',
-      objectType: '电气元器件 (PART_ELECTRICAL)',
+      objectType: '零部件 / 外购件',
+      rootTypeId: 'PART',
+      groupValueId: 'PURCHASED',
+      groupValueName: '外购件',
       configVersion: 'v1.0.1',
       operationType: '保存',
-      summary: '配置工作电压规则，保存未完成配置但暂不启用。权重累计为30%，继续完善其他字段。',
+      summary: '配置供应商与主要材质规则，保存未完成配置但暂不启用。权重累计为30%，继续完善其他字段。',
       operator: '赵丽 (电气工程师)',
       time: '2026-07-15 15:45:22',
       result: 'SUCCESS'
     },
     {
       id: 'CR-003',
-      objectType: '机械零件 (PART_MECHANICAL)',
+      objectType: '零部件 / 自制件',
+      rootTypeId: 'PART',
+      groupValueId: 'IN_HOUSE',
+      groupValueName: '自制件',
       configVersion: 'v2.4.9',
       operationType: '启用',
       summary: '尝试启用新增标称直径评分规则，因配置权重总和85%不满足100%要求导致校验失败。',
@@ -96,17 +108,23 @@ export default function App() {
     },
     {
       id: 'CR-004',
-      objectType: '电气元器件 (PART_ELECTRICAL)',
+      objectType: '零部件 / 外购件',
+      rootTypeId: 'PART',
+      groupValueId: 'PURCHASED',
+      groupValueName: '外购件',
       configVersion: 'v1.0.0',
       operationType: '停用',
-      summary: '由于电气元器件分类元数据重构，手动下线停用该对象类型的属性相似度对比计算。',
+      summary: '由于外购件分类元数据调整，手动停用该分组值的属性相似度计算。',
       operator: '张建国 (系统架构师)',
       time: '2026-07-12 11:20:00',
       result: 'SUCCESS'
     },
     {
       id: 'CR-005',
-      objectType: '机械零件 (PART_MECHANICAL)',
+      objectType: '零部件 / 自制件',
+      rootTypeId: 'PART',
+      groupValueId: 'IN_HOUSE',
+      groupValueName: '自制件',
       configVersion: 'v2.4.0',
       operationType: '启用',
       summary: '完成机械零件初版配置规则映射启用，主要覆盖规格描述、标称直径、主要材质、螺距和分类。',
@@ -127,6 +145,7 @@ export default function App() {
   // View Router State
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedRootFilter, setSelectedRootFilter] = useState<string>('ALL');
+  const [focusedSyncTaskId, setFocusedSyncTaskId] = useState<string | undefined>();
   const [targetPresenceReturnView, setTargetPresenceReturnView] = useState<string>('dashboard');
   const [schedules, setSchedules] = useState<ExecutionSchedule[]>(() =>
     initialMappingObjectTypes.map((root) => ({ rootTypeCode: root.id, intervalMinutes: root.pollingIntervalMinutes })),
@@ -173,6 +192,7 @@ export default function App() {
       setPendingView(newView);
       setShowUnsavedConfirm(true);
     } else {
+      if (newView !== 'data-sync-quality') setFocusedSyncTaskId(undefined);
       setCurrentView(newView);
     }
   };
@@ -194,16 +214,11 @@ export default function App() {
   };
 
   // Explicit independent configuration status per object type
-  const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, {
-    enabled: boolean;
-    configVersion: string;
-    lastModifiedAt: string;
-  }>>({
-    PART_MECHANICAL: { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
-    PART_ELECTRICAL: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
-    PART_HYDRAULIC: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
-    PART_PNEUMATIC: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
-    PART_OPTICAL: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
+  const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, SimilarityGroupConfigStatus>>({
+    IN_HOUSE: { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
+    PURCHASED: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
+    HEADED: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
+    STAMPING_UNCONFIGURED: { enabled: false, configVersion: '-', lastModifiedAt: '-' },
   });
 
   return (
@@ -228,12 +243,12 @@ export default function App() {
               onClose={() => setScheduleTarget(null)} />}
             {currentView === 'dashboard' && <OperationsDashboard roots={mappingObjects} checks={consistencyBatches} ingestionLogs={initialSourceIngestionLogs} syncRecords={targetSyncRecords} schedules={schedules}
               onIngestion={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('source-ingestion-logs'); }}
-              onSync={(root) => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-sync-quality'); }}
+              onSync={(root) => { setSelectedRootFilter(root || 'ALL'); setFocusedSyncTaskId(undefined); handleNavigate('data-sync-quality'); }}
               onCheck={root => { setSelectedRootFilter(root || 'ALL'); handleNavigate('data-consistency-check'); }}
               onPresence={root => { setSelectedRootFilter(root || 'PART'); setTargetPresenceReturnView('dashboard'); handleNavigate('target-presence'); }} />}
             {currentView === 'target-presence' && <TargetPresenceView roots={mappingObjects} initialRoot={selectedRootFilter === 'ALL' ? 'PART' : selectedRootFilter}
               onBack={() => handleNavigate(targetPresenceReturnView)}
-              onSync={root => { setSelectedRootFilter(root); handleNavigate('data-sync-quality'); }} />}
+              onSync={root => { setSelectedRootFilter(root); setFocusedSyncTaskId(undefined); handleNavigate('data-sync-quality'); }} />}
             {currentView === 'source-ingestion-logs' && <SourceIngestionLogView logs={initialSourceIngestionLogs} initialRootTypeFilter={selectedRootFilter} />}
             {currentView === 'stage1-mapping-config' && (
               <Stage1MappingConfigView
@@ -244,7 +259,8 @@ export default function App() {
                 fieldMappings={flatFieldMappings}
                 onUpdateFieldMappings={setFlatFieldMappings}
                 onCommitStage1State={setStage1State}
-                onNavigateToSyncQuality={() => {
+                onNavigateToSyncQuality={(batchId) => {
+                  setFocusedSyncTaskId(batchId);
                   handleNavigate('data-sync-quality');
                 }}
                 syncSchedules={schedules}
@@ -258,6 +274,9 @@ export default function App() {
                 roots={mappingObjects}
                 schedules={schedules}
                 records={targetSyncRecords}
+                taskBatches={syncBatches}
+                focusedTaskId={focusedSyncTaskId}
+                onClearFocusedTask={() => setFocusedSyncTaskId(undefined)}
                 onRetryRecord={(recordId) => setTargetSyncRecords((previous) => previous.map((record) => (
                   record.id === recordId
                     ? { ...record, status: 'PENDING', processedAt: undefined }
@@ -277,7 +296,8 @@ export default function App() {
                 onUpdatePlans={setConsistencyPlans}
                 batches={consistencyBatches}
                 onUpdateBatches={setConsistencyBatches}
-                onNavigateToSyncQuality={() => {
+                onNavigateToSyncQuality={(batchId) => {
+                  setFocusedSyncTaskId(batchId);
                   handleNavigate('data-sync-quality');
                 }}
               />

@@ -55,6 +55,8 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
   const [draggedId, setDraggedId] = useState<string>();
   const [dragOverId, setDragOverId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   const rootTypeFields = useMemo(() => {
     return fields
@@ -101,12 +103,14 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
     setDraggedId(undefined);
     setDragOverId(undefined);
     setErrorMessage('');
+    setHasChanges(false);
+    setShowCloseConfirm(false);
   }, [isOpen, currentRootType.id]);
 
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -157,6 +161,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
       next.splice(boundedIndex, 0, fieldId);
       return next;
     });
+    setHasChanges(true);
     setErrorMessage('');
   };
 
@@ -172,6 +177,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
     setDraggedId(undefined);
     setDragOverId(undefined);
     setErrorMessage('');
+    setHasChanges(true);
   };
 
   const moveToEnteredPosition = (fieldId: string, currentPosition: number) => {
@@ -196,6 +202,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
       ...Object.fromEntries(selectedIds.map(fieldId => [fieldId, String(width)]))
     }));
     setErrorMessage('');
+    setHasChanges(true);
+  };
+
+  const requestClose = () => {
+    if (hasChanges) setShowCloseConfirm(true);
+    else onClose();
   };
 
   const handleSave = () => {
@@ -216,6 +228,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
         defaultColumnWidth: parseColumnWidth(widthInputs[fieldId] ?? String(getFieldColumnWidth(field)))!
       };
     }));
+    setHasChanges(false);
     onClose();
   };
 
@@ -238,7 +251,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
               根类型：{formatRootTypeDisplayName(currentRootType.name, currentRootType.code)}
             </span>
           </div>
-          <button type="button" aria-label="关闭批量调整展示顺序与列宽" onClick={onClose} className="h-7 w-7 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
+          <button type="button" aria-label="关闭批量调整展示顺序与列宽" onClick={requestClose} className="h-7 w-7 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-dark-color)] cursor-pointer transition-colors">
             <X className="w-4 h-4" />
           </button>
         </header>
@@ -352,7 +365,7 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
                       </span>
                       <label className="h-7 inline-flex items-center gap-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
                         列宽
-                        <input type="number" min="80" max="350" step="10" value={widthInputs[field.id] ?? String(getFieldColumnWidth(field))} onChange={event => { setWidthInputs(previous => ({ ...previous, [field.id]: event.target.value })); setErrorMessage(''); }} aria-label={`${field.sourceDisplayName}列宽`} className="h-7 w-16 px-1.5 font-mono text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
+                        <input type="number" min="80" max="350" step="10" value={widthInputs[field.id] ?? String(getFieldColumnWidth(field))} onChange={event => { setWidthInputs(previous => ({ ...previous, [field.id]: event.target.value })); setErrorMessage(''); setHasChanges(true); }} aria-label={`${field.sourceDisplayName}列宽`} className="h-7 w-16 px-1.5 font-mono text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)] rounded-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]" />
                         px
                       </label>
                       <button type="button" onClick={() => toggleField(field.id)} aria-label={`移除${field.sourceDisplayName}`} title="从已选属性移除" className="w-7 h-7 inline-flex items-center justify-center rounded-ty-xs text-[var(--ty-font-sub-light-color)] hover:text-[var(--ty-red-color)] hover:bg-[var(--ty-red-lightest-color)] cursor-pointer"><X className="w-3.5 h-3.5" /></button>
@@ -369,11 +382,12 @@ export const BatchDisplayOrderModal: React.FC<BatchDisplayOrderModalProps> = ({
         <footer className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3 shrink-0">
           {errorMessage && <p role="alert" className="text-ty-2xs text-[var(--ty-red-color)]">{errorMessage}</p>}
           <div className="flex items-center gap-3 ml-auto">
-            <button type="button" onClick={onClose} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
+            <button type="button" onClick={requestClose} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
             <button type="button" onClick={handleSave} disabled={!hasPermission || selectedIds.length === 0} className="h-8 px-4 rounded-ty-sm text-ty-xs font-medium bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] hover:opacity-90 disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed cursor-pointer">保存布局草稿（{selectedIds.length}）</button>
           </div>
         </footer>
       </section>
+      {showCloseConfirm && <div className="fixed inset-0 z-[70] bg-ty-overlay flex items-center justify-center p-4"><section role="alertdialog" aria-modal="true" aria-label="放弃布局修改" className="w-[min(440px,calc(100vw-32px))] rounded-ty-lg border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] shadow-ty-lg p-4"><h3 className="text-ty-sm font-semibold">放弃未保存的布局修改？</h3><p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">尚未保存的排序和列宽调整将丢失，已发布配置不会受到影响。</p><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setShowCloseConfirm(false)} className="h-8 px-4 border border-[var(--ty-border-color)] rounded-ty-sm">继续编辑</button><button type="button" onClick={() => { setHasChanges(false); setShowCloseConfirm(false); onClose(); }} className="h-8 px-4 rounded-ty-sm bg-[var(--ty-red-color)] text-white">放弃修改</button></div></section></div>}
     </div>
   );
 };

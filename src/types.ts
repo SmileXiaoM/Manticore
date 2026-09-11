@@ -198,13 +198,24 @@ export interface PublishRecord {
 export interface ChangeRecord {
   id: string;
   objectType: string;
+  rootTypeId?: string;
+  groupValueId?: string;
+  groupValueName?: string;
   configVersion: string;
   operationType: '保存' | '启用' | '停用';
   summary: string;
+  beforeSummary?: string;
+  afterSummary?: string;
   operator: string;
   time: string;
   result: 'SUCCESS' | 'FAILED';
   failureReason?: string;
+}
+
+export interface SimilarityGroupConfigStatus {
+  enabled: boolean;
+  configVersion: string;
+  lastModifiedAt: string;
 }
 
 export interface VersionDiffItem {
@@ -484,5 +495,4 @@ export interface TrialFeedback {
   conclusion: string;
   mismatchNote?: string;
 }
-
 

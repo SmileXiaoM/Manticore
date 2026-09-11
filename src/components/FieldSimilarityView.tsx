@@ -23,7 +23,9 @@ import {
   FieldSimilarityRule,
   MatchConfig,
   ChangeRecord,
+  SimilarityGroupConfigStatus,
   isObjectRulesModified,
+  restoreObjectRules,
   TrialFeedback,
   MismatchAction
 } from '../types';
@@ -52,16 +54,8 @@ interface FieldSimilarityViewProps {
   onUpdateActiveRules: (newRules: FieldSimilarityRule[]) => void;
   changeRecords: ChangeRecord[];
   onUpdateChangeRecords: (newRecords: ChangeRecord[]) => void;
-  objectConfigStatus: Record<string, {
-    enabled: boolean;
-    configVersion: string;
-    lastModifiedAt: string;
-  }>;
-  onUpdateConfigStatus: (status: Record<string, {
-    enabled: boolean;
-    configVersion: string;
-    lastModifiedAt: string;
-  }>) => void;
+  objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
+  onUpdateConfigStatus: (status: Record<string, SimilarityGroupConfigStatus>) => void;
   onNavigate?: (view: string) => void;
 }
 
@@ -113,6 +107,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
   const currentSoftTypeObj = softTypeOptions.find(st => st.id === selectedSoftTypeId);
+  const currentGroupStatus = objectConfigStatus[selectedSoftTypeId] || { enabled: false, configVersion: '-', lastModifiedAt: '-' };
 
   // 2. 列表筛选状态
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -205,6 +200,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const totalScoreWeight = currentScopeEditingRules
     .filter(r => r.isScoreActive && r.enabled)
     .reduce((sum, r) => sum + r.weight, 0);
+  const matchConfigError = useMemo(() => {
+    if (formMatchType === '文本相似匹配 (非 AI)' && (!Number.isFinite(formTextThreshold) || formTextThreshold < 0 || formTextThreshold > 100)) return '文本相似度阈值请输入 0～100。';
+    if (formMatchType === '数值容差匹配' && (!Number.isFinite(formToleranceValue) || formToleranceValue < 0)) return '容差值必须大于或等于 0。';
+    if (formMatchType === '数值距离衰减') {
+      if (!Number.isFinite(formDecayFullRange) || formDecayFullRange < 0) return '满分范围必须大于或等于 0。';
+      if (!Number.isFinite(formDecayZeroBoundary) || formDecayZeroBoundary <= formDecayFullRange) return '零分边界必须大于满分范围。';
+    }
+    if (formMatchType === '层级关系匹配') {
+      if (!Number.isInteger(formHierarchyMaxGap) || formHierarchyMaxGap < 1) return '最大层级差必须是大于或等于 1 的整数。';
+      if (!Number.isFinite(formHierarchyDeduction) || formHierarchyDeduction < 0 || formHierarchyDeduction > 100) return '每级扣减请输入 0～100。';
+    }
+    return '';
+  }, [formDecayFullRange, formDecayZeroBoundary, formHierarchyDeduction, formHierarchyMaxGap, formMatchType, formTextThreshold, formToleranceValue]);
 
   // 检查是否有未保存修改
   const isModified = useMemo(() => {
@@ -359,6 +367,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       notify('评分权重请输入 0～100 之间的数字。', 'warning');
       return;
     }
+    if (matchConfigError) {
+      notify(matchConfigError, 'warning');
+      return;
+    }
     const selectedField = availableStage1Fields.find(field => field.fieldCode === formPropertyCode);
     if (selectedField?.isMultiValue) {
       notify('多值属性暂不支持相似度评分，请选择单值属性。', 'warning');
@@ -485,7 +497,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     // 记录变更
     const newRecord: ChangeRecord = {
       id: `CR-${Date.now()}`,
-      objectType: `${selectedRootTypeId} / ${selectedSoftTypeId}`,
+      objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
+      rootTypeId: selectedRootTypeId,
+      groupValueId: selectedSoftTypeId,
+      groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-saved',
       operationType: '保存',
       summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】下的 ${thisSavedRules.length} 项字段相似度规则`,
@@ -516,11 +531,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
     onUpdateActiveRules(newActiveRules);
     onUpdateSavedRules(newActiveRules);
+    const publishedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    onUpdateConfigStatus({
+      ...objectConfigStatus,
+      [selectedSoftTypeId]: { enabled: true, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
+    });
 
     // 记录发布变更
     const newRecord: ChangeRecord = {
       id: `CR-${Date.now()}`,
-      objectType: `${selectedRootTypeId} / ${selectedSoftTypeId}`,
+      objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
+      rootTypeId: selectedRootTypeId,
+      groupValueId: selectedSoftTypeId,
+      groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-release',
       operationType: '启用',
       summary: `发布并启用了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的规则集（包含 ${activeScoreRulesCount} 个评分字段，${gateRulesCount} 个门槛字段）`,
@@ -530,6 +553,64 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
     notify('配置已发布并生效，应用端查找相似件将应用最新规则。', 'success');
+  };
+
+  const handleToggleGroupStatus = async () => {
+    if (currentGroupStatus.enabled) {
+      const accepted = await confirm({
+        title: `停用“${currentSoftTypeObj?.name.split(' ')[0]}”相似度规则`,
+        message: '停用后，该分组值的零部件不再参与相似度搜索，也不会使用其他分组规则兜底。配置会继续保留。',
+        confirmText: '确认停用',
+        tone: 'danger'
+      });
+      if (!accepted) return;
+    } else {
+      const activeScopeRules = activeRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId && rule.isScoreActive && rule.enabled);
+      const activeWeight = activeScopeRules.reduce((sum, rule) => sum + rule.weight, 0);
+      if (!activeScopeRules.length || activeWeight !== 100) {
+        notify('当前分组值没有可直接启用的完整正式规则，请先将评分权重配置为 100% 并发布。', 'warning');
+        return;
+      }
+    }
+
+    const nextEnabled = !currentGroupStatus.enabled;
+    const changedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    onUpdateConfigStatus({
+      ...objectConfigStatus,
+      [selectedSoftTypeId]: { ...currentGroupStatus, enabled: nextEnabled, lastModifiedAt: changedAt }
+    });
+    const newRecord: ChangeRecord = {
+      id: `CR-${Date.now()}`,
+      objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
+      rootTypeId: selectedRootTypeId,
+      groupValueId: selectedSoftTypeId,
+      groupValueName: currentSoftTypeObj?.name.split(' ')[0],
+      configVersion: currentGroupStatus.configVersion,
+      operationType: nextEnabled ? '启用' : '停用',
+      summary: `${nextEnabled ? '启用' : '停用'}【${currentSoftTypeObj?.name}】分组值的相似度搜索。`,
+      beforeSummary: nextEnabled ? '停用，不参与计算' : '启用，按正式规则参与计算',
+      afterSummary: nextEnabled ? '启用，按正式规则参与计算' : '停用，不参与计算且不兜底',
+      operator: '李晓华 (数据标准管理员)',
+      time: changedAt,
+      result: 'SUCCESS'
+    };
+    onUpdateChangeRecords([newRecord, ...changeRecords]);
+    notify(nextEnabled ? '分组值已启用，将按正式规则参与相似度搜索。' : '分组值已停用，不再参与相似度搜索。', 'success');
+  };
+
+  const handleChangeGroupValue = async (nextGroupValue: string) => {
+    if (nextGroupValue === selectedSoftTypeId) return;
+    if (isModified) {
+      const accepted = await confirm({
+        title: '切换分组属性值',
+        message: '当前分组值存在未保存编辑。切换后这些临时修改将被放弃，已保存草稿和正式规则不会受到影响。',
+        confirmText: '放弃并切换',
+        tone: 'danger'
+      });
+      if (!accepted) return;
+      onUpdateEditingRules(restoreObjectRules(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId));
+    }
+    setSelectedSoftTypeId(nextGroupValue);
   };
 
   // 模态框实时试算结果
@@ -742,18 +823,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
               分组属性值
             </label>
-            <select
-              value={selectedSoftTypeId}
-              onChange={e => setSelectedSoftTypeId(e.target.value)}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              id="soft-type-selector"
-            >
-              {availableSoftTypes.map(st => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedSoftTypeId}
+                onChange={e => void handleChangeGroupValue(e.target.value)}
+                className="min-w-0 flex-1 h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
+                id="soft-type-selector"
+              >
+                {availableSoftTypes.map(st => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium ${currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>
+                {currentGroupStatus.enabled ? '停用' : '启用'}
+              </button>
+            </div>
+            <span className={`mt-1 text-ty-2xs ${currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{currentGroupStatus.enabled ? '已启用 · 应用端使用正式规则' : '已停用 · 不参与计算且不兜底'}</span>
           </div>
 
         </div>
@@ -1162,7 +1249,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 )}
 
                 {formMatchType === '数值容差匹配' && (
-                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)] block mb-1">容差类型</label>
                       <select
@@ -1180,14 +1267,39 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       </label>
                       <input
                         type="number"
+                        min="0"
                         step="0.05"
                         value={formToleranceValue}
                         onChange={e => setFormToleranceValue(Number(e.target.value))}
-                        className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono"
+                        aria-invalid={formToleranceValue < 0}
+                        className={`w-full h-8 text-ty-xs border rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono ${formToleranceValue < 0 ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-primary-lighter-color)]'}`}
                       />
+                    </div>
+                    <div>
+                      <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)] block mb-1">允许方向</label>
+                      <select value={formToleranceDirection} onChange={e => setFormToleranceDirection(e.target.value as 'BOTH' | 'HIGHER' | 'LOWER')} className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]">
+                        <option value="BOTH">双向</option><option value="HIGHER">仅允许偏高</option><option value="LOWER">仅允许偏低</option>
+                      </select>
                     </div>
                   </div>
                 )}
+
+                {formMatchType === '数值距离衰减' && (
+                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">满分范围<input type="number" min="0" step="0.05" value={formDecayFullRange} onChange={e => setFormDecayFullRange(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">零分边界<input type="number" min="0" step="0.05" value={formDecayZeroBoundary} onChange={e => setFormDecayZeroBoundary(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">允许方向<select value={formToleranceDirection} onChange={e => setFormToleranceDirection(e.target.value as 'BOTH' | 'HIGHER' | 'LOWER')} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="BOTH">双向</option><option value="HIGHER">仅允许偏高</option><option value="LOWER">仅允许偏低</option></select></label>
+                  </div>
+                )}
+
+                {formMatchType === '层级关系匹配' && (
+                  <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">最大层级差<input type="number" min="1" step="1" value={formHierarchyMaxGap} onChange={e => setFormHierarchyMaxGap(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">每级扣减（%）<input type="number" min="0" max="100" step="1" value={formHierarchyDeduction} onChange={e => setFormHierarchyDeduction(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                  </div>
+                )}
+
+                {matchConfigError && <p role="alert" className="text-ty-2xs text-[var(--ty-red-color)]">{matchConfigError}</p>}
 
                 {/* 3. 字段不满足匹配条件时处理 (核心规范: 单选卡片) */}
                 <div className="space-y-2 pt-2 border-t border-[var(--ty-border-color)]">
@@ -1390,8 +1502,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </button>
               <button
                 onClick={handleSaveRule}
-                disabled={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100}
-                title={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 ? '请先修正评分权重' : '保存字段规则'}
+                disabled={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 || Boolean(matchConfigError)}
+                title={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 ? '请先修正评分权重' : matchConfigError || '保存字段规则'}
                 className="h-8 min-w-[68px] px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               >
                 保存规则

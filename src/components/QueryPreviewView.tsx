@@ -31,7 +31,8 @@ import {
   ExcludedCandidate,
   SearchRunResult,
   SimilarityBaseline,
-  ObjectType
+  ObjectType,
+  SimilarityGroupConfigStatus
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
@@ -41,11 +42,7 @@ interface QueryPreviewViewProps {
   editingRules: FieldSimilarityRule[];
   savedRules: FieldSimilarityRule[];
   activeRules: FieldSimilarityRule[];
-  objectConfigStatus: Record<string, {
-    enabled: boolean;
-    configVersion: string;
-    lastModifiedAt: string;
-  }>;
+  objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   onNavigate?: (view: string) => void;
 }
 
@@ -141,9 +138,15 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const currentScopeRules = currentRules.filter(
     r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && r.softTypeId === softTypeId
   );
+  const groupEnabled = objectConfigStatus[softTypeId]?.enabled === true;
+  const activeVersionUnavailable = ruleVersion === 'ACTIVE_RELEASE' && !groupEnabled;
 
   // 执行沙盒试算
   const handleRunTrial = () => {
+    if (activeVersionUnavailable) {
+      notify('当前分组值已停用，不参与正式相似度搜索。可切换到编辑版本或已保存版本继续沙盒试算。', 'warning');
+      return;
+    }
     const scoreWeight = currentScopeRules
       .filter(rule => rule.isScoreActive && rule.enabled)
       .reduce((sum, rule) => sum + rule.weight, 0);
@@ -251,8 +254,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </button>
             <button
               onClick={handleRunTrial}
-              disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0}
-              title={totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
+              disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0 || activeVersionUnavailable}
+              title={activeVersionUnavailable ? '当前分组值已停用，不能试算正式启用版本' : totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
@@ -385,6 +388,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               <span className="font-bold text-[var(--ty-font-main-color)]">
                 {currentRootTypeObj?.name.split(' ')[0]} / {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
               </span>
+              <span className={`ml-2 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${groupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{groupEnabled ? '已启用' : '已停用'}</span>
             </div>
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">规则版本：</span>
@@ -439,6 +443,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在执行沙盒相似度试算...</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
         </div>
+      ) : activeVersionUnavailable ? (
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值已停用</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">正式启用版本不参与相似度搜索，也不会使用其他分组规则兜底。仍可切换到“编辑版本”或“已保存版本”进行沙盒试算。</p>
+        </div>
       ) : !lastRunContext ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center" id="initial-guide-container">
           <div className="w-12 h-12 rounded-full bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] mx-auto flex items-center justify-center mb-3">
@@ -466,6 +478,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               前往配置规则
             </button>
           )}
+        </div>
+      ) : lastRunContext.searchResult.errorCode === 'REFERENCE_NOT_FOUND' ? (
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-[var(--ty-red-color)] mx-auto flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6" /></div>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">未找到基准对象</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{lastRunContext.searchResult.errorMessage || '请检查对象编号或改用表单录入基准后重新试算。'}</p>
         </div>
       ) : (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden space-y-0">
