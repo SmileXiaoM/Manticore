@@ -9,30 +9,53 @@ const statusClass: Record<IngestionStatus, string> = {
   FAILED: 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30',
 };
 const rootName: Record<string, string> = { PART: '零部件', DOCUMENT: '文档', PROCESS: '工艺路线' };
-type LogPeriod = '1H' | '24H' | '7D';
-const periodHours: Record<LogPeriod, number> = { '1H': 1, '24H': 24, '7D': 24 * 7 };
-const periodLabel: Record<LogPeriod, string> = { '1H': '近 1 小时', '24H': '近 24 小时', '7D': '近 7 天' };
+type LogPeriod = '1H' | '24H' | '7D' | '30D' | '90D' | 'CUSTOM';
+const periodHours: Record<Exclude<LogPeriod, 'CUSTOM'>, number> = {
+  '1H': 1,
+  '24H': 24,
+  '7D': 24 * 7,
+  '30D': 24 * 30,
+  '90D': 24 * 90,
+};
+const periodLabel: Record<LogPeriod, string> = {
+  '1H': '近 1 小时',
+  '24H': '近 24 小时',
+  '7D': '近 7 天',
+  '30D': '近 30 天',
+  '90D': '近 90 天',
+  'CUSTOM': '自定义范围',
+};
 const toTimestamp = (value: string) => Date.parse(value.replace(' ', 'T'));
 
 export function SourceIngestionLogView({ logs = initialSourceIngestionLogs, initialRootTypeFilter = 'ALL' }: { logs?: SourceIngestionLog[]; initialRootTypeFilter?: string }) {
   const [rootType, setRootType] = useState(initialRootTypeFilter);
   const [period, setPeriod] = useState<LogPeriod>('24H');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [status, setStatus] = useState<'ALL' | IngestionStatus>('ALL');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [detailId, setDetailId] = useState<string | null>(null);
   const scoped = useMemo(() => logs.filter((row) => rootType === 'ALL' || row.rootTypeCode === rootType), [logs, rootType]);
   const periodRows = useMemo(() => {
     if (!scoped.length) return [];
     const latestTimestamp = Math.max(...scoped.map((row) => toTimestamp(row.receivedAt)).filter(Number.isFinite));
     if (!Number.isFinite(latestTimestamp)) return scoped;
+    if (period === 'CUSTOM') {
+      const customStartAt = customStart ? Date.parse(customStart) : Number.NEGATIVE_INFINITY;
+      const customEndAt = customEnd ? Date.parse(customEnd) : Number.POSITIVE_INFINITY;
+      return scoped.filter((row) => {
+        const timestamp = toTimestamp(row.receivedAt);
+        return !Number.isFinite(timestamp) || (timestamp >= customStartAt && timestamp <= customEndAt);
+      });
+    }
     const periodStart = latestTimestamp - periodHours[period] * 60 * 60 * 1000;
     return scoped.filter((row) => {
       const timestamp = toTimestamp(row.receivedAt);
       return !Number.isFinite(timestamp) || timestamp >= periodStart;
     });
-  }, [scoped, period]);
+  }, [scoped, period, customStart, customEnd]);
   const visible = useMemo(() => periodRows.filter((row) => {
     if (status !== 'ALL' && row.status !== status) return false;
     const term = keyword.trim().toLowerCase();
@@ -54,7 +77,7 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs, init
       <div className="flex flex-wrap items-center gap-2">
         <DatabaseZap className="w-5 h-5 text-[var(--ty-primary-color)]" />
         <h1 className="text-ty-xl font-semibold">中间表写入日志</h1>
-        <HelpTooltip label="查看中间表写入日志说明" content="查看上游中间件已经产生的写入结果。本系统只负责发现与定位，源端问题由源端责任方处理。" />
+        <HelpTooltip label="查看中间表写入日志说明" content="查看上游中间件已经产生的写入结果。部署时选择接口或固定文件一种接入方式；日志支持近 90 天在线查询，超过 90 天转归档并保留 1 年。本系统只负责发现与定位。" />
         <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">PLM → 中间表</span>
       </div>
       <span className="text-ty-xs text-[var(--ty-font-sub-color)]">结果日志 · 只读</span>
@@ -71,10 +94,14 @@ export function SourceIngestionLogView({ logs = initialSourceIngestionLogs, init
 
     <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-end gap-3">
       <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">对象类型</span><select aria-label="中间表写入日志对象类型" value={rootType} onChange={(e) => { setRootType(e.target.value); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="ALL">全部类型</option><option value="PART">零部件</option><option value="DOCUMENT">文档</option><option value="PROCESS">工艺路线</option></select></label>
-      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">时间范围</span><select aria-label="中间表写入日志时间范围" value={period} onChange={(e) => { setPeriod(e.target.value as LogPeriod); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="1H">最近 1 小时</option><option value="24H">最近 24 小时</option><option value="7D">最近 7 天</option></select></label>
+      <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">时间范围</span><select aria-label="中间表写入日志时间范围" value={period} onChange={(e) => { setPeriod(e.target.value as LogPeriod); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="1H">最近 1 小时</option><option value="24H">最近 24 小时</option><option value="7D">最近 7 天</option><option value="30D">最近 30 天</option><option value="90D">最近 90 天</option><option value="CUSTOM">自定义时间</option></select></label>
+      {period === 'CUSTOM' && <>
+        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">开始时间</span><input type="datetime-local" aria-label="日志开始时间" value={customStart} onChange={(e) => { setCustomStart(e.target.value); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" /></label>
+        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">结束时间</span><input type="datetime-local" aria-label="日志结束时间" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" /></label>
+      </>}
       <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">写入结果</span><select aria-label="中间表写入日志状态" value={status} onChange={(e) => { setStatus(e.target.value as 'ALL' | IngestionStatus); setPage(1); }} className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="ALL">全部结果</option>{Object.entries(ingestionStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1 flex-1 min-w-56"><span className="block">消息 / 对象 / 表 / 异常</span><span className="relative block"><Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" /><input aria-label="搜索中间表写入日志" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" /></span></label>
-      <button type="button" onClick={() => { setRootType('ALL'); setPeriod('24H'); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
+      <button type="button" onClick={() => { setRootType('ALL'); setPeriod('24H'); setCustomStart(''); setCustomEnd(''); setStatus('ALL'); setKeyword(''); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]"><RotateCcw className="w-3.5 h-3.5" />重置</button>
     </section>
 
     <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">

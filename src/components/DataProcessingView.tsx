@@ -38,7 +38,7 @@ export const DataProcessingView: React.FC<DataProcessingViewProps> = ({
   const [activeTab, setActiveTab] = useState<'standard' | 'synonym' | 'align'>('standard');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // Editing modal state
   const [editingRule, setEditingRule] = useState<{

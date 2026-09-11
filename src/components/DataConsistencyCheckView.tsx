@@ -3,7 +3,7 @@ import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
 import { ConsistencyScopeEditor } from './ConsistencyScopeEditor';
 import { getScopeFields, newScopeDraft } from '../data/consistencyScope';
 import React, { useMemo, useRef, useState } from 'react';
-import { FileCheck2, Loader2, Play, Plus, X } from 'lucide-react';
+import { FileCheck2, Loader2, Play, Plus, Trash2, X } from 'lucide-react';
 import {
   ConsistencyBatchRecord,
   ConsistencyPlan,
@@ -161,11 +161,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ObjectResultFilter>('ALL');
   const [page, setPage] = useState(1);
+  const [objectPageSize, setObjectPageSize] = useState(20);
   const [planPage, setPlanPage] = useState(1);
-  const [planPageSize, setPlanPageSize] = useState(10);
+  const [planPageSize, setPlanPageSize] = useState(20);
   const [recordPage, setRecordPage] = useState(1);
-  const [recordPageSize, setRecordPageSize] = useState(10);
+  const [recordPageSize, setRecordPageSize] = useState(20);
   const [objectId, setObjectId] = useState<string | null>(null);
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
   const [showAllFields, setShowAllFields] = useState(false);
   const submitting = useRef(false);
   const fields = useMemo(() => Object.values(fieldMappings).flat(), [fieldMappings]);
@@ -257,6 +259,27 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       setIds('');
       setRangeScope(newScopeDraft());
     }
+  }
+
+  function requestDeletePlan(plan: ConsistencyPlan) {
+    const hasRunningTask = batches.some((batch) => batch.status === 'RUNNING' && (
+      batch.planSnapshot?.id === plan.id || (!batch.planSnapshot && batch.planName === plan.name)
+    ));
+    if (hasRunningTask) {
+      setNotice('该方案存在运行中的核验任务，暂不能删除');
+      return;
+    }
+    setDeletePlanId(plan.id);
+  }
+
+  function deletePlan() {
+    const plan = plans.find((item) => item.id === deletePlanId);
+    if (!plan) return;
+    updatePlans((previous) => previous.filter((item) => item.id !== plan.id));
+    if (selectedPlanId === plan.id) choosePlan('');
+    if (draft?.id === plan.id) setDraft(null);
+    setDeletePlanId(null);
+    setNotice(`方案“${plan.name}”已删除，历史核验记录及其冻结快照不受影响`);
   }
   function triggerRun() {
     if (submitting.current || runError || !prepared.request) return;
@@ -424,6 +447,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                           }}
                         >
                           发起核验
+                        </button>
+                        <button className="text-button danger" onClick={() => requestDeletePlan(plan)}>
+                          <Trash2 size={14} />删除
                         </button>
                       </div>
                     </td>
@@ -996,9 +1022,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredObjects.slice((page - 1) * 10, page * 10).map((object, index) => (
+                  {filteredObjects.slice((page - 1) * objectPageSize, page * objectPageSize).map((object, index) => (
                     <tr key={object.objectId}>
-                      <td className="sequence-column">{(page - 1) * 10 + index + 1}</td>
+                      <td className="sequence-column">{(page - 1) * objectPageSize + index + 1}</td>
                       <td>{object.objectId}</td>
                       <td>{object.objectName}</td>
                       <td>
@@ -1028,32 +1054,26 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </tbody>
               </table>
             </div>
-            <div className="pagination">
-              <span>共 {filteredObjects.length} 个对象</span>
-              <button
-                disabled={page <= 1}
-                onClick={() => {
-                  setPage(page - 1);
-                  setObjectId(null);
-                }}
-              >
-                上一页
-              </button>
-              <span>
-                {page} / {Math.max(1, Math.ceil(filteredObjects.length / 10))}
-              </span>
-              <button
-                disabled={page * 10 >= filteredObjects.length}
-                onClick={() => {
-                  setPage(page + 1);
-                  setObjectId(null);
-                }}
-              >
-                下一页
-              </button>
-            </div>
+            <TablePagination total={filteredObjects.length} page={page} pageSize={objectPageSize} itemLabel="个对象" onPageChange={(nextPage) => { setPage(nextPage); setObjectId(null); }} onPageSizeChange={(size) => { setObjectPageSize(size); setPage(1); setObjectId(null); }} />
           </section>
         </div>
+      )}
+
+      {deletePlanId && (
+        <ConsistencyPlanDialog title="删除核验方案" closeLabel="关闭删除核验方案确认" onDismiss={() => setDeletePlanId(null)}>
+          <div className="plan-dialog-form">
+            <div className="plan-dialog-body">
+              <div className="notice warning">
+                删除后不能再使用该方案发起核验；如果方案启用了自动核验，后续执行将同时停止。
+              </div>
+              <p>历史核验记录会继续保留方案名称、配置版本、字段及范围快照，不会随方案删除。</p>
+            </div>
+            <div className="form-footer">
+              <button type="button" onClick={() => setDeletePlanId(null)}>取消</button>
+              <button type="button" className="danger" onClick={deletePlan}>确认删除</button>
+            </div>
+          </div>
+        </ConsistencyPlanDialog>
       )}
 
       {selectedObject && (

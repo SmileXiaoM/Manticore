@@ -31,6 +31,7 @@ import {
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { TablePagination } from './ui/TablePagination';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
@@ -58,7 +59,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(20);
 
   // 搜索加载与结果
   const [isSearching, setIsSearching] = useState(false);
@@ -215,9 +216,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     if (!searchResult) return [];
     const start = (currentPage - 1) * pageSize;
     return searchResult.scoredCandidates.slice(start, start + pageSize);
-  }, [searchResult, currentPage]);
-
-  const totalPages = searchResult ? Math.ceil(searchResult.scoredCandidates.length / pageSize) : 1;
+  }, [searchResult, currentPage, pageSize]);
 
   return (
     <div className="space-y-4" id="client-find-similar-view-container">
@@ -521,30 +520,14 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             </table>
           </div>
 
-          {/* 分页控制栏 */}
-          {totalPages > 1 && (
-            <div className="p-4 border-t border-[var(--ty-border-color)] flex items-center justify-between bg-[var(--ty-fill-weak-dark-color)] text-ty-xs">
-              <span className="text-[var(--ty-font-sub-color)]">
-                第 {currentPage} 页 / 共 {totalPages} 页 (共 {searchResult.scoredCandidates.length} 条)
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
-                >
-                  上一页
-                </button>
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] disabled:opacity-40 cursor-pointer"
-                >
-                  下一页
-                </button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            total={searchResult.scoredCandidates.length}
+            page={currentPage}
+            pageSize={pageSize}
+            itemLabel="条"
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+          />
         </div>
       )}
 

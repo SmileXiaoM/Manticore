@@ -20,7 +20,7 @@ export const PublishRecordView: React.FC<PublishRecordViewProps> = ({ changeReco
   const [filterObjectType, setFilterObjectType] = useState<string>('ALL');
   const [filterOpType, setFilterOpType] = useState<string>('ALL');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const filteredRecords = changeRecords.filter(r => {
     const objectTypeMap: Record<string, string> = {

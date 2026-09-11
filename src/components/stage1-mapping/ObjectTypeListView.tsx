@@ -23,7 +23,7 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
   const [source, setSource] = useState('ALL');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const rows = useMemo(() => mappingObjects.filter((root) => {
     if (source !== 'ALL' && root.sourceSystemId !== source) return false;
     const term = keyword.trim().toLowerCase();

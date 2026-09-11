@@ -119,7 +119,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [filterScoreActive, setFilterScoreActive] = useState('ALL');
   const [filterMismatchAction, setFilterMismatchAction] = useState('ALL');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // 3. 模态框/编辑抽屉状态
   const [isModalOpen, setIsModalOpen] = useState(false);

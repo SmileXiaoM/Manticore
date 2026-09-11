@@ -234,6 +234,23 @@
   color: var(--ty-primary-link-color);
   padding: 4px 0;
 }
+.data-consistency-check button.danger,
+.data-consistency-check button.text-button.danger {
+  color: var(--ty-red-color);
+  border-color: var(--ty-red-color);
+}
+.data-consistency-check button.text-button.danger {
+  border-color: transparent;
+}
+.data-consistency-check button.danger:hover:not(:disabled),
+.data-consistency-check button.text-button.danger:hover:not(:disabled) {
+  color: var(--ty-red-color);
+  border-color: var(--ty-red-color);
+  background: var(--ty-red-lightest-color);
+}
+.data-consistency-check button.text-button.danger:hover:not(:disabled) {
+  border-color: transparent;
+}
 .data-consistency-check :is(button, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--ty-primary-color);
   outline-offset: 2px;

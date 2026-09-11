@@ -15,7 +15,7 @@ export function TablePagination({
   onPageChange,
   onPageSizeChange,
   itemLabel = '条',
-  pageSizeOptions = [10, 20, 50],
+  pageSizeOptions = [20, 50, 200, 500, 1000],
 }: TablePaginationProps) {
   if (total === 0) return null;
 

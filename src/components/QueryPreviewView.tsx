@@ -90,7 +90,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   // 结果区 Tab: 参与评分候选 vs 已排除候选
   const [activeTab, setActiveTab] = useState<'SCORED' | 'EXCLUDED'>('SCORED');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // 算分明细抽屉选中的候选件
   const [selectedCandidate, setSelectedCandidate] = useState<ScoredCandidate | null>(null);

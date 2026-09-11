@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Database, FileCheck2, ScrollText, Server } from 'lucide-react';
+import { ArrowUpRight, Database, FileCheck2, RefreshCw, ScrollText, Server } from 'lucide-react';
 import { MappingObjectType } from '../stage1MappingTypes';
 import { ConsistencyBatchRecord } from '../types/consistencyCheck';
 import { ExecutionSchedule, scheduleLabel } from '../data/operations';
@@ -46,7 +46,9 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
   const [filter, setFilter] = useState('ALL');
   const [period, setPeriod] = useState<StatisticPeriod>('24H');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
+  const [refreshedAt, setRefreshedAt] = useState(() => new Date());
+  const [refreshing, setRefreshing] = useState(false);
   const selected = filter === 'ALL' ? undefined : filter;
   const shownRoots = roots.filter((root) => !selected || root.id === selected);
   const { currentPage, rows: pageRoots } = paginateRows(shownRoots, page, pageSize);
@@ -68,6 +70,14 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
     return summary;
   }, { ...emptySnapshot });
   const successRate = aggregate.written ? `${(aggregate.writeSuccess / aggregate.written * 100).toFixed(2)}%` : '--';
+  const refreshDashboard = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    window.setTimeout(() => {
+      setRefreshedAt(new Date());
+      setRefreshing(false);
+    }, 450);
+  };
 
   const cards = [
     { label: `中间表写入（${periodMeta[period].shortLabel}）`, value: formatCompactNumber(aggregate.written), exactValue: aggregate.written.toLocaleString(), note: `成功率 ${successRate} · 失败 ${formatCompactNumber(aggregate.writeFailed)}`, icon: <ScrollText className="w-4 h-4" />, action: () => onIngestion(selected) },
@@ -84,7 +94,13 @@ export function OperationsDashboard({ roots, checks, ingestionLogs, syncRecords,
         <HelpTooltip label="查看运行看板说明" content="统一查看中间表写入、Manticore 同步队列、一致性核验与目标数据现状。" />
         <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">多类型总览</span>
       </div>
-      <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 text-ty-xs"><Server className="w-3.5 h-3.5 mr-1" />同步服务运行中</span>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">数据更新时间：{refreshedAt.toLocaleString('zh-CN', { hour12: false })}</span>
+        <button type="button" onClick={refreshDashboard} disabled={refreshing} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-ty-xs inline-flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? '刷新中' : '刷新'}
+        </button>
+        <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 text-ty-xs"><Server className="w-3.5 h-3.5 mr-1" />同步服务运行中</span>
+      </div>
     </header>
 
     <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-center gap-4">

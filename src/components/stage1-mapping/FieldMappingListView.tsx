@@ -28,6 +28,7 @@ import {
 import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
 import { FloatingMoreMenu } from './FloatingMoreMenu';
 import { HelpTooltip } from '../ui/HelpTooltip';
+import { TablePagination } from '../ui/TablePagination';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -70,7 +71,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(20);
 
   // 按展示顺序从小到大排列；相同值依靠稳定排序保持原有相对顺序并相邻展示
   const rootTypeFields = useMemo(() => {
@@ -120,7 +121,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     });
   }, [rootTypeFields, statusFilter, searchTerm]);
 
-  const totalPages = Math.ceil(filteredFields.length / pageSize) || 1;
   const paginatedFields = useMemo(() => {
     return filteredFields.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredFields, currentPage, pageSize]);
@@ -588,33 +588,14 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           </table>
         </div>
 
-        {/* 分页控制栏 */}
-        <div className="min-h-[52px] bg-[var(--ty-fill-weak-dark-color)] px-4 py-2 border-t border-[var(--ty-border-color)] flex flex-wrap items-center justify-between text-ty-xs text-[var(--ty-font-sub-color)] gap-2">
-          <div>
-            共 <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">{filteredFields.length}</span> 条字段映射，每页 {pageSize} 条
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              上一页
-            </button>
-            <span className="font-mono text-[var(--ty-font-main-color)] text-ty-xs">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="h-7 min-w-16 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] hover:bg-[var(--ty-fill-weak-dark-color)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              下一页
-            </button>
-          </div>
-        </div>
+        <TablePagination
+          total={filteredFields.length}
+          page={currentPage}
+          pageSize={pageSize}
+          itemLabel="条字段映射"
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+        />
       </div>
     </div>
   );

@@ -40,7 +40,7 @@ export const ThreeStandardDecisionView: React.FC<ThreeStandardDecisionViewProps>
   const [activeTab, setActiveTab] = useState<'threshold' | 'hard' | 'coverage'>('threshold');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // Editing overlay state
   const [editingRule, setEditingRule] = useState<{

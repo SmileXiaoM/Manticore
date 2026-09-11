@@ -1,9 +1,42 @@
 import { useState } from 'react';
-import { ArrowLeft, Database, Info, Search } from 'lucide-react';
+import { ArrowLeft, Database, History, Info, Search } from 'lucide-react';
 import { MappingObjectType } from '../stage1MappingTypes';
-import { PresenceSnapshot, classifyPresence } from '../data/operations';
+import { PresenceEvidence, PresenceSnapshot, classifyPresence } from '../data/operations';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+
+type PresenceScenario = 'COMPLETE' | 'INCOMPLETE' | 'FORBIDDEN' | 'ERROR';
+
+function buildExamplePresenceSnapshot(
+  root: string,
+  scenario: PresenceScenario,
+  capturedAt: Date,
+  suffix: string,
+): PresenceSnapshot {
+  return {
+    rootTypeCode: root,
+    snapshotId: `EXAMPLE-PRESENCE-${root}-${suffix}`,
+    capturedAt: capturedAt.toISOString(),
+    sourceComplete: scenario === 'COMPLETE',
+    sameScope: true,
+    authoritative: scenario === 'COMPLETE',
+    targetComplete: true,
+    records: [
+      { objectId: `${root}-EXAMPLE-01`, targetId: '1001', sourceResult: 'FOUND' },
+      { objectId: `${root}-EXAMPLE-02`, targetId: '1002', sourceResult: scenario === 'ERROR' ? 'ERROR' : scenario === 'FORBIDDEN' ? 'FORBIDDEN' : 'NOT_FOUND', note: '需结合源端删除、失效及同步记录确认。' },
+      { objectId: `${root}-EXAMPLE-03`, targetId: '1003', sourceResult: 'FOUND' },
+    ],
+  };
+}
+
+function createExamplePresenceHistory(root: string, scenario: PresenceScenario) {
+  const capturedAt = new Date();
+  return [
+    buildExamplePresenceSnapshot(root, scenario, capturedAt, 'LATEST-0'),
+    buildExamplePresenceSnapshot(root, scenario, new Date(capturedAt.getTime() - 24 * 60 * 60 * 1000), 'PREVIOUS-01'),
+    buildExamplePresenceSnapshot(root, scenario, new Date(capturedAt.getTime() - 7 * 24 * 60 * 60 * 1000), 'PREVIOUS-02'),
+  ];
+}
 
 export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync, evidence = [] }: {
   roots: MappingObjectType[];
@@ -12,23 +45,22 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
   onSync: (root: string) => void;
   evidence?: PresenceSnapshot[];
 }) {
+  type PresenceResult = PresenceEvidence & ReturnType<typeof classifyPresence>;
   const [root, setRoot] = useState(initialRoot);
   const [example, setExample] = useState(true);
-  const [scenario, setScenario] = useState('COMPLETE');
+  const [scenario, setScenario] = useState<PresenceScenario>('COMPLETE');
   const [filter, setFilter] = useState('ALL');
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState('');
+  const [refreshSeed, setRefreshSeed] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const snapshot: PresenceSnapshot | undefined = example ? {
-    rootTypeCode: root, snapshotId: `EXAMPLE-PRESENCE-${root}`, capturedAt: '2026-09-08T01:00:00Z',
-    sourceComplete: scenario === 'COMPLETE', sameScope: true, authoritative: scenario === 'COMPLETE', targetComplete: true,
-    records: [
-      { objectId: `${root}-EXAMPLE-01`, targetId: '1001', sourceResult: 'FOUND' },
-      { objectId: `${root}-EXAMPLE-02`, targetId: '1002', sourceResult: scenario === 'ERROR' ? 'ERROR' : scenario === 'FORBIDDEN' ? 'FORBIDDEN' : 'NOT_FOUND', note: '需结合源端删除、失效及同步记录确认。' },
-      { objectId: `${root}-EXAMPLE-03`, targetId: '1003', sourceResult: 'FOUND' },
-    ],
-  } : evidence.filter((item) => item.rootTypeCode === root).sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0];
-  const results = snapshot?.records.map((row) => ({ ...row, ...classifyPresence(snapshot, row) })) || [];
+  const [pageSize, setPageSize] = useState(20);
+  const [exampleSnapshots, setExampleSnapshots] = useState<PresenceSnapshot[]>(() => createExamplePresenceHistory(initialRoot, 'COMPLETE'));
+  const snapshots = example
+    ? exampleSnapshots
+    : evidence.filter((item) => item.rootTypeCode === root).sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt));
+  const snapshot = snapshots.find((item) => item.snapshotId === selectedSnapshotId) || snapshots[0];
+  const results: PresenceResult[] = snapshot?.records.map((row) => ({ ...row, ...classifyPresence(snapshot, row) })) || [];
   const visible = results.filter((row) => filter === 'ALL' || row.status === filter);
   const { currentPage, rows: pageRows } = paginateRows(visible, page, pageSize);
   const detail = results.find((row) => row.targetId === selected);
@@ -46,18 +78,19 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <Database className="w-5 h-5 text-[var(--ty-primary-color)]" />
             <h1 className="text-ty-xl font-semibold">目标端多余数据排查</h1>
-            <HelpTooltip label="查看目标端多余数据排查说明" content="按对象标识反查源端存在性，在证据完整后确认多余数据。" />
+            <HelpTooltip label="查看目标端多余数据排查说明" content="按对象标识反查源端存在性，在证据完整后确认多余数据。每次查询生成一份只读快照，在线保留 90 天。" />
             <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]">Manticore → 源端反查</span>
             {example && <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] border border-[var(--ty-orange-color)]/30">模拟结果</span>}
           </div>
         </div>
-        <button onClick={() => { setExample(!example); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)]">{example ? '查看实际接入状态' : '查看模拟结果'}</button>
+        <button onClick={() => { setExample(!example); setSelected(null); setSelectedSnapshotId(''); setFilter('ALL'); setPage(1); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs hover:bg-[var(--ty-fill-weak-dark-color)]">{example ? '查看实际接入状态' : '查看模拟结果'}</button>
       </header>
 
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4 flex flex-wrap items-end gap-3">
-        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">对象类型</span><select aria-label="排查对象类型" value={root} onChange={(event) => { setRoot(event.target.value); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">{roots.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        {example && <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">示例场景</span><select aria-label="排查示例场景" value={scenario} onChange={(event) => { setScenario(event.target.value); setSelected(null); }} className="h-8 min-w-52 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"><option value="COMPLETE">完整查询：确认多余</option><option value="INCOMPLETE">源端查询不完整</option><option value="FORBIDDEN">源端权限不足</option><option value="ERROR">源端读取失败</option></select></label>}
-        <button disabled={!example} title={example ? '按当前模拟场景刷新结果' : '源端与目标端存在性查询未接入'} onClick={() => { setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 rounded-ty-sm text-ty-xs bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] disabled:bg-[var(--ty-primary-lighter-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed inline-flex items-center gap-2"><Search className="w-3.5 h-3.5" />{example ? '刷新模拟结果' : '开始排查'}</button>
+        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">对象类型</span><select aria-label="排查对象类型" value={root} onChange={(event) => { const nextRoot = event.target.value; setRoot(nextRoot); setExampleSnapshots(createExamplePresenceHistory(nextRoot, scenario)); setRefreshSeed(0); setSelected(null); setSelectedSnapshotId(''); setFilter('ALL'); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">{roots.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        {example && <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">示例场景</span><select aria-label="排查示例场景" value={scenario} onChange={(event) => { const nextScenario = event.target.value as PresenceScenario; setScenario(nextScenario); setExampleSnapshots(createExamplePresenceHistory(root, nextScenario)); setRefreshSeed(0); setSelected(null); setSelectedSnapshotId(''); }} className="h-8 min-w-52 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"><option value="COMPLETE">完整查询：确认多余</option><option value="INCOMPLETE">源端查询不完整</option><option value="FORBIDDEN">源端权限不足</option><option value="ERROR">源端读取失败</option></select></label>}
+        {snapshots.length > 0 && <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">查询快照</span><span className="relative block"><History className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[var(--ty-font-sub-color)]" /><select aria-label="历史查询快照" value={snapshot?.snapshotId || ''} onChange={(event) => { setSelectedSnapshotId(event.target.value); setSelected(null); setPage(1); }} className="h-8 min-w-64 pl-8 pr-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]">{snapshots.map((item, index) => <option key={item.snapshotId} value={item.snapshotId}>{index === 0 ? '最新 · ' : ''}{new Date(item.capturedAt).toLocaleString('zh-CN', { hour12: false })}</option>)}</select></span></label>}
+        <button disabled={!example} title={example ? '重新查询并生成一份最新快照' : '源端与目标端存在性查询未接入'} onClick={() => { const nextSeed = refreshSeed + 1; const capturedAt = new Date(); const cutoff = capturedAt.getTime() - 90 * 24 * 60 * 60 * 1000; setRefreshSeed(nextSeed); setExampleSnapshots((previous) => [buildExamplePresenceSnapshot(root, scenario, capturedAt, `LATEST-${nextSeed}`), ...previous].filter((item) => Date.parse(item.capturedAt) >= cutoff)); setSelectedSnapshotId(''); setSelected(null); setFilter('ALL'); setPage(1); }} className="h-8 px-3 rounded-ty-sm text-ty-xs bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] disabled:bg-[var(--ty-primary-lighter-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed inline-flex items-center gap-2"><Search className="w-3.5 h-3.5" />{example ? '重新查询' : '开始排查'}</button>
         <span className="text-ty-xs text-[var(--ty-font-sub-color)]">{example ? '当前内容仅用于方案评审和截图展示' : '实际查询能力待接入'}</span>
       </div>
 
@@ -68,7 +101,7 @@ export function TargetPresenceView({ roots, initialRoot = 'PART', onBack, onSync
       ].map(([label, count]) => <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4"><span className="text-ty-xs text-[var(--ty-font-sub-color)] block">{label}</span><strong className="text-ty-xl mt-1 block">{count ?? '待获取'}</strong></div>)}</div>
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-ty-sm font-semibold">排查明细</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{snapshot ? `快照 ${snapshot.snapshotId} · ${snapshot.capturedAt}` : '存在性查询未接入，暂无可确认结果。'}</p></div><label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">排查结果</span><select aria-label="排查结果" value={filter} onChange={(event) => { setFilter(event.target.value); setSelected(null); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"><option value="ALL">全部</option><option value="EXTRA">确认多余</option><option value="UNKNOWN">待确认 / 读取异常</option><option value="PRESENT">源端存在</option></select></label></div>
+        <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-ty-sm font-semibold">排查明细</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{snapshot ? `快照 ${snapshot.snapshotId} · 查询时间 ${new Date(snapshot.capturedAt).toLocaleString('zh-CN', { hour12: false })}` : '存在性查询未接入，暂无可确认结果。'}</p></div><label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block">排查结果</span><select aria-label="排查结果" value={filter} onChange={(event) => { setFilter(event.target.value); setSelected(null); setPage(1); }} className="h-8 min-w-40 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"><option value="ALL">全部</option><option value="EXTRA">确认多余</option><option value="UNKNOWN">待确认 / 读取异常</option><option value="PRESENT">源端存在</option></select></label></div>
         {visible.length ? <div className="overflow-x-auto"><table className="ty-data-table w-full min-w-[900px] text-left text-ty-xs border-collapse"><thead><tr className="bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]"><th className="w-12 px-2 py-2 text-center font-medium">序号</th><th className="px-4 py-2 font-medium">目标对象标识</th><th className="px-4 py-2 font-medium">目标记录 ID</th><th className="px-4 py-2 font-medium">源端查询</th><th className="px-4 py-2 font-medium">结论</th><th className="px-4 py-2 font-medium">操作</th></tr></thead><tbody>{pageRows.map((row, index) => <tr key={row.targetId} className="border-t border-[var(--ty-border-light-color)]"><td className="w-12 px-2 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td><td className="px-4 py-3 font-mono">{row.objectId}</td><td className="px-4 py-3 font-mono">{row.targetId}</td><td className="px-4 py-3">{{ FOUND: '已找到', NOT_FOUND: '未找到', FORBIDDEN: '权限不足', ERROR: '读取失败' }[row.sourceResult]}</td><td className="px-4 py-3"><span className={`inline-flex min-h-6 px-2 items-center rounded-ty-xs border ${badge(row.status)}`}>{row.label}</span></td><td className="px-4 py-3"><button className="text-[var(--ty-primary-color)]" onClick={() => setSelected(row.targetId)}>查看依据</button></td></tr>)}</tbody></table></div> : <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">{snapshot ? '暂无数据' : '等待接入源端与目标端存在性查询'}</div>}
         <TablePagination total={visible.length} page={currentPage} pageSize={pageSize} itemLabel="条" onPageChange={(nextPage) => { setPage(nextPage); setSelected(null); }} onPageSizeChange={(size) => { setPageSize(size); setPage(1); setSelected(null); }} />
         {detail && <div className="m-4 p-4 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs space-y-2"><div className="flex items-center justify-between"><h3 className="font-semibold">{detail.objectId} · 排查依据</h3><button className="text-[var(--ty-primary-color)]" onClick={() => setSelected(null)}>收起</button></div><p>{detail.reason}</p><p className="text-[var(--ty-font-sub-color)]">{detail.note || '继续核查唯一标识、查询范围和同步时点。'}</p><ol className="list-decimal pl-5 space-y-1"><li>确认源端对象是否删除、失效或移出同步范围。</li><li>分别检查中间表写入日志和 Manticore 同步记录。</li><li>源端完成处理后，重新同步并发起一致性核验。</li></ol>{!example && <button className="text-[var(--ty-primary-color)]" onClick={() => onSync(root)}>查看该类型同步记录</button>}</div>}
