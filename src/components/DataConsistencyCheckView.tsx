@@ -3,7 +3,7 @@ import { ConsistencyFieldSelect } from './ConsistencyFieldSelect';
 import { ConsistencyScopeEditor } from './ConsistencyScopeEditor';
 import { getScopeFields, newScopeDraft } from '../data/consistencyScope';
 import React, { useMemo, useRef, useState } from 'react';
-import { FileCheck2, Loader2, Play, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, FileCheck2, Loader2, Play, Plus, Trash2, X } from 'lucide-react';
 import {
   ConsistencyBatchRecord,
   ConsistencyPlan,
@@ -44,6 +44,8 @@ interface DataConsistencyCheckViewProps {
   onUpdatePlans?: React.Dispatch<React.SetStateAction<ConsistencyPlan[]>>;
   onNavigateToSyncQuality?: (batchId?: string) => void;
   runOptions?: { forceTaskFailure?: boolean; delayMs?: number; objectErrorIds?: string[] };
+  syncQueuePendingCount?: number;
+  syncQueueFailedCount?: number;
 }
 
 const modes = Object.keys(CONSISTENCY_MODE_LABELS) as ConsistencyStrategyType[];
@@ -143,6 +145,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
   onUpdatePlans,
   onNavigateToSyncQuality,
   runOptions,
+  syncQueuePendingCount = 0,
+  syncQueueFailedCount = 0,
 }) => {
   const [internalBatches, setInternalBatches] = useState(initialConsistencyBatches);
   const [internalPlans, setInternalPlans] = useState<ConsistencyPlan[]>([]);
@@ -207,7 +211,9 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
       )
     : {};
   const running = batches.some((batch) => batch.status === 'RUNNING');
-  const runError = running ? '已有核验正在执行，请等待完成' : !selectedPlan ? '请先选择核验方案' : prepared.error;
+  const syncQueueBlocked = syncQueuePendingCount + syncQueueFailedCount > 0;
+  const syncQueueBlockMessage = `同步队列尚有 ${syncQueuePendingCount + syncQueueFailedCount} 个对象未完成（待处理 ${syncQueuePendingCount}、失败 ${syncQueueFailedCount}）`;
+  const runError = running ? '已有核验正在执行，请等待完成' : syncQueueBlocked ? syncQueueBlockMessage : !selectedPlan ? '请先选择核验方案' : prepared.error;
   const visiblePlans = plans.filter((plan) => rootFilter === 'ALL' || plan.rootTypeCode === rootFilter);
   const visibleBatches = batches.filter((batch) => rootFilter === 'ALL' || batch.rootTypeCode === rootFilter);
   const { currentPage: currentPlanPage, rows: pagePlans } = paginateRows<ConsistencyPlan>(visiblePlans, planPage, planPageSize);
@@ -348,7 +354,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
             )}
             <button
               className="primary"
-              disabled={running}
+              disabled={running || syncQueueBlocked}
               onClick={() => {
                 choosePlan(visiblePlans.length === 1 ? visiblePlans[0].id : '');
                 setRunOpen(true);
@@ -384,6 +390,13 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
           <span className="muted context-note">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
         </div>
       </header>
+
+      {syncQueueBlocked && (
+        <div className="notice warning" role="status">
+          <span><AlertTriangle size={16} />{syncQueueBlockMessage}，暂不发起人工核验；自动核验也会跳过本次执行。</span>
+          {onNavigateToSyncQuality && <button type="button" className="text-button" onClick={() => onNavigateToSyncQuality()}>查看同步队列</button>}
+        </div>
+      )}
 
       <section className="panel plan-management" id="consistency-plan-management" aria-label="核验方案定义">
         <div className="section-heading">
@@ -443,6 +456,8 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                         </button>
                         <button
                           className="text-button"
+                          disabled={syncQueueBlocked}
+                          title={syncQueueBlocked ? syncQueueBlockMessage : undefined}
                           onClick={() => {
                             choosePlan(plan.id);
                             setRunOpen(true);

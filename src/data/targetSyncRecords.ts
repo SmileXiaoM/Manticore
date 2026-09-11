@@ -31,6 +31,30 @@ export const targetSyncOperationLabel: Record<TargetSyncOperation, string> = {
   DELETE: '删除',
 };
 
+const compareRecordOrder = (left: TargetSyncRecord, right: TargetSyncRecord) =>
+  left.receivedAt.localeCompare(right.receivedAt) || left.id.localeCompare(right.id);
+
+export const targetSyncBusinessIdentity = (record: TargetSyncRecord) =>
+  `${record.rootTypeCode}::${record.businessKey}`;
+
+/**
+ * 同一业务唯一键可能产生多条处理记录。队列的“当前状态”只取最新一条，
+ * 历史成功或失败仍保留在全部记录中用于追溯。
+ */
+export function getCurrentTargetSyncRecords(records: TargetSyncRecord[]) {
+  const latestByBusinessKey = new Map<string, TargetSyncRecord>();
+  records.forEach((record) => {
+    const identity = targetSyncBusinessIdentity(record);
+    const current = latestByBusinessKey.get(identity);
+    if (!current || compareRecordOrder(record, current) > 0) latestByBusinessKey.set(identity, record);
+  });
+  return [...latestByBusinessKey.values()].sort((left, right) => compareRecordOrder(right, left));
+}
+
+export function getCurrentTargetSyncRecordMap(records: TargetSyncRecord[]) {
+  return new Map(getCurrentTargetSyncRecords(records).map((record) => [targetSyncBusinessIdentity(record), record]));
+}
+
 const partPayload = (number: string, name: string, masterOid: string, view = 'Design', plant = 'CN01') => ({
   oid: masterOid.replace('WTPartMaster', 'WTPart'),
   masterOid,
@@ -70,6 +94,27 @@ export const initialTargetSyncRecords: TargetSyncRecord[] = [
     sourceObjectOid: 'OR:wt.part.WTPart:3901', businessKey: 'OR:wt.part.WTPartMaster:3901|Design|CN01', operationType: 'UPDATE',
     receivedAt: '2026-09-08 09:01:56', processedAt: '2026-09-08 09:01:57', status: 'PROCESSED', retryCount: 0, traceId: 'TRC-OUT-0908-0018',
     payload: partPayload('PART-2026-003901', '伺服阀安装座', 'OR:wt.part.WTPartMaster:3901'),
+  },
+  {
+    id: 'STG-PART-0908-0018-C', rootTypeCode: 'PART', stagingTable: 'stg_part', targetIndex: 'idx_part',
+    sourceObjectOid: 'OR:wt.part.WTPart:3901', businessKey: 'OR:wt.part.WTPartMaster:3901|Design|CN01', operationType: 'UPDATE',
+    receivedAt: '2026-09-08 09:01:52', processedAt: '2026-09-08 09:01:53', status: 'FAILED', retryCount: 2,
+    errorCode: 'TARGET_TIMEOUT', failureReason: '当次写入目标索引超时。', traceId: 'TRC-OUT-0908-0018-C',
+    payload: partPayload('PART-2026-003901', '伺服阀安装座（尺寸修订）', 'OR:wt.part.WTPartMaster:3901'),
+  },
+  {
+    id: 'STG-PART-0908-0018-B', rootTypeCode: 'PART', stagingTable: 'stg_part', targetIndex: 'idx_part',
+    sourceObjectOid: 'OR:wt.part.WTPart:3901', businessKey: 'OR:wt.part.WTPartMaster:3901|Design|CN01', operationType: 'UPDATE',
+    receivedAt: '2026-09-08 09:01:48', processedAt: '2026-09-08 09:01:49', status: 'FAILED', retryCount: 1,
+    errorCode: 'TARGET_TIMEOUT', failureReason: '当次写入目标索引超时。', traceId: 'TRC-OUT-0908-0018-B',
+    payload: partPayload('PART-2026-003901', '伺服阀安装座（名称修订）', 'OR:wt.part.WTPartMaster:3901'),
+  },
+  {
+    id: 'STG-PART-0908-0018-A', rootTypeCode: 'PART', stagingTable: 'stg_part', targetIndex: 'idx_part',
+    sourceObjectOid: 'OR:wt.part.WTPart:3901', businessKey: 'OR:wt.part.WTPartMaster:3901|Design|CN01', operationType: 'CREATE',
+    receivedAt: '2026-09-08 09:01:44', processedAt: '2026-09-08 09:01:45', status: 'PROCESSED', retryCount: 0,
+    traceId: 'TRC-OUT-0908-0018-A',
+    payload: partPayload('PART-2026-003901', '伺服阀安装座（初始）', 'OR:wt.part.WTPartMaster:3901'),
   },
   {
     id: 'STG-DOC-0908-0017', rootTypeCode: 'DOCUMENT', stagingTable: 'stg_document', targetIndex: 'idx_document',

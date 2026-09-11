@@ -383,6 +383,22 @@
   border-left: 2px solid var(--ty-primary-color);
   padding: 8px 12px;
 }
+.data-consistency-check .notice.warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--ty-orange-color) 30%, transparent);
+  border-left: 2px solid var(--ty-orange-color);
+  border-radius: var(--ty-radius-sm);
+  background: var(--ty-orange-lightest-color);
+  color: var(--ty-font-main-color);
+}
+.data-consistency-check .notice.warning > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .data-consistency-check .run-summary {
   padding: 8px 0 16px;
   margin-top: 8px;

@@ -31,7 +31,7 @@ import {
   initialCategoryCoverages
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
-import { initialTargetSyncRecords, TargetSyncRecord } from './data/targetSyncRecords';
+import { getCurrentTargetSyncRecords, initialTargetSyncRecords, TargetSyncRecord } from './data/targetSyncRecords';
 import { SyncBatch } from './syncQualityTypes';
 import { initialMappingObjectTypes, initialFieldMappings } from './stage1MappingData';
 import { MappingObjectType, FieldMappingItem } from './stage1MappingTypes';
@@ -155,6 +155,9 @@ export default function App() {
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [consistencyBatches, setConsistencyBatches] = useState<ConsistencyBatchRecord[]>(initialConsistencyBatches);
   const [targetSyncRecords, setTargetSyncRecords] = useState<TargetSyncRecord[]>(initialTargetSyncRecords);
+  const currentTargetSyncRecords = useMemo(() => getCurrentTargetSyncRecords(targetSyncRecords), [targetSyncRecords]);
+  const syncQueuePendingCount = currentTargetSyncRecords.filter((record) => record.status === 'PENDING').length;
+  const syncQueueFailedCount = currentTargetSyncRecords.filter((record) => record.status === 'FAILED').length;
 
   const [consistencyPlans, setConsistencyPlans] = useState<ConsistencyPlan[]>(initialConsistencyPlans);
 
@@ -296,6 +299,8 @@ export default function App() {
                 onUpdatePlans={setConsistencyPlans}
                 batches={consistencyBatches}
                 onUpdateBatches={setConsistencyBatches}
+                syncQueuePendingCount={syncQueuePendingCount}
+                syncQueueFailedCount={syncQueueFailedCount}
                 onNavigateToSyncQuality={(batchId) => {
                   setFocusedSyncTaskId(batchId);
                   handleNavigate('data-sync-quality');

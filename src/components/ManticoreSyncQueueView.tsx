@@ -19,7 +19,10 @@ import {
   TargetSyncOperation,
   TargetSyncRecord,
   TargetSyncStatus,
+  getCurrentTargetSyncRecordMap,
+  getCurrentTargetSyncRecords,
   initialTargetSyncRecords,
+  targetSyncBusinessIdentity,
   targetSyncOperationLabel,
   targetSyncStatusLabel,
 } from '../data/targetSyncRecords';
@@ -62,6 +65,7 @@ export function ManticoreSyncQueueView({
   onClearFocusedTask,
 }: ManticoreSyncQueueViewProps) {
   const [rootType, setRootType] = useState(initialRootTypeFilter);
+  const [recordScope, setRecordScope] = useState<'CURRENT' | 'ALL'>('CURRENT');
   const [status, setStatus] = useState<'ALL' | TargetSyncStatus>('ALL');
   const [keyword, setKeyword] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -72,10 +76,13 @@ export function ManticoreSyncQueueView({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const scoped = useMemo(
+  const scopedAll = useMemo(
     () => records.filter((row) => rootType === 'ALL' || row.rootTypeCode === rootType),
     [records, rootType],
   );
+  const currentRecordMap = useMemo(() => getCurrentTargetSyncRecordMap(records), [records]);
+  const currentScoped = useMemo(() => getCurrentTargetSyncRecords(scopedAll), [scopedAll]);
+  const scoped = recordScope === 'CURRENT' ? currentScoped : scopedAll;
   const visible = useMemo(() => scoped.filter((row) => {
     if (status !== 'ALL' && row.status !== status) return false;
     const term = keyword.trim().toLowerCase();
@@ -91,17 +98,22 @@ export function ManticoreSyncQueueView({
     ].some((value) => value?.toLowerCase().includes(term));
   }), [scoped, status, keyword]);
   const { currentPage, rows: pageRows } = paginateRows<TargetSyncRecord>(visible, page, pageSize);
-  const pageFailedIds = pageRows.filter((row) => row.status === 'FAILED').map((row) => row.id);
+  const canRetryRecord = (row: TargetSyncRecord) =>
+    row.status === 'FAILED' && currentRecordMap.get(targetSyncBusinessIdentity(row))?.id === row.id;
+  const pageFailedIds = pageRows.filter(canRetryRecord).map((row) => row.id);
   const allPageFailuresSelected = pageFailedIds.length > 0 && pageFailedIds.every((id) => selectedFailedIds.includes(id));
 
   const detail = records.find((row) => row.id === detailId);
-  const count = (target: TargetSyncStatus) => scoped.filter((row) => row.status === target).length;
+  const detailCurrent = detail ? currentRecordMap.get(targetSyncBusinessIdentity(detail)) : undefined;
+  const detailIsCurrent = Boolean(detail && detailCurrent?.id === detail.id);
+  const currentCount = (target: TargetSyncStatus) => currentScoped.filter((row) => row.status === target).length;
+  const historicalFailureCount = scopedAll.filter((row) => row.status === 'FAILED' && currentRecordMap.get(targetSyncBusinessIdentity(row))?.id !== row.id).length;
   const selectedRoot = roots.find((root) => root.id === rootType);
   const scopedRootIds = new Set(roots.filter((root) => rootType === 'ALL' || root.id === rootType).map((root) => root.id));
   const targetCount = roots
     .filter((root) => scopedRootIds.has(root.id))
     .reduce((sum, root) => sum + (root.manticoreDocCount || 0), 0);
-  const latestProcessedAt = scoped
+  const latestProcessedAt = scopedAll
     .map((row) => row.processedAt)
     .filter((value): value is string => Boolean(value))
     .sort((a, b) => b.localeCompare(a))[0] || '—';
@@ -116,6 +128,7 @@ export function ManticoreSyncQueueView({
     if (!focusedTask) return;
     const focusedRoot = focusedTask.rootTypes.length === 1 ? toStage1RootTypeId(focusedTask.rootTypes[0]) : 'ALL';
     setRootType(focusedRoot);
+    setRecordScope('CURRENT');
     setStatus('ALL');
     setKeyword('');
     setPage(1);
@@ -133,7 +146,7 @@ export function ManticoreSyncQueueView({
   }, [detailId]);
 
   const retry = (recordIds: string[]) => {
-    const selectedRecords = records.filter((item) => recordIds.includes(item.id));
+    const selectedRecords = records.filter((item) => recordIds.includes(item.id) && canRetryRecord(item));
     selectedRecords.forEach((record) => onRetryRecord?.(record.id));
     const pausedCount = selectedRecords.filter((record) => !roots.find((root) => root.id === record.rootTypeCode)?.accessEnabled).length;
     setRetryConfirmIds([]);
@@ -157,11 +170,27 @@ export function ManticoreSyncQueueView({
     }
   };
 
+  const processingNote = (record: TargetSyncRecord) => {
+    const current = currentRecordMap.get(targetSyncBusinessIdentity(record));
+    const isCurrent = current?.id === record.id;
+    if (isCurrent) {
+      if (!record.failureReason) return '—';
+      return record.status === 'FAILED' ? record.failureReason : `上次失败：${record.failureReason}`;
+    }
+    if (!current) return record.failureReason || '—';
+    if (record.status === 'FAILED') {
+      const currentResult = current.status === 'PROCESSED' ? '后续已处理成功' : `当前${targetSyncStatusLabel[current.status]}`;
+      const reason = (record.failureReason || '未记录原因').replace(/[。；;]+$/, '');
+      return `当次失败：${reason}；${currentResult}（${current.id}）`;
+    }
+    return `历史记录；当前以 ${current.id} 为准`;
+  };
+
   const metrics = [
-    { label: '未处理', value: formatCompactNumber(count('PENDING')), exactValue: count('PENDING'), icon: <Clock3 className="w-4 h-4" /> },
-    { label: '中间表总数据量', value: formatCompactNumber(scoped.length), exactValue: scoped.length, icon: <Database className="w-4 h-4" /> },
-    { label: '已处理成功', value: formatCompactNumber(count('PROCESSED')), exactValue: count('PROCESSED'), icon: <CheckCircle2 className="w-4 h-4" /> },
-    { label: '当前失败', value: formatCompactNumber(count('FAILED')), exactValue: count('FAILED'), icon: <AlertTriangle className="w-4 h-4" /> },
+    { label: '当前待处理', value: formatCompactNumber(currentCount('PENDING')), exactValue: currentCount('PENDING'), icon: <Clock3 className="w-4 h-4" /> },
+    { label: '中间表总记录', value: formatCompactNumber(scopedAll.length), exactValue: scopedAll.length, icon: <Database className="w-4 h-4" /> },
+    { label: '成功处理记录', value: formatCompactNumber(scopedAll.filter((row) => row.status === 'PROCESSED').length), exactValue: scopedAll.filter((row) => row.status === 'PROCESSED').length, icon: <CheckCircle2 className="w-4 h-4" /> },
+    { label: '当前失败', value: formatCompactNumber(currentCount('FAILED')), exactValue: currentCount('FAILED'), icon: <AlertTriangle className="w-4 h-4" /> },
     { label: '目标表当前数据量', value: formatCompactNumber(targetCount), exactValue: targetCount, icon: <Server className="w-4 h-4" /> },
     { label: '最近处理时间', value: latestProcessedAt, icon: <Clock3 className="w-4 h-4" />, time: true },
   ];
@@ -232,6 +261,13 @@ export function ManticoreSyncQueueView({
           </select>
         </label>
         <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
+          <span className="block">记录范围</span>
+          <select value={recordScope} onChange={(event) => { setRecordScope(event.target.value as 'CURRENT' | 'ALL'); setPage(1); setSelectedFailedIds([]); }} aria-label="同步队列记录范围" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]">
+            <option value="CURRENT">当前记录</option>
+            <option value="ALL">全部记录</option>
+          </select>
+        </label>
+        <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
           <span className="block">处理状态</span>
           <select value={status} onChange={(event) => { setStatus(event.target.value as 'ALL' | TargetSyncStatus); setPage(1); setSelectedFailedIds([]); }} aria-label="同步队列状态" className="h-8 min-w-36 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]">
             <option value="ALL">全部状态</option>
@@ -245,14 +281,14 @@ export function ManticoreSyncQueueView({
             <input aria-label="搜索同步队列" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); setSelectedFailedIds([]); }} placeholder="输入关键字" className="h-8 w-full pl-8 pr-2 border border-[var(--ty-border-color)] rounded-ty-sm" />
           </span>
         </label>
-        <button type="button" onClick={() => { setRootType('ALL'); setStatus('ALL'); setKeyword(''); setPage(1); setSelectedFailedIds([]); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]">
+        <button type="button" onClick={() => { setRootType('ALL'); setRecordScope('CURRENT'); setStatus('ALL'); setKeyword(''); setPage(1); setSelectedFailedIds([]); }} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs flex items-center gap-2 hover:bg-[var(--ty-fill-weak-dark-color)]">
           <RotateCcw className="w-3.5 h-3.5" />重置
         </button>
       </section>
 
       <div className="bg-[var(--ty-primary-lightest-color)]/35 border border-[var(--ty-primary-color)]/20 rounded-ty-sm px-3 py-2 text-ty-xs flex flex-wrap items-center justify-between gap-2">
         <span>{selectedRoot ? `${rootName[selectedRoot.id]}：${selectedRoot.accessEnabled ? scheduleLabel(schedules.find((item) => item.rootTypeCode === selectedRoot.id), selectedRoot.pollingIntervalMinutes) : '已停用，不再轮询中间表'}` : '各对象类型按自己的检查频率轮询，队列按单条记录处理。'}</span>
-        <span className="text-[var(--ty-font-sub-color)]">当前失败为尚未重试成功的记录</span>
+        <span className="text-[var(--ty-font-sub-color)]">默认只看每个业务对象的最新记录；历史失败 {historicalFailureCount} 条</span>
       </div>
 
       {feedback && (
@@ -264,7 +300,7 @@ export function ManticoreSyncQueueView({
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-ty-sm font-semibold">同步记录</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">共 {visible.length} 条；失败记录可单条或批量重新放回待处理队列。</p></div>
+          <div><h2 className="text-ty-sm font-semibold">同步记录</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{recordScope === 'CURRENT' ? `共 ${visible.length} 个业务对象；只有当前失败记录可重新入队。` : `共 ${visible.length} 条处理记录；历史记录只读保留。`}</p></div>
           <button type="button" disabled={!selectedFailedIds.length} onClick={() => setRetryConfirmIds(selectedFailedIds)} className="h-8 px-3 rounded-ty-sm text-ty-xs border border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] disabled:border-[var(--ty-border-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />批量重新入队{selectedFailedIds.length ? `（${selectedFailedIds.length}）` : ''}</button>
         </div>
         <div className="overflow-auto max-h-88">
@@ -273,7 +309,7 @@ export function ManticoreSyncQueueView({
               <tr>
                 <th className="w-12 px-3 py-2 text-center"><input type="checkbox" aria-label="选择当前页全部失败记录" checked={allPageFailuresSelected} disabled={!pageFailedIds.length} onChange={togglePageFailures} /></th>
                 <th className="w-12 px-3 py-2 text-center">序号</th>
-                <th className="px-3 py-2 text-left">状态</th>
+                <th className="px-3 py-2 text-left">处理结果</th>
                 <th className="px-3 py-2 text-left">中间表记录 ID</th>
                 <th className="px-3 py-2 text-left">源对象 ID</th>
                 <th className="px-3 py-2 text-left">业务唯一键</th>
@@ -281,36 +317,39 @@ export function ManticoreSyncQueueView({
                 <th className="px-3 py-2 text-left">接收时间</th>
                 <th className="px-3 py-2 text-left">处理时间</th>
                 <th className="px-3 py-2 text-right">重试次数</th>
-                <th className="px-3 py-2 text-left">失败信息</th>
+                <th className="px-3 py-2 text-left">处理说明</th>
                 <th className="sticky right-0 z-30 px-3 py-2 text-center bg-[var(--ty-fill-weak-dark-color)]">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-              {pageRows.map((row, index) => (
-                <tr key={row.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50">
-                  <td className="px-3 py-3 text-center"><input type="checkbox" aria-label={`选择失败记录 ${row.id}`} disabled={row.status !== 'FAILED'} checked={selectedFailedIds.includes(row.id)} onChange={(event) => setSelectedFailedIds(event.target.checked ? [...selectedFailedIds, row.id] : selectedFailedIds.filter((id) => id !== row.id))} /></td>
-                  <td className="px-3 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
-                  <td className="px-3 py-3">
-                    <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-medium ${statusClass[row.status]}`}>{targetSyncStatusLabel[row.status]}</span>
-                  </td>
-                  <td className="px-3 py-3 font-mono font-medium whitespace-nowrap">{row.id}</td>
-                  <td className="px-3 py-3 font-mono whitespace-nowrap">{row.sourceObjectOid}</td>
-                  <td className="px-3 py-3"><span className="block max-w-72 truncate font-mono" title={row.businessKey}>{row.businessKey}</span></td>
-                  <td className="px-3 py-3"><span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${operationClass[row.operationType]}`}>{targetSyncOperationLabel[row.operationType]}</span></td>
-                  <td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{row.receivedAt}</td>
-                  <td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{row.processedAt || '—'}</td>
-                  <td className="px-3 py-3 text-right font-mono">{row.retryCount}</td>
-                  <td className="px-3 py-3">
-                    {row.failureReason
-                      ? <span className={`${row.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'} block max-w-64 truncate`} title={row.failureReason}>{row.status === 'FAILED' ? row.failureReason : `上次失败：${row.failureReason}`}</span>
-                      : <span className="text-[var(--ty-font-sub-light-color)]">—</span>}
-                  </td>
-                  <td className="sticky right-0 px-3 py-3 text-center bg-[var(--ty-fill-white-color)] whitespace-nowrap">
-                    <button type="button" onClick={() => setDetailId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><Eye className="w-3.5 h-3.5" />详情</button>
-                    {row.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmIds([row.id])} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
-                  </td>
-                </tr>
-              ))}
+              {pageRows.map((row, index) => {
+                const isCurrent = currentRecordMap.get(targetSyncBusinessIdentity(row))?.id === row.id;
+                const note = processingNote(row);
+                return (
+                  <tr key={row.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50">
+                    <td className="px-3 py-3 text-center"><input type="checkbox" aria-label={`选择失败记录 ${row.id}`} disabled={!canRetryRecord(row)} checked={selectedFailedIds.includes(row.id)} onChange={(event) => setSelectedFailedIds(event.target.checked ? [...selectedFailedIds, row.id] : selectedFailedIds.filter((id) => id !== row.id))} /></td>
+                    <td className="px-3 py-3 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border font-medium ${statusClass[row.status]}`}>{targetSyncStatusLabel[row.status]}</span>
+                      {!isCurrent && <span className="ml-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">历史</span>}
+                    </td>
+                    <td className="px-3 py-3 font-mono font-medium whitespace-nowrap">{row.id}</td>
+                    <td className="px-3 py-3 font-mono whitespace-nowrap">{row.sourceObjectOid}</td>
+                    <td className="px-3 py-3"><span className="block max-w-72 truncate font-mono" title={row.businessKey}>{row.businessKey}</span></td>
+                    <td className="px-3 py-3"><span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${operationClass[row.operationType]}`}>{targetSyncOperationLabel[row.operationType]}</span></td>
+                    <td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{row.receivedAt}</td>
+                    <td className="px-3 py-3 font-mono whitespace-nowrap text-[var(--ty-font-sub-color)]">{row.processedAt || '—'}</td>
+                    <td className="px-3 py-3 text-right font-mono">{row.retryCount}</td>
+                    <td className="px-3 py-3">
+                      <span className={`${row.status === 'FAILED' && isCurrent ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-font-sub-color)]'} block max-w-80 truncate`} title={note}>{note}</span>
+                    </td>
+                    <td className="sticky right-0 px-3 py-3 text-center bg-[var(--ty-fill-white-color)] whitespace-nowrap">
+                      <button type="button" onClick={() => setDetailId(row.id)} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><Eye className="w-3.5 h-3.5" />详情</button>
+                      {canRetryRecord(row) && <button type="button" onClick={() => setRetryConfirmIds([row.id])} className="h-8 px-2 text-[var(--ty-primary-color)] inline-flex items-center gap-1 hover:underline"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -329,10 +368,15 @@ export function ManticoreSyncQueueView({
               <button type="button" aria-label="关闭详情" onClick={() => setDetailId(null)} className="w-8 h-8 flex items-center justify-center rounded-ty-sm hover:bg-[var(--ty-fill-color)]"><X className="w-4 h-4" /></button>
             </header>
             <div className="min-h-0 overflow-y-auto p-4 space-y-4 text-ty-xs">
+              {!detailIsCurrent && detailCurrent && (
+                <div className="rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] px-3 py-2 text-[var(--ty-font-sub-color)]">
+                  这是历史记录。当前以 <strong className="font-mono text-[var(--ty-font-main-color)]">{detailCurrent.id}</strong> 为准，处理结果为“{targetSyncStatusLabel[detailCurrent.status]}”。
+                </div>
+              )}
               <section>
                 <h3 className="text-ty-sm font-semibold mb-3">记录信息</h3>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                  <div><span className="text-[var(--ty-font-sub-color)] block">状态</span><span className={`mt-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${statusClass[detail.status]}`}>{targetSyncStatusLabel[detail.status]}</span></div>
+                  <div><span className="text-[var(--ty-font-sub-color)] block">当次处理结果</span><span className={`mt-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${statusClass[detail.status]}`}>{targetSyncStatusLabel[detail.status]}</span></div>
                   <div><span className="text-[var(--ty-font-sub-color)] block">对象类型</span><strong className="mt-1 block">{rootName[detail.rootTypeCode]}</strong></div>
                   <div><span className="text-[var(--ty-font-sub-color)] block">源对象 ID</span><strong className="mt-1 block font-mono break-all">{detail.sourceObjectOid}</strong></div>
                   <div><span className="text-[var(--ty-font-sub-color)] block">操作类型</span><span className={`mt-1 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${operationClass[detail.operationType]}`}>{targetSyncOperationLabel[detail.operationType]}</span></div>
@@ -350,8 +394,8 @@ export function ManticoreSyncQueueView({
                 </div>
               </section>
               {detail.failureReason && (
-                <section className="p-3 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30">
-                  <h3 className="text-ty-sm font-semibold text-[var(--ty-red-color)]">{detail.status === 'FAILED' ? '当前失败原因' : '上次失败原因'} · {detail.errorCode}</h3>
+                <section className={`p-3 rounded-ty-sm border ${detailIsCurrent && detail.status === 'FAILED' ? 'bg-[var(--ty-red-lightest-color)] border-[var(--ty-red-color)]/30' : 'bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-color)]'}`}>
+                  <h3 className={`text-ty-sm font-semibold ${detailIsCurrent && detail.status === 'FAILED' ? 'text-[var(--ty-red-color)]' : ''}`}>{detailIsCurrent && detail.status === 'FAILED' ? '当前失败原因' : detail.status === 'PENDING' ? '上次失败原因' : '当次失败原因'} · {detail.errorCode}</h3>
                   <p className="mt-1">{detail.failureReason}</p>
                 </section>
               )}
@@ -368,7 +412,7 @@ export function ManticoreSyncQueueView({
             <footer className="shrink-0 px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex items-center justify-between gap-3">
               <button type="button" onClick={() => setShowJson((current) => !current)} className="h-8 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] inline-flex items-center gap-2 hover:bg-[var(--ty-fill-color)]"><FileJson className="w-3.5 h-3.5" />{showJson ? '收起原始 JSON' : '查看原始 JSON'}</button>
               <div className="flex items-center gap-2">
-                {detail.status === 'FAILED' && <button type="button" onClick={() => setRetryConfirmIds([detail.id])} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
+                {canRetryRecord(detail) && <button type="button" onClick={() => setRetryConfirmIds([detail.id])} className="h-8 px-3 border border-[var(--ty-primary-color)] rounded-ty-sm text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />重新入队</button>}
                 <button type="button" className="h-8 min-w-16 px-4 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]" onClick={() => setDetailId(null)}>关闭</button>
               </div>
             </footer>
@@ -381,8 +425,8 @@ export function ManticoreSyncQueueView({
           <section role="alertdialog" aria-modal="true" aria-label="确认重新入队" className="w-[min(480px,calc(100vw-32px))] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg shadow-ty-lg overflow-hidden">
             <header className="px-4 py-3 border-b border-[var(--ty-border-color)]"><h2 className="text-ty-lg font-semibold">确认重新入队</h2></header>
             <div className="p-4 text-ty-sm leading-6">
-              <p>{retryConfirmIds.length === 1 ? '该记录' : `选中的 ${retryConfirmIds.length} 条失败记录`}将变为“待处理”，并在对应对象类型下一次同步调度时重试。</p>
-              <p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">上次失败原因会保留，便于后续复盘；重新入队不会立即写入 Manticore。</p>
+              <p>{retryConfirmIds.length === 1 ? '该记录' : `选中的 ${retryConfirmIds.length} 条当前失败记录`}将变为“待处理”，并在对应对象类型下一次同步调度时重试。</p>
+              <p className="mt-2 text-ty-xs text-[var(--ty-font-sub-color)]">重试时重新读取源端最新数据，不重放失败当时的内容；上次失败原因继续保留。</p>
               {pausedRetryCount > 0 && <p className="mt-2 rounded-ty-sm border border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)] px-3 py-2 text-ty-xs text-[var(--ty-orange-color)]">其中 {pausedRetryCount} 条所属对象类型已停用。确认后可以入队，但需重新启用接入才会被调度。</p>}
             </div>
             <footer className="px-4 py-3 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex justify-end gap-2">
