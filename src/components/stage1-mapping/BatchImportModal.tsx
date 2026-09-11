@@ -634,7 +634,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               <RefreshCw className="w-8 h-8 text-[var(--ty-primary-color)] animate-spin mb-3" />
               <h4 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在读取 PLM 属性定义...</h4>
               <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">
-                正在读取 {formatRootTypeDisplayName(currentRootType)} 的属性类型、多值和枚举定义。
+                正在读取 {formatRootTypeDisplayName(currentRootType.name, currentRootType.code)} 的属性类型、多值和枚举定义。
               </p>
             </div>
           )}
