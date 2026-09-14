@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateFieldMatchRate, initialFieldRules, runSimilaritySearch } from '../data';
+import { calculateFieldMatchRate, getSimilarityGroupValueOptions, initialFieldRules, runSimilaritySearch } from '../data';
 import { FieldSimilarityRule } from '../types';
 import { createSimilarityVersionSignature, resolveSimilarityTier, validateSimilarityTierConfig } from '../similarityTier';
 
@@ -33,6 +33,15 @@ test('changing the grouping property invalidates the saved draft preview signatu
   const original = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'business_classification');
   const changed = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'source_type');
   assert.notEqual(original, changed);
+});
+
+test('group values follow the selected grouping property without reusing another property values', () => {
+  assert.deepEqual(
+    getSimilarityGroupValueOptions('product_family').map(option => option.code),
+    ['FASTENER', 'SHEET_METAL', 'TRANSMISSION']
+  );
+  assert.equal(getSimilarityGroupValueOptions('product_family').some(option => option.id === 'IN_HOUSE'), false);
+  assert.equal(getSimilarityGroupValueOptions('business_classification').some(option => option.id === 'IN_HOUSE'), true);
 });
 
 test('non-scoring fields are shown without changing scoring counters', () => {

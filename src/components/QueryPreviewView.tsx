@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import {
   rootTypeOptions,
-  softTypeOptions,
+  getSimilarityGroupValueOptions,
   mockFormBaselines,
   mockPartDatabase,
   runSimilaritySearch,
@@ -91,6 +91,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   // 调试规则版本
   const [ruleVersion, setRuleVersion] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
+  const currentGroupingConfig = ruleVersion === 'DRAFT' ? savedGroupingConfig : activeGroupingConfig;
 
   // 运行加载态与上一次运行上下文快照
   const [isSearching, setIsSearching] = useState(false);
@@ -107,8 +108,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const excludedPage = paginateRows<ExcludedCandidate>(lastRunContext?.searchResult.excludedCandidates || [], page, pageSize);
 
   const availableSoftTypes = useMemo(() => {
-    return softTypeOptions.filter(st => st.rootTypeId === rootTypeId);
-  }, [rootTypeId]);
+    return getSimilarityGroupValueOptions(currentGroupingConfig.propertyCode);
+  }, [currentGroupingConfig.propertyCode]);
 
   // 当前可选已有件列表 (按当前根类型和软类型过滤)
   const availableExistingParts = useMemo(() => {
@@ -122,6 +123,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   // 当切换软类型时重置默认选中的基准
   useEffect(() => {
+    if (!availableSoftTypes.some(option => option.id === softTypeId)) {
+      setSoftTypeId(availableSoftTypes[0]?.id || '');
+      return;
+    }
     if (availableExistingParts.length > 0) {
       setExistingPartId(availableExistingParts[0].objectId);
     } else {
@@ -137,7 +142,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     // 清理旧运行结果
     setLastRunContext(null);
     setSelectedCandidate(null);
-  }, [rootTypeId, softTypeId, baselineSourceType]);
+  }, [availableExistingParts, availableFormBaselines, availableSoftTypes, baselineSourceType, softTypeId]);
 
   // 获取对应版本规则
   const getRulesForVersion = (version: 'DRAFT' | 'PUBLISHED') => version === 'DRAFT' ? savedRules : activeRules;
@@ -147,7 +152,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
   const currentRules = getRulesForVersion(ruleVersion);
   const currentTierConfig = getTierConfigForVersion(ruleVersion);
-  const currentGroupingConfig = ruleVersion === 'DRAFT' ? savedGroupingConfig : activeGroupingConfig;
   const currentScopeRules = currentRules.filter(
     r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && r.softTypeId === softTypeId
   );
@@ -244,7 +248,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   };
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
-  const currentSoftTypeObj = softTypeOptions.find(st => st.id === softTypeId);
+  const currentSoftTypeObj = availableSoftTypes.find(st => st.id === softTypeId);
 
   const activeScoreFieldsCount = currentScopeRules.filter(r => r.isScoreActive && r.enabled).length;
   const gateFieldsCount = currentScopeRules.filter(

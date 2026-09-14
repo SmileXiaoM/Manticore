@@ -151,6 +151,35 @@ export const softTypeOptions: SoftTypeOption[] = [
   }
 ];
 
+// 原型中的分组属性值示例。正式环境由所选 Manticore 单值属性的实际值域返回。
+const similarityAlternativeGroupValues: Record<string, SoftTypeOption[]> = {
+  source_type: [
+    { id: 'SOURCE_INTERNAL', rootTypeId: 'PART', code: 'INTERNAL', name: '自制来源 (INTERNAL)', description: '由企业内部设计或制造' },
+    { id: 'SOURCE_PURCHASED', rootTypeId: 'PART', code: 'PURCHASED', name: '采购来源 (PURCHASED)', description: '由外部供应商采购获得' }
+  ],
+  product_family: [
+    { id: 'FAMILY_FASTENER', rootTypeId: 'PART', code: 'FASTENER', name: '紧固件 (FASTENER)', description: '螺栓、螺母、垫圈等紧固类零部件' },
+    { id: 'FAMILY_SHEET_METAL', rootTypeId: 'PART', code: 'SHEET_METAL', name: '钣金结构件 (SHEET_METAL)', description: '钣金及冲压结构类零部件' },
+    { id: 'FAMILY_TRANSMISSION', rootTypeId: 'PART', code: 'TRANSMISSION', name: '传动件 (TRANSMISSION)', description: '齿轮、轴及其他传动类零部件' }
+  ],
+  factory: [
+    { id: 'FACTORY_SH', rootTypeId: 'PART', code: 'SHANGHAI', name: '上海工厂 (SHANGHAI)', description: '上海工厂所属零部件' },
+    { id: 'FACTORY_SZ', rootTypeId: 'PART', code: 'SUZHOU', name: '苏州工厂 (SUZHOU)', description: '苏州工厂所属零部件' },
+    { id: 'FACTORY_CD', rootTypeId: 'PART', code: 'CHENGDU', name: '成都工厂 (CHENGDU)', description: '成都工厂所属零部件' }
+  ],
+  view: [
+    { id: 'VIEW_DESIGN', rootTypeId: 'PART', code: 'DESIGN', name: '设计视图 (DESIGN)', description: '设计阶段使用的零部件视图' },
+    { id: 'VIEW_MANUFACTURING', rootTypeId: 'PART', code: 'MANUFACTURING', name: '制造视图 (MANUFACTURING)', description: '制造阶段使用的零部件视图' }
+  ]
+};
+
+export function getSimilarityGroupValueOptions(propertyCode: string): SoftTypeOption[] {
+  if (propertyCode === similarityGroupingDefinition.propertyCode) {
+    return softTypeOptions.filter(option => option.rootTypeId === 'PART');
+  }
+  return similarityAlternativeGroupValues[propertyCode] || [];
+}
+
 // Unit conversion helpers
 export function convertToBaseUnit(value: number, unitCode: string, quantityCode: string): number {
   const normalizedQuantityCode = quantityCode.toUpperCase();

@@ -32,8 +32,8 @@ import {
 } from '../types';
 import {
   rootTypeOptions,
-  softTypeOptions,
   similarityGroupingOptions,
+  getSimilarityGroupValueOptions,
   stage1MappedFields,
   mockUnitCatalog,
   convertToBaseUnit,
@@ -135,13 +135,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const selectedRootTypeId = 'PART';
   const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
 
-  // 当前可用的软类型列表 (根据所选根类型过滤)
+  // 分组属性值随当前草稿中的分组依据联动。
   const availableSoftTypes = useMemo(() => {
-    return softTypeOptions.filter(st => st.rootTypeId === selectedRootTypeId);
-  }, [selectedRootTypeId]);
+    return getSimilarityGroupValueOptions(editingGroupingConfig.propertyCode);
+  }, [editingGroupingConfig.propertyCode]);
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
-  const currentSoftTypeObj = softTypeOptions.find(st => st.id === selectedSoftTypeId);
+  const currentSoftTypeObj = availableSoftTypes.find(st => st.id === selectedSoftTypeId);
   const currentGroupStatus = objectConfigStatus[selectedSoftTypeId] || { enabled: false, configVersion: '-', lastModifiedAt: '-' };
   const currentTierConfig = getSimilarityTierConfig(editingTierConfigs, selectedSoftTypeId);
   const currentSavedTierConfig = getSimilarityTierConfig(savedTierConfigs, selectedSoftTypeId);
@@ -197,6 +197,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setIsModalOpen(false);
     setEditingRuleId(null);
   }, [selectedRootTypeId, selectedSoftTypeId]);
+
+  useEffect(() => {
+    if (!availableSoftTypes.some(option => option.id === selectedSoftTypeId)) {
+      setSelectedSoftTypeId(availableSoftTypes[0]?.id || '');
+    }
+  }, [availableSoftTypes, selectedSoftTypeId]);
 
   // 当前上下文下的编辑中规则列表
   const currentScopeEditingRules = useMemo(() => {
@@ -273,7 +279,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   );
   const isSavedPreviewValid = previewedSavedSignatures[selectedSoftTypeId] === savedVersionSignature;
   const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
-  const hasPublishedVersion = currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
+  const hasPublishedVersion = activeGroupingConfig.propertyCode === editingGroupingConfig.propertyCode && currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
   const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100 || !isSavedPreviewValid;
   const publishButtonLabel = !hasPublishedVersion ? '发布规则' : currentGroupStatus.enabled ? '发布更新' : '发布规则';
   const publishButtonTitle = isModified
@@ -288,13 +294,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 一阶段可选字段 (根据当前根类型及软类型过滤)
   const availableStage1Fields = useMemo(() => {
-    return stage1MappedFields.filter(
-      f =>
-        f.rootTypeId === selectedRootTypeId &&
-        (!f.softTypeId || f.softTypeId === selectedSoftTypeId) &&
-        f.enabled
-    );
-  }, [selectedRootTypeId, selectedSoftTypeId]);
+    const fields = stage1MappedFields.filter(field => {
+      if (field.rootTypeId !== selectedRootTypeId || !field.enabled) return false;
+      if (editingGroupingConfig.propertyCode === 'business_classification') {
+        return !field.softTypeId || field.softTypeId === selectedSoftTypeId;
+      }
+      return true;
+    });
+    return Array.from(new Map(fields.map(field => [field.fieldCode, field])).values());
+  }, [editingGroupingConfig.propertyCode, selectedRootTypeId, selectedSoftTypeId]);
   const eligibleStage1Fields = useMemo(
     () => availableStage1Fields.filter(field => !field.isMultiValue),
     [availableStage1Fields]
@@ -947,12 +955,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               onChange={event => {
                 const option = similarityGroupingOptions.find(item => item.propertyCode === event.target.value);
                 if (!option) return;
+                const nextGroupValues = getSimilarityGroupValueOptions(option.propertyCode);
                 onUpdateEditingGroupingConfig({
                   propertyCode: option.propertyCode,
                   propertyName: option.propertyName,
                   configVersion: editingGroupingConfig.configVersion,
                   lastModifiedAt: editingGroupingConfig.lastModifiedAt
                 });
+                setSelectedSoftTypeId(nextGroupValues[0]?.id || '');
+                setFilterKeyword('');
+                setFilterScoreActive('ALL');
+                setFilterMismatchAction('ALL');
+                setPage(1);
               }}
               className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden disabled:bg-[var(--ty-fill-weak-dark-color)] disabled:text-[var(--ty-font-sub-color)]"
             >
@@ -970,7 +984,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              分组属性值
+              {editingGroupingConfig.propertyName}值
             </label>
             <div className="flex items-center gap-2">
               <select
@@ -985,11 +999,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium ${currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>
-                {currentGroupStatus.enabled ? '停用' : '启用'}
+              <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>
+                {!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}
               </button>
             </div>
-            <span className={`mt-1 text-ty-2xs ${currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{currentGroupStatus.enabled ? '已启用 · 应用端使用正式规则' : '已停用 · 不参与计算且不兜底'}</span>
+            <span className={`mt-1 text-ty-2xs ${hasPublishedVersion && currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{!hasPublishedVersion ? '草稿分组值 · 配置并发布后方可启用' : currentGroupStatus.enabled ? '已启用 · 应用端使用正式规则' : '已停用 · 不参与计算且不兜底'}</span>
           </div>
 
         </div>
@@ -1184,7 +1198,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </div>
             <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值尚未配置相似度规则</h3>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-2 leading-relaxed">
-              该分组值下的零部件暂不参与相似度搜索。请先配置规则并确保参与评分字段权重合计为 100%。
+              {editingGroupingConfig.propertyName}“{currentSoftTypeObj?.name.split(' ')[0]}”暂无字段规则，不会沿用其他分组值的配置。请先配置规则并确保参与评分字段权重合计为 100%。
             </p>
             <button
               onClick={handleOpenCreateModal}
