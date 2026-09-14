@@ -255,15 +255,21 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               <span className="text-[var(--ty-font-main-color)]">在正式查询表格结果列展示</span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-ty-sm transition-colors">
-              <input
-                type="checkbox"
-                checked={formData.isFulltextSearch}
-                onChange={e => onChange({ isFulltextSearch: e.target.checked })}
-                className="rounded text-[var(--ty-primary-color)] cursor-pointer"
+            <div className="flex items-center gap-1 hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-ty-sm transition-colors">
+              <label className="flex items-center space-x-2 cursor-pointer min-w-0">
+                <input
+                  type="checkbox"
+                  checked={formData.isFulltextSearch}
+                  onChange={e => onChange({ isFulltextSearch: e.target.checked })}
+                  className="rounded text-[var(--ty-primary-color)] cursor-pointer"
+                />
+                <span className="text-[var(--ty-font-main-color)]">加入全局全文分词检索</span>
+              </label>
+              <HelpTooltip
+                label="查看全局全文分词检索说明"
+                content="开启后，该属性值会在数据同步时写入系统预留的全局全文检索字段，用于统一关键字检索；不会改变该属性自身的 Manticore 存储类型。关闭后不写入。"
               />
-              <span className="text-[var(--ty-font-main-color)]">加入全局全文分词检索</span>
-            </label>
+            </div>
 
             <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-ty-sm transition-colors">
               <input

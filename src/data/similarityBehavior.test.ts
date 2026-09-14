@@ -166,6 +166,16 @@ test('candidate missing policy keeps coverage stable and changes only the scorin
     assert.equal(skipResult.excludedCandidates.some(item => item.objectId === testCandidate.objectId), false);
     assert.equal(skipCandidate.compareFields.find(field => field.fieldKey === 'length')?.candidateMissingHandling, 'SKIP');
 
+    const otherFieldGateRules = skipRules.map(rule => rule.propertyCode === 'core_material'
+      ? { ...rule, mismatchAction: 'EXCLUDE_CANDIDATE' as const }
+      : rule
+    );
+    const otherFieldGateResult = runSimilaritySearch('PART', 'IN_HOUSE', baseline, otherFieldGateRules);
+    assert.equal(otherFieldGateResult.scoredCandidates.some(item => item.objectId === testCandidate.objectId), false);
+    const excludedByMaterial = otherFieldGateResult.excludedCandidates.find(item => item.objectId === testCandidate.objectId);
+    assert.ok(excludedByMaterial);
+    assert.equal(excludedByMaterial.excludedByField, 'core_material');
+
     const zeroDenominatorResult = runSimilaritySearch('PART', 'IN_HOUSE', baseline, [
       { ...length, weight: 100, mismatchAction: 'EXCLUDE_CANDIDATE', nullHandling: '不参与本次计算（跳过）' }
     ]);

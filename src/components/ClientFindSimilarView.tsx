@@ -531,7 +531,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                 {selectedForCompare.compareFields.map(f => {
                   const candidateMissingLabel = f.missingSide === 'CANDIDATE'
                     ? f.candidateMissingHandling === 'SKIP'
-                      ? '候选未填写 · 跳过'
+                      ? '候选未填写 · 不参与本次计算（跳过）'
                       : '候选未填写 · 计0分'
                     : '';
                   return (
@@ -548,7 +548,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                         </span>
                       )}
                       <span
-                        className={`font-semibold min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs ${
+                        className={`font-semibold min-h-6 max-w-[220px] px-2 inline-flex items-center text-center whitespace-normal leading-4 rounded-ty-xs text-ty-2xs ${
                           !f.isScoreActive
                             ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
                             : f.status === 'FULL'

@@ -856,7 +856,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   const isGate = f.isScoreActive && f.mismatchAction === 'EXCLUDE_CANDIDATE';
                   const candidateMissingLabel = f.missingSide === 'CANDIDATE'
                     ? f.candidateMissingHandling === 'SKIP'
-                      ? '候选未填写 · 跳过'
+                      ? '候选未填写 · 不参与本次计算（跳过）'
                       : '候选未填写 · 计0分'
                     : '';
                   return (
@@ -869,7 +869,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                           <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
                           <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-mono">({f.fieldKey})</span>
                           {isGate && (
-                            <span className="text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-2 py-0.2 rounded-ty-xs">
+                            <span className="max-w-[220px] text-center whitespace-normal leading-4 text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-2 py-0.5 rounded-ty-xs">
                               门槛字段
                             </span>
                           )}
