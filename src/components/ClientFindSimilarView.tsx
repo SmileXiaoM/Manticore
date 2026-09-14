@@ -15,9 +15,7 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
-  similarityGroupingDefinition,
   mockFormBaselines,
-  mockPartDatabase,
   stage1MappedFields,
   runSimilaritySearch,
   formatFieldWithFallback
@@ -27,8 +25,8 @@ import {
   ScoredCandidate,
   SearchRunResult,
   SimilarityBaseline,
-  ObjectType,
   SimilarityGroupConfigStatus,
+  SimilarityGroupingConfig,
   SimilarityTierConfigMap
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
@@ -40,6 +38,7 @@ interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   tierConfigs: SimilarityTierConfigMap;
+  groupingConfig: SimilarityGroupingConfig;
   onNavigate?: (view: string) => void;
 }
 
@@ -47,14 +46,13 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   rules,
   objectConfigStatus,
   tierConfigs,
+  groupingConfig,
   onNavigate
 }) => {
   const { notify } = useFeedback();
   // 1. 查询条件
   const rootTypeId = 'PART';
   const [softTypeId, setSoftTypeId] = useState<string>('IN_HOUSE');
-  const [baselineType, setBaselineType] = useState<'EXISTING_PART' | 'FORM_VALUES'>('EXISTING_PART');
-  const [existingPartId, setExistingPartId] = useState<string>('PART-2026-000100');
   const [selectedFormId, setSelectedFormId] = useState<string>('FORM-001');
   const [keyword, setKeyword] = useState<string>('');
 
@@ -69,22 +67,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   // 选中的对比物料 (侧边/抽屉业务对比)
   const [selectedForCompare, setSelectedForCompare] = useState<ScoredCandidate | null>(null);
 
-  const availableExistingParts = useMemo(() => {
-    return mockPartDatabase.filter(p => p.rootTypeId === rootTypeId && p.softTypeId === softTypeId);
-  }, [rootTypeId, softTypeId]);
-
   const availableFormBaselines = useMemo(() => {
     return mockFormBaselines.filter(f => f.rootTypeId === rootTypeId && f.softTypeId === softTypeId);
   }, [rootTypeId, softTypeId]);
 
   // 切换条件时重置选项
   useEffect(() => {
-    if (availableExistingParts.length > 0) {
-      setExistingPartId(availableExistingParts[0].objectId);
-    } else {
-      setExistingPartId('');
-    }
-
     if (availableFormBaselines.length > 0) {
       setSelectedFormId(availableFormBaselines[0].id);
     } else {
@@ -94,41 +82,29 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     setSearchResult(null);
     setSelectedForCompare(null);
     setCurrentPage(1);
-  }, [rootTypeId, softTypeId, baselineType]);
+  }, [rootTypeId, softTypeId]);
 
   // 执行业务相似件查询
   const handleSearch = () => {
     if (objectConfigStatus[softTypeId]?.enabled !== true) {
       notify('当前物料的分组属性值未启用相似度规则，因此不参与搜索，也不会使用其他分组规则兜底。', 'warning');
-      setSearchResult({ reference: null, baselineType, scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '当前分组值已停用或尚未发布启用。' });
+      setSearchResult({ reference: null, baselineType: 'FORM_VALUES', scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '当前分组值已停用或尚未发布启用。' });
       return;
     }
-    let baseline: SimilarityBaseline;
-    if (baselineType === 'EXISTING_PART') {
-      if (!existingPartId) {
-        notify('请选择或输入基准物料编码。', 'warning');
-        return;
-      }
-      baseline = {
-        type: 'EXISTING_PART',
-        objectId: existingPartId
-      };
-    } else {
-      const formItem = mockFormBaselines.find(f => f.id === selectedFormId);
-      if (!formItem) {
-        notify('请选择有效的申请表单。', 'warning');
-        return;
-      }
-      baseline = {
-        type: 'FORM_VALUES',
-        requestNo: formItem.requestNo,
-        temporaryNo: formItem.temporaryNo,
-        rootTypeId: formItem.rootTypeId,
-        softTypeId: formItem.softTypeId,
-        values: formItem.values,
-        units: formItem.units
-      };
+    const formItem = mockFormBaselines.find(f => f.id === selectedFormId);
+    if (!formItem) {
+      notify('当前业务表单数据不可用。', 'warning');
+      return;
     }
+    const baseline: SimilarityBaseline = {
+      type: 'FORM_VALUES',
+      requestNo: formItem.requestNo,
+      temporaryNo: formItem.temporaryNo,
+      rootTypeId: formItem.rootTypeId,
+      softTypeId: formItem.softTypeId,
+      values: formItem.values,
+      units: formItem.units
+    };
 
     setIsSearching(true);
     setSelectedForCompare(null);
@@ -144,8 +120,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   const handleReset = () => {
     setSoftTypeId('IN_HOUSE');
-    setBaselineType('EXISTING_PART');
-    setExistingPartId('PART-2026-000100');
+    setSelectedFormId('FORM-001');
     setKeyword('');
     setSearchResult(null);
     setSelectedForCompare(null);
@@ -217,6 +192,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
   const currentSoftTypeObj = softTypeOptions.find(st => st.id === softTypeId);
+  const currentForm = mockFormBaselines.find(form => form.id === selectedFormId);
   const groupEnabled = objectConfigStatus[softTypeId]?.enabled === true;
 
   const paginatedCandidates = useMemo(() => {
@@ -227,107 +203,67 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   return (
     <div className="space-y-4" id="client-find-similar-view-container">
-      {/* 顶部标题与业务场景说明 */}
+      {/* 新建业务表单内嵌场景 */}
       <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--ty-border-color)] pb-3">
           <div className="flex flex-wrap items-center gap-2">
             <FileCheck2 className="w-5 h-5 text-[var(--ty-primary-color)]" />
-            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">应用端查找相似件</h1>
-            <HelpTooltip label="查看应用端查找相似件说明" content="基于已有物料或业务表单字段值，查找企业物料库中可复用的相似件。" />
+            <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">新建零部件</h1>
+            <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] text-ty-2xs">业务表单内嵌示意</span>
+            <HelpTooltip label="查看查找相似件说明" content="填写新建或编辑表单时，使用当前表单字段值查找可复用的相似件；无需再次选择基准来源。" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleReset}
-              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              重置
-            </button>
-            <button
-              onClick={handleSearch}
-              disabled={isSearching || !groupEnabled}
-              title={groupEnabled ? '查询相似件' : '当前分组值已停用，不参与相似度搜索'}
-              className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
-              id="client-search-btn"
-            >
-              <Search className="w-3.5 h-3.5" />
-              {isSearching ? '正在查找...' : '查询相似件'}
-            </button>
+          <div className="text-ty-xs text-[var(--ty-font-sub-color)]">
+            当前申请单：<strong className="font-mono text-[var(--ty-font-main-color)]">{currentForm?.requestNo || '--'}</strong>
           </div>
         </div>
 
-        <div className="mb-3 px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm flex flex-wrap items-center gap-x-6 gap-y-1 text-ty-xs">
+        <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm flex flex-wrap items-center gap-x-6 gap-y-1 text-ty-xs">
           <span className="inline-flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">当前对象：</span><strong>{currentRootTypeObj?.name}</strong></span>
-          <span className="inline-flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">{similarityGroupingDefinition.propertyName}：</span><strong>{currentSoftTypeObj?.name}</strong></span>
-          <span className="text-[var(--ty-font-sub-color)]">由当前物料上下文自动识别</span>
+          <span className="inline-flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">{groupingConfig.propertyName}：</span><strong>{currentSoftTypeObj?.name}</strong></span>
+          <span className="text-[var(--ty-font-sub-color)]">由当前表单内容自动识别</span>
           <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${groupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{groupEnabled ? '已启用' : '已停用 · 不参与计算'}</span>
         </div>
 
-        {/* 业务用户只需要选择基准，规则上下文由当前物料自动带入 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-          {/* 3. 基准来源 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              基准来源
-            </label>
-            <select
-              value={baselineType}
-              onChange={e => setBaselineType(e.target.value as any)}
-              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              id="client-baseline-type-select"
-            >
-              <option value="EXISTING_PART">已有物料作为基准</option>
-              <option value="FORM_VALUES">当前业务表单录入值</option>
-            </select>
+        <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
+          <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex items-center gap-2 text-ty-xs font-semibold">
+            <FileText className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+            当前表单字段
           </div>
-
-          {/* 4. 基准选择器 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] block">
-              {baselineType === 'EXISTING_PART' ? '基准物料' : '当前业务申请单'}
-            </label>
-            {baselineType === 'EXISTING_PART' ? (
-              availableExistingParts.length > 0 ? (
-                <select
-                  value={existingPartId}
-                  onChange={e => setExistingPartId(e.target.value)}
-                  className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-                >
-                  {availableExistingParts.map(p => (
-                    <option key={p.objectId} value={p.objectId}>
-                      {p.objectId} - {p.objectName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={existingPartId}
-                  onChange={e => setExistingPartId(e.target.value)}
-                  placeholder="输入物料编码..."
-                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-                />
-              )
-            ) : availableFormBaselines.length > 0 ? (
-              <select
-                value={selectedFormId}
-                onChange={e => setSelectedFormId(e.target.value)}
-                className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              >
-                {availableFormBaselines.map(f => (
-                  <option key={f.id} value={f.id}>
-                    {f.requestNo} ({f.temporaryNo})
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="h-8 px-2 flex items-center text-ty-xs text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm">
-                暂无预置表单
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-5 gap-y-3 p-3">
+            {[
+              ['规格描述', currentForm?.values.spec_description || '--'],
+              ['主要材质', currentForm?.values.core_material || '--'],
+              ['标称直径', `${currentForm?.values.nominal_diameter ?? '--'} ${currentForm?.units?.nominal_diameter || ''}`],
+              ['长度', `${currentForm?.values.length ?? '--'} ${currentForm?.units?.length || ''}`]
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <span className="block text-ty-2xs text-[var(--ty-font-sub-color)] mb-1">{label}</span>
+                <div className="h-8 px-3 flex items-center rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs font-medium truncate" title={String(value)}>{value}</div>
               </div>
-            )}
+            ))}
+          </div>
+          <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border-t border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-2">
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">使用当前已填写字段作为查询基准，不修改表单数据。</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleReset}
+                className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                重置表单
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={isSearching || !groupEnabled}
+                title={groupEnabled ? '使用当前表单值查找相似件' : '当前分组值已停用，不参与相似度搜索'}
+                className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
+                id="client-search-btn"
+              >
+                <Search className="w-3.5 h-3.5" />
+                {isSearching ? '正在查找...' : '查找相似件'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -351,7 +287,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-primary-lighter-color)]/30 text-[var(--ty-primary-color)] mx-auto flex items-center justify-center mb-3">
             <Search className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">选择基准并点击“查询相似件”</h3>
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">填写表单后点击“查找相似件”</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             系统将按当前物料的分组属性值自动应用已启用规则，匹配可复用的相似物料。
           </p>

@@ -46,15 +46,21 @@ export const rootTypeOptions: RootTypeOption[] = [
   }
 ];
 
-// 二阶段相似度规则的分组定义。分组属性由管理员在首次建规则前确定；
-// 当前示例已基于 PLM 业务分类建立规则，因此只读锁定，避免不同属性的值域混用。
+// 二阶段相似度规则可使用的分组依据。当前草稿可由配置管理员调整，
+// 保存和发布后分别形成草稿版本与已发布版本。
 export const similarityGroupingDefinition = {
   propertyCode: 'business_classification',
   propertyName: 'PLM 业务分类',
-  sourceLabel: '已发布的 Manticore 单值属性',
-  locked: true,
-  alternativeExamples: ['来源类型', '产品族', '工厂', '视图']
+  sourceLabel: '已发布的 Manticore 单值属性'
 };
+
+export const similarityGroupingOptions = [
+  similarityGroupingDefinition,
+  { propertyCode: 'source_type', propertyName: '来源类型', sourceLabel: '已发布的 Manticore 单值属性' },
+  { propertyCode: 'product_family', propertyName: '产品族', sourceLabel: '已发布的 Manticore 单值属性' },
+  { propertyCode: 'factory', propertyName: '工厂', sourceLabel: '已发布的 Manticore 单值属性' },
+  { propertyCode: 'view', propertyName: '视图', sourceLabel: '已发布的 Manticore 单值属性' }
+];
 
 // 2. 软类型定义 (依赖根类型，来自一阶段元数据只读映射)
 export const softTypeOptions: SoftTypeOption[] = [

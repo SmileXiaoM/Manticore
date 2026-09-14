@@ -52,10 +52,12 @@ export function createSimilarityVersionSignature(
   rules: FieldSimilarityRule[],
   rootTypeId: string,
   groupValueId: string,
-  tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'>
+  tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'>,
+  groupingPropertyCode: string
 ): string {
   return JSON.stringify({
     rules: normalizeRulesForCompare(rules, rootTypeId, groupValueId),
+    groupingPropertyCode,
     tier: {
       highStart: Number(tierConfig.highStart.toFixed(2)),
       mediumStart: Number(tierConfig.mediumStart.toFixed(2))

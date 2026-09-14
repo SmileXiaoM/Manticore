@@ -16,14 +16,14 @@ import {
   ShieldAlert,
   Layers,
   ArrowRight,
-  Clock,
-  Lock
+  Clock
 } from 'lucide-react';
 import {
   FieldSimilarityRule,
   MatchConfig,
   ChangeRecord,
   SimilarityGroupConfigStatus,
+  SimilarityGroupingConfig,
   SimilarityTierConfigMap,
   isObjectRulesModified,
   restoreObjectRules,
@@ -33,7 +33,7 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
-  similarityGroupingDefinition,
+  similarityGroupingOptions,
   stage1MappedFields,
   mockUnitCatalog,
   convertToBaseUnit,
@@ -70,6 +70,12 @@ interface FieldSimilarityViewProps {
   activeTierConfigs: SimilarityTierConfigMap;
   onUpdateActiveTierConfigs: (configs: SimilarityTierConfigMap) => void;
   previewedSavedSignatures: Record<string, string>;
+  editingGroupingConfig: SimilarityGroupingConfig;
+  onUpdateEditingGroupingConfig: (config: SimilarityGroupingConfig) => void;
+  savedGroupingConfig: SimilarityGroupingConfig;
+  onUpdateSavedGroupingConfig: (config: SimilarityGroupingConfig) => void;
+  activeGroupingConfig: SimilarityGroupingConfig;
+  onUpdateActiveGroupingConfig: (config: SimilarityGroupingConfig) => void;
   canManageConfig?: boolean;
   onNavigate?: (view: string) => void;
 }
@@ -115,6 +121,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   activeTierConfigs,
   onUpdateActiveTierConfigs,
   previewedSavedSignatures,
+  editingGroupingConfig,
+  onUpdateEditingGroupingConfig,
+  savedGroupingConfig,
+  onUpdateSavedGroupingConfig,
+  activeGroupingConfig,
+  onUpdateActiveGroupingConfig,
   canManageConfig = true,
   onNavigate
 }) => {
@@ -244,18 +256,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // 检查是否有未保存修改
   const isModified = useMemo(() => {
     const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
-    return tierChanged || isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentTierConfig.highStart, currentTierConfig.mediumStart, editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
+    const groupingChanged = editingGroupingConfig.propertyCode !== savedGroupingConfig.propertyCode;
+    return groupingChanged || tierChanged || isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentTierConfig.highStart, currentTierConfig.mediumStart, editingGroupingConfig.propertyCode, savedGroupingConfig.propertyCode, editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
   const hasSavedDraft = useMemo(() => {
     const tierChanged = currentSavedTierConfig.highStart !== currentActiveTierConfig.highStart || currentSavedTierConfig.mediumStart !== currentActiveTierConfig.mediumStart;
-    return tierChanged || isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [savedRules, activeRules, currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentActiveTierConfig.highStart, currentActiveTierConfig.mediumStart, selectedRootTypeId, selectedSoftTypeId]);
+    const groupingChanged = savedGroupingConfig.propertyCode !== activeGroupingConfig.propertyCode;
+    return groupingChanged || tierChanged || isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [savedRules, activeRules, currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentActiveTierConfig.highStart, currentActiveTierConfig.mediumStart, savedGroupingConfig.propertyCode, activeGroupingConfig.propertyCode, selectedRootTypeId, selectedSoftTypeId]);
   const currentScopeSavedRules = useMemo(() => savedRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId), [savedRules, selectedRootTypeId, selectedSoftTypeId]);
   const savedScoreRulesCount = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).length;
   const savedScoreWeight = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).reduce((sum, rule) => sum + rule.weight, 0);
   const savedVersionSignature = useMemo(
-    () => createSimilarityVersionSignature(savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig),
-    [savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig]
+    () => createSimilarityVersionSignature(savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig, savedGroupingConfig.propertyCode),
+    [savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig, savedGroupingConfig.propertyCode]
   );
   const isSavedPreviewValid = previewedSavedSignatures[selectedSoftTypeId] === savedVersionSignature;
   const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
@@ -267,10 +281,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     : !hasSavedDraft
     ? '当前没有待发布草稿'
     : savedScoreWeight !== 100
-    ? `已保存版本权重合计必须为 100%，当前为 ${savedScoreWeight}%`
+    ? `草稿版本权重合计必须为 100%，当前为 ${savedScoreWeight}%`
     : !isSavedPreviewValid
-    ? '请先预览已保存版本'
-    : '发布已保存且预览成功的版本';
+    ? '请先预览草稿版本'
+    : '发布已保存且预览成功的草稿版本';
 
   // 一阶段可选字段 (根据当前根类型及软类型过滤)
   const availableStage1Fields = useMemo(() => {
@@ -561,9 +575,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       ...savedTierConfigs,
       [selectedSoftTypeId]: { ...currentTierConfig, configVersion: 'v2.5.0-saved', lastModifiedAt: savedAt }
     });
+    onUpdateSavedGroupingConfig({
+      ...editingGroupingConfig,
+      configVersion: 'v2.5.0-saved',
+      lastModifiedAt: savedAt
+    });
 
     // 记录变更
     const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
+    const groupingChanged = editingGroupingConfig.propertyCode !== savedGroupingConfig.propertyCode;
     const newRecord: ChangeRecord = {
       id: `CR-${Date.now()}`,
       objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
@@ -572,15 +592,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-saved',
       operationType: '保存',
-      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的 ${thisSavedRules.length} 项字段规则${tierChanged ? '及相似度分档' : ''}。保存草稿不影响当前应用版本。`,
-      beforeSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentSavedTierConfig)}` : undefined,
-      afterSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentTierConfig)}` : undefined,
+      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的 ${thisSavedRules.length} 项字段规则${tierChanged ? '、相似度分档' : ''}${groupingChanged ? '及分组依据' : ''}。保存草稿不影响当前应用版本。`,
+      beforeSummary: groupingChanged || tierChanged ? `${groupingChanged ? `分组依据：${savedGroupingConfig.propertyName}；` : ''}${tierChanged ? `相似度分档：${formatSimilarityTierRange(currentSavedTierConfig)}` : ''}` : undefined,
+      afterSummary: groupingChanged || tierChanged ? `${groupingChanged ? `分组依据：${editingGroupingConfig.propertyName}；` : ''}${tierChanged ? `相似度分档：${formatSimilarityTierRange(currentTierConfig)}` : ''}` : undefined,
       operator: '李晓华 (数据标准管理员)',
       time: savedAt,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
-    notify('配置已保存为草稿，可在查询预览中选择“已保存版本”进行验证。', 'success');
+    notify('配置已保存为草稿，可在查询预览中选择“草稿版本”进行验证。', 'success');
   };
 
   // 发布已保存且预览成功的当前分组版本
@@ -590,7 +610,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
     if (isModified) {
-      notify('请先保存当前编辑内容，再对“已保存版本”重新预览。', 'warning');
+      notify('请先保存当前编辑内容，再对“草稿版本”重新预览。', 'warning');
       return;
     }
     if (!hasSavedDraft) {
@@ -603,11 +623,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
     if (savedScoreRulesCount === 0 || savedScoreWeight !== 100) {
-      notify(`发布失败：已保存版本的参与评分字段权重合计必须为 100%，当前为 ${savedScoreWeight}%。`, 'warning');
+      notify(`发布失败：草稿版本的参与评分字段权重合计必须为 100%，当前为 ${savedScoreWeight}%。`, 'warning');
       return;
     }
     if (!isSavedPreviewValid) {
-      notify('发布前需在查询预览中选择“已保存版本”并成功试算。', 'warning');
+      notify('发布前需在查询预览中选择“草稿版本”并成功试算。', 'warning');
       return;
     }
 
@@ -627,6 +647,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       ...activeTierConfigs,
       [selectedSoftTypeId]: { ...currentSavedTierConfig, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
     });
+    onUpdateActiveGroupingConfig({
+      ...savedGroupingConfig,
+      configVersion: 'v2.5.0-release',
+      lastModifiedAt: publishedAt
+    });
     const remainsEnabled = hasPublishedVersion ? currentGroupStatus.enabled : false;
     onUpdateConfigStatus({
       ...objectConfigStatus,
@@ -642,9 +667,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-release',
       operationType: '发布',
-      summary: `发布了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的已保存版本（${savedScoreRulesCount} 个评分字段）；${remainsEnabled ? '已启用规则持续生效' : hasPublishedVersion ? '保持停用' : '首次发布后保持停用，需手动启用'}。`,
-      beforeSummary: `当前应用分档：${formatSimilarityTierRange(currentActiveTierConfig)}`,
-      afterSummary: `新发布分档：${formatSimilarityTierRange(currentSavedTierConfig)}`,
+      summary: `发布了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的草稿版本（${savedScoreRulesCount} 个评分字段）；${remainsEnabled ? '已启用规则持续生效' : hasPublishedVersion ? '保持停用' : '首次发布后保持停用，需手动启用'}。`,
+      beforeSummary: `分组依据：${activeGroupingConfig.propertyName}；当前应用分档：${formatSimilarityTierRange(currentActiveTierConfig)}`,
+      afterSummary: `分组依据：${savedGroupingConfig.propertyName}；新发布分档：${formatSimilarityTierRange(currentSavedTierConfig)}`,
       operator: '李晓华 (数据标准管理员)',
       time: new Date().toISOString().replace('T', ' ').slice(0, 19),
       result: 'SUCCESS'
@@ -849,7 +874,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <SlidersHorizontal className="w-5 h-5 text-[var(--ty-primary-color)]" />
             <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">字段相似度规则</h1>
-            <HelpTooltip label="查看字段相似度规则说明" content="为零部件按固定分组属性的不同取值分别定义相似度规则。" />
+            <HelpTooltip label="查看字段相似度规则说明" content="为零部件按当前分组依据的不同取值分别定义相似度规则；管理员的修改先保存为草稿。" />
           </div>
 
           {/* 操作按钮区 */}
@@ -857,7 +882,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             {(isModified || hasSavedDraft) && (
               <span className="text-ty-xs font-semibold px-3 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm inline-flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
-                {isModified ? '编辑中（未保存）' : '草稿已保存（未启用）'}
+                {isModified ? '编辑中（未保存）' : '草稿已保存（待预览或发布）'}
               </span>
             )}
             <button
@@ -893,7 +918,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
         </div>
 
-        {/* 固定对象类型、分组属性定义与分组值 */}
+        {/* 固定对象类型、草稿分组依据与分组值 */}
         <div className="pt-3 border-t border-[var(--ty-border-color)] grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
@@ -908,19 +933,38 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              规则分组属性
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
+              分组依据
               <HelpTooltip
-                label="查看规则分组属性说明"
-                content={<span>从已发布的 Manticore 单值属性中定义一个分组维度，例如 PLM 分类、来源类型、产品族、工厂或视图。建立规则后该定义锁定；多值属性不能作为分组属性。</span>}
+                label="查看分组依据说明"
+                content={<span>管理员可从已发布的 Manticore 单值属性中选择。修改先进入草稿，不影响当前已发布版本；多值属性不能作为分组依据。</span>}
               />
             </label>
-            <div className="h-8 px-3 flex items-center justify-between gap-2 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium">
-              <span className="min-w-0 truncate" title={`${similarityGroupingDefinition.propertyName} (${similarityGroupingDefinition.propertyCode})`}>
-                {similarityGroupingDefinition.propertyName} <span className="font-mono text-[var(--ty-font-sub-color)]">({similarityGroupingDefinition.propertyCode})</span>
-              </span>
-              <span className="shrink-0 whitespace-nowrap text-ty-2xs text-[var(--ty-font-sub-color)]">已锁定</span>
-            </div>
+            <select
+              id="grouping-property-selector"
+              value={editingGroupingConfig.propertyCode}
+              disabled={!canManageConfig}
+              onChange={event => {
+                const option = similarityGroupingOptions.find(item => item.propertyCode === event.target.value);
+                if (!option) return;
+                onUpdateEditingGroupingConfig({
+                  propertyCode: option.propertyCode,
+                  propertyName: option.propertyName,
+                  configVersion: editingGroupingConfig.configVersion,
+                  lastModifiedAt: editingGroupingConfig.lastModifiedAt
+                });
+              }}
+              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden disabled:bg-[var(--ty-fill-weak-dark-color)] disabled:text-[var(--ty-font-sub-color)]"
+            >
+              {similarityGroupingOptions.map(option => (
+                <option key={option.propertyCode} value={option.propertyCode}>
+                  {option.propertyName} ({option.propertyCode})
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+              {editingGroupingConfig.propertyCode === savedGroupingConfig.propertyCode ? '当前草稿分组依据' : '已修改 · 保存草稿后进入待预览版本'}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1015,7 +1059,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
             <span>当前分档：{formatSimilarityTierRange(currentTierConfig)}</span>
-            {(hasSavedDraft || isModified) && <span className={isCurrentDraftPreviewValid ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-orange-color)]'}>{isCurrentDraftPreviewValid ? '已保存版本已通过预览' : isModified ? '当前修改已使原预览失效，请保存后重新预览' : '已保存版本待重新预览'}</span>}
+            {(hasSavedDraft || isModified) && <span className={isCurrentDraftPreviewValid ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-orange-color)]'}>{isCurrentDraftPreviewValid ? '草稿版本已通过预览' : isModified ? '当前修改已使原预览失效，请保存后重新预览' : '草稿版本待重新预览'}</span>}
           </div>
         )}
       </div>
@@ -1026,7 +1070,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">当前规则上下文</span>
             <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
-              {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
+              {editingGroupingConfig.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
             </span>
           </div>
           <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-semibold bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-sm border border-[var(--ty-border-color)]">
@@ -1310,7 +1354,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {currentRootTypeObj?.name}
                 </span>
                 <span className="min-h-6 px-2 inline-flex items-center rounded-ty-sm bg-[var(--ty-fill-color)] text-ty-2xs text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
-                  {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name}
+                  {editingGroupingConfig.propertyName} = {currentSoftTypeObj?.name}
                 </span>
               </div>
               <button

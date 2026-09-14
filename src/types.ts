@@ -227,6 +227,13 @@ export interface SimilarityTierConfig {
 
 export type SimilarityTierConfigMap = Record<string, SimilarityTierConfig>;
 
+export interface SimilarityGroupingConfig {
+  propertyCode: string;
+  propertyName: string;
+  configVersion: string;
+  lastModifiedAt: string;
+}
+
 export interface VersionDiffItem {
   fieldName: string;
   beforeValue: string;

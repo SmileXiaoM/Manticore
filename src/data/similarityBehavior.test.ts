@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { calculateFieldMatchRate, initialFieldRules, runSimilaritySearch } from '../data';
 import { FieldSimilarityRule } from '../types';
-import { resolveSimilarityTier, validateSimilarityTierConfig } from '../similarityTier';
+import { createSimilarityVersionSignature, resolveSimilarityTier, validateSimilarityTierConfig } from '../similarityTier';
 
 const exactTextRule: FieldSimilarityRule = {
   ...initialFieldRules[0],
@@ -26,6 +26,13 @@ test('similarity tier uses the displayed two-decimal score and validates boundar
   assert.equal(validateSimilarityTierConfig(config), '');
   assert.match(validateSimilarityTierConfig({ ...config, mediumStart: 85 }), /0 < 中相似/);
   assert.match(validateSimilarityTierConfig({ ...config, highStart: 85.001 }), /两位小数/);
+});
+
+test('changing the grouping property invalidates the saved draft preview signature', () => {
+  const tier = { highStart: 85, mediumStart: 70, configVersion: 'test', lastModifiedAt: '-' };
+  const original = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'business_classification');
+  const changed = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'source_type');
+  assert.notEqual(original, changed);
 });
 
 test('non-scoring fields are shown without changing scoring counters', () => {

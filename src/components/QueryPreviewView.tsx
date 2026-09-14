@@ -19,7 +19,6 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
-  similarityGroupingDefinition,
   mockFormBaselines,
   mockPartDatabase,
   runSimilaritySearch,
@@ -33,6 +32,7 @@ import {
   SimilarityBaseline,
   ObjectType,
   SimilarityGroupConfigStatus,
+  SimilarityGroupingConfig,
   SimilarityTierConfig,
   SimilarityTierConfigMap
 } from '../types';
@@ -42,13 +42,13 @@ import { HelpTooltip } from './ui/HelpTooltip';
 import { createSimilarityVersionSignature, formatSimilarityTierRange, getSimilarityTierConfig } from '../similarityTier';
 
 interface QueryPreviewViewProps {
-  editingRules: FieldSimilarityRule[];
   savedRules: FieldSimilarityRule[];
   activeRules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
-  editingTierConfigs: SimilarityTierConfigMap;
   savedTierConfigs: SimilarityTierConfigMap;
   activeTierConfigs: SimilarityTierConfigMap;
+  savedGroupingConfig: SimilarityGroupingConfig;
+  activeGroupingConfig: SimilarityGroupingConfig;
   onPreviewSuccess?: (groupValueId: string, signature: string) => void;
   onNavigate?: (view: string) => void;
 }
@@ -56,7 +56,7 @@ interface QueryPreviewViewProps {
 interface LastRunContext {
   rootTypeId: string;
   softTypeId: string;
-  ruleVersion: 'DRAFT_POOL' | 'SAVED_DRAFT' | 'ACTIVE_RELEASE';
+  ruleVersion: 'DRAFT' | 'PUBLISHED';
   baseline: SimilarityBaseline;
   runTime: string;
   rulesSnapshot: FieldSimilarityRule[];
@@ -65,13 +65,13 @@ interface LastRunContext {
 }
 
 export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
-  editingRules,
   savedRules,
   activeRules,
   objectConfigStatus,
-  editingTierConfigs,
   savedTierConfigs,
   activeTierConfigs,
+  savedGroupingConfig,
+  activeGroupingConfig,
   onPreviewSuccess,
   onNavigate
 }) => {
@@ -90,7 +90,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const [selectedFormId, setSelectedFormId] = useState<string>('FORM-001');
 
   // 调试规则版本
-  const [ruleVersion, setRuleVersion] = useState<'DRAFT_POOL' | 'SAVED_DRAFT' | 'ACTIVE_RELEASE'>('DRAFT_POOL');
+  const [ruleVersion, setRuleVersion] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
 
   // 运行加载态与上一次运行上下文快照
   const [isSearching, setIsSearching] = useState(false);
@@ -140,29 +140,26 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   }, [rootTypeId, softTypeId, baselineSourceType]);
 
   // 获取对应版本规则
-  const getRulesForVersion = (version: 'DRAFT_POOL' | 'SAVED_DRAFT' | 'ACTIVE_RELEASE') => {
-    if (version === 'DRAFT_POOL') return editingRules;
-    if (version === 'SAVED_DRAFT') return savedRules;
-    return activeRules;
-  };
-  const getTierConfigForVersion = (version: 'DRAFT_POOL' | 'SAVED_DRAFT' | 'ACTIVE_RELEASE') => {
-    if (version === 'DRAFT_POOL') return getSimilarityTierConfig(editingTierConfigs, softTypeId);
-    if (version === 'SAVED_DRAFT') return getSimilarityTierConfig(savedTierConfigs, softTypeId);
-    return getSimilarityTierConfig(activeTierConfigs, softTypeId);
-  };
+  const getRulesForVersion = (version: 'DRAFT' | 'PUBLISHED') => version === 'DRAFT' ? savedRules : activeRules;
+  const getTierConfigForVersion = (version: 'DRAFT' | 'PUBLISHED') => version === 'DRAFT'
+    ? getSimilarityTierConfig(savedTierConfigs, softTypeId)
+    : getSimilarityTierConfig(activeTierConfigs, softTypeId);
 
   const currentRules = getRulesForVersion(ruleVersion);
   const currentTierConfig = getTierConfigForVersion(ruleVersion);
+  const currentGroupingConfig = ruleVersion === 'DRAFT' ? savedGroupingConfig : activeGroupingConfig;
   const currentScopeRules = currentRules.filter(
     r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && r.softTypeId === softTypeId
   );
   const groupEnabled = objectConfigStatus[softTypeId]?.enabled === true;
-  const activeVersionUnavailable = ruleVersion === 'ACTIVE_RELEASE' && !groupEnabled;
+  const publishedVersionUnavailable = ruleVersion === 'PUBLISHED' && (
+    objectConfigStatus[softTypeId]?.configVersion === '-' || currentScopeRules.length === 0
+  );
 
   // 执行沙盒试算
   const handleRunTrial = () => {
-    if (activeVersionUnavailable) {
-      notify('当前分组值已停用，不参与正式相似度搜索。可切换到编辑版本或已保存版本继续沙盒试算。', 'warning');
+    if (publishedVersionUnavailable) {
+      notify('当前分组值尚无已发布版本，请切换到草稿版本进行沙盒试算。', 'warning');
       return;
     }
     const scoreWeight = currentScopeRules
@@ -216,12 +213,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         searchResult: result
       };
 
-      if (ruleVersion === 'SAVED_DRAFT' && !result.errorCode) {
+      if (ruleVersion === 'DRAFT' && !result.errorCode) {
         onPreviewSuccess?.(
           softTypeId,
-          createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig)
+          createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig, savedGroupingConfig.propertyCode)
         );
-        notify('已保存版本试算成功，当前版本已满足发布前预览要求。', 'success');
+        notify('草稿版本试算成功，当前版本已满足发布前预览要求。', 'success');
       }
 
       setLastRunContext(snapshot);
@@ -241,7 +238,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     setSoftTypeId('IN_HOUSE');
     setBaselineSourceType('EXISTING_PART');
     setExistingPartId('PART-2026-000100');
-    setRuleVersion('DRAFT_POOL');
+    setRuleVersion('DRAFT');
     setLastRunContext(null);
     setSelectedCandidate(null);
   };
@@ -281,8 +278,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </button>
             <button
               onClick={handleRunTrial}
-              disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0 || activeVersionUnavailable}
-              title={activeVersionUnavailable ? '当前分组值已停用，不能试算正式启用版本' : totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
+              disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0 || publishedVersionUnavailable}
+              title={publishedVersionUnavailable ? '当前分组值尚无已发布版本' : totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
@@ -309,7 +306,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              {similarityGroupingDefinition.propertyName}值
+              {currentGroupingConfig.propertyName}值
             </label>
             <select
               value={softTypeId}
@@ -400,9 +397,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
               id="preview-rule-version-select"
             >
-              <option value="DRAFT_POOL">当前编辑版本</option>
-              <option value="SAVED_DRAFT">已保存版本</option>
-              <option value="ACTIVE_RELEASE">当前启用版本</option>
+              <option value="DRAFT">草稿版本</option>
+              <option value="PUBLISHED">已发布版本</option>
             </select>
           </div>
         </div>
@@ -413,18 +409,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">上下文：</span>
               <span className="font-bold text-[var(--ty-font-main-color)]">
-                {currentRootTypeObj?.name.split(' ')[0]} / {similarityGroupingDefinition.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
+                {currentRootTypeObj?.name.split(' ')[0]} / {currentGroupingConfig.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
               </span>
               <span className={`ml-2 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${groupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{groupEnabled ? '已启用' : '已停用'}</span>
             </div>
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">规则版本：</span>
               <span className="font-semibold text-[var(--ty-primary-color)]">
-                {ruleVersion === 'DRAFT_POOL'
-                  ? '当前编辑版本'
-                  : ruleVersion === 'SAVED_DRAFT'
-                  ? '已保存版本'
-                  : '当前启用版本'}
+                {ruleVersion === 'DRAFT' ? '草稿版本' : '已发布版本'}
               </span>
             </div>
             <div>
@@ -477,13 +469,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在执行沙盒相似度试算...</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
         </div>
-      ) : activeVersionUnavailable ? (
+      ) : publishedVersionUnavailable ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值已停用</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">正式启用版本不参与相似度搜索，也不会使用其他分组规则兜底。仍可切换到“编辑版本”或“已保存版本”进行沙盒试算。</p>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">尚无已发布版本</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">当前分组值还没有可预览的已发布配置，可切换到“草稿版本”进行沙盒试算。</p>
         </div>
       ) : !lastRunContext ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center" id="initial-guide-container">
