@@ -75,7 +75,7 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
                     { id: `frequency-${root.id}`, label: '设置检查频率', description: '配置多久检查一次中间表', icon: <Clock3 className="w-3.5 h-3.5" />, onClick: () => onConfigurePolling(root.id) },
                     { id: `queue-${root.id}`, label: '查看同步队列', description: '查看中间表到 Manticore 的处理记录', icon: <Database className="w-3.5 h-3.5" />, onClick: onNavigateToSyncQuality },
                     { id: `preview-${root.id}`, label: '查询预览', description: '预览当前正式字段的查询结果', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => onOpenQueryPreview(root.id) },
-                    { id: `reset-${root.id}`, label: '重置接入', description: '清空正式查询数据并转为草稿', icon: <AlertTriangle className="w-3.5 h-3.5 text-[var(--ty-red-color)]" />, danger: true, disabled: !hasPermission, onClick: () => onResetAccess(root.id) },
+                    { id: `reset-${root.id}`, label: '重置接入', description: '清空中间表与正式查询数据，并转为草稿', icon: <AlertTriangle className="w-3.5 h-3.5 text-[var(--ty-red-color)]" />, danger: true, disabled: !hasPermission, onClick: () => onResetAccess(root.id) },
                   ]} />
                 </div>
               </td>

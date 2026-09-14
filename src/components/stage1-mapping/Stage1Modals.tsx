@@ -273,13 +273,16 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
               删除当前根类型索引数据（当前索引量：<strong className="text-[var(--ty-red-color)] font-mono">{docCountText}</strong>）。
             </li>
             <li>
+              删除当前根类型的中间表数据。
+            </li>
+            <li>
               保留当前已有的 {currentFields.length} 个字段映射定义，但全部转为草稿状态。
             </li>
             <li>
               暂停当前根类型的正式查询。
             </li>
             <li className="text-[var(--ty-font-sub-color)]">
-              不删除 PLM 源数据和中间表数据。
+              不删除 PLM 源数据。
             </li>
           </ul>
         </div>
@@ -287,7 +290,7 @@ export const ResetAccessModal: React.FC<ResetAccessModalProps> = ({
         {/* 3. 一句恢复路径 */}
         <div className="bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 text-ty-xs flex items-center space-x-2 text-[var(--ty-font-sub-color)]">
           <Info className="w-4 h-4 text-[var(--ty-primary-color)] shrink-0" />
-          <span>重新生效字段配置并同步成功后恢复查询。</span>
+          <span>重新生效字段配置，并由上游重新写入中间表、同步成功后恢复查询。</span>
         </div>
 
         {/* 4. 输入稳定根类型编码并确认 */}

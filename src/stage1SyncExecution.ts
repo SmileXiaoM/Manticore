@@ -181,7 +181,7 @@ export function completeStage1Task(
         executionStatus: 'SUCCESS',
         endTime,
         durationText,
-        statusNote: `已完成接入重置：清空正式查询数据，保留 ${retainedDraftCount} 个字段映射并转为草稿。`,
+        statusNote: `已完成接入重置：清空中间表和正式查询数据，保留 ${retainedDraftCount} 个字段映射并转为草稿。`,
         resetAuditDetail: {
           ...batch.resetAuditDetail!,
           deletedDocCount: knownCount(batch.resetAuditDetail.beforeDocCount),

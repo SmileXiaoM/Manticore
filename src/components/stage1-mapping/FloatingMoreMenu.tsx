@@ -39,7 +39,7 @@ export const FloatingMoreMenu: React.FC<FloatingMoreMenuProps> = ({
     {
       id: 'default-reset-access',
       label: '重置接入',
-      description: '清空正式查询数据并转为草稿',
+      description: '清空中间表与正式查询数据，并转为草稿',
       icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />,
       danger: true,
       disabled: disabled,

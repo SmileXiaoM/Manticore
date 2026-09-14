@@ -331,7 +331,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
               {
                 id: `reset-access-${currentRootType.id}`,
                 label: '重置接入',
-                description: '清空正式查询数据并转为草稿',
+                description: '清空中间表与正式查询数据，并转为草稿',
                 icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--ty-red-color)]" />,
                 danger: true,
                 disabled: !hasPermission || currentRootType.syncStatus === 'RUNNING' || currentRootType.syncStatus === 'RESETTING',
