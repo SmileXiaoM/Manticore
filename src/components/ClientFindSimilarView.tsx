@@ -28,21 +28,25 @@ import {
   SearchRunResult,
   SimilarityBaseline,
   ObjectType,
-  SimilarityGroupConfigStatus
+  SimilarityGroupConfigStatus,
+  SimilarityTierConfigMap
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { HelpTooltip } from './ui/HelpTooltip';
 import { TablePagination } from './ui/TablePagination';
+import { getSimilarityTierConfig } from '../similarityTier';
 
 interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
+  tierConfigs: SimilarityTierConfigMap;
   onNavigate?: (view: string) => void;
 }
 
 export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   rules,
   objectConfigStatus,
+  tierConfigs,
   onNavigate
 }) => {
   const { notify } = useFeedback();
@@ -131,7 +135,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
     setTimeout(() => {
       // 业务端只应用已启用的 active 规则 (或传入的 rules)
-      const res = runSimilaritySearch(rootTypeId, softTypeId, baseline, rules, keyword);
+      const res = runSimilaritySearch(rootTypeId, softTypeId, baseline, rules, keyword, getSimilarityTierConfig(tierConfigs, softTypeId));
       setSearchResult(res);
       setIsSearching(false);
       setCurrentPage(1);
@@ -476,9 +480,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     <td className="py-3 px-4">
                       <span
                         className={`text-ty-md font-bold font-mono ${
-                          cand.similarityScore >= 85
+                          cand.similarityTier === '高相似'
                             ? 'text-[var(--ty-green-color)]'
-                            : cand.similarityScore >= 70
+                            : cand.similarityTier === '中相似'
                             ? 'text-[var(--ty-primary-color)]'
                             : 'text-[var(--ty-font-sub-color)]'
                         }`}
@@ -582,7 +586,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             {/* 抽屉对比内容 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="bg-[var(--ty-primary-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-primary-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                提示：本对比展示当前候选物料与基准物料的核心属性吻合情况，供研发工程师与物料管理员决策是否直接复用或改型。
+                提示：本对比同时展示评分字段和非评分字段。综合得分 100.00 分只表示参与评分字段的计算结果，不代表所有展示属性完全相同。
               </div>
 
               <div className="space-y-3">
@@ -595,14 +599,18 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
                       <span
                         className={`font-semibold min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs ${
-                          f.status === 'FULL'
+                          !f.isScoreActive
+                            ? 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)]'
+                            : f.status === 'FULL'
                             ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-green-color)]/30'
                             : f.status === 'PARTIAL'
                             ? 'bg-[var(--ty-primary-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-primary-color)]/30'
                             : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)]'
                         }`}
                       >
-                        {f.status === 'FULL'
+                        {!f.isScoreActive
+                          ? '不参与评分'
+                          : f.status === 'FULL'
                           ? '完全吻合'
                           : f.status === 'PARTIAL'
                           ? '部分吻合'
@@ -627,7 +635,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
                     {/* 业务解释 */}
                     <div className="text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed pt-1">
-                      {f.reason}
+                      {f.isScoreActive
+                        ? f.reason
+                        : `${f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅展示对比，不影响总分、覆盖率、评分命中数或差异数。`}
                     </div>
                   </div>
                 ))}

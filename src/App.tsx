@@ -49,9 +49,11 @@ import {
   CategoryCoverage,
   ChangeRecord,
   SimilarityGroupConfigStatus,
+  SimilarityTierConfigMap,
   isObjectRulesModified,
   restoreObjectRules
 } from './types';
+import { initialSimilarityTierConfigs } from './similarityTier';
 
 export default function App() {
   // Master Interactive State
@@ -61,6 +63,10 @@ export default function App() {
   const [savedFieldRules, setSavedFieldRules] = useState<FieldSimilarityRule[]>(initialFieldRules);
   // 3. 当前启用生效规则 (业务端/应用端和试算引擎读取此变量)
   const [activeFieldRules, setActiveFieldRules] = useState<FieldSimilarityRule[]>(initialFieldRules);
+  const [editingTierConfigs, setEditingTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
+  const [savedTierConfigs, setSavedTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
+  const [activeTierConfigs, setActiveTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
+  const [previewedSavedSignatures, setPreviewedSavedSignatures] = useState<Record<string, string>>({});
 
   // 4. 配置变更审计记录
   const [changeRecords, setChangeRecords] = useState<ChangeRecord[]>([
@@ -189,7 +195,13 @@ export default function App() {
 
   const handleNavigate = (newView: string) => {
     // R10-BLK-04: strict unsaved changes guard using the shared comparison function
-    const isModified = isObjectRulesModified(editingFieldRules, savedFieldRules, 'PART');
+    const hasRuleChanges = isObjectRulesModified(editingFieldRules, savedFieldRules, 'PART');
+    const hasTierChanges = Object.keys(editingTierConfigs).some(groupValueId => {
+      const editing = editingTierConfigs[groupValueId];
+      const saved = savedTierConfigs[groupValueId];
+      return editing?.highStart !== saved?.highStart || editing?.mediumStart !== saved?.mediumStart;
+    });
+    const isModified = hasRuleChanges || hasTierChanges;
 
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
@@ -204,6 +216,7 @@ export default function App() {
     // R12-BLK-04: "Abandon modifications" only restores the current activeObjectType, keeping others intact
     const restored = restoreObjectRules(editingFieldRules, savedFieldRules, 'PART');
     setEditingFieldRules(restored);
+    setEditingTierConfigs(structuredClone(savedTierConfigs));
     if (pendingView) {
       setCurrentView(pendingView);
     }
@@ -320,6 +333,13 @@ export default function App() {
                 onUpdateChangeRecords={setChangeRecords}
                 objectConfigStatus={objectConfigStatus}
                 onUpdateConfigStatus={setObjectConfigStatus}
+                editingTierConfigs={editingTierConfigs}
+                onUpdateEditingTierConfigs={setEditingTierConfigs}
+                savedTierConfigs={savedTierConfigs}
+                onUpdateSavedTierConfigs={setSavedTierConfigs}
+                activeTierConfigs={activeTierConfigs}
+                onUpdateActiveTierConfigs={setActiveTierConfigs}
+                previewedSavedSignatures={previewedSavedSignatures}
                 onNavigate={handleNavigate}
               />
             )}
@@ -334,6 +354,10 @@ export default function App() {
                 savedRules={savedFieldRules}
                 activeRules={activeFieldRules}
                 objectConfigStatus={objectConfigStatus}
+                editingTierConfigs={editingTierConfigs}
+                savedTierConfigs={savedTierConfigs}
+                activeTierConfigs={activeTierConfigs}
+                onPreviewSuccess={(groupValueId, signature) => setPreviewedSavedSignatures(previous => ({ ...previous, [groupValueId]: signature }))}
                 onNavigate={handleNavigate}
               />
             )}
@@ -342,6 +366,7 @@ export default function App() {
               <ClientFindSimilarView
                 rules={activeFieldRules}
                 objectConfigStatus={objectConfigStatus}
+                tierConfigs={activeTierConfigs}
                 onNavigate={handleNavigate}
               />
             )}

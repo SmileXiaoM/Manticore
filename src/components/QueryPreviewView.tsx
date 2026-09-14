@@ -32,17 +32,24 @@ import {
   SearchRunResult,
   SimilarityBaseline,
   ObjectType,
-  SimilarityGroupConfigStatus
+  SimilarityGroupConfigStatus,
+  SimilarityTierConfig,
+  SimilarityTierConfigMap
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { createSimilarityVersionSignature, formatSimilarityTierRange, getSimilarityTierConfig } from '../similarityTier';
 
 interface QueryPreviewViewProps {
   editingRules: FieldSimilarityRule[];
   savedRules: FieldSimilarityRule[];
   activeRules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
+  editingTierConfigs: SimilarityTierConfigMap;
+  savedTierConfigs: SimilarityTierConfigMap;
+  activeTierConfigs: SimilarityTierConfigMap;
+  onPreviewSuccess?: (groupValueId: string, signature: string) => void;
   onNavigate?: (view: string) => void;
 }
 
@@ -53,6 +60,7 @@ interface LastRunContext {
   baseline: SimilarityBaseline;
   runTime: string;
   rulesSnapshot: FieldSimilarityRule[];
+  tierSnapshot: SimilarityTierConfig;
   searchResult: SearchRunResult;
 }
 
@@ -61,6 +69,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   savedRules,
   activeRules,
   objectConfigStatus,
+  editingTierConfigs,
+  savedTierConfigs,
+  activeTierConfigs,
+  onPreviewSuccess,
   onNavigate
 }) => {
   const { notify } = useFeedback();
@@ -133,8 +145,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     if (version === 'SAVED_DRAFT') return savedRules;
     return activeRules;
   };
+  const getTierConfigForVersion = (version: 'DRAFT_POOL' | 'SAVED_DRAFT' | 'ACTIVE_RELEASE') => {
+    if (version === 'DRAFT_POOL') return getSimilarityTierConfig(editingTierConfigs, softTypeId);
+    if (version === 'SAVED_DRAFT') return getSimilarityTierConfig(savedTierConfigs, softTypeId);
+    return getSimilarityTierConfig(activeTierConfigs, softTypeId);
+  };
 
   const currentRules = getRulesForVersion(ruleVersion);
+  const currentTierConfig = getTierConfigForVersion(ruleVersion);
   const currentScopeRules = currentRules.filter(
     r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && r.softTypeId === softTypeId
   );
@@ -186,7 +204,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     setSelectedCandidate(null);
 
     setTimeout(() => {
-      const result = runSimilaritySearch(rootTypeId, softTypeId, baseline, currentRules);
+      const result = runSimilaritySearch(rootTypeId, softTypeId, baseline, currentRules, undefined, currentTierConfig);
       const snapshot: LastRunContext = {
         rootTypeId,
         softTypeId,
@@ -194,8 +212,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
         baseline,
         runTime: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
         rulesSnapshot: [...currentScopeRules],
+        tierSnapshot: { ...currentTierConfig },
         searchResult: result
       };
+
+      if (ruleVersion === 'SAVED_DRAFT' && !result.errorCode) {
+        onPreviewSuccess?.(
+          softTypeId,
+          createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig)
+        );
+        notify('已保存版本试算成功，当前版本已满足发布前预览要求。', 'success');
+      }
 
       setLastRunContext(snapshot);
       setIsSearching(false);
@@ -399,6 +426,13 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                   ? '已保存版本'
                   : '当前启用版本'}
               </span>
+            </div>
+            <div>
+              <span className="text-[var(--ty-font-sub-light-color)]">相似度分档：</span>
+              <span className="font-medium text-[var(--ty-font-main-color)] font-mono">
+                {currentTierConfig.highStart.toFixed(2)} / {currentTierConfig.mediumStart.toFixed(2)}
+              </span>
+              <HelpTooltip label="查看当前分档" content={formatSimilarityTierRange(currentTierConfig)} />
             </div>
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">参与评分字段：</span>
@@ -648,9 +682,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                             <div className="flex items-baseline gap-2">
                               <span
                                 className={`text-ty-md font-bold font-mono ${
-                                  cand.similarityScore >= 85
+                                  cand.similarityTier === '高相似'
                                     ? 'text-[var(--ty-green-color)]'
-                                    : cand.similarityScore >= 70
+                                    : cand.similarityTier === '中相似'
                                     ? 'text-[var(--ty-primary-color)]'
                                     : 'text-[var(--ty-font-sub-color)]'
                                 }`}
@@ -812,13 +846,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             {/* 抽屉内容列表 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="px-3 py-2 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/25 text-ty-2xs text-[var(--ty-font-main-light-color)] leading-relaxed">
+                综合得分 100.00 分只表示“参与评分”字段的计算结果，不代表所有展示属性完全相同。
+              </div>
               <div className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
-                参与计算字段逐项明细 ({selectedCandidate.compareFields.length} 项)
+                评分与属性对比明细 ({selectedCandidate.compareFields.length} 项)
               </div>
 
               <div className="space-y-3">
                 {selectedCandidate.compareFields.map(f => {
-                  const isGate = f.mismatchAction === 'EXCLUDE_CANDIDATE';
+                  const isGate = f.isScoreActive && f.mismatchAction === 'EXCLUDE_CANDIDATE';
                   return (
                     <div
                       key={f.fieldKey}
@@ -836,18 +873,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-[var(--ty-font-sub-color)]">权重 {f.weight}%</span>
-                          <span
-                            className={`font-mono font-bold ${
-                              f.status === 'FULL'
-                                ? 'text-[var(--ty-green-color)]'
-                                : f.status === 'PARTIAL'
-                                ? 'text-[var(--ty-primary-color)]'
-                                : 'text-[var(--ty-font-sub-light-color)]'
-                            }`}
-                          >
-                            得分: {f.weightedScore} 分
-                          </span>
+                          {f.isScoreActive ? (
+                            <>
+                              <span className="text-[var(--ty-font-sub-color)]">权重 {f.weight}%</span>
+                              <span className={`font-mono font-bold ${f.status === 'FULL' ? 'text-[var(--ty-green-color)]' : f.status === 'PARTIAL' ? 'text-[var(--ty-primary-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`}>
+                                得分: {f.weightedScore} 分
+                              </span>
+                            </>
+                          ) : (
+                            <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] text-ty-2xs font-semibold text-[var(--ty-font-sub-color)]">不参与评分</span>
+                          )}
                         </div>
                       </div>
 
@@ -869,10 +904,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
                       {/* 结论说明 */}
                       <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed flex items-center justify-between pt-1">
-                        <span>{f.reason}</span>
-                        <span className="font-mono font-semibold">
-                          匹配率: {(f.matchRate * 100).toFixed(1)}%
-                        </span>
+                        {f.isScoreActive ? (
+                          <>
+                            <span>{f.reason}</span>
+                            <span className="font-mono font-semibold">匹配率: {(f.matchRate * 100).toFixed(1)}%</span>
+                          </>
+                        ) : (
+                          <span>{f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅用于展示对比，不进入总分、覆盖率、评分命中数或差异数。</span>
+                        )}
                       </div>
                     </div>
                   );

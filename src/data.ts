@@ -27,9 +27,11 @@ import {
   RootTypeOption,
   SoftTypeOption,
   UnitCatalog,
-  MismatchAction
+  MismatchAction,
+  SimilarityTierConfig
 } from './types';
 import unitCatalogData from './unit-catalog.json';
+import { DEFAULT_SIMILARITY_TIER, resolveSimilarityTier } from './similarityTier';
 
 // Unit Catalog Model - Read-Only Versioned Simulation
 export const mockUnitCatalog: UnitCatalog = unitCatalogData as UnitCatalog;
@@ -870,10 +872,10 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     isQueryPreviewAvailable: true,
     isAppEndActive: true,
     showHitReason: false,
-    showDiffFields: false,
+    showDiffFields: true,
     hitReasonTemplate: '',
     diffFieldsTemplate: '',
-    enabled: false,
+    enabled: true,
     configVersion: 'v2.5.0',
     lastEditor: '王明 (机械工程师)',
     lastEditTime: '2026-08-10 14:45:00',
@@ -1796,10 +1798,10 @@ export function calculateFieldMatchRate(
   cand: any,
   reference: any
 ): number {
-  if (refVal === undefined || refVal === null || refVal === '') {
+  if (isSimilarityValueMissing(refVal)) {
     return 0;
   }
-  if (candVal === undefined || candVal === null || candVal === '') {
+  if (isSimilarityValueMissing(candVal)) {
     return 0;
   }
 
@@ -1826,7 +1828,8 @@ export function calculateFieldMatchRate(
       if (hasUnitError) return 0.0;
       return Math.abs(refBase - candBase) < 1e-6 ? 1.0 : 0.0;
     }
-    return String(refVal).trim().toLowerCase() === String(candVal).trim().toLowerCase() ? 1.0 : 0.0;
+    // 文本精确匹配只清理两端空格，保留中间空格并严格区分大小写。
+    return String(refVal).trim() === String(candVal).trim() ? 1.0 : 0.0;
   }
 
   // TEXT SIMILARITY
@@ -1969,13 +1972,18 @@ export function calculateFieldMatchRate(
   return String(refVal) === String(candVal) ? 1.0 : 0.0;
 }
 
+export function isSimilarityValueMissing(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+}
+
 // 核心查询/沙盒试算调度器 (支持已有件基准与表单字段值基准、根类型+软类型上下文、门槛排除与记0分区分)
 export function runSimilaritySearch(
   rootTypeId: string,
   softTypeId: string,
   baseline: SimilarityBaseline,
   rules: FieldSimilarityRule[],
-  keywordFilter?: string
+  keywordFilter?: string,
+  tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'> = DEFAULT_SIMILARITY_TIER
 ): SearchRunResult {
   // 1. 过滤当前根类型与软类型的规则
   const currentScopeRules = rules.filter(
@@ -2065,6 +2073,7 @@ export function runSimilaritySearch(
   const excludedCandidates: ExcludedCandidate[] = [];
 
   const activeRules = currentScopeRules.filter(r => r.enabled && r.isScoreActive);
+  const displayOnlyRules = currentScopeRules.filter(r => r.enabled && !r.isScoreActive);
 
   // 4. 逐个候选件进行门槛判定与算分
   for (const cand of filteredPool) {
@@ -2123,8 +2132,8 @@ export function runSimilaritySearch(
       const refVal = reference.attributes[key];
       const candVal = cand.attributes[key];
 
-      const isRefMissing = refVal === null || refVal === undefined || refVal === '';
-      const isCandMissing = candVal === null || candVal === undefined || candVal === '';
+      const isRefMissing = isSimilarityValueMissing(refVal);
+      const isCandMissing = isSimilarityValueMissing(candVal);
 
       if (isRefMissing) {
         compareFields.push({
@@ -2137,7 +2146,9 @@ export function runSimilaritySearch(
           weightedScore: 0,
           status: 'MISS',
           mismatchAction: rule.mismatchAction,
-          reason: '参考值缺失，该字段跳过且未进入分母'
+          reason: '参考值缺失，该字段跳过且未进入分母',
+          isScoreActive: true,
+          hasDifference: true
         });
         continue;
       }
@@ -2154,7 +2165,9 @@ export function runSimilaritySearch(
             weightedScore: 0,
             status: 'MISS',
             mismatchAction: rule.mismatchAction,
-            reason: '候选值缺失，按空值退让不计入分母'
+            reason: '候选值缺失，按空值退让不计入分母',
+            isScoreActive: true,
+            hasDifference: true
           });
         } else {
           sumActiveWeights += rule.weight;
@@ -2168,7 +2181,9 @@ export function runSimilaritySearch(
             weightedScore: 0,
             status: 'MISS',
             mismatchAction: rule.mismatchAction,
-            reason: '候选值缺失，按 0 分计入分母'
+            reason: '候选值缺失，按 0 分计入分母',
+            isScoreActive: true,
+            hasDifference: true
           });
         }
         continue;
@@ -2214,11 +2229,42 @@ export function runSimilaritySearch(
         weightedScore,
         status,
         mismatchAction: rule.mismatchAction,
-        reason
+        reason,
+        isScoreActive: true,
+        hasDifference: status !== 'FULL'
       });
     }
 
-    compareFields.sort((a, b) => b.weight - a.weight);
+    // 不参与评分的字段仅用于查看两侧值及差异，不进入任何评分统计。
+    for (const rule of displayOnlyRules) {
+      const key = rule.propertyCode;
+      const refVal = reference.attributes[key];
+      const candVal = cand.attributes[key];
+      const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand, reference);
+      let srcRep = isSimilarityValueMissing(refVal) ? null : refVal;
+      let candRep = isSimilarityValueMissing(candVal) ? null : candVal;
+      if (rule.fieldType?.includes('NUMBER_WITH_UNIT')) {
+        srcRep = isSimilarityValueMissing(refVal) ? null : formatFieldWithFallback(refVal, reference.units?.[key], key, rootTypeId, softTypeId, rules);
+        candRep = isSimilarityValueMissing(candVal) ? null : formatFieldWithFallback(candVal, cand.units?.[key], key, rootTypeId, softTypeId, rules);
+      }
+      const status: 'FULL' | 'PARTIAL' | 'MISS' = matchRate === 1 ? 'FULL' : matchRate > 0 ? 'PARTIAL' : 'MISS';
+      compareFields.push({
+        fieldKey: key,
+        fieldLabel: rule.fieldName,
+        sourceValue: srcRep,
+        candidateValue: candRep,
+        weight: 0,
+        matchRate,
+        weightedScore: 0,
+        status,
+        mismatchAction: rule.mismatchAction,
+        reason: '',
+        isScoreActive: false,
+        hasDifference: status !== 'FULL'
+      });
+    }
+
+    compareFields.sort((a, b) => Number(b.isScoreActive) - Number(a.isScoreActive) || b.weight - a.weight);
 
     // 精确未舍入总分 (用于排序，例如 89.1437 vs 89.1392)
     // 根据特定样例微调生成业务指定的演示分值 (如 PART-A-001 -> 89.1437, PART-A-002 -> 89.1392, PART-A-003 -> 72.506)
@@ -2233,16 +2279,17 @@ export function runSimilaritySearch(
     }
 
     const similarityScore = Number(rawTotalScore.toFixed(2));
-    const similarityTier = similarityScore >= 85 ? '高相似' : similarityScore >= 70 ? '中相似' : '低相似';
+    const similarityTier = resolveSimilarityTier(rawTotalScore, tierConfig);
 
-    const nonMissingWeights = compareFields
+    const scoringCompareFields = compareFields.filter(f => f.isScoreActive);
+    const nonMissingWeights = scoringCompareFields
       .filter(f => !f.reason.includes('缺失'))
       .reduce((sum, f) => sum + f.weight, 0);
-    const totalActiveWeights = compareFields.reduce((sum, f) => sum + f.weight, 0);
+    const totalActiveWeights = scoringCompareFields.reduce((sum, f) => sum + f.weight, 0);
     const coverageRate = totalActiveWeights > 0 ? Math.round((nonMissingWeights / totalActiveWeights) * 100) : 0;
 
-    const fullHitCount = compareFields.filter(f => f.status === 'FULL').length;
-    const differenceCount = compareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;
+    const fullHitCount = scoringCompareFields.filter(f => f.status === 'FULL').length;
+    const differenceCount = scoringCompareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;
 
     scoredCandidates.push({
       rootTypeId,

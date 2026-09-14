@@ -24,6 +24,7 @@ import {
   MatchConfig,
   ChangeRecord,
   SimilarityGroupConfigStatus,
+  SimilarityTierConfigMap,
   isObjectRulesModified,
   restoreObjectRules,
   TrialFeedback,
@@ -44,6 +45,12 @@ import {
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
+import {
+  createSimilarityVersionSignature,
+  formatSimilarityTierRange,
+  getSimilarityTierConfig,
+  validateSimilarityTierConfig
+} from '../similarityTier';
 
 interface FieldSimilarityViewProps {
   editingRules: FieldSimilarityRule[];
@@ -56,6 +63,14 @@ interface FieldSimilarityViewProps {
   onUpdateChangeRecords: (newRecords: ChangeRecord[]) => void;
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   onUpdateConfigStatus: (status: Record<string, SimilarityGroupConfigStatus>) => void;
+  editingTierConfigs: SimilarityTierConfigMap;
+  onUpdateEditingTierConfigs: (configs: SimilarityTierConfigMap) => void;
+  savedTierConfigs: SimilarityTierConfigMap;
+  onUpdateSavedTierConfigs: (configs: SimilarityTierConfigMap) => void;
+  activeTierConfigs: SimilarityTierConfigMap;
+  onUpdateActiveTierConfigs: (configs: SimilarityTierConfigMap) => void;
+  previewedSavedSignatures: Record<string, string>;
+  canManageConfig?: boolean;
   onNavigate?: (view: string) => void;
 }
 
@@ -93,6 +108,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   onUpdateChangeRecords,
   objectConfigStatus,
   onUpdateConfigStatus,
+  editingTierConfigs,
+  onUpdateEditingTierConfigs,
+  savedTierConfigs,
+  onUpdateSavedTierConfigs,
+  activeTierConfigs,
+  onUpdateActiveTierConfigs,
+  previewedSavedSignatures,
+  canManageConfig = true,
   onNavigate
 }) => {
   const { notify, confirm } = useFeedback();
@@ -108,6 +131,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
   const currentSoftTypeObj = softTypeOptions.find(st => st.id === selectedSoftTypeId);
   const currentGroupStatus = objectConfigStatus[selectedSoftTypeId] || { enabled: false, configVersion: '-', lastModifiedAt: '-' };
+  const currentTierConfig = getSimilarityTierConfig(editingTierConfigs, selectedSoftTypeId);
+  const currentSavedTierConfig = getSimilarityTierConfig(savedTierConfigs, selectedSoftTypeId);
+  const currentActiveTierConfig = getSimilarityTierConfig(activeTierConfigs, selectedSoftTypeId);
 
   // 2. 列表筛选状态
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -200,6 +226,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const totalScoreWeight = currentScopeEditingRules
     .filter(r => r.isScoreActive && r.enabled)
     .reduce((sum, r) => sum + r.weight, 0);
+  const tierConfigError = validateSimilarityTierConfig(currentTierConfig);
   const matchConfigError = useMemo(() => {
     if (formMatchType === '文本相似匹配 (非 AI)' && (!Number.isFinite(formTextThreshold) || formTextThreshold < 0 || formTextThreshold > 100)) return '文本相似度阈值请输入 0～100。';
     if (formMatchType === '数值容差匹配' && (!Number.isFinite(formToleranceValue) || formToleranceValue < 0)) return '容差值必须大于或等于 0。';
@@ -216,11 +243,34 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 检查是否有未保存修改
   const isModified = useMemo(() => {
-    return isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
+    const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
+    return tierChanged || isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentTierConfig.highStart, currentTierConfig.mediumStart, editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
   const hasSavedDraft = useMemo(() => {
-    return isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId]);
+    const tierChanged = currentSavedTierConfig.highStart !== currentActiveTierConfig.highStart || currentSavedTierConfig.mediumStart !== currentActiveTierConfig.mediumStart;
+    return tierChanged || isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [savedRules, activeRules, currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentActiveTierConfig.highStart, currentActiveTierConfig.mediumStart, selectedRootTypeId, selectedSoftTypeId]);
+  const currentScopeSavedRules = useMemo(() => savedRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId), [savedRules, selectedRootTypeId, selectedSoftTypeId]);
+  const savedScoreRulesCount = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).length;
+  const savedScoreWeight = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).reduce((sum, rule) => sum + rule.weight, 0);
+  const savedVersionSignature = useMemo(
+    () => createSimilarityVersionSignature(savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig),
+    [savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig]
+  );
+  const isSavedPreviewValid = previewedSavedSignatures[selectedSoftTypeId] === savedVersionSignature;
+  const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
+  const hasPublishedVersion = currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
+  const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100 || !isSavedPreviewValid;
+  const publishButtonLabel = !hasPublishedVersion ? '发布规则' : currentGroupStatus.enabled ? '发布更新' : '发布规则';
+  const publishButtonTitle = isModified
+    ? '请先保存当前编辑'
+    : !hasSavedDraft
+    ? '当前没有待发布草稿'
+    : savedScoreWeight !== 100
+    ? `已保存版本权重合计必须为 100%，当前为 ${savedScoreWeight}%`
+    : !isSavedPreviewValid
+    ? '请先预览已保存版本'
+    : '发布已保存且预览成功的版本';
 
   // 一阶段可选字段 (根据当前根类型及软类型过滤)
   const availableStage1Fields = useMemo(() => {
@@ -272,8 +322,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setTrialSrcUnit(unconfigured.displayUnit || 'mm');
       setTrialCandUnit(unconfigured.displayUnit || 'mm');
     } else {
-      setTrialSrcVal('SUS304');
-      setTrialCandVal('SUS304');
+      setTrialSrcVal('ABC');
+      setTrialCandVal(' ABC ');
       setTrialSrcUnit('');
       setTrialCandUnit('');
     }
@@ -327,8 +377,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       setTrialSrcUnit(rule.displayUnit || 'mm');
       setTrialCandUnit(rule.displayUnit || 'mm');
     } else {
-      setTrialSrcVal('SUS304');
-      setTrialCandVal('A2-70');
+      if (rule.matchType === '精确值匹配' && rule.fieldType.toUpperCase().includes('TEXT')) {
+        setTrialSrcVal('ABC');
+        setTrialCandVal(' ABC ');
+      } else {
+        setTrialSrcVal('SUS304');
+        setTrialCandVal('A2-70');
+      }
       setTrialSrcUnit('');
       setTrialCandUnit('');
     }
@@ -481,6 +536,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 保存当前软类型的配置 (保存草稿)
   const handleSaveDraft = () => {
+    if (!canManageConfig) {
+      notify('仅配置管理员可修改并保存相似度规则。', 'warning');
+      return;
+    }
+    if (tierConfigError) {
+      notify(`保存失败：${tierConfigError}`, 'warning');
+      return;
+    }
+    const savedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
     // 将当前软类型的 editingRules 同步到 savedRules
     const otherSavedRules = savedRules.filter(
       r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
@@ -488,13 +552,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     const thisSavedRules = currentScopeEditingRules.map(r => ({
       ...r,
       configVersion: 'v2.5.0-saved',
-      lastEditTime: new Date().toISOString().replace('T', ' ').slice(0, 19)
+      lastEditTime: savedAt
     }));
     const newSavedRules = [...otherSavedRules, ...thisSavedRules];
 
     onUpdateSavedRules(newSavedRules);
+    onUpdateSavedTierConfigs({
+      ...savedTierConfigs,
+      [selectedSoftTypeId]: { ...currentTierConfig, configVersion: 'v2.5.0-saved', lastModifiedAt: savedAt }
+    });
 
     // 记录变更
+    const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
     const newRecord: ChangeRecord = {
       id: `CR-${Date.now()}`,
       objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
@@ -503,38 +572,65 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-saved',
       operationType: '保存',
-      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】下的 ${thisSavedRules.length} 项字段相似度规则`,
+      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的 ${thisSavedRules.length} 项字段规则${tierChanged ? '及相似度分档' : ''}。保存草稿不影响当前应用版本。`,
+      beforeSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentSavedTierConfig)}` : undefined,
+      afterSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentTierConfig)}` : undefined,
       operator: '李晓华 (数据标准管理员)',
-      time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      time: savedAt,
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
     notify('配置已保存为草稿，可在查询预览中选择“已保存版本”进行验证。', 'success');
   };
 
-  // 发布并启用当前软类型配置
+  // 发布已保存且预览成功的当前分组版本
   const handlePublishActive = async () => {
-    if (activeScoreRulesCount === 0 || totalScoreWeight !== 100) {
-      notify(`发布失败：参与评分字段权重合计必须为 100%，当前为 ${totalScoreWeight}%。`, 'warning');
+    if (!canManageConfig) {
+      notify('仅配置管理员可发布相似度规则。', 'warning');
+      return;
+    }
+    if (isModified) {
+      notify('请先保存当前编辑内容，再对“已保存版本”重新预览。', 'warning');
+      return;
+    }
+    if (!hasSavedDraft) {
+      notify('当前没有待发布的已保存草稿。', 'warning');
+      return;
+    }
+    const savedTierError = validateSimilarityTierConfig(currentSavedTierConfig);
+    if (savedTierError) {
+      notify(`发布失败：${savedTierError}`, 'warning');
+      return;
+    }
+    if (savedScoreRulesCount === 0 || savedScoreWeight !== 100) {
+      notify(`发布失败：已保存版本的参与评分字段权重合计必须为 100%，当前为 ${savedScoreWeight}%。`, 'warning');
+      return;
+    }
+    if (!isSavedPreviewValid) {
+      notify('发布前需在查询预览中选择“已保存版本”并成功试算。', 'warning');
       return;
     }
 
     const otherActiveRules = activeRules.filter(
       r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
     );
-    const thisActiveRules = currentScopeEditingRules.map(r => ({
+    const publishedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const thisActiveRules = currentScopeSavedRules.map(r => ({
       ...r,
       configVersion: 'v2.5.0-release',
-      lastEditTime: new Date().toISOString().replace('T', ' ').slice(0, 19)
+      lastEditTime: publishedAt
     }));
     const newActiveRules = [...otherActiveRules, ...thisActiveRules];
 
     onUpdateActiveRules(newActiveRules);
-    onUpdateSavedRules(newActiveRules);
-    const publishedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    onUpdateActiveTierConfigs({
+      ...activeTierConfigs,
+      [selectedSoftTypeId]: { ...currentSavedTierConfig, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
+    });
+    const remainsEnabled = hasPublishedVersion ? currentGroupStatus.enabled : false;
     onUpdateConfigStatus({
       ...objectConfigStatus,
-      [selectedSoftTypeId]: { enabled: true, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
+      [selectedSoftTypeId]: { enabled: remainsEnabled, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
     });
 
     // 记录发布变更
@@ -545,14 +641,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueId: selectedSoftTypeId,
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-release',
-      operationType: '启用',
-      summary: `发布并启用了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的规则集（包含 ${activeScoreRulesCount} 个评分字段，${gateRulesCount} 个门槛字段）`,
+      operationType: '发布',
+      summary: `发布了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的已保存版本（${savedScoreRulesCount} 个评分字段）；${remainsEnabled ? '已启用规则持续生效' : hasPublishedVersion ? '保持停用' : '首次发布后保持停用，需手动启用'}。`,
+      beforeSummary: `当前应用分档：${formatSimilarityTierRange(currentActiveTierConfig)}`,
+      afterSummary: `新发布分档：${formatSimilarityTierRange(currentSavedTierConfig)}`,
       operator: '李晓华 (数据标准管理员)',
       time: new Date().toISOString().replace('T', ' ').slice(0, 19),
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
-    notify('配置已发布并生效，应用端查找相似件将应用最新规则。', 'success');
+    notify(remainsEnabled ? '配置已发布，应用端已使用最新版本。' : '配置已发布并保持停用，手动启用后才会用于应用端查询。', 'success');
   };
 
   const handleToggleGroupStatus = async () => {
@@ -609,6 +707,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       });
       if (!accepted) return;
       onUpdateEditingRules(restoreObjectRules(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId));
+      onUpdateEditingTierConfigs({
+        ...editingTierConfigs,
+        [selectedSoftTypeId]: { ...currentSavedTierConfig }
+      });
     }
     setSelectedSoftTypeId(nextGroupValue);
   };
@@ -737,6 +839,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     trialSrcUnit,
     trialCandUnit
   ]);
+  const isTextExactMatch = formMatchType === '精确值匹配' && formFieldType.toUpperCase().includes('TEXT');
 
   return (
     <div className="space-y-4" id="field-similarity-view-container">
@@ -759,7 +862,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             )}
             <button
               onClick={handleSaveDraft}
-              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
+              disabled={!canManageConfig || Boolean(tierConfigError)}
+              title={!canManageConfig ? '仅配置管理员可保存' : tierConfigError || '保存当前分组草稿'}
+              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               id="save-draft-btn"
             >
               <Save className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />
@@ -767,13 +872,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </button>
             <button
               onClick={handlePublishActive}
-              disabled={activeScoreRulesCount === 0 || totalScoreWeight !== 100}
-              title={totalScoreWeight === 100 ? '发布并启用当前规则' : `权重合计必须为 100%，当前为 ${totalScoreWeight}%`}
+              disabled={publishDisabled}
+              title={publishButtonTitle}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               id="publish-active-btn"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              发布并启用
+              {publishButtonLabel}
             </button>
             {onNavigate && (
               <button
@@ -847,6 +952,72 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
         <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
           当前值：{currentSoftTypeObj?.description}。未命中已启用分组值的零部件不参与相似度搜索，不使用兜底规则。
         </p>
+
+        {/* 分组级相似度分档：跟随当前分组和规则版本 */}
+        <div className="pt-3 border-t border-[var(--ty-border-color)] flex flex-col xl:flex-row xl:items-start gap-3">
+          <div className="xl:w-64 shrink-0">
+            <div className="flex items-center gap-1">
+              <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">相似度分档</span>
+              <HelpTooltip
+                label="查看相似度分档说明"
+                content="按保留两位小数后的展示分数判定标签。分档只改变标签，不改变得分、排序或候选资格。"
+              />
+            </div>
+            <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">跟随当前分组和规则版本；仅配置管理员可修改。</p>
+          </div>
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
+              <span className="block font-medium">高相似起始分数</span>
+              <div className="relative">
+                <input
+                  id="high-similarity-threshold"
+                  type="number"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  value={currentTierConfig.highStart}
+                  disabled={!canManageConfig}
+                  onChange={event => onUpdateEditingTierConfigs({ ...editingTierConfigs, [selectedSoftTypeId]: { ...currentTierConfig, highStart: Number(event.target.value) } })}
+                  className={`w-full h-8 px-3 pr-9 rounded-ty-sm border bg-[var(--ty-fill-white-color)] font-mono font-semibold text-[var(--ty-font-main-color)] focus:outline-hidden disabled:bg-[var(--ty-fill-weak-dark-color)] disabled:text-[var(--ty-font-sub-color)] ${tierConfigError ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)]'}`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ty-2xs text-[var(--ty-font-sub-light-color)]">分</span>
+              </div>
+            </label>
+            <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
+              <span className="block font-medium">中相似起始分数</span>
+              <div className="relative">
+                <input
+                  id="medium-similarity-threshold"
+                  type="number"
+                  min="0.01"
+                  max="99.99"
+                  step="0.01"
+                  value={currentTierConfig.mediumStart}
+                  disabled={!canManageConfig}
+                  onChange={event => onUpdateEditingTierConfigs({ ...editingTierConfigs, [selectedSoftTypeId]: { ...currentTierConfig, mediumStart: Number(event.target.value) } })}
+                  className={`w-full h-8 px-3 pr-9 rounded-ty-sm border bg-[var(--ty-fill-white-color)] font-mono font-semibold text-[var(--ty-font-main-color)] focus:outline-hidden disabled:bg-[var(--ty-fill-weak-dark-color)] disabled:text-[var(--ty-font-sub-color)] ${tierConfigError ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)] focus:border-[var(--ty-primary-color)]'}`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ty-2xs text-[var(--ty-font-sub-light-color)]">分</span>
+              </div>
+            </label>
+            <div className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
+              <span className="block font-medium">低相似范围（自动）</span>
+              <div id="low-similarity-range" className="h-8 px-3 flex items-center rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] font-mono font-semibold text-[var(--ty-font-main-color)]">
+                0.00–&lt;{Number.isFinite(currentTierConfig.mediumStart) ? currentTierConfig.mediumStart.toFixed(2) : '--'} 分
+              </div>
+            </div>
+          </div>
+        </div>
+        {tierConfigError ? (
+          <div role="alert" className="px-3 py-2 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-ty-2xs text-[var(--ty-red-color)]">
+            {tierConfigError}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
+            <span>当前分档：{formatSimilarityTierRange(currentTierConfig)}</span>
+            {(hasSavedDraft || isModified) && <span className={isCurrentDraftPreviewValid ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-orange-color)]'}>{isCurrentDraftPreviewValid ? '已保存版本已通过预览' : isModified ? '当前修改已使原预览失效，请保存后重新预览' : '已保存版本待重新预览'}</span>}
+          </div>
+        )}
       </div>
 
       {/* 规则配置摘要看板 (Compact Summary Bar) */}
@@ -1189,11 +1360,26 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">
-                      匹配方式 <span className="text-[var(--ty-red-color)]">*</span>
+                      <span className="inline-flex items-center gap-1">
+                        匹配方式 <span className="text-[var(--ty-red-color)]">*</span>
+                        {isTextExactMatch && (
+                          <HelpTooltip
+                            label="查看文本精确匹配说明"
+                            content="比较前去除双方文本首尾空格，保留中间空格并区分大小写；全为空格按缺失值处理，不会因形式相同获得满分。不修改 PLM 源数据。"
+                          />
+                        )}
+                      </span>
                     </label>
                     <select
                       value={formMatchType}
-                      onChange={e => setFormMatchType(e.target.value)}
+                      onChange={e => {
+                        const nextMatchType = e.target.value;
+                        setFormMatchType(nextMatchType);
+                        if (nextMatchType === '精确值匹配' && formFieldType.toUpperCase().includes('TEXT')) {
+                          setTrialSrcVal('ABC');
+                          setTrialCandVal(' ABC ');
+                        }
+                      }}
                       className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                     >
                       {getAllowedMatchTypes(formFieldType).map(mt => (
@@ -1202,6 +1388,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         </option>
                       ))}
                     </select>
+                    {isTextExactMatch && (
+                      <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">即时示例：ABC 与“ ABC ”相同；ABC 与 abc 不同。</p>
+                    )}
                   </div>
 
                   <div>

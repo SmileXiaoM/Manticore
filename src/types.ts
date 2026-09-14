@@ -202,7 +202,7 @@ export interface ChangeRecord {
   groupValueId?: string;
   groupValueName?: string;
   configVersion: string;
-  operationType: '保存' | '启用' | '停用';
+  operationType: '保存' | '发布' | '启用' | '停用';
   summary: string;
   beforeSummary?: string;
   afterSummary?: string;
@@ -217,6 +217,15 @@ export interface SimilarityGroupConfigStatus {
   configVersion: string;
   lastModifiedAt: string;
 }
+
+export interface SimilarityTierConfig {
+  highStart: number;
+  mediumStart: number;
+  configVersion: string;
+  lastModifiedAt: string;
+}
+
+export type SimilarityTierConfigMap = Record<string, SimilarityTierConfig>;
 
 export interface VersionDiffItem {
   fieldName: string;
@@ -392,6 +401,8 @@ export type CompareFieldResult = {
   status: 'FULL' | 'PARTIAL' | 'MISS' | 'EXCLUDED';
   mismatchAction: MismatchAction;
   reason: string;
+  isScoreActive: boolean;
+  hasDifference: boolean;
 };
 
 export type ScoredCandidate = {
@@ -495,4 +506,3 @@ export interface TrialFeedback {
   conclusion: string;
   mismatchNote?: string;
 }
-
