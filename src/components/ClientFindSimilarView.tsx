@@ -522,7 +522,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             {/* 抽屉对比内容 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="bg-[var(--ty-primary-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-primary-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                提示：本对比同时展示评分字段和非评分字段。综合得分 100.00 分只表示参与评分字段的计算结果，不代表所有展示属性完全相同。
+                相似度仅依据参与评分的字段计算，不代表所有展示属性完全相同。
               </div>
 
               <div className="space-y-3">

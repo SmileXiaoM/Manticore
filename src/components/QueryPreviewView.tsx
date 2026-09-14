@@ -839,7 +839,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             {/* 抽屉内容列表 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="px-3 py-2 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/25 text-ty-2xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                综合得分 100.00 分只表示“参与评分”字段的计算结果，不代表所有展示属性完全相同。
+                相似度仅依据参与评分的字段计算，不代表所有展示属性完全相同。
               </div>
               <div className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
                 评分与属性对比明细 ({selectedCandidate.compareFields.length} 项)
