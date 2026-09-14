@@ -204,8 +204,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (formMatchType === '文本相似匹配 (非 AI)' && (!Number.isFinite(formTextThreshold) || formTextThreshold < 0 || formTextThreshold > 100)) return '文本相似度阈值请输入 0～100。';
     if (formMatchType === '数值容差匹配' && (!Number.isFinite(formToleranceValue) || formToleranceValue < 0)) return '容差值必须大于或等于 0。';
     if (formMatchType === '数值距离衰减') {
-      if (!Number.isFinite(formDecayFullRange) || formDecayFullRange < 0) return '满分范围必须大于或等于 0。';
-      if (!Number.isFinite(formDecayZeroBoundary) || formDecayZeroBoundary <= formDecayFullRange) return '零分边界必须大于满分范围。';
+      if (!Number.isFinite(formDecayFullRange) || formDecayFullRange < 0) return '满分允许偏差必须大于或等于 0。';
+      if (!Number.isFinite(formDecayZeroBoundary) || formDecayZeroBoundary <= formDecayFullRange) return '降至零分的偏差必须大于满分允许偏差。';
     }
     if (formMatchType === '层级关系匹配') {
       if (!Number.isInteger(formHierarchyMaxGap) || formHierarchyMaxGap < 1) return '最大层级差必须是大于或等于 1 的整数。';
@@ -1286,8 +1286,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                 {formMatchType === '数值距离衰减' && (
                   <div className="p-3 bg-[var(--ty-primary-lighter-color)]/20 border border-[var(--ty-primary-lighter-color)] rounded-ty-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">满分范围<input type="number" min="0" step="0.05" value={formDecayFullRange} onChange={e => setFormDecayFullRange(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
-                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">零分边界<input type="number" min="0" step="0.05" value={formDecayZeroBoundary} onChange={e => setFormDecayZeroBoundary(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">满分允许偏差<input type="number" min="0" step="0.05" value={formDecayFullRange} onChange={e => setFormDecayFullRange(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
+                    <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">降至零分的偏差<input type="number" min="0" step="0.05" value={formDecayZeroBoundary} onChange={e => setFormDecayZeroBoundary(Number(e.target.value))} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] font-mono" /></label>
                     <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)]">允许方向<select value={formToleranceDirection} onChange={e => setFormToleranceDirection(e.target.value as 'BOTH' | 'HIGHER' | 'LOWER')} className="mt-1 w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)]"><option value="BOTH">双向</option><option value="HIGHER">仅允许偏高</option><option value="LOWER">仅允许偏低</option></select></label>
                   </div>
                 )}
