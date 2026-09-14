@@ -286,8 +286,8 @@ export interface ExcludedCandidate {
 }
 
 export interface SimilarityCandidate {
-  similarityScore: number; // 相似度显示值 (保留两位小数，如 89.14)
-  rawSimilarityScore?: number; // 原始未舍入分值 (如 89.1437)
+  similarityScore: number; // 相似度显示值（保留两位小数）
+  rawSimilarityScore?: number; // 原始未舍入分值，用于排序
   objectId: string; // 对象标识
   objectName: string; // 名称
   material: string; // 材料

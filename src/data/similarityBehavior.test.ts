@@ -18,6 +18,31 @@ test('text exact match trims ends, keeps case sensitivity, and treats whitespace
   assert.equal(calculateFieldMatchRate(exactTextRule, '   ', '   ', {}, {}), 0);
 });
 
+test('current text rules expose exact matching instead of partial text scoring', () => {
+  const textRules = initialFieldRules.filter(rule => rule.fieldType.toUpperCase().includes('TEXT'));
+  assert.ok(textRules.length > 0);
+  assert.ok(textRules.every(rule => rule.matchType === '精确值匹配' && rule.matchConfig?.kind === 'EXACT'));
+});
+
+test('two-percent bidirectional tolerance converts units before judging the boundary', () => {
+  const toleranceRule = initialFieldRules.find(rule => rule.id === 'R-INHOUSE-02');
+  assert.ok(toleranceRule);
+  assert.deepEqual(toleranceRule.matchConfig, {
+    kind: 'NUMERIC_TOLERANCE',
+    toleranceType: 'PERCENTAGE',
+    toleranceValue: 2,
+    direction: 'BOTH'
+  });
+  assert.equal(
+    calculateFieldMatchRate(toleranceRule, 1, 102, { units: { nominal_diameter: 'cm' } }, { units: { nominal_diameter: 'm' } }),
+    1
+  );
+  assert.equal(
+    calculateFieldMatchRate(toleranceRule, 1, 1.021, { units: { nominal_diameter: 'm' } }, { units: { nominal_diameter: 'm' } }),
+    0
+  );
+});
+
 test('similarity tier uses the displayed two-decimal score and validates boundaries', () => {
   const config = { highStart: 85, mediumStart: 70, configVersion: 'test', lastModifiedAt: '-' };
   assert.equal(resolveSimilarityTier(84.999, config), '高相似');
@@ -57,7 +82,28 @@ test('non-scoring fields are shown without changing scoring counters', () => {
   const scoringFields = candidate.compareFields.filter(field => field.isScoreActive);
   const displayOnlyFields = candidate.compareFields.filter(field => !field.isScoreActive);
   assert.ok(displayOnlyFields.length > 0);
+  const expectedScore = scoringFields.reduce((sum, field) => sum + field.weightedScore, 0) /
+    scoringFields.reduce((sum, field) => sum + field.weight, 0) * 100;
+  assert.equal(candidate.rawSimilarityScore, expectedScore);
+  assert.equal(candidate.similarityScore, Number(expectedScore.toFixed(2)));
   assert.equal(candidate.fullHitCount, scoringFields.filter(field => field.status === 'FULL').length);
   assert.equal(candidate.differenceCount, scoringFields.filter(field => field.status === 'MISS' || field.status === 'PARTIAL').length);
   assert.ok(displayOnlyFields.every(field => field.weightedScore === 0 && field.reason === ''));
+});
+
+test('display-only numeric fields show raw value differences without applying tolerance scoring', () => {
+  const rules = initialFieldRules.map(rule => rule.id === 'R-INHOUSE-03' ? { ...rule, isScoreActive: false } : rule);
+  const result = runSimilaritySearch(
+    'PART',
+    'IN_HOUSE',
+    { type: 'EXISTING_PART', objectId: 'PART-2026-000100' },
+    rules
+  );
+  const candidate = result.scoredCandidates.find(item => item.objectId === 'PART-A-001');
+  const displayOnlyLength = candidate?.compareFields.find(field => field.fieldKey === 'length');
+  assert.ok(displayOnlyLength);
+  assert.equal(displayOnlyLength.isScoreActive, false);
+  assert.equal(displayOnlyLength.hasDifference, true);
+  assert.equal(displayOnlyLength.weightedScore, 0);
+  assert.equal(displayOnlyLength.matchRate, 0);
 });

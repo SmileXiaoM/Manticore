@@ -245,6 +245,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     setRuleVersion('DRAFT');
     setLastRunContext(null);
     setSelectedCandidate(null);
+    notify('已重置本页临时试算条件；已保存草稿和正式规则未修改。', 'success');
   };
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
@@ -275,10 +276,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
+              title="仅重置本页临时试算条件，不修改已保存规则"
               className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              重置参数
+              重置试算条件
             </button>
             <button
               onClick={handleRunTrial}
@@ -843,7 +845,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             {/* 抽屉内容列表 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="px-3 py-2 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/25 text-ty-2xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                相似度仅依据参与评分的字段计算，不代表所有展示属性完全相同。
+                相似度仅依据参与评分的字段计算。仅展示、不参与评分的属性即使不同，也不会影响相似度得分。
               </div>
               <div className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
                 评分与属性对比明细 ({selectedCandidate.compareFields.length} 项)
@@ -873,7 +875,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                             <>
                               <span className="text-[var(--ty-font-sub-color)]">权重 {f.weight}%</span>
                               <span className={`font-mono font-bold ${f.status === 'FULL' ? 'text-[var(--ty-green-color)]' : f.status === 'PARTIAL' ? 'text-[var(--ty-primary-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`}>
-                                得分: {f.weightedScore} 分
+                                字段贡献：{f.weightedScore.toFixed(2)} 分
                               </span>
                             </>
                           ) : (
@@ -903,7 +905,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         {f.isScoreActive ? (
                           <>
                             <span>{f.reason}</span>
-                            <span className="font-mono font-semibold">匹配率: {(f.matchRate * 100).toFixed(1)}%</span>
+                            <span className="font-mono font-semibold">字段原始分：{(f.matchRate * 100).toFixed(2)} 分</span>
                           </>
                         ) : (
                           <span>{f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅用于展示对比，不进入总分、覆盖率、评分命中数或差异数。</span>

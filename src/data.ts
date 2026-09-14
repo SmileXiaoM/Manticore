@@ -761,8 +761,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     isAppEndActive: true,
     showHitReason: true,
     showDiffFields: true,
-    hitReasonTemplate: '直径误差在容差范围内 (±{tol}mm)',
-    diffFieldsTemplate: '直径超出容差门槛: 源[{source_val}mm] vs 候选[{target_val}mm]',
+    hitReasonTemplate: '直径相对偏差在双向 2% 容差内',
+    diffFieldsTemplate: '直径相对偏差超过双向 2% 容差: 源[{source_val}] vs 候选[{target_val}]',
     enabled: true,
     configVersion: 'v2.5.0',
     lastEditor: '王明 (机械工程师)',
@@ -775,8 +775,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     displayUnit: 'mm',
     matchConfig: {
       kind: 'NUMERIC_TOLERANCE',
-      toleranceType: 'ABSOLUTE',
-      toleranceValue: 0.2,
+      toleranceType: 'PERCENTAGE',
+      toleranceValue: 2,
       direction: 'BOTH'
     }
   },
@@ -829,7 +829,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     propertyCode: 'spec_description',
     fieldType: '长文本 (LONG_TEXT)',
     weight: 25,
-    matchType: '文本相似匹配 (非 AI)',
+    matchType: '精确值匹配',
     nullHandling: '候选缺失按 0 分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
@@ -837,8 +837,8 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     isAppEndActive: true,
     showHitReason: true,
     showDiffFields: true,
-    hitReasonTemplate: '规格文本相似度达 {score}%',
-    diffFieldsTemplate: '规格文本模式存在差异',
+    hitReasonTemplate: '规格文本去除首尾空格后精确一致',
+    diffFieldsTemplate: '规格文本存在差异（保留中间空格并区分大小写）',
     enabled: true,
     configVersion: 'v2.5.0',
     lastEditor: '张建国 (系统架构师)',
@@ -849,7 +849,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     unitFamily: '无',
     baseUnit: '无',
     displayUnit: '无',
-    matchConfig: { kind: 'TEXT_SIMILARITY', threshold: 60 }
+    matchConfig: { kind: 'EXACT' }
   },
   {
     id: 'R-INHOUSE-05',
@@ -1416,7 +1416,7 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
     rootTypeId: 'PART',
     softTypeId: 'IN_HOUSE',
     objectId: 'PART-A-001',
-    objectName: '六角头螺栓 M10 x 48 (高相似)',
+    objectName: '六角头螺栓 M10 x 48（长度差异）',
     specification: 'M10 x 48',
     material: 'SUS304',
     classificationPath: '/紧固件/螺栓/六角头螺栓',
@@ -1441,7 +1441,7 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
     rootTypeId: 'PART',
     softTypeId: 'IN_HOUSE',
     objectId: 'PART-A-002',
-    objectName: '六角头螺栓 M10 x 52 (高相似次序)',
+    objectName: '六角头螺栓 M10 x 52（长度差异）',
     specification: 'M10 x 52',
     material: 'SUS304',
     classificationPath: '/紧固件/螺栓/六角头螺栓',
@@ -2181,7 +2181,7 @@ export function runSimilaritySearch(
           weightedScore: 0,
           status: 'MISS',
           mismatchAction: rule.mismatchAction,
-          reason: '参考值缺失，该字段跳过且未进入分母',
+          reason: '基准值缺失，本字段本次不比较（不计入分母）',
           isScoreActive: true,
           hasDifference: true
         });
@@ -2200,7 +2200,7 @@ export function runSimilaritySearch(
             weightedScore: 0,
             status: 'MISS',
             mismatchAction: rule.mismatchAction,
-            reason: '候选值缺失，按空值退让不计入分母',
+            reason: '候选值缺失，本字段本次不计算（不计入分母）',
             isScoreActive: true,
             hasDifference: true
           });
@@ -2238,7 +2238,13 @@ export function runSimilaritySearch(
 
       let reason = '';
       if (matchRate === 1.0) {
-        reason = `${rule.fieldName}完全一致，本字段得满分`;
+        if (rule.matchConfig?.kind === 'NUMERIC_TOLERANCE') {
+          reason = `${rule.fieldName}偏差在容差范围内，本字段得满分；两侧数值可以不同`;
+        } else if (rule.matchConfig?.kind === 'NUMERIC_DECAY') {
+          reason = `${rule.fieldName}偏差在满分范围内，本字段得满分；两侧数值可以不同`;
+        } else {
+          reason = `${rule.fieldName}值相同，本字段得满分`;
+        }
       } else if (matchRate > 0) {
         reason = `${rule.fieldName}部分吻合 (匹配度 ${(matchRate * 100).toFixed(1)}%)，按比例得分`;
       } else {
@@ -2275,43 +2281,34 @@ export function runSimilaritySearch(
       const key = rule.propertyCode;
       const refVal = reference.attributes[key];
       const candVal = cand.attributes[key];
-      const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand, reference);
       let srcRep = isSimilarityValueMissing(refVal) ? null : refVal;
       let candRep = isSimilarityValueMissing(candVal) ? null : candVal;
       if (rule.fieldType?.includes('NUMBER_WITH_UNIT')) {
         srcRep = isSimilarityValueMissing(refVal) ? null : formatFieldWithFallback(refVal, reference.units?.[key], key, rootTypeId, softTypeId, rules);
         candRep = isSimilarityValueMissing(candVal) ? null : formatFieldWithFallback(candVal, cand.units?.[key], key, rootTypeId, softTypeId, rules);
       }
-      const status: 'FULL' | 'PARTIAL' | 'MISS' = matchRate === 1 ? 'FULL' : matchRate > 0 ? 'PARTIAL' : 'MISS';
+      const hasDifference = String(srcRep ?? '') !== String(candRep ?? '');
+      const status: 'FULL' | 'MISS' = hasDifference ? 'MISS' : 'FULL';
       compareFields.push({
         fieldKey: key,
         fieldLabel: rule.fieldName,
         sourceValue: srcRep,
         candidateValue: candRep,
         weight: 0,
-        matchRate,
+        matchRate: 0,
         weightedScore: 0,
         status,
         mismatchAction: rule.mismatchAction,
         reason: '',
         isScoreActive: false,
-        hasDifference: status !== 'FULL'
+        hasDifference
       });
     }
 
     compareFields.sort((a, b) => Number(b.isScoreActive) - Number(a.isScoreActive) || b.weight - a.weight);
 
-    // 精确未舍入总分 (用于排序，例如 89.1437 vs 89.1392)
-    // 根据特定样例微调生成业务指定的演示分值 (如 PART-A-001 -> 89.1437, PART-A-002 -> 89.1392, PART-A-003 -> 72.506)
-    let rawTotalScore = sumActiveWeights > 0 ? (numeratorScore / sumActiveWeights) * 100 : 0;
-
-    if (cand.objectId === 'PART-A-001') {
-      rawTotalScore = 89.1437;
-    } else if (cand.objectId === 'PART-A-002') {
-      rawTotalScore = 89.1392;
-    } else if (cand.objectId === 'PART-A-003') {
-      rawTotalScore = 72.5060;
-    }
+    // 精确未舍入总分用于排序；展示值统一在下方保留两位小数。
+    const rawTotalScore = sumActiveWeights > 0 ? (numeratorScore / sumActiveWeights) * 100 : 0;
 
     const similarityScore = Number(rawTotalScore.toFixed(2));
     const similarityTier = resolveSimilarityTier(rawTotalScore, tierConfig);

@@ -125,6 +125,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     setSearchResult(null);
     setSelectedForCompare(null);
     setCurrentPage(1);
+    notify('已还原当前原型表单的临时示例值；已保存规则未修改。', 'success');
   };
 
   // 动态展示列 (由一阶段已映射关键字段驱动)
@@ -248,10 +249,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={handleReset}
+                title="仅还原当前原型表单的临时示例值，不修改已保存规则"
                 className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                重置表单
+                还原示例表单
               </button>
               <button
                 onClick={handleSearch}
@@ -522,7 +524,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             {/* 抽屉对比内容 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="bg-[var(--ty-primary-lightest-color)] p-3 rounded-ty-sm border border-[var(--ty-primary-color)]/30 text-ty-xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                相似度仅依据参与评分的字段计算，不代表所有展示属性完全相同。
+                相似度仅依据参与评分的字段计算。仅展示、不参与评分的属性即使不同，也不会影响相似度得分。
               </div>
 
               <div className="space-y-3">
@@ -533,6 +535,10 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
+                      <div className="flex items-center gap-2">
+                      {f.isScoreActive && (
+                        <span className="font-mono text-ty-2xs font-semibold text-[var(--ty-font-sub-color)]">字段贡献 {f.weightedScore.toFixed(2)} 分</span>
+                      )}
                       <span
                         className={`font-semibold min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs ${
                           !f.isScoreActive
@@ -547,11 +553,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                         {!f.isScoreActive
                           ? '不参与评分'
                           : f.status === 'FULL'
-                          ? '完全吻合'
+                          ? '满分命中'
                           : f.status === 'PARTIAL'
-                          ? '部分吻合'
+                          ? '部分得分'
                           : '存在差异/缺失'}
                       </span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 bg-[var(--ty-fill-white-color)] p-3 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs">
@@ -572,7 +579,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     {/* 业务解释 */}
                     <div className="text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed pt-1">
                       {f.isScoreActive
-                        ? f.reason
+                        ? `${f.reason}；字段原始分 ${(f.matchRate * 100).toFixed(2)} 分`
                         : `${f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅展示对比，不影响总分、覆盖率、评分命中数或差异数。`}
                     </div>
                   </div>

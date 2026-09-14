@@ -83,10 +83,10 @@ interface FieldSimilarityViewProps {
 const getAllowedMatchTypes = (fieldType: string): string[] => {
   const typeUpper = (fieldType || '').toUpperCase();
   if (typeUpper.includes('LONG_TEXT')) {
-    return ['精确值匹配', '文本相似匹配 (非 AI)'];
+    return ['精确值匹配'];
   }
   if (typeUpper.includes('TEXT')) {
-    return ['精确值匹配', '文本相似匹配 (非 AI)'];
+    return ['精确值匹配'];
   }
   if (typeUpper.includes('ENUM')) {
     return ['精确值匹配'];
@@ -246,6 +246,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     .reduce((sum, r) => sum + r.weight, 0);
   const tierConfigError = validateSimilarityTierConfig(currentTierConfig);
   const matchConfigError = useMemo(() => {
+    if (!formIsScoreActive) return '';
     if (formMatchType === '文本相似匹配 (非 AI)' && (!Number.isFinite(formTextThreshold) || formTextThreshold < 0 || formTextThreshold > 100)) return '文本相似度阈值请输入 0～100。';
     if (formMatchType === '数值容差匹配' && (!Number.isFinite(formToleranceValue) || formToleranceValue < 0)) return '容差值必须大于或等于 0。';
     if (formMatchType === '数值距离衰减') {
@@ -257,7 +258,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       if (!Number.isFinite(formHierarchyDeduction) || formHierarchyDeduction < 0 || formHierarchyDeduction > 100) return '每级扣减请输入 0～100。';
     }
     return '';
-  }, [formDecayFullRange, formDecayZeroBoundary, formHierarchyDeduction, formHierarchyMaxGap, formMatchType, formTextThreshold, formToleranceValue]);
+  }, [formDecayFullRange, formDecayZeroBoundary, formHierarchyDeduction, formHierarchyMaxGap, formIsScoreActive, formMatchType, formTextThreshold, formToleranceValue]);
 
   // 检查是否有未保存修改
   const isModified = useMemo(() => {
@@ -291,6 +292,20 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     : !isSavedPreviewValid
     ? '请先预览草稿版本'
     : '发布已保存且预览成功的草稿版本';
+  const draftStatusLabel = isModified
+    ? '编辑中（请先保存）'
+    : !hasSavedDraft
+    ? ''
+    : tierConfigError
+    ? `草稿分档配置有误：${tierConfigError}`
+    : savedScoreRulesCount === 0
+    ? '草稿没有参与评分字段'
+    : savedScoreWeight !== 100
+    ? `草稿权重 ${savedScoreWeight}%（需调整为 100%）`
+    : !isSavedPreviewValid
+    ? '草稿待预览（通过后可发布）'
+    : '草稿已预览（可以发布）';
+  const draftStatusReady = hasSavedDraft && !isModified && !tierConfigError && savedScoreRulesCount > 0 && savedScoreWeight === 100 && isSavedPreviewValid;
 
   // 一阶段可选字段 (根据当前根类型及软类型过滤)
   const availableStage1Fields = useMemo(() => {
@@ -303,21 +318,22 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     });
     return Array.from(new Map(fields.map(field => [field.fieldCode, field])).values());
   }, [editingGroupingConfig.propertyCode, selectedRootTypeId, selectedSoftTypeId]);
-  const eligibleStage1Fields = useMemo(
-    () => availableStage1Fields.filter(field => !field.isMultiValue),
-    [availableStage1Fields]
+  const unconfiguredStage1Fields = useMemo(
+    () => availableStage1Fields.filter(
+      field => !currentScopeEditingRules.some(rule => rule.propertyCode === field.fieldCode)
+    ),
+    [availableStage1Fields, currentScopeEditingRules]
   );
+  const selectedFormField = availableStage1Fields.find(field => field.fieldCode === formPropertyCode);
+  const formFieldScoreUnsupported = selectedFormField?.isMultiValue === true;
 
   // 打开新建规则模态框
   const handleOpenCreateModal = () => {
-    if (eligibleStage1Fields.length === 0) {
-      notify('当前分组值暂无可用于相似度计算的单值字段。', 'warning');
+    const unconfigured = unconfiguredStage1Fields[0];
+    if (!unconfigured) {
+      notify('当前分组值的可展示对比字段均已配置，不能重复新增同一字段规则。', 'warning');
       return;
     }
-    // 默认选取第一个未配置的字段
-    const unconfigured = eligibleStage1Fields.find(
-      f => !currentScopeEditingRules.some(r => r.propertyCode === f.fieldCode)
-    ) || eligibleStage1Fields[0];
 
     setEditingRuleId(null);
     setFormFieldId(unconfigured.fieldId);
@@ -328,7 +344,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormMatchType(getAllowedMatchTypes(unconfigured.businessFieldType)[0]);
     setFormNullHandling('候选缺失按 0 分');
     setFormMismatchAction('ZERO_AND_CONTINUE');
-    setFormIsScoreActive(true);
+    setFormIsScoreActive(false);
     setFormShowHitReason(true);
     setFormShowDiffFields(true);
     setFormHitReasonTemplate(`${unconfigured.displayName}匹配一致`);
@@ -339,13 +355,23 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
     // 默认试算值
     if (unconfigured.businessFieldType.includes('NUMBER')) {
-      setTrialSrcVal('10');
-      setTrialCandVal('10.1');
-      setTrialSrcUnit(unconfigured.displayUnit || 'mm');
-      setTrialCandUnit(unconfigured.displayUnit || 'mm');
+      setFormToleranceType('PERCENTAGE');
+      setFormToleranceValue(2);
+      setFormToleranceDirection('BOTH');
+      if (unconfigured.unitFamily === '长度') {
+        setTrialSrcVal('1');
+        setTrialCandVal('102');
+        setTrialSrcUnit('m');
+        setTrialCandUnit('cm');
+      } else {
+        setTrialSrcVal('10');
+        setTrialCandVal('10.1');
+        setTrialSrcUnit(unconfigured.baseUnit || unconfigured.displayUnit || '');
+        setTrialCandUnit(unconfigured.displayUnit || unconfigured.baseUnit || '');
+      }
     } else {
-      setTrialSrcVal('ABC');
-      setTrialCandVal(' ABC ');
+      setTrialSrcVal(unconfigured.fieldCode === 'core_material' ? '不锈钢 SUS304' : 'ABC');
+      setTrialCandVal(unconfigured.fieldCode === 'core_material' ? '合金钢 42CrMo' : ' ABC ');
       setTrialSrcUnit('');
       setTrialCandUnit('');
     }
@@ -394,17 +420,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
     // 预填试算数据
     if (rule.fieldType.includes('NUMBER')) {
-      setTrialSrcVal('10');
-      setTrialCandVal('10.15');
-      setTrialSrcUnit(rule.displayUnit || 'mm');
-      setTrialCandUnit(rule.displayUnit || 'mm');
+      if (rule.unitFamily === '长度' && rule.matchConfig?.kind === 'NUMERIC_TOLERANCE' && rule.matchConfig.toleranceType === 'PERCENTAGE') {
+        setTrialSrcVal('1');
+        setTrialCandVal('102');
+        setTrialSrcUnit('m');
+        setTrialCandUnit('cm');
+      } else {
+        setTrialSrcVal('10');
+        setTrialCandVal('10.15');
+        setTrialSrcUnit(rule.displayUnit || rule.baseUnit || '');
+        setTrialCandUnit(rule.displayUnit || rule.baseUnit || '');
+      }
     } else {
       if (rule.matchType === '精确值匹配' && rule.fieldType.toUpperCase().includes('TEXT')) {
         setTrialSrcVal('ABC');
         setTrialCandVal(' ABC ');
       } else {
-        setTrialSrcVal('SUS304');
-        setTrialCandVal('A2-70');
+        setTrialSrcVal(rule.propertyCode === 'core_material' ? '不锈钢 SUS304' : 'SUS304');
+        setTrialCandVal(rule.propertyCode === 'core_material' ? '合金钢 42CrMo' : 'A2-70');
       }
       setTrialSrcUnit('');
       setTrialCandUnit('');
@@ -417,11 +450,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleFieldSelectChange = (fieldCode: string) => {
     const selectedField = availableStage1Fields.find(f => f.fieldCode === fieldCode);
     if (!selectedField) return;
-    if (selectedField.isMultiValue) {
-      notify('多值属性当前只支持同步、展示和查询，暂不支持相似度评分。', 'warning');
+    if (currentScopeEditingRules.some(rule => rule.id !== editingRuleId && rule.propertyCode === fieldCode)) {
+      notify('该字段已经配置过规则，不能重复添加。', 'warning');
       return;
     }
-
     setFormFieldId(selectedField.fieldId);
     setFormFieldName(selectedField.displayName);
     setFormPropertyCode(selectedField.fieldCode);
@@ -430,8 +462,30 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormUnitFamily(selectedField.unitFamily || '无');
     setFormBaseUnit(selectedField.baseUnit || '无');
     setFormDisplayUnit(selectedField.displayUnit || '无');
+    setFormIsScoreActive(false);
     setFormHitReasonTemplate(`${selectedField.displayName}匹配一致`);
     setFormDiffFieldsTemplate(`${selectedField.displayName}存在差异`);
+    if (selectedField.businessFieldType.includes('NUMBER')) {
+      setFormToleranceType('PERCENTAGE');
+      setFormToleranceValue(2);
+      setFormToleranceDirection('BOTH');
+      if (selectedField.unitFamily === '长度') {
+        setTrialSrcVal('1');
+        setTrialCandVal('102');
+        setTrialSrcUnit('m');
+        setTrialCandUnit('cm');
+      }
+    } else if (selectedField.fieldCode === 'core_material') {
+      setTrialSrcVal('不锈钢 SUS304');
+      setTrialCandVal('合金钢 42CrMo');
+      setTrialSrcUnit('');
+      setTrialCandUnit('');
+    } else {
+      setTrialSrcVal('ABC');
+      setTrialCandVal(' ABC ');
+      setTrialSrcUnit('');
+      setTrialCandUnit('');
+    }
   };
 
   // 保存规则到当前编辑态
@@ -440,7 +494,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       notify('请选择有效的一阶段字段。', 'warning');
       return;
     }
-    if (!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100) {
+    if (formIsScoreActive && (!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100)) {
       notify('评分权重请输入 0～100 之间的数字。', 'warning');
       return;
     }
@@ -448,9 +502,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       notify(matchConfigError, 'warning');
       return;
     }
+    if (currentScopeEditingRules.some(rule => rule.id !== editingRuleId && rule.propertyCode === formPropertyCode)) {
+      notify('保存失败：同一分组值下，一个字段只能配置一条规则。', 'warning');
+      return;
+    }
     const selectedField = availableStage1Fields.find(field => field.fieldCode === formPropertyCode);
-    if (selectedField?.isMultiValue) {
-      notify('多值属性暂不支持相似度评分，请选择单值属性。', 'warning');
+    if (selectedField?.isMultiValue && formIsScoreActive) {
+      notify('多值属性当前只能作为展示对比字段，不能参与相似度评分。', 'warning');
       return;
     }
 
@@ -534,9 +592,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 快速切换参与评分开关
   const handleToggleScoreActive = (rule: FieldSimilarityRule) => {
+    if (!rule.isScoreActive) {
+      handleOpenEditModal(rule);
+      setFormIsScoreActive(true);
+      notify('请确认评分参数后保存；恢复参与评分时会重新校验。', 'info');
+      return;
+    }
+
     const updated = editingRules.map(r => {
       if (r.id === rule.id) {
-        return { ...r, isScoreActive: !r.isScoreActive };
+        return { ...r, isScoreActive: false };
       }
       return r;
     });
@@ -750,6 +815,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
   // 模态框实时试算结果
   const modalTrialResult = useMemo(() => {
+    if (!formIsScoreActive) {
+      return {
+        matchRate: 0,
+        weightedScore: 0,
+        outcomeText: '不参与评分，仅展示两侧值及差异',
+        outcomeType: 'SUCCESS' as const
+      };
+    }
     let matchConfig: MatchConfig | undefined = undefined;
     if (formMatchType === '精确值匹配') {
       matchConfig = { kind: 'EXACT' };
@@ -823,10 +896,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     let outcomeType: 'SUCCESS' | 'PARTIAL' | 'ZERO_CONTINUE' | 'EXCLUDED' = 'SUCCESS';
 
     if (matchRate === 1.0) {
-      outcomeText = `完全匹配（得满分 ${formWeight} 分）`;
+      outcomeText = formMatchType === '数值容差匹配' || formMatchType === '数值距离衰减'
+        ? `满足满分条件（字段贡献 ${formWeight.toFixed(2)} 分；两侧数值可以不同）`
+        : `精确匹配（字段贡献 ${formWeight.toFixed(2)} 分）`;
       outcomeType = 'SUCCESS';
     } else if (matchRate > 0) {
-      outcomeText = `部分吻合（匹配度 ${(matchRate * 100).toFixed(1)}%，得分 ${weightedScore} 分）`;
+      outcomeText = `部分吻合（字段原始分 ${(matchRate * 100).toFixed(2)}，字段贡献 ${weightedScore.toFixed(2)} 分）`;
       outcomeType = 'PARTIAL';
     } else {
       if (formMismatchAction === 'EXCLUDE_CANDIDATE') {
@@ -873,6 +948,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     trialCandUnit
   ]);
   const isTextExactMatch = formMatchType === '精确值匹配' && formFieldType.toUpperCase().includes('TEXT');
+  const trialUnitOptions = useMemo(() => {
+    if (!formUnitFamily || formUnitFamily === '无') return [];
+    const normalizedFamily = formUnitFamily.toUpperCase();
+    return mockUnitCatalog.quantities.find(quantity => quantity.name === formUnitFamily || quantity.code === normalizedFamily)?.units || [];
+  }, [formUnitFamily]);
 
   return (
     <div className="space-y-4" id="field-similarity-view-container">
@@ -888,9 +968,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           {/* 操作按钮区 */}
           <div className="flex flex-wrap items-center justify-end gap-2">
             {(isModified || hasSavedDraft) && (
-              <span className="text-ty-xs font-semibold px-3 py-1 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 rounded-ty-sm inline-flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-[var(--ty-orange-color)] shrink-0" />
-                {isModified ? '编辑中（未保存）' : '草稿已保存（待预览或发布）'}
+              <span
+                className={`text-ty-xs font-semibold px-3 py-1 rounded-ty-sm inline-flex items-center gap-2 border ${
+                  draftStatusReady
+                    ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-green-color)]/30'
+                    : savedScoreWeight !== 100 && !isModified
+                    ? 'bg-[var(--ty-red-lightest-color)] text-[var(--ty-red-color)] border-[var(--ty-red-color)]/30'
+                    : 'bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border-[var(--ty-orange-color)]/30'
+                }`}
+                title={publishButtonTitle}
+              >
+                <Clock className={`w-3.5 h-3.5 shrink-0 ${draftStatusReady ? 'text-[var(--ty-green-color)]' : savedScoreWeight !== 100 && !isModified ? 'text-[var(--ty-red-color)]' : 'text-[var(--ty-orange-color)]'}`} />
+                {draftStatusLabel}
               </span>
             )}
             <button
@@ -1225,14 +1314,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <th className="py-2 px-4">权重 (Weight)</th>
                   <th className="py-2 px-4">匹配方式</th>
                   <th className="py-2 px-4">不匹配处理</th>
-                  <th className="py-2 px-4">缺失值处理</th>
+                  <th className="py-2 px-4">候选值缺失时</th>
                   <th className="py-2 px-4 text-center">参与评分</th>
                   <th className="py-2 px-4 text-right sticky right-0 z-10 bg-[var(--ty-fill-weak-dark-color)] border-l border-[var(--ty-border-color)] shadow-ty-sticky">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
                 {pageRules.map((rule, idx) => {
-                  const isGate = rule.mismatchAction === 'EXCLUDE_CANDIDATE';
+                  const isGate = rule.isScoreActive && rule.mismatchAction === 'EXCLUDE_CANDIDATE';
                   return (
                     <tr
                       key={rule.id}
@@ -1266,20 +1355,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       {/* 权重 */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`font-mono font-bold ${
-                              rule.isScoreActive ? 'text-[var(--ty-font-main-color)]' : 'text-[var(--ty-font-sub-light-color)] line-through'
-                            }`}
-                          >
-                            {rule.weight}%
+                          <span className={`font-mono font-bold ${rule.isScoreActive ? 'text-[var(--ty-font-main-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`}>
+                            {rule.isScoreActive ? `${rule.weight}%` : '—'}
                           </span>
                         </div>
                       </td>
 
                       {/* 匹配方式 */}
-                      <td className="py-3 px-4 font-medium text-[var(--ty-font-main-color)]">{rule.matchType}</td>
+                      <td className="py-3 px-4 font-medium text-[var(--ty-font-main-color)]">{rule.isScoreActive ? rule.matchType : '—'}</td>
                       <td className="py-3 px-4">
-                          {isGate ? (
+                          {!rule.isScoreActive ? (
+                            <span className="text-[var(--ty-font-sub-light-color)]">—</span>
+                          ) : isGate ? (
                             <span
                               className="inline-flex items-center gap-1 min-h-6 px-2 inline-flex items-center text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/40 rounded-ty-xs"
                               title="门槛字段：不满足时直接排除整个候选"
@@ -1296,7 +1383,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                       {/* 缺失值处理 */}
                       <td className="py-3 px-4 text-[var(--ty-font-sub-color)] text-ty-2xs">
-                        {rule.nullHandling || '候选缺失按 0 分'}
+                        {rule.isScoreActive ? rule.nullHandling || '候选缺失按 0 分' : '—'}
                       </td>
 
                       {/* 参与评分开关 */}
@@ -1402,19 +1489,53 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       onChange={e => handleFieldSelectChange(e.target.value)}
                       className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
                     >
-                      {availableStage1Fields.map(f => (
-                        <option key={f.fieldCode} value={f.fieldCode} disabled={f.isMultiValue}>
-                          {f.displayName} ({f.fieldCode}) - {f.businessFieldType}{f.isMultiValue ? ' · 多值，暂不支持评分' : ''}
-                        </option>
-                      ))}
+                      {availableStage1Fields.map(f => {
+                        const alreadyConfigured = currentScopeEditingRules.some(rule => rule.propertyCode === f.fieldCode);
+                        return (
+                          <option key={f.fieldCode} value={f.fieldCode} disabled={alreadyConfigured}>
+                            {f.displayName} ({f.fieldCode}) - {f.businessFieldType}
+                            {alreadyConfigured ? ' · 已配置' : f.isMultiValue ? ' · 仅支持展示对比' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   )}
                   <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
-                    多值属性可继续同步、展示和查询；当前版本不作为分组属性或相似度评分字段。
+                    新增字段默认仅用于展示对比，不增加评分权重；同一分组值下一个字段只能配置一条规则。多值属性当前不能参与评分。
+                  </p>
+                  {formPropertyCode === 'core_material' && (
+                    <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
+                      材料示例使用具体牌号名称；只有 PLM 元数据明确提供枚举定义时才按稳定码匹配，不默认将所有材料设为枚举。
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. 先确定字段用途，再展示适用的评分参数 */}
+                <div className="p-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/50">
+                  <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">
+                    是否参与评分 <span className="text-[var(--ty-red-color)]">*</span>
+                  </label>
+                  <select
+                    value={formIsScoreActive ? 'YES' : 'NO'}
+                    onChange={e => setFormIsScoreActive(e.target.value === 'YES')}
+                    className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-semibold"
+                    id="field-score-active-select"
+                  >
+                    <option value="YES" disabled={formFieldScoreUnsupported}>是，参与相似度评分{formFieldScoreUnsupported ? '（当前字段不支持）' : ''}</option>
+                    <option value="NO">否，不参与评分（仅展示对比）</option>
+                  </select>
+                  <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                    {formFieldScoreUnsupported
+                      ? '当前字段为多值属性，只展示两侧值及差异，不能参与相似度评分。'
+                      : formIsScoreActive
+                      ? '继续配置评分权重、匹配方式、候选缺失及不匹配处理。'
+                      : '该属性只展示两侧值及差异，不进入总分、覆盖率、评分命中数或差异数。'}
                   </p>
                 </div>
 
-                {/* 2. 匹配方式与动态参数 */}
+                {formIsScoreActive ? (
+                <>
+                {/* 3. 匹配方式与动态参数 */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">
@@ -1501,7 +1622,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)] block mb-1">容差类型</label>
                       <select
                         value={formToleranceType}
-                        onChange={e => setFormToleranceType(e.target.value as any)}
+                        onChange={e => {
+                          const nextType = e.target.value as 'ABSOLUTE' | 'PERCENTAGE';
+                          setFormToleranceType(nextType);
+                          if (nextType === 'PERCENTAGE') setFormToleranceValue(2);
+                        }}
                         className="w-full h-8 text-ty-xs border border-[var(--ty-primary-lighter-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                       >
                         <option value="ABSOLUTE">绝对数值误差 (±Δ)</option>
@@ -1510,7 +1635,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     </div>
                     <div>
                       <label className="text-ty-2xs font-semibold text-[var(--ty-primary-color)] block mb-1">
-                        容差值 ({formDisplayUnit || '单位'})
+                        容差值（{formToleranceType === 'PERCENTAGE' ? '%' : formDisplayUnit || '单位'}）
                       </label>
                       <input
                         type="number"
@@ -1528,6 +1653,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                         <option value="BOTH">双向</option><option value="HIGHER">仅允许偏高</option><option value="LOWER">仅允许偏低</option>
                       </select>
                     </div>
+                    {formUnitFamily === '长度' && formToleranceType === 'PERCENTAGE' && formToleranceDirection === 'BOTH' && formToleranceValue === 2 && (
+                      <div className="sm:col-span-3 px-3 py-2 bg-[var(--ty-fill-white-color)] border border-[var(--ty-primary-lighter-color)] rounded-ty-sm text-ty-2xs text-[var(--ty-primary-color)] leading-relaxed">
+                        主单位换算示例：基准 1 m，双向容差 2%；候选 102 cm 命中满分，候选 1.021 m 不命中。温度等带偏移单位需单独验证边界。
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1548,7 +1678,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                 {matchConfigError && <p role="alert" className="text-ty-2xs text-[var(--ty-red-color)]">{matchConfigError}</p>}
 
-                {/* 3. 字段不满足匹配条件时处理 (核心规范: 单选卡片) */}
+                {/* 4. 字段不满足匹配条件时处理 (核心规范: 单选卡片) */}
                 <div className="space-y-2 pt-2 border-t border-[var(--ty-border-color)]">
                   <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block">
                     字段不满足匹配条件时处理 <span className="text-[var(--ty-red-color)]">*</span>
@@ -1619,10 +1749,13 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   )}
                 </div>
 
-                {/* 4. 缺失值处理与模板 */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                {/* 5. 基准缺失口径与候选缺失策略 */}
+                <div className="space-y-3 pt-2 border-t border-[var(--ty-border-color)]">
+                  <div className="px-3 py-2 rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] text-ty-2xs text-[var(--ty-font-sub-color)]">
+                    <strong className="text-[var(--ty-font-main-color)]">基准值缺失：</strong>本字段本次不比较，不计入分母。
+                  </div>
                   <div>
-                    <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">缺失值处理</label>
+                    <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">候选值缺失时</label>
                     <select
                       value={formNullHandling}
                       onChange={e => setFormNullHandling(e.target.value)}
@@ -1632,18 +1765,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <option value="不参与计算 (权重均摊到其他有值项)">不参与计算 (不计入分母)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">是否参与评分</label>
-                    <select
-                      value={formIsScoreActive ? 'YES' : 'NO'}
-                      onChange={e => setFormIsScoreActive(e.target.value === 'YES')}
-                      className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-semibold"
-                    >
-                      <option value="YES">是 (参与相似度总分折算)</option>
-                      <option value="NO">否 (仅作为展示与对比)</option>
-                    </select>
-                  </div>
                 </div>
+                </>
+                ) : (
+                  <div className="p-4 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-ty-xs text-[var(--ty-font-sub-color)] space-y-2" id="display-only-rule-summary">
+                    <div className="font-bold text-[var(--ty-font-main-color)]">展示对比属性</div>
+                    <p>结果详情仍显示基准值、候选值及是否存在差异。</p>
+                    <p>评分权重、匹配方式、容差或衰减参数、候选值缺失策略和不匹配处理均不适用。</p>
+                  </div>
+                )}
               </div>
 
               {/* 右侧实时试算仿真器 (5 列) */}
@@ -1652,9 +1782,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   <div className="flex items-center justify-between border-b border-[var(--ty-border-color)] pb-2">
                     <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] flex items-center gap-2">
                       <HelpCircle className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
-                      实时规则试算仿真
+                      {formIsScoreActive ? '实时规则试算仿真' : '展示对比预览'}
                     </span>
-                    <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">瞬时反馈</span>
+                    <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">{formIsScoreActive ? '瞬时反馈' : '不计分'}</span>
                   </div>
 
                   {/* 模拟输入对 */}
@@ -1671,9 +1801,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                           placeholder="例如: 10 或 SUS304"
                         />
-                        {formDisplayUnit && formDisplayUnit !== '无' && (
+                        {trialUnitOptions.length > 0 ? (
+                          <select
+                            value={trialSrcUnit}
+                            onChange={e => setTrialSrcUnit(e.target.value)}
+                            aria-label="基准值单位"
+                            className="h-8 w-24 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono"
+                          >
+                            {trialUnitOptions.map(unit => <option key={unit.code} value={unit.code}>{unit.code}</option>)}
+                          </select>
+                        ) : formDisplayUnit && formDisplayUnit !== '无' ? (
                           <span className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono">{formDisplayUnit}</span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
@@ -1689,16 +1828,25 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                           className="flex-1 h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                           placeholder="例如: 16 或 A2-70"
                         />
-                        {formDisplayUnit && formDisplayUnit !== '无' && (
+                        {trialUnitOptions.length > 0 ? (
+                          <select
+                            value={trialCandUnit}
+                            onChange={e => setTrialCandUnit(e.target.value)}
+                            aria-label="候选值单位"
+                            className="h-8 w-24 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] font-mono"
+                          >
+                            {trialUnitOptions.map(unit => <option key={unit.code} value={unit.code}>{unit.code}</option>)}
+                          </select>
+                        ) : formDisplayUnit && formDisplayUnit !== '无' ? (
                           <span className="text-ty-xs text-[var(--ty-font-sub-color)] font-mono">{formDisplayUnit}</span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
 
                   {/* 仿真结果卡片 */}
                   <div className="p-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] space-y-2">
-                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-semibold">试算判定结果：</div>
+                    <div className="text-ty-2xs text-[var(--ty-font-sub-light-color)] font-semibold">{formIsScoreActive ? '试算判定结果：' : '展示说明：'}</div>
                     <div
                       className={`p-3 rounded-ty-sm text-ty-xs font-bold flex items-center gap-2 ${
                         modalTrialResult.outcomeType === 'SUCCESS'
@@ -1720,21 +1868,26 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                       <span>{modalTrialResult.outcomeText}</span>
                     </div>
 
+                    {formIsScoreActive ? (
                     <div className="text-ty-2xs text-[var(--ty-font-sub-color)] space-y-1 pt-1 border-t border-[var(--ty-border-light-color)]">
                       <div className="flex justify-between">
-                        <span>匹配率：</span>
-                        <span className="font-mono font-semibold">{(modalTrialResult.matchRate * 100).toFixed(1)}%</span>
+                        <span>字段原始分：</span>
+                        <span className="font-mono font-semibold">{(modalTrialResult.matchRate * 100).toFixed(2)} 分</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>折算分值：</span>
-                        <span className="font-mono font-semibold">{modalTrialResult.weightedScore} 分</span>
+                        <span>字段贡献：</span>
+                        <span className="font-mono font-semibold">{modalTrialResult.weightedScore.toFixed(2)} 分</span>
                       </div>
+                      <p className="pt-1 border-t border-[var(--ty-border-light-color)]">字段贡献 = 字段原始分 × 权重，参与综合相似度计算。</p>
                     </div>
+                    ) : (
+                      <p className="text-ty-2xs text-[var(--ty-font-sub-color)] pt-1 border-t border-[var(--ty-border-light-color)]">保存后仅在对比详情展示两侧值及差异，不生成字段得分或扣分原因。</p>
+                    )}
                   </div>
                 </div>
 
                 <p className="text-ty-2xs text-[var(--ty-font-sub-light-color)] leading-tight">
-                  提示：调整左侧参数或不匹配处理模式，右侧将即时响应判定结论。
+                  {formIsScoreActive ? '提示：调整左侧参数或不匹配处理模式，右侧将即时响应判定结论。' : '提示：当前字段仅用于展示对比，隐藏的评分参数不会参与计算或校验。'}
                 </p>
               </div>
             </div>
@@ -1749,8 +1902,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               </button>
               <button
                 onClick={handleSaveRule}
-                disabled={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 || Boolean(matchConfigError)}
-                title={!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 ? '请先修正评分权重' : matchConfigError || '保存字段规则'}
+                disabled={formIsScoreActive && (!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100 || Boolean(matchConfigError))}
+                title={formIsScoreActive && (!Number.isFinite(formWeight) || formWeight < 0 || formWeight > 100) ? '请先修正评分权重' : matchConfigError || '保存字段规则'}
                 className="h-8 min-w-[68px] px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               >
                 保存规则
