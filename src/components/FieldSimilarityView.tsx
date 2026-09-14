@@ -40,7 +40,8 @@ import {
   convertFromBaseUnit,
   processEnumList,
   formatWithDisplayUnit,
-  calculateFieldMatchRate
+  calculateFieldMatchRate,
+  isSimilarityValueMissing
 } from '../data';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
@@ -165,7 +166,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [formFieldType, setFormFieldType] = useState('');
   const [formWeight, setFormWeight] = useState<number>(20);
   const [formMatchType, setFormMatchType] = useState('精确值匹配');
-  const [formNullHandling, setFormNullHandling] = useState('候选缺失按 0 分');
+  const [formNullHandling, setFormNullHandling] = useState('计0分');
   const [formMismatchAction, setFormMismatchAction] = useState<MismatchAction>('ZERO_AND_CONTINUE');
   const [formIsScoreActive, setFormIsScoreActive] = useState(true);
   const [formShowHitReason, setFormShowHitReason] = useState(true);
@@ -342,7 +343,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormFieldType(unconfigured.businessFieldType);
     setFormWeight(20);
     setFormMatchType(getAllowedMatchTypes(unconfigured.businessFieldType)[0]);
-    setFormNullHandling('候选缺失按 0 分');
+    setFormNullHandling('计0分');
     setFormMismatchAction('ZERO_AND_CONTINUE');
     setFormIsScoreActive(false);
     setFormShowHitReason(true);
@@ -388,7 +389,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     setFormFieldType(rule.fieldType);
     setFormWeight(rule.weight);
     setFormMatchType(rule.matchType);
-    setFormNullHandling(rule.nullHandling || '候选缺失按 0 分');
+    setFormNullHandling(rule.nullHandling || '计0分');
     setFormMismatchAction(rule.mismatchAction || 'ZERO_AND_CONTINUE');
     setFormIsScoreActive(rule.isScoreActive);
     setFormShowHitReason(rule.showHitReason);
@@ -593,6 +594,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // 快速切换参与评分开关
   const handleToggleScoreActive = (rule: FieldSimilarityRule) => {
     if (!rule.isScoreActive) {
+      const selectedField = availableStage1Fields.find(field => field.fieldCode === rule.propertyCode);
+      if (selectedField?.isMultiValue) {
+        notify('该字段为多值属性，当前只能展示对比，不能参与相似度评分。', 'warning');
+        return;
+      }
       handleOpenEditModal(rule);
       setFormIsScoreActive(true);
       notify('请确认评分参数后保存；恢复参与评分时会重新校验。', 'info');
@@ -889,13 +895,24 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       units: { [formPropertyCode]: trialCandUnit }
     };
 
+    const sourceMissing = isSimilarityValueMissing(trialSrcVal);
+    const candidateMissing = isSimilarityValueMissing(trialCandVal);
+    const skipCandidateMissing = formNullHandling === '不参与本次计算（跳过）' || formNullHandling === '不参与计算' || formNullHandling === '不参与计算 (权重均摊到其他有值项)';
     const matchRate = calculateFieldMatchRate(tempRule, trialSrcVal, trialCandVal, mockCand, mockRef);
     const weightedScore = Number((formWeight * matchRate).toFixed(2));
 
     let outcomeText = '';
     let outcomeType: 'SUCCESS' | 'PARTIAL' | 'ZERO_CONTINUE' | 'EXCLUDED' = 'SUCCESS';
 
-    if (matchRate === 1.0) {
+    if (sourceMissing) {
+      outcomeText = '基准值未填写，本字段本次不比较（不计入评分分母）';
+      outcomeType = 'PARTIAL';
+    } else if (candidateMissing) {
+      outcomeText = skipCandidateMissing
+        ? '候选未填写：不参与本次计算（跳过），本次不计入该字段权重'
+        : '候选未填写：计0分，该字段得0分并保留其评分权重';
+      outcomeType = skipCandidateMissing ? 'PARTIAL' : 'ZERO_CONTINUE';
+    } else if (matchRate === 1.0) {
       outcomeText = formMatchType === '数值容差匹配' || formMatchType === '数值距离衰减'
         ? `满足满分条件（字段贡献 ${formWeight.toFixed(2)} 分；两侧数值可以不同）`
         : `精确匹配（字段贡献 ${formWeight.toFixed(2)} 分）`;
@@ -1383,7 +1400,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
 
                       {/* 缺失值处理 */}
                       <td className="py-3 px-4 text-[var(--ty-font-sub-color)] text-ty-2xs">
-                        {rule.isScoreActive ? rule.nullHandling || '候选缺失按 0 分' : '—'}
+                        {rule.isScoreActive ? rule.nullHandling || '计0分' : '—'}
                       </td>
 
                       {/* 参与评分开关 */}
@@ -1755,14 +1772,22 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     <strong className="text-[var(--ty-font-main-color)]">基准值缺失：</strong>本字段本次不比较，不计入分母。
                   </div>
                   <div>
-                    <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">候选值缺失时</label>
+                    <label className="text-ty-xs font-bold text-[var(--ty-font-main-color)] block mb-1">
+                      <span className="inline-flex items-center gap-1">
+                        候选值缺失时
+                        <HelpTooltip
+                          label="查看候选值缺失处理说明"
+                          content="计0分：该字段得0分，保留其评分权重。不参与本次计算：本次不计入该字段权重，按其余评分字段重新计算总分。候选缺失不等同于双方有值时的不匹配，也不会自动触发候选排除。"
+                        />
+                      </span>
+                    </label>
                     <select
                       value={formNullHandling}
                       onChange={e => setFormNullHandling(e.target.value)}
                       className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)]"
                     >
-                      <option value="候选缺失按 0 分">候选缺失按 0 分 (计入分母)</option>
-                      <option value="不参与计算 (权重均摊到其他有值项)">不参与计算 (不计入分母)</option>
+                      <option value="计0分">计0分</option>
+                      <option value="不参与本次计算（跳过）">不参与本次计算（跳过）</option>
                     </select>
                   </div>
                 </div>

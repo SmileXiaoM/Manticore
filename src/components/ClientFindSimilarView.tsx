@@ -528,7 +528,13 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
               </div>
 
               <div className="space-y-3">
-                {selectedForCompare.compareFields.map(f => (
+                {selectedForCompare.compareFields.map(f => {
+                  const candidateMissingLabel = f.missingSide === 'CANDIDATE'
+                    ? f.candidateMissingHandling === 'SKIP'
+                      ? '候选未填写 · 跳过'
+                      : '候选未填写 · 计0分'
+                    : '';
+                  return (
                   <div
                     key={f.fieldKey}
                     className="p-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)]/50 space-y-2 text-ty-xs"
@@ -537,7 +543,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       <span className="font-bold text-[var(--ty-font-main-color)]">{f.fieldLabel}</span>
                       <div className="flex items-center gap-2">
                       {f.isScoreActive && (
-                        <span className="font-mono text-ty-2xs font-semibold text-[var(--ty-font-sub-color)]">字段贡献 {f.weightedScore.toFixed(2)} 分</span>
+                        <span className="font-mono text-ty-2xs font-semibold text-[var(--ty-font-sub-color)]">
+                          字段贡献 {f.missingSide === 'REFERENCE' || f.candidateMissingHandling === 'SKIP' ? '—' : `${f.weightedScore.toFixed(2)} 分`}
+                        </span>
                       )}
                       <span
                         className={`font-semibold min-h-6 px-2 inline-flex items-center rounded-ty-xs text-ty-2xs ${
@@ -552,6 +560,8 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       >
                         {!f.isScoreActive
                           ? '不参与评分'
+                          : candidateMissingLabel
+                          ? candidateMissingLabel
                           : f.status === 'FULL'
                           ? '满分命中'
                           : f.status === 'PARTIAL'
@@ -571,7 +581,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                        <div>
                          <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">候选物料值</span>
                          <span className="font-semibold text-[var(--ty-font-main-color)]">
-                           {String(f.candidateValue ?? '--')}
+                           {f.missingSide === 'CANDIDATE' ? '未填写' : String(f.candidateValue ?? '--')}
                          </span>
                        </div>
                      </div>
@@ -579,11 +589,12 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     {/* 业务解释 */}
                     <div className="text-ty-xs text-[var(--ty-font-sub-color)] leading-relaxed pt-1">
                       {f.isScoreActive
-                        ? `${f.reason}；字段原始分 ${(f.matchRate * 100).toFixed(2)} 分`
+                        ? `${f.reason}；字段原始分 ${f.missingSide === 'REFERENCE' || f.candidateMissingHandling === 'SKIP' ? '—' : `${(f.matchRate * 100).toFixed(2)} 分`}`
                         : `${f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅展示对比，不影响总分、覆盖率、评分命中数或差异数。`}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

@@ -721,7 +721,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '枚举 (ENUM)',
     weight: 25,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -754,7 +754,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 20,
     matchType: '数值容差匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'EXCLUDE_CANDIDATE', // 门槛字段：不满足时排除整个候选
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -792,7 +792,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 15,
     matchType: '数值容差匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -830,7 +830,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '长文本 (LONG_TEXT)',
     weight: 25,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -863,7 +863,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '分类树 (CLASS_TREE)',
     weight: 15,
     matchType: '层级关系匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -901,7 +901,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 0,
     matchType: '精确值匹配',
-    nullHandling: '不参与计算',
+    nullHandling: '不参与本次计算（跳过）',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: false,
     isQueryPreviewAvailable: true,
@@ -938,7 +938,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '文本 (TEXT)',
     weight: 35,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -971,7 +971,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '枚举 (ENUM)',
     weight: 25,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1004,7 +1004,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '文本 (TEXT)',
     weight: 20,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1037,7 +1037,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '文本 (TEXT)',
     weight: 20,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'EXCLUDE_CANDIDATE', // 门槛
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1074,7 +1074,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '枚举 (ENUM)',
     weight: 25,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'EXCLUDE_CANDIDATE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1107,7 +1107,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '文本 (TEXT)',
     weight: 30,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'EXCLUDE_CANDIDATE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1140,7 +1140,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 20,
     matchType: '数值容差匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1178,7 +1178,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '枚举 (ENUM)',
     weight: 25,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1215,7 +1215,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 40,
     matchType: '数值容差匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'EXCLUDE_CANDIDATE', // 门槛
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1253,7 +1253,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '带单位数值 (NUMBER_WITH_UNIT)',
     weight: 30,
     matchType: '数值容差匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -1291,7 +1291,7 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     fieldType: '枚举 (ENUM)',
     weight: 30,
     matchType: '精确值匹配',
-    nullHandling: '候选缺失按 0 分',
+    nullHandling: '计0分',
     mismatchAction: 'ZERO_AND_CONTINUE',
     isScoreActive: true,
     isQueryPreviewAvailable: true,
@@ -2011,6 +2011,12 @@ export function isSimilarityValueMissing(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 }
 
+function isCandidateMissingSkipPolicy(nullHandling: string): boolean {
+  return nullHandling === '不参与本次计算（跳过）' ||
+    nullHandling === '不参与计算' ||
+    nullHandling === '不参与计算 (权重均摊到其他有值项)';
+}
+
 // 核心查询/沙盒试算调度器 (支持已有件基准与表单字段值基准、根类型+软类型上下文、门槛排除与记0分区分)
 export function runSimilaritySearch(
   rootTypeId: string,
@@ -2122,7 +2128,12 @@ export function runSimilaritySearch(
         const refVal = reference.attributes[key];
         const candVal = cand.attributes[key];
 
-        // 若参考值存在而候选值缺失，或两者均有值但不满足匹配条件
+        // 缺失值由缺失策略处理，不等同于双方有值时的门槛不匹配。
+        if (isSimilarityValueMissing(refVal) || isSimilarityValueMissing(candVal)) {
+          continue;
+        }
+
+        // 仅双方都有值且不满足匹配要求时触发门槛排除。
         const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand, reference);
         if (matchRate < 1.0) {
           isExcluded = true;
@@ -2183,13 +2194,14 @@ export function runSimilaritySearch(
           mismatchAction: rule.mismatchAction,
           reason: '基准值缺失，本字段本次不比较（不计入分母）',
           isScoreActive: true,
-          hasDifference: true
+          hasDifference: true,
+          missingSide: 'REFERENCE'
         });
         continue;
       }
 
       if (isCandMissing) {
-        if (rule.nullHandling === '不参与计算' || rule.nullHandling === '不参与计算 (权重均摊到其他有值项)') {
+        if (isCandidateMissingSkipPolicy(rule.nullHandling)) {
           compareFields.push({
             fieldKey: key,
             fieldLabel: rule.fieldName,
@@ -2200,9 +2212,11 @@ export function runSimilaritySearch(
             weightedScore: 0,
             status: 'MISS',
             mismatchAction: rule.mismatchAction,
-            reason: '候选值缺失，本字段本次不计算（不计入分母）',
+            reason: '候选未填写；按“不参与本次计算（跳过）”处理：本次不计入该字段权重，按其余评分字段重新计算总分',
             isScoreActive: true,
-            hasDifference: true
+            hasDifference: true,
+            missingSide: 'CANDIDATE',
+            candidateMissingHandling: 'SKIP'
           });
         } else {
           sumActiveWeights += rule.weight;
@@ -2216,9 +2230,11 @@ export function runSimilaritySearch(
             weightedScore: 0,
             status: 'MISS',
             mismatchAction: rule.mismatchAction,
-            reason: '候选值缺失，按 0 分计入分母',
+            reason: '候选未填写；按“计0分”处理：该字段得0分，保留其评分权重',
             isScoreActive: true,
-            hasDifference: true
+            hasDifference: true,
+            missingSide: 'CANDIDATE',
+            candidateMissingHandling: 'ZERO_SCORE'
           });
         }
         continue;
@@ -2310,15 +2326,20 @@ export function runSimilaritySearch(
     // 精确未舍入总分用于排序；展示值统一在下方保留两位小数。
     const rawTotalScore = sumActiveWeights > 0 ? (numeratorScore / sumActiveWeights) * 100 : 0;
 
-    const similarityScore = Number(rawTotalScore.toFixed(2));
-    const similarityTier = resolveSimilarityTier(rawTotalScore, tierConfig);
-
     const scoringCompareFields = compareFields.filter(f => f.isScoreActive);
     const nonMissingWeights = scoringCompareFields
-      .filter(f => !f.reason.includes('缺失'))
+      .filter(f => !f.missingSide)
       .reduce((sum, f) => sum + f.weight, 0);
     const totalActiveWeights = scoringCompareFields.reduce((sum, f) => sum + f.weight, 0);
     const coverageRate = totalActiveWeights > 0 ? Math.round((nonMissingWeights / totalActiveWeights) * 100) : 0;
+
+    // 没有任何有效评分分母时，不产生分数和分档，也不进入主结果。
+    if (sumActiveWeights === 0) {
+      continue;
+    }
+
+    const similarityScore = Number(rawTotalScore.toFixed(2));
+    const similarityTier = resolveSimilarityTier(rawTotalScore, tierConfig);
 
     const fullHitCount = scoringCompareFields.filter(f => f.status === 'FULL').length;
     const differenceCount = scoringCompareFields.filter(f => f.status === 'MISS' || f.status === 'PARTIAL').length;

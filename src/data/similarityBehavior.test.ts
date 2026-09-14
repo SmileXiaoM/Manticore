@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateFieldMatchRate, getSimilarityGroupValueOptions, initialFieldRules, runSimilaritySearch } from '../data';
+import { calculateFieldMatchRate, getSimilarityGroupValueOptions, initialFieldRules, mockPartDatabase, runSimilaritySearch } from '../data';
 import { FieldSimilarityRule } from '../types';
 import { createSimilarityVersionSignature, resolveSimilarityTier, validateSimilarityTierConfig } from '../similarityTier';
 
@@ -106,4 +106,73 @@ test('display-only numeric fields show raw value differences without applying to
   assert.equal(displayOnlyLength.hasDifference, true);
   assert.equal(displayOnlyLength.weightedScore, 0);
   assert.equal(displayOnlyLength.matchRate, 0);
+});
+
+test('candidate missing policy keeps coverage stable and changes only the scoring denominator', () => {
+  const testCandidate = {
+    requestCode: 'REQ-TEST-MISSING-LENGTH',
+    rootTypeId: 'PART',
+    softTypeId: 'IN_HOUSE',
+    objectId: 'PART-TEST-MISSING-LENGTH',
+    objectName: '候选缺少长度',
+    specification: 'M10',
+    material: 'A2-70',
+    classificationPath: '/紧固件/测试',
+    lifecycleState: '有效',
+    attributes: {
+      core_material: 'A2-70',
+      nominal_diameter: 10,
+      length: null
+    },
+    units: {
+      nominal_diameter: 'mm',
+      length: 'mm'
+    }
+  };
+  mockPartDatabase.push(testCandidate);
+
+  try {
+    const material = initialFieldRules.find(rule => rule.id === 'R-INHOUSE-01');
+    const diameter = initialFieldRules.find(rule => rule.id === 'R-INHOUSE-02');
+    const length = initialFieldRules.find(rule => rule.id === 'R-INHOUSE-03');
+    assert.ok(material && diameter && length);
+
+    const baseRules: FieldSimilarityRule[] = [
+      { ...material, weight: 40, mismatchAction: 'ZERO_AND_CONTINUE', nullHandling: '计0分' },
+      { ...diameter, weight: 40, mismatchAction: 'EXCLUDE_CANDIDATE', nullHandling: '计0分' },
+      { ...length, weight: 20, mismatchAction: 'EXCLUDE_CANDIDATE', nullHandling: '计0分' }
+    ];
+    const baseline = { type: 'EXISTING_PART' as const, objectId: 'PART-2026-000100' };
+
+    const zeroResult = runSimilaritySearch('PART', 'IN_HOUSE', baseline, baseRules);
+    const zeroCandidate = zeroResult.scoredCandidates.find(item => item.objectId === testCandidate.objectId);
+    assert.ok(zeroCandidate);
+    assert.equal(zeroCandidate.similarityScore, 40);
+    assert.equal(zeroCandidate.coverageRate, 80);
+    assert.equal(zeroResult.excludedCandidates.some(item => item.objectId === testCandidate.objectId), false);
+    const zeroMissingField = zeroCandidate.compareFields.find(field => field.fieldKey === 'length');
+    assert.equal(zeroMissingField?.missingSide, 'CANDIDATE');
+    assert.equal(zeroMissingField?.candidateMissingHandling, 'ZERO_SCORE');
+
+    const skipRules = baseRules.map(rule => rule.propertyCode === 'length'
+      ? { ...rule, nullHandling: '不参与本次计算（跳过）' }
+      : rule
+    );
+    const skipResult = runSimilaritySearch('PART', 'IN_HOUSE', baseline, skipRules);
+    const skipCandidate = skipResult.scoredCandidates.find(item => item.objectId === testCandidate.objectId);
+    assert.ok(skipCandidate);
+    assert.equal(skipCandidate.similarityScore, 50);
+    assert.equal(skipCandidate.coverageRate, 80);
+    assert.equal(skipResult.excludedCandidates.some(item => item.objectId === testCandidate.objectId), false);
+    assert.equal(skipCandidate.compareFields.find(field => field.fieldKey === 'length')?.candidateMissingHandling, 'SKIP');
+
+    const zeroDenominatorResult = runSimilaritySearch('PART', 'IN_HOUSE', baseline, [
+      { ...length, weight: 100, mismatchAction: 'EXCLUDE_CANDIDATE', nullHandling: '不参与本次计算（跳过）' }
+    ]);
+    assert.equal(zeroDenominatorResult.scoredCandidates.some(item => item.objectId === testCandidate.objectId), false);
+    assert.equal(zeroDenominatorResult.excludedCandidates.some(item => item.objectId === testCandidate.objectId), false);
+  } finally {
+    const index = mockPartDatabase.findIndex(item => item.objectId === testCandidate.objectId);
+    if (index >= 0) mockPartDatabase.splice(index, 1);
+  }
 });

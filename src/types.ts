@@ -410,6 +410,8 @@ export type CompareFieldResult = {
   reason: string;
   isScoreActive: boolean;
   hasDifference: boolean;
+  missingSide?: 'REFERENCE' | 'CANDIDATE';
+  candidateMissingHandling?: 'ZERO_SCORE' | 'SKIP';
 };
 
 export type ScoredCandidate = {

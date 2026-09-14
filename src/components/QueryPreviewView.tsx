@@ -854,6 +854,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               <div className="space-y-3">
                 {selectedCandidate.compareFields.map(f => {
                   const isGate = f.isScoreActive && f.mismatchAction === 'EXCLUDE_CANDIDATE';
+                  const candidateMissingLabel = f.missingSide === 'CANDIDATE'
+                    ? f.candidateMissingHandling === 'SKIP'
+                      ? '候选未填写 · 跳过'
+                      : '候选未填写 · 计0分'
+                    : '';
                   return (
                     <div
                       key={f.fieldKey}
@@ -868,14 +873,19 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               门槛字段
                             </span>
                           )}
+                          {candidateMissingLabel && (
+                            <span className="text-ty-2xs font-bold bg-[var(--ty-orange-lightest-color)] text-[var(--ty-font-main-light-color)] border border-[var(--ty-orange-color)]/30 px-2 py-0.2 rounded-ty-xs">
+                              {candidateMissingLabel}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2">
                           {f.isScoreActive ? (
                             <>
-                              <span className="text-[var(--ty-font-sub-color)]">权重 {f.weight}%</span>
+                              <span className="text-[var(--ty-font-sub-color)]">配置权重 {f.weight}%</span>
                               <span className={`font-mono font-bold ${f.status === 'FULL' ? 'text-[var(--ty-green-color)]' : f.status === 'PARTIAL' ? 'text-[var(--ty-primary-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`}>
-                                字段贡献：{f.weightedScore.toFixed(2)} 分
+                                字段贡献：{f.missingSide === 'REFERENCE' || f.candidateMissingHandling === 'SKIP' ? '—' : `${f.weightedScore.toFixed(2)} 分`}
                               </span>
                             </>
                           ) : (
@@ -895,7 +905,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         <div>
                           <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)] block mb-0.5">候选值 (目标)</span>
                           <span className="font-semibold text-[var(--ty-font-main-color)] font-mono">
-                            {String(f.candidateValue ?? '--')}
+                            {f.missingSide === 'CANDIDATE' ? '未填写' : String(f.candidateValue ?? '--')}
                           </span>
                         </div>
                       </div>
@@ -905,7 +915,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                         {f.isScoreActive ? (
                           <>
                             <span>{f.reason}</span>
-                            <span className="font-mono font-semibold">字段原始分：{(f.matchRate * 100).toFixed(2)} 分</span>
+                            <span className="font-mono font-semibold">
+                              字段原始分：{f.missingSide === 'REFERENCE' || f.candidateMissingHandling === 'SKIP' ? '—' : `${(f.matchRate * 100).toFixed(2)} 分`}
+                            </span>
                           </>
                         ) : (
                           <span>{f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅用于展示对比，不进入总分、覆盖率、评分命中数或差异数。</span>
