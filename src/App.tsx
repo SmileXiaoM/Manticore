@@ -245,7 +245,7 @@ export default function App() {
   // Explicit independent configuration status per object type
   const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, SimilarityGroupConfigStatus>>({
     IN_HOUSE: { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
-    PURCHASED: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
+    PURCHASED: { enabled: true, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
     HEADED: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
     STAMPING_UNCONFIGURED: { enabled: false, configVersion: '-', lastModifiedAt: '-' },
   });

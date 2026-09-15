@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   Layers,
   SlidersHorizontal,
-  FileText,
   ShieldAlert,
   HelpCircle,
   Clock,
@@ -20,7 +19,6 @@ import {
   rootTypeOptions,
   getSimilarityGroupValueOptions,
   mockFormBaselines,
-  mockPartDatabase,
   runSimilaritySearch,
   formatFieldWithFallback
 } from '../data';
@@ -64,6 +62,14 @@ interface LastRunContext {
   searchResult: SearchRunResult;
 }
 
+const getManualBaselineSeed = (softTypeId: string) => {
+  const example = mockFormBaselines.find(item => item.rootTypeId === 'PART' && item.softTypeId === softTypeId);
+  return {
+    values: { ...(example?.values || {}) },
+    units: { ...(example?.units || {}) }
+  };
+};
+
 export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   savedRules,
   activeRules,
@@ -79,15 +85,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   // 1. 查询条件状态
   const rootTypeId = 'PART';
   const [softTypeId, setSoftTypeId] = useState<string>('IN_HOUSE');
-
-  // 基准来源：已有件 vs 表单字段值
-  const [baselineSourceType, setBaselineSourceType] = useState<'EXISTING_PART' | 'FORM_VALUES'>('EXISTING_PART');
-
-  // 已有件基准选择
-  const [existingPartId, setExistingPartId] = useState<string>('PART-2026-000100');
-
-  // 表单基准选择
-  const [selectedFormId, setSelectedFormId] = useState<string>('FORM-001');
+  const [manualValues, setManualValues] = useState<Record<string, any>>(() => getManualBaselineSeed('IN_HOUSE').values);
+  const [manualUnits, setManualUnits] = useState<Record<string, string>>(() => getManualBaselineSeed('IN_HOUSE').units);
 
   // 调试规则版本
   const [ruleVersion, setRuleVersion] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
@@ -111,38 +110,18 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     return getSimilarityGroupValueOptions(currentGroupingConfig.propertyCode);
   }, [currentGroupingConfig.propertyCode]);
 
-  // 当前可选已有件列表 (按当前根类型和软类型过滤)
-  const availableExistingParts = useMemo(() => {
-    return mockPartDatabase.filter(p => p.rootTypeId === rootTypeId && p.softTypeId === softTypeId);
-  }, [rootTypeId, softTypeId]);
-
-  // 当前可选模拟表单列表 (按当前根类型和软类型过滤)
-  const availableFormBaselines = useMemo(() => {
-    return mockFormBaselines.filter(f => f.rootTypeId === rootTypeId && f.softTypeId === softTypeId);
-  }, [rootTypeId, softTypeId]);
-
-  // 当切换软类型时重置默认选中的基准
+  // 切换分组值或版本时，重新载入该上下文的手工试算示例值。
   useEffect(() => {
     if (!availableSoftTypes.some(option => option.id === softTypeId)) {
       setSoftTypeId(availableSoftTypes[0]?.id || '');
       return;
     }
-    if (availableExistingParts.length > 0) {
-      setExistingPartId(availableExistingParts[0].objectId);
-    } else {
-      setExistingPartId('');
-    }
-
-    if (availableFormBaselines.length > 0) {
-      setSelectedFormId(availableFormBaselines[0].id);
-    } else {
-      setSelectedFormId('');
-    }
-
-    // 清理旧运行结果
+    const seed = getManualBaselineSeed(softTypeId);
+    setManualValues(seed.values);
+    setManualUnits(seed.units);
     setLastRunContext(null);
     setSelectedCandidate(null);
-  }, [availableExistingParts, availableFormBaselines, availableSoftTypes, baselineSourceType, softTypeId]);
+  }, [availableSoftTypes, ruleVersion, softTypeId]);
 
   // 获取对应版本规则
   const getRulesForVersion = (version: 'DRAFT' | 'PUBLISHED') => version === 'DRAFT' ? savedRules : activeRules;
@@ -173,33 +152,14 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       notify(`暂不能试算：参与评分字段权重合计必须为 100%，当前为 ${scoreWeight}%。`, 'warning');
       return;
     }
-    let baseline: SimilarityBaseline;
-
-    if (baselineSourceType === 'EXISTING_PART') {
-      if (!existingPartId) {
-        notify('请选择或输入基准已有件对象标识。', 'warning');
-        return;
-      }
-      baseline = {
-        type: 'EXISTING_PART',
-        objectId: existingPartId
-      };
-    } else {
-      const formItem = mockFormBaselines.find(f => f.id === selectedFormId);
-      if (!formItem) {
-        notify('请选择有效的业务表单基准。', 'warning');
-        return;
-      }
-      baseline = {
-        type: 'FORM_VALUES',
-        requestNo: formItem.requestNo,
-        temporaryNo: formItem.temporaryNo,
-        rootTypeId: formItem.rootTypeId,
-        softTypeId: formItem.softTypeId,
-        values: formItem.values,
-        units: formItem.units
-      };
-    }
+    const baseline: SimilarityBaseline = {
+      type: 'FORM_VALUES',
+      requestNo: '手工属性试算',
+      rootTypeId,
+      softTypeId,
+      values: manualValues,
+      units: manualUnits
+    };
 
     setIsSearching(true);
     setSelectedCandidate(null);
@@ -240,8 +200,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   // 重置条件
   const handleReset = () => {
     setSoftTypeId('IN_HOUSE');
-    setBaselineSourceType('EXISTING_PART');
-    setExistingPartId('PART-2026-000100');
+    const seed = getManualBaselineSeed('IN_HOUSE');
+    setManualValues(seed.values);
+    setManualUnits(seed.units);
     setRuleVersion('DRAFT');
     setLastRunContext(null);
     setSelectedCandidate(null);
@@ -258,6 +219,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const totalWeight = currentScopeRules
     .filter(r => r.isScoreActive && r.enabled)
     .reduce((sum, r) => sum + r.weight, 0);
+  const previewInputRules = Array.from(
+    new Map<string, FieldSimilarityRule>(currentScopeRules.map(rule => [rule.propertyCode, rule])).values()
+  );
 
   return (
     <div className="space-y-4" id="query-preview-view-container">
@@ -268,7 +232,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <Search className="w-5 h-5 text-[var(--ty-primary-color)]" />
               <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">相似度查询预览</h1>
-              <HelpTooltip label="查看相似度查询预览说明" content="选择规则版本和基准对象，验证候选召回、相似度计算与门槛排除效果。" />
+              <HelpTooltip label="查看相似度查询预览说明" content="手工录入属性值并选择草稿或已发布规则版本，验证候选召回、相似度计算与门槛排除效果。" />
               <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border border-[var(--ty-border-color)] font-normal">沙盒试算</span>
             </div>
           </div>
@@ -295,8 +259,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
         </div>
 
-        {/* 6 大查询条件配置行 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        {/* 沙盒上下文 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. 固定根类型 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
@@ -328,70 +292,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </select>
           </div>
 
-          {/* 3. 基准来源 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              基准来源
-            </label>
-            <select
-              value={baselineSourceType}
-              onChange={e => setBaselineSourceType(e.target.value as any)}
-              className="w-full h-8 text-ty-xs font-semibold border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              id="preview-baseline-source-select"
-            >
-              <option value="EXISTING_PART">已有件作为基准</option>
-              <option value="FORM_VALUES">新建/编辑表单字段值</option>
-            </select>
-          </div>
-
-          {/* 4. 基准参考对象选择 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] block">
-              {baselineSourceType === 'EXISTING_PART' ? '基准已有件' : '业务申请表单'}
-            </label>
-            {baselineSourceType === 'EXISTING_PART' ? (
-              availableExistingParts.length > 0 ? (
-                <select
-                  value={existingPartId}
-                  onChange={e => setExistingPartId(e.target.value)}
-                  className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-                >
-                  {availableExistingParts.map(p => (
-                    <option key={p.objectId} value={p.objectId}>
-                      {p.objectId} - {p.objectName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={existingPartId}
-                  onChange={e => setExistingPartId(e.target.value)}
-                  placeholder="输入件号..."
-                  className="w-full h-8 text-ty-xs border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:outline-hidden"
-                />
-              )
-            ) : availableFormBaselines.length > 0 ? (
-              <select
-                value={selectedFormId}
-                onChange={e => setSelectedFormId(e.target.value)}
-                className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-2 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-              >
-                {availableFormBaselines.map(f => (
-                  <option key={f.id} value={f.id}>
-                    {f.requestNo} ({f.temporaryNo})
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="h-8 px-2 flex items-center text-ty-xs text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm">
-                暂无预置表单
-              </div>
-            )}
-          </div>
-
-          {/* 5. 调试规则版本 */}
+          {/* 3. 调试规则版本 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
@@ -407,6 +308,47 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               <option value="PUBLISHED">已发布版本</option>
             </select>
           </div>
+        </div>
+
+        <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
+          <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">试算属性</span>
+              <span className="ml-2 text-ty-2xs text-[var(--ty-font-sub-color)]">手工输入本次查询基准，仅用于沙盒验证，不修改业务对象或表单。</span>
+            </div>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">共 {previewInputRules.length} 个对比字段</span>
+          </div>
+          {previewInputRules.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3 p-3">
+              {previewInputRules.map(rule => {
+                const isNumeric = rule.matchConfig?.kind === 'NUMERIC_TOLERANCE' || rule.matchConfig?.kind === 'NUMERIC_DECAY';
+                const unit = rule.displayUnit && rule.displayUnit !== '无' ? rule.displayUnit : '';
+                return (
+                  <label key={rule.propertyCode} className="min-w-0">
+                    <span className="mb-1 flex items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      <span className="truncate" title={`${rule.fieldName} (${rule.propertyCode})`}>{rule.fieldName}</span>
+                      <span className={`shrink-0 ${rule.isScoreActive ? 'text-[var(--ty-primary-color)]' : 'text-[var(--ty-font-sub-light-color)]'}`}>
+                        {rule.isScoreActive ? `参与评分 · ${rule.weight}%` : '仅展示对比'}
+                      </span>
+                    </span>
+                    <div className="relative">
+                      <input
+                        type={isNumeric ? 'number' : 'text'}
+                        step={isNumeric ? 'any' : undefined}
+                        value={manualValues[rule.propertyCode] ?? ''}
+                        onChange={event => setManualValues(values => ({ ...values, [rule.propertyCode]: event.target.value }))}
+                        className={`w-full h-8 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] px-3 text-ty-xs text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden ${unit ? 'pr-12' : ''}`}
+                        placeholder={`输入${rule.fieldName}`}
+                      />
+                      {unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ty-2xs text-[var(--ty-font-sub-light-color)]">{unit}</span>}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前分组值尚未配置可试算字段。</div>
+          )}
         </div>
 
         {/* 紧凑规则上下文摘要行 (Compact Rule Summary Bar) */}
@@ -490,7 +432,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            选择分组属性值、规则版本和基准对象，系统将进行候选召回、门槛过滤与算分模拟。
+            选择分组属性值和规则版本，填写试算属性后，系统将进行候选召回、门槛过滤与算分模拟。
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
@@ -514,8 +456,8 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       ) : lastRunContext.searchResult.errorCode === 'REFERENCE_NOT_FOUND' ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-[var(--ty-red-color)] mx-auto flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6" /></div>
-          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">未找到基准对象</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{lastRunContext.searchResult.errorMessage || '请检查对象编号或改用表单录入基准后重新试算。'}</p>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">试算属性不可用</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{lastRunContext.searchResult.errorMessage || '请检查已填写的试算属性后重新运行。'}</p>
         </div>
       ) : (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden space-y-0">
@@ -535,9 +477,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                       {lastRunContext.searchResult.reference.objectId}
                     </span>
                     <span className="text-ty-2xs min-h-6 px-2 inline-flex items-center bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-xs font-medium border border-[var(--ty-border-color)]">
-                      {lastRunContext.searchResult.baselineType === 'FORM_VALUES'
-                        ? '表单录入基准'
-                        : '已有件基准'}
+                      手工属性基准
                     </span>
                   </div>
                   <div className="text-ty-xs text-[var(--ty-font-sub-color)] flex flex-wrap items-center gap-3 mt-1">

@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onNavigate('client-find-similar')}
             className="flex items-center space-x-1 bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] px-3 py-1 rounded-ty-sm hover:bg-[var(--ty-primary-hover-color)] font-semibold transition-colors cursor-pointer"
           >
-            <span>应用端界面</span>
+            <span>查找相似件</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>

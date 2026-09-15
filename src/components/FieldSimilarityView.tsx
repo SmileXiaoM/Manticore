@@ -104,6 +104,8 @@ const getAllowedMatchTypes = (fieldType: string): string[] => {
   return ['精确值匹配'];
 };
 
+type BatchRuleSetting = 'SCORE_ACTIVE' | 'MISMATCH_ACTION' | 'NULL_HANDLING';
+
 export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   editingRules,
   onUpdateEditingRules,
@@ -154,6 +156,12 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const [filterMismatchAction, setFilterMismatchAction] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  const [isBatchSettingOpen, setIsBatchSettingOpen] = useState(false);
+  const [batchRuleSetting, setBatchRuleSetting] = useState<BatchRuleSetting>('SCORE_ACTIVE');
+  const [batchScoreActive, setBatchScoreActive] = useState<'ENABLE' | 'DISABLE'>('ENABLE');
+  const [batchMismatchAction, setBatchMismatchAction] = useState<MismatchAction>('ZERO_AND_CONTINUE');
+  const [batchNullHandling, setBatchNullHandling] = useState<'计0分' | '不参与本次计算（跳过）'>('计0分');
 
   // 3. 模态框/编辑抽屉状态
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,6 +205,8 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   useEffect(() => {
     setIsModalOpen(false);
     setEditingRuleId(null);
+    setIsBatchSettingOpen(false);
+    setSelectedRuleIds([]);
   }, [selectedRootTypeId, selectedSoftTypeId]);
 
   useEffect(() => {
@@ -234,6 +244,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     });
   }, [currentScopeEditingRules, filterKeyword, filterScoreActive, filterMismatchAction]);
   const { currentPage, rows: pageRules } = paginateRows<FieldSimilarityRule>(filteredRules, page, pageSize);
+
+  const selectedRules = useMemo(
+    () => currentScopeEditingRules.filter(rule => selectedRuleIds.includes(rule.id)),
+    [currentScopeEditingRules, selectedRuleIds]
+  );
+  const filteredRuleIds = useMemo(() => filteredRules.map(rule => rule.id), [filteredRules]);
+  const allFilteredRulesSelected = filteredRuleIds.length > 0 && filteredRuleIds.every(id => selectedRuleIds.includes(id));
+  const someFilteredRulesSelected = filteredRuleIds.some(id => selectedRuleIds.includes(id));
+
+  useEffect(() => {
+    const currentIds = new Set(currentScopeEditingRules.map(rule => rule.id));
+    setSelectedRuleIds(previous => previous.filter(id => currentIds.has(id)));
+  }, [currentScopeEditingRules]);
 
   useEffect(() => {
     setPage(1);
@@ -588,6 +611,62 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (await confirm({ title: '删除字段规则', message: '确定要删除该字段相似度规则吗？', confirmText: '删除', tone: 'danger' })) {
       const updatedRules = editingRules.filter(r => r.id !== id);
       onUpdateEditingRules(updatedRules);
+    }
+  };
+
+  const handleToggleRuleSelection = (ruleId: string) => {
+    setSelectedRuleIds(previous =>
+      previous.includes(ruleId) ? previous.filter(id => id !== ruleId) : [...previous, ruleId]
+    );
+  };
+
+  const handleToggleSelectFilteredRules = () => {
+    setSelectedRuleIds(previous => {
+      if (allFilteredRulesSelected) {
+        return previous.filter(id => !filteredRuleIds.includes(id));
+      }
+      return Array.from(new Set([...previous, ...filteredRuleIds]));
+    });
+  };
+
+  const handleApplyBatchRuleSetting = () => {
+    if (!canManageConfig) {
+      notify('仅配置管理员可批量修改相似度规则。', 'warning');
+      return;
+    }
+    if (selectedRuleIds.length === 0) {
+      notify('请先选择需要设置的字段规则。', 'warning');
+      return;
+    }
+
+    let skippedMultiValueCount = 0;
+    const updatedRules = editingRules.map(rule => {
+      if (!selectedRuleIds.includes(rule.id)) return rule;
+
+      if (batchRuleSetting === 'SCORE_ACTIVE') {
+        const shouldEnable = batchScoreActive === 'ENABLE';
+        const selectedField = availableStage1Fields.find(field => field.fieldCode === rule.propertyCode);
+        if (shouldEnable && selectedField?.isMultiValue) {
+          skippedMultiValueCount += 1;
+          return rule;
+        }
+        return { ...rule, isScoreActive: shouldEnable };
+      }
+      if (batchRuleSetting === 'MISMATCH_ACTION') {
+        return { ...rule, mismatchAction: batchMismatchAction };
+      }
+      return { ...rule, nullHandling: batchNullHandling };
+    });
+
+    onUpdateEditingRules(updatedRules);
+    setIsBatchSettingOpen(false);
+    setSelectedRuleIds([]);
+
+    const appliedCount = selectedRules.length - skippedMultiValueCount;
+    if (skippedMultiValueCount > 0) {
+      notify(`已更新 ${appliedCount} 条规则；${skippedMultiValueCount} 个多值字段不能参与评分，已跳过。`, 'warning');
+    } else {
+      notify(`已批量更新 ${appliedCount} 条字段规则；请保存草稿并重新预览。`, 'success');
     }
   };
 
@@ -1286,14 +1365,27 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             </select>
           </div>
 
-          <button
-            onClick={handleOpenCreateModal}
-            className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors self-start md:self-auto cursor-pointer"
-            id="add-new-rule-btn"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            新建字段规则
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setIsBatchSettingOpen(true)}
+              disabled={!canManageConfig || selectedRuleIds.length === 0}
+              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-semibold border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] rounded-ty-sm hover:border-[var(--ty-primary-color)] hover:text-[var(--ty-primary-color)] transition-colors disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer"
+              id="batch-set-rules-btn"
+              title={selectedRuleIds.length === 0 ? '请先勾选字段规则' : `批量设置已选 ${selectedRuleIds.length} 条规则`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              批量设置{selectedRuleIds.length > 0 ? `（${selectedRuleIds.length}）` : ''}
+            </button>
+            <button
+              onClick={handleOpenCreateModal}
+              className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
+              id="add-new-rule-btn"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新建字段规则
+            </button>
+          </div>
         </div>
 
         {/* 规则数据表格 / 空态 */}
@@ -1324,6 +1416,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <table className="ty-data-table w-full min-w-[1320px] text-left text-ty-xs border-collapse">
               <thead>
                 <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                  <th className="py-2 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredRulesSelected}
+                      ref={element => { if (element) element.indeterminate = someFilteredRulesSelected && !allFilteredRulesSelected; }}
+                      onChange={handleToggleSelectFilteredRules}
+                      aria-label="全选当前筛选结果"
+                      className="w-4 h-4 accent-[var(--ty-primary-color)] cursor-pointer"
+                      id="select-all-filtered-rules"
+                    />
+                  </th>
                   <th className="py-2 px-4 w-12 text-center">序号</th>
                   <th className="py-2 px-4">字段名称</th>
                   <th className="py-2 px-4">字段编码</th>
@@ -1342,9 +1445,19 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   return (
                     <tr
                       key={rule.id}
-                      className="hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors group"
+                      className={`${selectedRuleIds.includes(rule.id) ? 'bg-[var(--ty-primary-lighter-color)]/20' : ''} hover:bg-[var(--ty-fill-weak-dark-color)] transition-colors group`}
                       id={`rule-row-${rule.id}`}
                     >
+                      <td className="py-3 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRuleIds.includes(rule.id)}
+                          onChange={() => handleToggleRuleSelection(rule.id)}
+                          aria-label={`选择${rule.fieldName}规则`}
+                          className="w-4 h-4 accent-[var(--ty-primary-color)] cursor-pointer"
+                          id={`select-rule-${rule.id}`}
+                        />
+                      </td>
                       <td className="py-3 px-4 text-center text-[var(--ty-font-sub-light-color)] font-mono text-ty-2xs">
                         {(currentPage - 1) * pageSize + idx + 1}
                       </td>
@@ -1452,6 +1565,91 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </>
         )}
       </div>
+
+      {isBatchSettingOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-ty-overlay backdrop-blur-xs flex items-center justify-center px-4 py-[60px]"
+          role="presentation"
+          onMouseDown={event => { if (event.target === event.currentTarget) setIsBatchSettingOpen(false); }}
+          id="batch-rule-setting-backdrop"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="batch-rule-setting-title"
+            className="bg-[var(--ty-fill-white-color)] rounded-ty-lg border border-[var(--ty-border-color)] shadow-ty-lg w-full max-w-[560px] overflow-hidden"
+          >
+            <div className="px-5 py-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-start justify-between gap-4">
+              <div>
+                <h2 id="batch-rule-setting-title" className="text-ty-lg font-semibold text-[var(--ty-font-main-color)]">批量设置字段规则</h2>
+                <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">已选择 {selectedRules.length} 条规则；每次只修改一个设置项。</p>
+              </div>
+              <button type="button" onClick={() => setIsBatchSettingOpen(false)} className="w-8 h-8 inline-flex items-center justify-center rounded-ty-sm text-[var(--ty-font-sub-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer" aria-label="关闭批量设置">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+                设置项
+                <select
+                  value={batchRuleSetting}
+                  onChange={event => setBatchRuleSetting(event.target.value as BatchRuleSetting)}
+                  className="mt-1.5 w-full h-9 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]"
+                  id="batch-rule-setting-select"
+                >
+                  <option value="SCORE_ACTIVE">是否参与评分</option>
+                  <option value="NULL_HANDLING">候选值缺失时</option>
+                  <option value="MISMATCH_ACTION">字段有值但不符合时</option>
+                </select>
+              </label>
+
+              {batchRuleSetting === 'SCORE_ACTIVE' && (
+                <fieldset className="space-y-2">
+                  <legend className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] mb-2">统一设置为</legend>
+                  <label className={`flex items-start gap-3 p-3 border rounded-ty-sm cursor-pointer ${batchScoreActive === 'ENABLE' ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/20' : 'border-[var(--ty-border-color)]'}`}>
+                    <input type="radio" name="batch-score-active" checked={batchScoreActive === 'ENABLE'} onChange={() => setBatchScoreActive('ENABLE')} className="mt-0.5 accent-[var(--ty-primary-color)]" />
+                    <span><strong className="block text-ty-xs text-[var(--ty-font-main-color)]">参与评分</strong><span className="block mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">保留各字段原有权重和匹配参数；多值字段自动跳过。</span></span>
+                  </label>
+                  <label className={`flex items-start gap-3 p-3 border rounded-ty-sm cursor-pointer ${batchScoreActive === 'DISABLE' ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lighter-color)]/20' : 'border-[var(--ty-border-color)]'}`}>
+                    <input type="radio" name="batch-score-active" checked={batchScoreActive === 'DISABLE'} onChange={() => setBatchScoreActive('DISABLE')} className="mt-0.5 accent-[var(--ty-primary-color)]" />
+                    <span><strong className="block text-ty-xs text-[var(--ty-font-main-color)]">不参与评分</strong><span className="block mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">字段继续用于展示和对比，不进入总分计算。</span></span>
+                  </label>
+                </fieldset>
+              )}
+
+              {batchRuleSetting === 'NULL_HANDLING' && (
+                <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+                  候选值缺失时
+                  <select value={batchNullHandling} onChange={event => setBatchNullHandling(event.target.value as '计0分' | '不参与本次计算（跳过）')} className="mt-1.5 w-full h-9 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]">
+                    <option value="计0分">计0分</option>
+                    <option value="不参与本次计算（跳过）">不参与本次计算（跳过）</option>
+                  </select>
+                </label>
+              )}
+
+              {batchRuleSetting === 'MISMATCH_ACTION' && (
+                <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
+                  字段有值但不符合时
+                  <select value={batchMismatchAction} onChange={event => setBatchMismatchAction(event.target.value as MismatchAction)} className="mt-1.5 w-full h-9 px-3 border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-white-color)] text-ty-xs focus:outline-hidden focus:border-[var(--ty-primary-color)]">
+                    <option value="ZERO_AND_CONTINUE">该字段记0分，候选继续计算</option>
+                    <option value="EXCLUDE_CANDIDATE">排除整个候选</option>
+                  </select>
+                </label>
+              )}
+
+              <div className="px-3 py-2.5 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed">
+                批量设置只修改当前选择项，不自动调整权重，也不直接影响已发布版本。应用后需要保存草稿并重新预览。
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex justify-end gap-2">
+              <button type="button" onClick={() => setIsBatchSettingOpen(false)} className="h-9 px-4 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs font-semibold text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
+              <button type="button" onClick={handleApplyBatchRuleSetting} className="h-9 px-4 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold hover:opacity-90 cursor-pointer" id="apply-batch-rule-setting">应用到 {selectedRules.length} 条规则</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* 规则新建 / 编辑模态抽屉 */}
       {isModalOpen && (
