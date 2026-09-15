@@ -15,10 +15,7 @@ import {
   ExternalLink,
   Edit3,
   HelpCircle,
-  Eye,
-  ListFilter,
-  ArrowUpDown,
-  Ruler
+  Settings2
 } from 'lucide-react';
 import {
   SourceFieldMeta,
@@ -35,6 +32,7 @@ import {
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
 import { HelpTooltip } from '../ui/HelpTooltip';
+import { BatchFieldCapabilityChanges, BatchFieldCapabilityModal } from './BatchFieldCapabilityModal';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -70,9 +68,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   // 针对候选字段的完整自定义配置 (使用统一 FieldMappingFormData)
   const [candidateCustomConfigs, setCandidateCustomConfigs] = useState<Record<string, FieldMappingFormData>>({});
   const [sharedDisplayOrder, setSharedDisplayOrder] = useState('');
-  const [batchSettingType, setBatchSettingType] = useState<'DISPLAY' | 'FULLTEXT' | 'QUERY' | 'SORT' | 'WIDTH' | null>(null);
-  const [batchBooleanValue, setBatchBooleanValue] = useState<boolean | null>(null);
-  const [batchWidthInput, setBatchWidthInput] = useState('');
+  const [isBatchSettingsOpen, setIsBatchSettingsOpen] = useState(false);
   const [batchOperationMessage, setBatchOperationMessage] = useState('');
 
   // 4. 单行配置抽屉/子弹窗状态
@@ -93,9 +89,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setSelectedKeys([]);
       setCandidateCustomConfigs({});
       setSharedDisplayOrder('');
-      setBatchSettingType(null);
-      setBatchBooleanValue(null);
-      setBatchWidthInput('');
+      setIsBatchSettingsOpen(false);
       setBatchOperationMessage('');
       setConfiguringCandidate(null);
       setConfiguringFormData(null);
@@ -264,7 +258,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const toggleSelectAll = () => {
     const selectableInView = filteredCandidates.filter(c => c.isSelectable).map(c => c.sourceFieldMeta.sourceFieldKey);
     const allSelected = selectableInView.every(k => selectedKeys.includes(k));
-    setBatchSettingType(null);
+    setIsBatchSettingsOpen(false);
     setBatchOperationMessage('');
     if (allSelected) {
       setSelectedKeys(prev => prev.filter(k => !selectableInView.includes(k)));
@@ -275,7 +269,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
 
   const handleToggleRow = (key: string, selectable: boolean) => {
     if (!selectable) return;
-    setBatchSettingType(null);
+    setIsBatchSettingsOpen(false);
     setBatchOperationMessage('');
     if (selectedKeys.includes(key)) {
       setSelectedKeys(selectedKeys.filter(k => k !== key));
@@ -319,93 +313,28 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const getCurrentCandidateConfig = (candidate: BatchImportCandidate): FieldMappingFormData =>
     candidateCustomConfigs[candidate.sourceFieldMeta.sourceFieldKey] ?? buildDefaultCandidateConfig(candidate);
 
-  const getBooleanSettingValue = (
-    candidate: BatchImportCandidate,
-    settingType: Exclude<NonNullable<typeof batchSettingType>, 'WIDTH'>
-  ) => {
-    const config = getCurrentCandidateConfig(candidate);
-    if (settingType === 'DISPLAY') return config.isDisplayInResult;
-    if (settingType === 'FULLTEXT') return config.isFulltextSearch;
-    if (settingType === 'QUERY') return config.isQueryCondition;
-    return config.isSortable;
-  };
-
-  const openBatchBooleanSetting = (settingType: Exclude<NonNullable<typeof batchSettingType>, 'WIDTH'>) => {
-    const values = selectedCandidates.map(candidate => getBooleanSettingValue(candidate, settingType));
-    const uniformValue = values.length > 0 && values.every(value => value === values[0]) ? values[0] : null;
-    setBatchBooleanValue(uniformValue);
-    setBatchWidthInput('');
-    setBatchOperationMessage('');
-    setBatchSettingType(settingType);
-  };
-
-  const openBatchWidthSetting = () => {
-    const widths = selectedCandidates.map(candidate => getCurrentCandidateConfig(candidate).defaultColumnWidth);
-    const uniformWidth = widths.length > 0 && widths.every(width => width === widths[0]) ? widths[0] : '';
-    setBatchWidthInput(String(uniformWidth));
-    setBatchBooleanValue(null);
-    setBatchOperationMessage('');
-    setBatchSettingType('WIDTH');
-  };
-
-  const applyBatchBooleanSetting = () => {
-    if (!batchSettingType || batchSettingType === 'WIDTH' || batchBooleanValue === null) return;
-
+  const applyCombinedBatchSettings = (changes: BatchFieldCapabilityChanges) => {
     let sortableSkipped = 0;
     setCandidateCustomConfigs(previous => {
       const next = { ...previous };
       selectedCandidates.forEach(candidate => {
         const key = candidate.sourceFieldMeta.sourceFieldKey;
         const current = previous[key] ?? buildDefaultCandidateConfig(candidate);
-        if (batchSettingType === 'DISPLAY') next[key] = { ...current, isDisplayInResult: batchBooleanValue };
-        if (batchSettingType === 'FULLTEXT') next[key] = { ...current, isFulltextSearch: batchBooleanValue };
-        if (batchSettingType === 'QUERY') next[key] = { ...current, isQueryCondition: batchBooleanValue };
-        if (batchSettingType === 'SORT') {
-          if (current.manticoreType === 'TEXT') {
-            sortableSkipped += 1;
-            next[key] = { ...current, isSortable: false };
-          } else {
-            next[key] = { ...current, isSortable: batchBooleanValue };
-          }
+        const nextConfig = { ...current, ...changes };
+        if (changes.isSortable === true && current.manticoreType === 'TEXT') {
+          nextConfig.isSortable = false;
+          sortableSkipped += 1;
         }
+        next[key] = nextConfig;
       });
       return next;
     });
 
-    const settingName = {
-      DISPLAY: '查询结果列展示',
-      FULLTEXT: '写入全局全文检索字段',
-      QUERY: '查询条件',
-      SORT: '排序'
-    }[batchSettingType];
+    const settingCount = Object.keys(changes).length;
     const skipText = sortableSkipped > 0 ? `；${sortableSkipped} 个 TEXT 字段保持不支持排序` : '';
-    setBatchOperationMessage(`已将 ${selectedCount} 个字段的“${settingName}”设为${batchBooleanValue ? '开启' : '关闭'}${skipText}`);
-    setBatchSettingType(null);
-    setBatchBooleanValue(null);
-  };
-
-  const applyBatchWidthSetting = () => {
-    const width = Number(batchWidthInput);
-    if (!Number.isInteger(width) || width < 80 || width > 350) {
-      setBatchErrorMessage('统一列宽请输入 80–350 之间的整数');
-      return;
-    }
-
-    setCandidateCustomConfigs(previous => {
-      const next = { ...previous };
-      selectedCandidates.forEach(candidate => {
-        const key = candidate.sourceFieldMeta.sourceFieldKey;
-        next[key] = {
-          ...(previous[key] ?? buildDefaultCandidateConfig(candidate)),
-          defaultColumnWidth: width
-        };
-      });
-      return next;
-    });
+    setBatchOperationMessage(`已将 ${settingCount} 个配置项应用到 ${selectedCount} 个待导入属性${skipText}`);
     setBatchErrorMessage(null);
-    setBatchOperationMessage(`已将 ${selectedCount} 个字段的默认列宽设为 ${width}px`);
-    setBatchSettingType(null);
-    setBatchWidthInput('');
+    setIsBatchSettingsOpen(false);
   };
 
   // 打开候选字段的单独完整配置弹窗
@@ -668,26 +597,6 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
     }
   };
 
-  const batchBooleanSettingMeta = batchSettingType && batchSettingType !== 'WIDTH'
-    ? ({
-        DISPLAY: {
-          title: '批量设置查询结果列展示',
-          description: '开启后，所选属性会作为正式查询结果的表格列展示。'
-        },
-        FULLTEXT: {
-          title: '批量设置全局全文检索',
-          description: '开启后，属性值会在同步时写入系统预留的全局全文检索字段；不会改变属性自身的存储类型。'
-        },
-        QUERY: {
-          title: '批量设置查询条件',
-          description: '开启后，所选属性可以作为查询条件；可用操作符由字段类型决定。'
-        },
-        SORT: {
-          title: '批量设置排序能力',
-          description: '开启后，非 TEXT 属性支持结果排序；TEXT 属性始终保持不支持排序。'
-        }
-      } as const)[batchSettingType]
-    : null;
   const selectedTextCount = selectedCandidates.filter(candidate => getCurrentCandidateConfig(candidate).manticoreType === 'TEXT').length;
 
   if (!isOpen) return null;
@@ -1114,108 +1023,15 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
           )}
         </div>
 
-        {/* 勾选后的批量设置悬浮条：沿用标准表格批量操作交互 */}
+        {/* 勾选后的底部批量操作条：单一入口打开全部可批量设置项 */}
         {fetchStatus === 'SUCCESS' && selectedCount > 0 && !configuringCandidate && (
           <div className="absolute left-1/2 bottom-[76px] -translate-x-1/2 z-40">
-            {batchSettingType && (
-              <section
-                role="dialog"
-                aria-label={batchSettingType === 'WIDTH' ? '批量设置默认列宽' : batchBooleanSettingMeta?.title}
-                className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-[390px] rounded-ty-md border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] shadow-ty-lg overflow-hidden"
-              >
-                <div className="px-4 py-3 border-b border-[var(--ty-border-color)]">
-                  <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">
-                    {batchSettingType === 'WIDTH' ? '批量设置默认列宽' : batchBooleanSettingMeta?.title}
-                  </h3>
-                  <p className="mt-1 text-ty-2xs leading-relaxed text-[var(--ty-font-sub-color)]">
-                    {batchSettingType === 'WIDTH'
-                      ? '设置所选属性在正式查询结果表格中的默认列宽。'
-                      : batchBooleanSettingMeta?.description}
-                  </p>
-                  {batchSettingType === 'SORT' && selectedTextCount > 0 && (
-                    <p className="mt-1 text-ty-2xs text-[var(--ty-orange-color)]">
-                      已选字段中有 {selectedTextCount} 个 TEXT 字段，不支持排序并保持关闭。
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-3">
-                  {batchSettingType === 'WIDTH' ? (
-                    <label className="block space-y-1">
-                      <span className="text-ty-xs font-medium text-[var(--ty-font-main-color)]">统一列宽</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="80"
-                          max="350"
-                          step="10"
-                          value={batchWidthInput}
-                          onChange={event => setBatchWidthInput(event.target.value)}
-                          className="h-8 flex-1 px-3 font-mono border border-[var(--ty-border-color)] rounded-ty-sm text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)]"
-                          aria-label="所选属性统一列宽"
-                        />
-                        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">px</span>
-                      </div>
-                      <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">请输入 80–350 之间的整数</span>
-                    </label>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setBatchBooleanValue(true)}
-                        disabled={batchSettingType === 'SORT' && selectedTextCount === selectedCount}
-                        className={`h-9 rounded-ty-sm border text-ty-xs font-medium transition-colors ${
-                          batchBooleanValue === true
-                            ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)]'
-                            : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
-                        } disabled:opacity-40 disabled:cursor-not-allowed`}
-                      >
-                        开启
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBatchBooleanValue(false)}
-                        className={`h-9 rounded-ty-sm border text-ty-xs font-medium transition-colors ${
-                          batchBooleanValue === false
-                            ? 'border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)]'
-                            : 'border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-weak-dark-color)]'
-                        }`}
-                      >
-                        关闭
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="px-3 py-2 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-between">
-                  <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">将应用到已选 {selectedCount} 项</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setBatchSettingType(null)}
-                      className="h-8 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs text-[var(--ty-font-main-color)] hover:bg-[var(--ty-fill-color)]"
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="button"
-                      onClick={batchSettingType === 'WIDTH' ? applyBatchWidthSetting : applyBatchBooleanSetting}
-                      disabled={batchSettingType === 'WIDTH' ? batchWidthInput.trim() === '' : batchBooleanValue === null}
-                      className="h-8 px-4 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-xs font-medium disabled:bg-[var(--ty-fill-dark-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed"
-                    >
-                      确认
-                    </button>
-                  </div>
-                </div>
-              </section>
-            )}
-
             <div className="h-12 px-3 rounded-ty-md bg-[#20242c] text-white shadow-ty-lg flex items-center gap-1.5 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedKeys([]);
-                  setBatchSettingType(null);
+                  setIsBatchSettingsOpen(false);
                   setBatchOperationMessage('');
                 }}
                 className="h-8 w-8 inline-flex items-center justify-center rounded-ty-sm text-white/80 hover:text-white hover:bg-white/10"
@@ -1225,24 +1041,21 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </button>
               <span className="px-1 text-ty-xs text-white/85">已选 <strong className="font-mono text-white">{selectedCount}</strong> 项</span>
               <span className="mx-1 h-5 w-px bg-white/20" />
-              <button type="button" onClick={() => openBatchBooleanSetting('DISPLAY')} className={`h-8 px-2.5 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs ${batchSettingType === 'DISPLAY' ? 'bg-white/20 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-                <Eye className="w-3.5 h-3.5" />结果列展示
-              </button>
-              <button type="button" onClick={() => openBatchBooleanSetting('FULLTEXT')} className={`h-8 px-2.5 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs ${batchSettingType === 'FULLTEXT' ? 'bg-white/20 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-                <Search className="w-3.5 h-3.5" />全文检索
-              </button>
-              <button type="button" onClick={() => openBatchBooleanSetting('QUERY')} className={`h-8 px-2.5 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs ${batchSettingType === 'QUERY' ? 'bg-white/20 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-                <ListFilter className="w-3.5 h-3.5" />查询条件
-              </button>
-              <button type="button" onClick={() => openBatchBooleanSetting('SORT')} className={`h-8 px-2.5 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs ${batchSettingType === 'SORT' ? 'bg-white/20 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-                <ArrowUpDown className="w-3.5 h-3.5" />排序
-              </button>
-              <button type="button" onClick={openBatchWidthSetting} className={`h-8 px-2.5 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs ${batchSettingType === 'WIDTH' ? 'bg-white/20 text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-                <Ruler className="w-3.5 h-3.5" />列宽
+              <button type="button" onClick={() => setIsBatchSettingsOpen(true)} className="h-8 px-3 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs text-white hover:bg-white/10">
+                <Settings2 className="w-3.5 h-3.5" />批量设置
               </button>
             </div>
           </div>
         )}
+
+        <BatchFieldCapabilityModal
+          isOpen={isBatchSettingsOpen}
+          onClose={() => setIsBatchSettingsOpen(false)}
+          selectedCount={selectedCount}
+          selectedTextCount={selectedTextCount}
+          scopeLabel="待导入属性"
+          onApply={applyCombinedBatchSettings}
+        />
 
         {/* 底部固定操作条 */}
         {fetchStatus === 'SUCCESS' && (

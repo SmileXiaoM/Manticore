@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -17,7 +17,9 @@ import {
   RotateCcw,
   AlertCircle,
   Link,
-  Undo2
+  Undo2,
+  Settings2,
+  X
 } from 'lucide-react';
 import { ExecutionSchedule, scheduleLabel } from '../../data/operations';
 import {
@@ -29,6 +31,7 @@ import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
 import { FloatingMoreMenu } from './FloatingMoreMenu';
 import { HelpTooltip } from '../ui/HelpTooltip';
 import { TablePagination } from '../ui/TablePagination';
+import { BatchFieldCapabilityChanges, BatchFieldCapabilityModal } from './BatchFieldCapabilityModal';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -37,6 +40,7 @@ interface FieldMappingListViewProps {
   onOpenCreateSingle: () => void;
   onOpenBatchImport: () => void;
   onOpenBatchDisplayOrder: () => void;
+  onBatchUpdateCapabilities: (fieldIds: string[], changes: BatchFieldCapabilityChanges) => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
   onDiscardDraft: (field: FieldMappingItem) => void;
@@ -56,6 +60,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onOpenCreateSingle,
   onOpenBatchImport,
   onOpenBatchDisplayOrder,
+  onBatchUpdateCapabilities,
   onEditField,
   onViewFieldDetail,
   onDiscardDraft,
@@ -74,6 +79,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
+  const [isBatchSettingsOpen, setIsBatchSettingsOpen] = useState(false);
 
   // 按展示顺序从小到大排列；相同值依靠稳定排序保持原有相对顺序并相邻展示
   const rootTypeFields = useMemo(() => {
@@ -126,6 +133,35 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   const paginatedFields = useMemo(() => {
     return filteredFields.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredFields, currentPage, pageSize]);
+
+  useEffect(() => {
+    const validIds = new Set(rootTypeFields.map(field => field.id));
+    setSelectedFieldIds(previous => previous.filter(id => validIds.has(id)));
+    setIsBatchSettingsOpen(false);
+  }, [currentRootType.id, rootTypeFields]);
+
+  const selectedFields = useMemo(
+    () => rootTypeFields.filter(field => selectedFieldIds.includes(field.id)),
+    [rootTypeFields, selectedFieldIds]
+  );
+  const selectedTextCount = selectedFields.filter(field => (field.draftData?.manticoreType ?? field.manticoreType) === 'TEXT').length;
+  const selectableIdsInView = filteredFields.map(field => field.id);
+  const allFilteredSelected = selectableIdsInView.length > 0 && selectableIdsInView.every(id => selectedFieldIds.includes(id));
+  const someFilteredSelected = selectableIdsInView.some(id => selectedFieldIds.includes(id));
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedFieldIds(previous => previous.filter(id => !selectableIdsInView.includes(id)));
+      return;
+    }
+    setSelectedFieldIds(previous => Array.from(new Set([...previous, ...selectableIdsInView])));
+  };
+
+  const applyBatchSettings = (changes: BatchFieldCapabilityChanges) => {
+    onBatchUpdateCapabilities(selectedFieldIds, changes);
+    setIsBatchSettingsOpen(false);
+    setSelectedFieldIds([]);
+  };
 
   const renderConfigStatusBadge = (field: FieldMappingItem) => {
     if (field.configStatus === 'CONFIGURED') {
@@ -415,9 +451,19 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="ty-data-table w-full min-w-[1540px] text-left text-ty-xs">
+          <table className="ty-data-table w-full min-w-[1580px] text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
+                <th className="w-10 py-2 px-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={input => { if (input) input.indeterminate = someFilteredSelected && !allFilteredSelected; }}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="全选当前筛选结果"
+                    className="rounded text-[var(--ty-primary-color)] cursor-pointer"
+                  />
+                </th>
                 <th className="w-12 py-2 px-2 text-center">序号</th>
                 <th className="min-w-40 py-2 px-2">PLM 来源字段</th>
                 <th className="min-w-44 py-2 px-2">Manticore 检索字段</th>
@@ -437,6 +483,15 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
               {paginatedFields.length > 0 ? (
                 paginatedFields.map((field, index) => (
                   <tr key={field.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50 transition-colors group">
+                    <td className="py-2 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedFieldIds.includes(field.id)}
+                        onChange={() => setSelectedFieldIds(previous => previous.includes(field.id) ? previous.filter(id => id !== field.id) : [...previous, field.id])}
+                        aria-label={`选择${field.displayTitle}`}
+                        className="rounded text-[var(--ty-primary-color)] cursor-pointer"
+                      />
+                    </td>
                     <td className="py-2 px-2 text-center text-[var(--ty-font-sub-color)]">{(currentPage - 1) * pageSize + index + 1}</td>
                     {/* 1. PLM 来源字段 */}
                     <td className="py-2 px-2 break-words">
@@ -520,7 +575,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                     {/* 8. 结果展示 (支持超链接标记，复用统一有效超链接判定口径) */}
                     <td className="py-2 px-2 text-center">
                       {(() => {
-                        if (!field.isDisplayInResult) {
+                        const isDisplayInResult = field.hasDraftModification && field.draftData?.isDisplayInResult !== undefined
+                          ? field.draftData.isDisplayInResult
+                          : field.isDisplayInResult;
+                        if (!isDisplayInResult) {
                           return <span className="text-[var(--ty-font-sub-light-color)] text-ty-xs">否</span>;
                         }
 
@@ -595,7 +653,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                  <td colSpan={14} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                     <FileSpreadsheet className="w-8 h-8 text-[var(--ty-icon-lighter-color)] mx-auto mb-2" />
                     未找到符合条件的字段映射记录
                   </td>
@@ -614,6 +672,28 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
         />
       </div>
+
+      {selectedFieldIds.length > 0 && (
+        <div className="fixed left-1/2 bottom-6 -translate-x-1/2 z-40 h-12 px-3 rounded-ty-md bg-[#20242c] text-white shadow-ty-lg flex items-center gap-1.5 whitespace-nowrap">
+          <button type="button" onClick={() => setSelectedFieldIds([])} className="h-8 w-8 inline-flex items-center justify-center rounded-ty-sm text-white/80 hover:text-white hover:bg-white/10" aria-label="清除所选属性">
+            <X className="w-4 h-4" />
+          </button>
+          <span className="px-1 text-ty-xs text-white/85">已选 <strong className="font-mono text-white">{selectedFieldIds.length}</strong> 项</span>
+          <span className="mx-1 h-5 w-px bg-white/20" />
+          <button type="button" onClick={() => setIsBatchSettingsOpen(true)} className="h-8 px-3 inline-flex items-center gap-1.5 rounded-ty-sm text-ty-xs text-white hover:bg-white/10">
+            <Settings2 className="w-3.5 h-3.5" />批量设置
+          </button>
+        </div>
+      )}
+
+      <BatchFieldCapabilityModal
+        isOpen={isBatchSettingsOpen}
+        onClose={() => setIsBatchSettingsOpen(false)}
+        selectedCount={selectedFieldIds.length}
+        selectedTextCount={selectedTextCount}
+        scopeLabel="已有属性"
+        onApply={applyBatchSettings}
+      />
     </div>
   );
 };

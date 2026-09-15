@@ -4,7 +4,8 @@ import {
   MappingObjectType,
   FieldMappingItem,
   SourceFieldMeta,
-  RootTypeConfigStatus
+  RootTypeConfigStatus,
+  checkIsDataImpactingChange
 } from '../stage1MappingTypes';
 import {
   initialSourceSystems,
@@ -25,6 +26,7 @@ import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
 import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
 import { BatchImportModal } from './stage1-mapping/BatchImportModal';
 import { BatchDisplayOrderModal } from './stage1-mapping/BatchDisplayOrderModal';
+import { BatchFieldCapabilityChanges } from './stage1-mapping/BatchFieldCapabilityModal';
 import {
   PublishConfigModal,
   Stage1QueryPreviewModal,
@@ -304,6 +306,68 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setOperationMessage(`已将 ${updates.length} 个属性的展示顺序${summary}，并保存顺序与列宽草稿。`);
   };
 
+  // 从外层字段列表批量修改展示与检索能力；所有修改先进入当前根类型草稿。
+  const handleBatchUpdateCapabilities = (fieldIds: string[], changes: BatchFieldCapabilityChanges) => {
+    if (fieldIds.length === 0 || Object.keys(changes).length === 0) return;
+    const selectedIds = new Set(fieldIds);
+    const textSkippedCount = fieldMappings.filter(field =>
+      selectedIds.has(field.id) &&
+      (field.draftData?.manticoreType ?? field.manticoreType) === 'TEXT' &&
+      changes.isSortable === true
+    ).length;
+
+    commitRuntime(previous => {
+      const nextMappings = previous.fieldMappings.map(field => {
+        if (field.rootTypeId !== currentRootType.id || !selectedIds.has(field.id)) return field;
+
+        const currentEffective = { ...field, ...(field.draftData || {}) };
+        const appliedChanges: BatchFieldCapabilityChanges = { ...changes };
+        if (currentEffective.manticoreType === 'TEXT' && changes.isSortable === true) {
+          appliedChanges.isSortable = false;
+        }
+        const nextQueryCondition = appliedChanges.isQueryCondition ?? currentEffective.isQueryCondition ?? false;
+        const nextFulltext = appliedChanges.isFulltextSearch ?? currentEffective.isFulltextSearch ?? false;
+        const queryCapability: FieldMappingItem['queryCapability'] = nextQueryCondition
+          ? (nextFulltext ? 'BOTH' : 'QUERY_CONDITION')
+          : (nextFulltext ? 'FULLTEXT_SEARCH' : 'NONE');
+
+        if (field.configStatus === 'CONFIGURED') {
+          const nextDraft = {
+            ...(field.draftData || {}),
+            ...appliedChanges,
+            queryCapability
+          };
+          return {
+            ...field,
+            hasDraftModification: true,
+            draftData: nextDraft,
+            isDataImpactingChange: checkIsDataImpactingChange(field, nextDraft),
+            updatedAt: '刚刚 (批量设置属性)',
+            updatedBy: '当前用户'
+          };
+        }
+
+        return {
+          ...field,
+          ...appliedChanges,
+          queryCapability,
+          isDataImpactingChange: true,
+          updatedAt: '刚刚 (批量设置属性)',
+          updatedBy: '当前用户'
+        };
+      });
+
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, currentRootType.id, nextMappings)
+      };
+    });
+
+    const skipText = textSkippedCount > 0 ? `；${textSkippedCount} 个 TEXT 属性保持不支持排序` : '';
+    setOperationMessage(`已将 ${Object.keys(changes).length} 个配置项应用到 ${fieldIds.length} 个属性并保存为草稿${skipText}。`);
+  };
+
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
   const handleConfirmPublish = async (startService: boolean) => {
     await new Promise(resolve => setTimeout(resolve, publishRunOptions?.delayMs ?? 360));
@@ -480,6 +544,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onOpenCreateSingle={handleOpenCreateSingle}
           onOpenBatchImport={() => setIsBatchImportOpen(true)}
           onOpenBatchDisplayOrder={() => setIsBatchDisplayOrderOpen(true)}
+          onBatchUpdateCapabilities={handleBatchUpdateCapabilities}
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
           onDiscardDraft={handleDiscardFieldDraft}
