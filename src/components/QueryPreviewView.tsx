@@ -187,7 +187,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           softTypeId,
           createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig, 'stage1_type_and_classification_roles')
         );
-        notify('草稿版本试算成功，当前版本已满足发布前预览要求。', 'success');
+        notify('草稿版本试算成功，可返回规则集发布更新。', 'success');
       }
 
       setLastRunContext(snapshot);

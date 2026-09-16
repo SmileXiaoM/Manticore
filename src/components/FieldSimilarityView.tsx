@@ -343,7 +343,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const isSavedPreviewValid = previewedSavedSignatures[selectedSoftTypeId] === savedVersionSignature;
   const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
   const hasPublishedVersion = currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
-  const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100 || !isSavedPreviewValid;
+  const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100;
   const draftNeedsPreview = hasSavedDraft && !isModified && !tierConfigError && savedScoreRulesCount > 0 && savedScoreWeight === 100 && !isSavedPreviewValid;
   const publishButtonLabel = !hasPublishedVersion ? '发布规则' : currentGroupStatus.enabled ? '发布更新' : '发布规则';
   const publishButtonTitle = isModified
@@ -352,9 +352,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     ? '当前没有待发布草稿'
     : savedScoreWeight !== 100
     ? `草稿版本权重合计必须为 100%，当前为 ${savedScoreWeight}%`
-    : !isSavedPreviewValid
-    ? '请先预览草稿版本'
-    : '发布已保存且预览成功的草稿版本';
+    : '发布已保存的草稿版本';
   const draftStatusLabel = isModified
     ? '编辑中（请先保存）'
     : !hasSavedDraft
@@ -365,10 +363,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     ? '草稿没有参与评分字段'
     : savedScoreWeight !== 100
     ? `草稿权重 ${savedScoreWeight}%（需调整为 100%）`
-    : !isSavedPreviewValid
-    ? '草稿待预览（通过后可发布）'
-    : '草稿已预览（可以发布）';
-  const draftStatusReady = hasSavedDraft && !isModified && !tierConfigError && savedScoreRulesCount > 0 && savedScoreWeight === 100 && isSavedPreviewValid;
+    : isSavedPreviewValid
+    ? '草稿已预览（可以发布）'
+    : '草稿已保存（可以发布）';
+  const draftStatusReady = hasSavedDraft && !isModified && !tierConfigError && savedScoreRulesCount > 0 && savedScoreWeight === 100;
 
   const existingRuleSetScopes = useMemo(() => availableSoftTypes.filter(scope => {
     const hasRules = editingRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === scope.id);
@@ -741,7 +739,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (skippedMultiValueCount > 0) {
       notify(`已更新 ${appliedCount} 条规则；${skippedMultiValueCount} 个多值字段不能参与评分，已跳过。`, 'warning');
     } else {
-      notify(`已批量更新 ${appliedCount} 条字段规则；请保存草稿并重新预览。`, 'success');
+      notify(`已批量更新 ${appliedCount} 条字段规则；保存草稿后即可发布，也可重新预览验证。`, 'success');
     }
   };
 
@@ -827,17 +825,17 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
-    notify('配置已保存为草稿，可在查询预览中选择“草稿版本”进行验证。', 'success');
+    notify('配置已保存为草稿，可以发布更新；如需验证，可在查询预览中选择“草稿版本”。', 'success');
   };
 
-  // 发布已保存且预览成功的当前规则集版本
+  // 发布已保存的当前规则集版本；预览用于验证，不作为发布前置条件
   const handlePublishActive = async () => {
     if (!canManageConfig) {
       notify('仅配置管理员可发布相似度规则。', 'warning');
       return;
     }
     if (isModified) {
-      notify('请先保存当前编辑内容，再对“草稿版本”重新预览。', 'warning');
+      notify('请先保存当前编辑内容。', 'warning');
       return;
     }
     if (!hasSavedDraft) {
@@ -853,11 +851,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       notify(`发布失败：草稿版本的参与评分字段权重合计必须为 100%，当前为 ${savedScoreWeight}%。`, 'warning');
       return;
     }
-    if (!isSavedPreviewValid) {
-      notify('发布前需在查询预览中选择“草稿版本”并成功试算。', 'warning');
-      return;
-    }
-
     const otherActiveRules = activeRules.filter(
       r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
     );
@@ -1286,7 +1279,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 )}
                 <button onClick={handleSaveDraft} disabled={!canManageConfig || Boolean(tierConfigError)} title={!canManageConfig ? '仅配置管理员可保存' : tierConfigError || '保存当前规则集草稿'} className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer" id="save-draft-btn"><Save className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />保存草稿</button>
                 <button onClick={handlePublishActive} disabled={publishDisabled} title={publishButtonTitle} className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer" id="publish-active-btn"><CheckCircle2 className="w-3.5 h-3.5" />{publishButtonLabel}</button>
-                {onOpenQueryPreview && <button onClick={() => onOpenQueryPreview(selectedSoftTypeId)} className={`h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium border rounded-ty-sm cursor-pointer ${draftNeedsPreview ? 'text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] border-[var(--ty-primary-color)] hover:opacity-90' : 'text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-color)] hover:text-[var(--ty-primary-color)]'}`} id="goto-query-preview-btn">{draftNeedsPreview ? '预览草稿' : '前往查询预览'}<ChevronRight className="w-3.5 h-3.5" /></button>}
+                {onOpenQueryPreview && <button onClick={() => onOpenQueryPreview(selectedSoftTypeId)} className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium border rounded-ty-sm cursor-pointer text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-color)] hover:text-[var(--ty-primary-color)]" id="goto-query-preview-btn">{draftNeedsPreview ? '预览草稿（可选）' : '前往查询预览'}<ChevronRight className="w-3.5 h-3.5" /></button>}
                 <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>{!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}</button>
               </div>
             </div>
@@ -1299,7 +1292,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 <div className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1"><span className="block font-medium">低相似范围（自动）</span><div id="low-similarity-range" className="h-8 px-3 flex items-center rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] font-mono font-semibold text-[var(--ty-font-main-color)]">0.00–&lt;{Number.isFinite(currentTierConfig.mediumStart) ? currentTierConfig.mediumStart.toFixed(2) : '--'} 分</div></div>
               </div>
             </div>
-            {tierConfigError ? <div role="alert" className="px-3 py-2 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-ty-2xs text-[var(--ty-red-color)]">{tierConfigError}</div> : <div className="flex flex-wrap items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]"><span>当前分档：{formatSimilarityTierRange(currentTierConfig)}</span>{(hasSavedDraft || isModified) && <span className={isCurrentDraftPreviewValid ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-orange-color)]'}>{isCurrentDraftPreviewValid ? '草稿版本已通过预览' : isModified ? '当前修改已使原预览失效，请保存后重新预览' : '草稿版本待重新预览'}</span>}</div>}
+            {tierConfigError ? <div role="alert" className="px-3 py-2 rounded-ty-sm bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-ty-2xs text-[var(--ty-red-color)]">{tierConfigError}</div> : <div className="flex flex-wrap items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]"><span>当前分档：{formatSimilarityTierRange(currentTierConfig)}</span>{(hasSavedDraft || isModified) && <span className={isCurrentDraftPreviewValid ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-orange-color)]'}>{isCurrentDraftPreviewValid ? '草稿版本已通过预览' : isModified ? '当前修改已使原预览失效；保存后可直接发布或重新预览' : '草稿版本尚未预览（不影响发布）'}</span>}</div>}
           </div>
 
       {/* 规则配置摘要看板 (Compact Summary Bar) */}
@@ -1741,7 +1734,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
               )}
 
               <div className="px-3 py-2.5 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed">
-                批量设置只修改当前选择项，不自动调整权重，也不直接影响已发布版本。应用后需要保存草稿并重新预览。
+                批量设置只修改当前选择项，不自动调整权重，也不直接影响已发布版本。应用后需要保存草稿；保存成功后可以发布，也可重新预览验证。
               </div>
             </div>
 
