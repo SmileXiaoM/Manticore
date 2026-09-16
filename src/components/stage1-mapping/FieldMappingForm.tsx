@@ -340,19 +340,37 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
                 <div className="rounded-ty-sm border border-[var(--ty-primary-lighter-color)] bg-[var(--ty-primary-lightest-color)]/35 p-3 space-y-2">
                   <div className="flex items-center gap-1.5">
                     <Tags className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
-                    <label htmlFor="classification-display-mode" className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">分类显示方式</label>
+                    <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">分类显示方式</span>
                   </div>
-                  <select
-                    id="classification-display-mode"
-                    aria-label="分类显示方式"
-                    value={formData.classificationDisplayMode}
-                    onChange={event => onChange({ classificationDisplayMode: event.target.value as ClassificationDisplayMode })}
-                    className="w-full h-8 px-3 bg-white border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs cursor-pointer"
-                  >
-                    <option value="CURRENT_VALUE">当前值</option>
-                    <option value="FULL_PATH">完整路径</option>
-                    <option value="REVERSE_FULL_PATH">反向完整路径</option>
-                  </select>
+                  <fieldset aria-label="分类显示方式" className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <legend className="sr-only">分类显示方式</legend>
+                    {([
+                      ['CURRENT_VALUE', '当前值'],
+                      ['FULL_PATH', '完整路径'],
+                      ['REVERSE_FULL_PATH', '反向完整路径']
+                    ] as const).map(([value, label]) => {
+                      const isSelected = formData.classificationDisplayMode === value;
+                      return (
+                        <label
+                          key={value}
+                          className={`h-8 px-2.5 rounded-ty-sm border flex items-center gap-2 text-ty-xs cursor-pointer transition-colors ${isSelected
+                            ? 'border-[var(--ty-primary-color)] bg-white text-[var(--ty-primary-color)] font-medium'
+                            : 'border-[var(--ty-border-color)] bg-white text-[var(--ty-font-main-color)] hover:border-[var(--ty-primary-light-color)]'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="classification-display-mode"
+                            value={value}
+                            checked={isSelected}
+                            onChange={() => onChange({ classificationDisplayMode: value as ClassificationDisplayMode })}
+                            className="shrink-0 accent-[var(--ty-primary-color)]"
+                          />
+                          <span>{label}</span>
+                        </label>
+                      );
+                    })}
+                  </fieldset>
                   <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
                     示例：{formData.classificationDisplayMode === 'CURRENT_VALUE'
                       ? '六角头螺栓'
