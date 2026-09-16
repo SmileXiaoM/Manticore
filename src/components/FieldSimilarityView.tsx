@@ -14,7 +14,6 @@ import {
   ChevronRight,
   HelpCircle,
   ShieldAlert,
-  Layers,
   ArrowRight,
   Clock
 } from 'lucide-react';
@@ -127,16 +126,11 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // 二阶段相似度搜索只面向零部件。softTypeId 作为规则集范围键：类型通用或分类专用。
   const selectedRootTypeId = 'PART';
   const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
-  const [ruleSetTypeFilter, setRuleSetTypeFilter] = useState('ALL');
-  const [ruleSetKindFilter, setRuleSetKindFilter] = useState<'ALL' | 'TYPE_GENERIC' | 'CLASSIFICATION_SPECIFIC'>('ALL');
-  const [ruleSetStatusFilter, setRuleSetStatusFilter] = useState<'ALL' | 'ENABLED' | 'DISABLED' | 'UNCONFIGURED'>('ALL');
 
   const ruleTypeOptions = useMemo(() => softTypeOptions.filter(option => option.rootTypeId === selectedRootTypeId), [selectedRootTypeId]);
   const currentScope = parseSimilarityRuleScopeKey(selectedSoftTypeId);
-  const currentTypeObj = ruleTypeOptions.find(option => option.id === currentScope.typeId);
   const currentClassification = similarityClassificationOptions.find(option => option.typeId === currentScope.typeId && option.id === currentScope.classificationId);
   const currentScopeLabel = getSimilarityRuleScopeLabel(selectedSoftTypeId);
-  const availableClassifications = similarityClassificationOptions.filter(option => option.typeId === currentScope.typeId);
   const availableSoftTypes = useMemo(() => {
     const scopes = ruleTypeOptions.flatMap(type => [
       { ...type, id: type.id, name: getSimilarityRuleScopeLabel(type.id) },
@@ -150,18 +144,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     ]);
     return scopes;
   }, [ruleTypeOptions, selectedRootTypeId]);
-  const visibleRuleScopes = useMemo(() => availableSoftTypes.filter(scope => {
-    const parsed = parseSimilarityRuleScopeKey(scope.id);
-    if (ruleSetTypeFilter !== 'ALL' && parsed.typeId !== ruleSetTypeFilter) return false;
-    if (ruleSetKindFilter === 'TYPE_GENERIC' && parsed.classificationId) return false;
-    if (ruleSetKindFilter === 'CLASSIFICATION_SPECIFIC' && !parsed.classificationId) return false;
-    const ruleCount = editingRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === scope.id).length;
-    const status = objectConfigStatus[scope.id];
-    if (ruleSetStatusFilter === 'ENABLED' && !status?.enabled) return false;
-    if (ruleSetStatusFilter === 'DISABLED' && (status?.enabled || !status?.configVersion || status.configVersion === '-')) return false;
-    if (ruleSetStatusFilter === 'UNCONFIGURED' && ruleCount > 0) return false;
-    return true;
-  }), [availableSoftTypes, editingRules, objectConfigStatus, ruleSetKindFilter, ruleSetStatusFilter, ruleSetTypeFilter, selectedRootTypeId]);
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
   const currentSoftTypeObj = availableSoftTypes.find(st => st.id === selectedSoftTypeId);
@@ -1113,46 +1095,53 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
         </div>
 
-        {/* 规则集总览：跨类型、跨分类集中查看并进入维护 */}
+        {/* 规则集选择：类型、分类与状态只在这里维护一套上下文 */}
         <div className="pt-3 border-t border-[var(--ty-border-color)] space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">规则集总览</h2>
-              <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-0.5">类型为必选范围；分类可选。分类专用规则优先，未命中时使用同类型通用规则，两者不叠加。</p>
+              <h2 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">选择规则集</h2>
+              <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-0.5">按类型属性值与分类属性值选择规则集；选择后在下方维护该规则集的分档和字段明细。</p>
             </div>
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">当前显示 {visibleRuleScopes.length} / {availableSoftTypes.length} 个范围</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select value={ruleSetTypeFilter} onChange={event => setRuleSetTypeFilter(event.target.value)} className="h-8 min-w-44 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
-              <option value="ALL">全部类型</option>
-              {ruleTypeOptions.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
-            </select>
-            <select value={ruleSetKindFilter} onChange={event => setRuleSetKindFilter(event.target.value as typeof ruleSetKindFilter)} className="h-8 min-w-40 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
-              <option value="ALL">全部规则性质</option><option value="TYPE_GENERIC">类型通用</option><option value="CLASSIFICATION_SPECIFIC">分类专用</option>
-            </select>
-            <select value={ruleSetStatusFilter} onChange={event => setRuleSetStatusFilter(event.target.value as typeof ruleSetStatusFilter)} className="h-8 min-w-40 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
-              <option value="ALL">全部状态</option><option value="ENABLED">已启用</option><option value="DISABLED">已停用</option><option value="UNCONFIGURED">未配置</option>
-            </select>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">共 {availableSoftTypes.length} 个规则集</span>
           </div>
           <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-x-auto">
-            <table className="ty-data-table w-full min-w-[760px] text-left text-ty-xs border-collapse">
+            <table className="ty-data-table w-full min-w-[680px] text-left text-ty-xs border-collapse">
               <thead><tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
-                <th className="py-2 px-3">类型</th><th className="py-2 px-3">分类范围</th><th className="py-2 px-3 w-28">规则性质</th><th className="py-2 px-3 w-24">字段规则</th><th className="py-2 px-3 w-24">状态</th><th className="py-2 px-3 w-20 text-right">操作</th>
+                <th className="py-2 px-3">类型属性值</th><th className="py-2 px-3">分类属性值</th><th className="py-2 px-3 w-28">状态</th><th className="py-2 px-3 w-24">字段规则</th><th className="py-2 px-3 w-24 text-right">操作</th>
               </tr></thead>
               <tbody className="divide-y divide-[var(--ty-border-light-color)]">
-                {visibleRuleScopes.map(scope => {
+                {availableSoftTypes.map(scope => {
                   const parsed = parseSimilarityRuleScopeKey(scope.id);
                   const type = ruleTypeOptions.find(item => item.id === parsed.typeId);
                   const classification = similarityClassificationOptions.find(item => item.id === parsed.classificationId);
                   const ruleCount = editingRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === scope.id).length;
                   const status = objectConfigStatus[scope.id];
-                  return <tr key={scope.id} className={scope.id === selectedSoftTypeId ? 'bg-[var(--ty-primary-lightest-color)]/50' : 'hover:bg-[var(--ty-fill-weak-dark-color)]'}>
+                  const hasPublishedScope = Boolean(status?.configVersion && status.configVersion !== '-');
+                  const statusLabel = status?.enabled ? '已启用' : hasPublishedScope ? '已停用' : ruleCount ? '草稿' : '未配置';
+                  const statusClassName = status?.enabled
+                    ? 'text-[var(--ty-green-color)] bg-[var(--ty-green-lightest-color)] border-[var(--ty-green-color)]/30'
+                    : hasPublishedScope
+                    ? 'text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] border-[var(--ty-orange-color)]/30'
+                    : 'text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] border-[var(--ty-border-color)]';
+                  const isSelected = scope.id === selectedSoftTypeId;
+                  return <tr
+                    key={scope.id}
+                    tabIndex={0}
+                    aria-current={isSelected ? 'true' : undefined}
+                    onClick={() => void handleChangeGroupValue(scope.id)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        void handleChangeGroupValue(scope.id);
+                      }
+                    }}
+                    className={`${isSelected ? 'bg-[var(--ty-primary-lightest-color)]/60' : 'hover:bg-[var(--ty-fill-weak-dark-color)]'} cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-inset focus:ring-[var(--ty-primary-color)]`}
+                  >
                     <td className="py-2 px-3 font-semibold">{type?.name || parsed.typeId}</td>
-                    <td className="py-2 px-3">{classification?.name || '全部分类'}</td>
-                    <td className="py-2 px-3"><span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)]">{classification ? '分类专用' : '类型通用'}</span></td>
+                    <td className="py-2 px-3">{classification?.name || '全部分类（类型通用）'}</td>
+                    <td className="py-2 px-3"><span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border text-ty-2xs font-medium ${statusClassName}`}>{statusLabel}</span></td>
                     <td className="py-2 px-3 font-mono">{ruleCount} 项</td>
-                    <td className="py-2 px-3"><span className={status?.enabled ? 'text-[var(--ty-green-color)]' : status?.configVersion && status.configVersion !== '-' ? 'text-[var(--ty-orange-color)]' : 'text-[var(--ty-font-sub-light-color)]'}>{status?.enabled ? '已启用' : status?.configVersion && status.configVersion !== '-' ? '已停用' : ruleCount ? '草稿' : '未配置'}</span></td>
-                    <td className="py-2 px-3 text-right"><button type="button" onClick={() => void handleChangeGroupValue(scope.id)} className="text-[var(--ty-primary-color)] font-medium cursor-pointer">{scope.id === selectedSoftTypeId ? '当前' : ruleCount ? '维护' : '新建'}</button></td>
+                    <td className="py-2 px-3 text-right"><button type="button" onClick={event => { event.stopPropagation(); void handleChangeGroupValue(scope.id); }} className="text-[var(--ty-primary-color)] font-medium cursor-pointer">{isSelected ? '当前明细' : ruleCount ? '查看明细' : '开始配置'}</button></td>
                   </tr>;
                 })}
               </tbody>
@@ -1160,33 +1149,18 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
         </div>
 
-        {/* 当前规则集范围 */}
-        <div className="pt-3 border-t border-[var(--ty-border-color)] grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />对象类型</label>
-            <div id="root-type-selector" className="h-8 px-3 flex items-center justify-between border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium"><span>{currentRootTypeObj?.name}</span><span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span></div>
+        {/* 当前规则集明细头：只展示已选上下文和状态，不再重复提供第二套范围选择 */}
+        <div className="pt-3 border-t border-[var(--ty-border-color)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-ty-xs">
+            <span className="font-semibold text-[var(--ty-font-main-color)]">当前规则集明细</span>
+            <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)] font-medium">{currentScopeLabel}</span>
+            <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border text-ty-2xs font-medium ${currentGroupStatus.enabled ? 'text-[var(--ty-green-color)] bg-[var(--ty-green-lightest-color)] border-[var(--ty-green-color)]/30' : hasPublishedVersion ? 'text-[var(--ty-orange-color)] bg-[var(--ty-orange-lightest-color)] border-[var(--ty-orange-color)]/30' : 'text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-color)] border-[var(--ty-border-color)]'}`}>{currentGroupStatus.enabled ? '已启用' : hasPublishedVersion ? '已停用' : currentScopeEditingRules.length ? '草稿' : '未配置'}</span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">{currentClassification ? `分类路径：${currentClassification.path}` : '覆盖该类型下全部分类'}</span>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />类型属性值 <span className="text-[var(--ty-red-color)]">*</span></label>
-            <select value={currentScope.typeId} onChange={event => void handleChangeGroupValue(event.target.value)} className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden" id="rule-type-selector">
-              {ruleTypeOptions.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
-            </select>
-            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">来自一阶段标记的“类型属性”，规则集必须选择。</span>
+          <div className="flex items-center gap-2">
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">{currentScopeEditingRules.length} 条字段规则</span>
+            <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>{!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}</button>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />分类属性值（可选）</label>
-            <div className="flex items-center gap-2">
-              <select value={currentScope.classificationId || ''} onChange={event => void handleChangeGroupValue(buildSimilarityRuleScopeKey(currentScope.typeId, event.target.value || undefined))} className="min-w-0 flex-1 h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden" id="rule-classification-selector">
-                <option value="">不限定分类（类型通用）</option>
-                {availableClassifications.map(item => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
-              </select>
-              <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>{!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}</button>
-            </div>
-            <span className={`text-ty-2xs ${hasPublishedVersion && currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{currentClassification ? `限定路径：${currentClassification.path}` : '未选分类时覆盖该类型下全部分类。'} {!hasPublishedVersion ? '配置并发布后方可启用。' : currentGroupStatus.enabled ? '正式规则已启用。' : '正式规则已停用。'}</span>
-          </div>
-        </div>
-        <div className="px-3 py-2 rounded-ty-sm border border-[var(--ty-primary-color)]/20 bg-[var(--ty-primary-lightest-color)]/40 text-ty-2xs text-[var(--ty-font-sub-color)]">
-          当前维护：<strong className="text-[var(--ty-font-main-color)]">{currentScopeLabel}</strong>。应用端先查找同类型同分类的专用规则；没有可用专用规则时再使用类型通用规则。
         </div>
 
         {/* 规则集相似度分档：跟随当前范围和规则版本 */}
