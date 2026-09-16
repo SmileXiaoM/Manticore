@@ -46,22 +46,6 @@ export const rootTypeOptions: RootTypeOption[] = [
   }
 ];
 
-// 二阶段相似度规则可使用的分组依据。当前草稿可由配置管理员调整，
-// 保存和发布后分别形成草稿版本与已发布版本。
-export const similarityGroupingDefinition = {
-  propertyCode: 'business_classification',
-  propertyName: 'PLM 业务分类',
-  sourceLabel: '已发布的 Manticore 单值属性'
-};
-
-export const similarityGroupingOptions = [
-  similarityGroupingDefinition,
-  { propertyCode: 'source_type', propertyName: '来源类型', sourceLabel: '已发布的 Manticore 单值属性' },
-  { propertyCode: 'product_family', propertyName: '产品族', sourceLabel: '已发布的 Manticore 单值属性' },
-  { propertyCode: 'factory', propertyName: '工厂', sourceLabel: '已发布的 Manticore 单值属性' },
-  { propertyCode: 'view', propertyName: '视图', sourceLabel: '已发布的 Manticore 单值属性' }
-];
-
 // 2. 软类型定义 (依赖根类型，来自一阶段元数据只读映射)
 export const softTypeOptions: SoftTypeOption[] = [
   // 根类型: 零部件 (PART)
@@ -151,33 +135,72 @@ export const softTypeOptions: SoftTypeOption[] = [
   }
 ];
 
-// 原型中的分组属性值示例。正式环境由所选 Manticore 单值属性的实际值域返回。
-const similarityAlternativeGroupValues: Record<string, SoftTypeOption[]> = {
-  source_type: [
-    { id: 'SOURCE_INTERNAL', rootTypeId: 'PART', code: 'INTERNAL', name: '自制来源 (INTERNAL)', description: '由企业内部设计或制造' },
-    { id: 'SOURCE_PURCHASED', rootTypeId: 'PART', code: 'PURCHASED', name: '采购来源 (PURCHASED)', description: '由外部供应商采购获得' }
-  ],
-  product_family: [
-    { id: 'FAMILY_FASTENER', rootTypeId: 'PART', code: 'FASTENER', name: '紧固件 (FASTENER)', description: '螺栓、螺母、垫圈等紧固类零部件' },
-    { id: 'FAMILY_SHEET_METAL', rootTypeId: 'PART', code: 'SHEET_METAL', name: '钣金结构件 (SHEET_METAL)', description: '钣金及冲压结构类零部件' },
-    { id: 'FAMILY_TRANSMISSION', rootTypeId: 'PART', code: 'TRANSMISSION', name: '传动件 (TRANSMISSION)', description: '齿轮、轴及其他传动类零部件' }
-  ],
-  factory: [
-    { id: 'FACTORY_SH', rootTypeId: 'PART', code: 'SHANGHAI', name: '上海工厂 (SHANGHAI)', description: '上海工厂所属零部件' },
-    { id: 'FACTORY_SZ', rootTypeId: 'PART', code: 'SUZHOU', name: '苏州工厂 (SUZHOU)', description: '苏州工厂所属零部件' },
-    { id: 'FACTORY_CD', rootTypeId: 'PART', code: 'CHENGDU', name: '成都工厂 (CHENGDU)', description: '成都工厂所属零部件' }
-  ],
-  view: [
-    { id: 'VIEW_DESIGN', rootTypeId: 'PART', code: 'DESIGN', name: '设计视图 (DESIGN)', description: '设计阶段使用的零部件视图' },
-    { id: 'VIEW_MANUFACTURING', rootTypeId: 'PART', code: 'MANUFACTURING', name: '制造视图 (MANUFACTURING)', description: '制造阶段使用的零部件视图' }
-  ]
-};
+export interface SimilarityClassificationOption {
+  id: string;
+  typeId: string;
+  code: string;
+  name: string;
+  path: string;
+}
 
-export function getSimilarityGroupValueOptions(propertyCode: string): SoftTypeOption[] {
-  if (propertyCode === similarityGroupingDefinition.propertyCode) {
-    return softTypeOptions.filter(option => option.rootTypeId === 'PART');
+export const similarityClassificationOptions: SimilarityClassificationOption[] = [
+  { id: 'HEX_HEAD_BOLT', typeId: 'IN_HOUSE', code: 'HEX_HEAD_BOLT', name: '六角头螺栓', path: '/紧固件/螺栓/六角头螺栓' },
+  { id: 'FLANGE_BOLT', typeId: 'IN_HOUSE', code: 'FLANGE_BOLT', name: '法兰螺栓', path: '/紧固件/螺栓/法兰螺栓' },
+  { id: 'PURCHASED_FASTENER', typeId: 'PURCHASED', code: 'PURCHASED_FASTENER', name: '采购紧固件', path: '/采购件/标准件/紧固件' },
+  { id: 'STAMPING_PART', typeId: 'STAMPING_UNCONFIGURED', code: 'STAMPING_PART', name: '冲压结构件', path: '/结构件/冲压件' }
+];
+
+const RULE_SCOPE_SEPARATOR = '::CLASS::';
+
+export function buildSimilarityRuleScopeKey(typeId: string, classificationId?: string): string {
+  return classificationId ? `${typeId}${RULE_SCOPE_SEPARATOR}${classificationId}` : typeId;
+}
+
+export function parseSimilarityRuleScopeKey(scopeKey: string): { typeId: string; classificationId?: string } {
+  const [typeId, classificationId] = scopeKey.split(RULE_SCOPE_SEPARATOR);
+  return { typeId, classificationId: classificationId || undefined };
+}
+
+export function getSimilarityRuleScopeLabel(scopeKey: string): string {
+  const { typeId, classificationId } = parseSimilarityRuleScopeKey(scopeKey);
+  const type = softTypeOptions.find(option => option.id === typeId);
+  const classification = similarityClassificationOptions.find(option => option.id === classificationId && option.typeId === typeId);
+  return classification
+    ? `${type?.name || typeId} / ${classification.name}（分类专用）`
+    : `${type?.name || typeId} / 全部分类（类型通用）`;
+}
+
+export function findSimilarityClassification(typeId: string, classificationPath?: string): SimilarityClassificationOption | undefined {
+  if (!classificationPath) return undefined;
+  return similarityClassificationOptions.find(option => option.typeId === typeId && option.path === classificationPath);
+}
+
+export interface ResolvedSimilarityRuleScope {
+  scopeKey: string;
+  typeId: string;
+  classificationId?: string;
+  kind: 'CLASSIFICATION_SPECIFIC' | 'TYPE_GENERIC';
+  label: string;
+}
+
+export function resolveSimilarityRuleScope(
+  typeId: string,
+  classificationPath: string | undefined,
+  rules: FieldSimilarityRule[],
+  statusMap: Record<string, { enabled: boolean; configVersion: string }>
+): ResolvedSimilarityRuleScope | null {
+  const classification = findSimilarityClassification(typeId, classificationPath);
+  const specificKey = classification ? buildSimilarityRuleScopeKey(typeId, classification.id) : '';
+  const hasUsableRules = (scopeKey: string) => statusMap[scopeKey]?.enabled === true && rules.some(rule =>
+    rule.rootTypeId === 'PART' && rule.softTypeId === scopeKey && rule.enabled && rule.isAppEndActive
+  );
+  if (specificKey && hasUsableRules(specificKey)) {
+    return { scopeKey: specificKey, typeId, classificationId: classification?.id, kind: 'CLASSIFICATION_SPECIFIC', label: getSimilarityRuleScopeLabel(specificKey) };
   }
-  return similarityAlternativeGroupValues[propertyCode] || [];
+  if (hasUsableRules(typeId)) {
+    return { scopeKey: typeId, typeId, kind: 'TYPE_GENERIC', label: getSimilarityRuleScopeLabel(typeId) };
+  }
+  return null;
 }
 
 // Unit conversion helpers
@@ -704,7 +727,7 @@ export function formatFieldWithFallback(
 }
 
 // 初始字段相似度规则 (按 根类型 + 软类型 上下文隔离维护)
-export const initialFieldRules: FieldSimilarityRule[] = [
+const baseInitialFieldRules: FieldSimilarityRule[] = [
   // -------------------------------------------------------------
   // 上下文: 零部件 (PART) + 自制件 (IN_HOUSE)
   // 业务口径示例: 材料 (25%, 0分继续), 标称直径 (20%, 排除候选门槛), 长度 (15%, 0分继续), 规格描述 (25%), 分类路径 (15%)
@@ -1313,6 +1336,17 @@ export const initialFieldRules: FieldSimilarityRule[] = [
     matchConfig: { kind: 'EXACT' }
   }
 ];
+
+const inHouseHexHeadRules = baseInitialFieldRules
+  .filter(rule => rule.rootTypeId === 'PART' && rule.softTypeId === 'IN_HOUSE')
+  .map(rule => ({
+    ...rule,
+    id: `${rule.id}-HEX`,
+    softTypeId: buildSimilarityRuleScopeKey('IN_HOUSE', 'HEX_HEAD_BOLT'),
+    softTypeName: '自制件 / 六角头螺栓'
+  }));
+
+export const initialFieldRules: FieldSimilarityRule[] = [...baseInitialFieldRules, ...inHouseHexHeadRules];
 
 // 模拟新建/编辑表单基准选项 (基准来源二：新建/编辑表单字段值)
 export interface MockFormBaseline {
@@ -2026,6 +2060,7 @@ export function runSimilaritySearch(
   keywordFilter?: string,
   tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'> = DEFAULT_SIMILARITY_TIER
 ): SearchRunResult {
+  const { typeId: candidateTypeId } = parseSimilarityRuleScopeKey(softTypeId);
   // 1. 过滤当前根类型与软类型的规则
   const currentScopeRules = rules.filter(
     r => (r.rootTypeId === rootTypeId || r.objectType === rootTypeId) && r.softTypeId === softTypeId
@@ -2038,7 +2073,7 @@ export function runSimilaritySearch(
       scoredCandidates: [],
       excludedCandidates: [],
       errorCode: 'NO_RULES',
-      errorMessage: '当前分组值尚未配置相似度规则，因此不参与相似度搜索。请先完成规则配置并发布启用。'
+      errorMessage: '当前类型及分类没有可用的已发布规则，因此不执行相似度搜索。'
     };
   }
 
@@ -2052,7 +2087,7 @@ export function runSimilaritySearch(
       p =>
         (p.objectId.toUpperCase() === searchId || p.requestCode.toUpperCase() === searchId) &&
         (p.rootTypeId === rootTypeId || !rootTypeId) &&
-        (p.softTypeId === softTypeId || !softTypeId)
+        (p.softTypeId === candidateTypeId || !candidateTypeId)
     );
 
     if (!matchedPart) {
@@ -2062,7 +2097,7 @@ export function runSimilaritySearch(
         scoredCandidates: [],
         excludedCandidates: [],
         errorCode: 'REFERENCE_NOT_FOUND',
-        errorMessage: `未找到符合当前根类型/软类型的基准已有件 [${baseline.objectId}]`
+        errorMessage: `未找到符合当前对象类型/类型属性的基准已有件 [${baseline.objectId}]`
       };
     }
     reference = matchedPart;
@@ -2071,7 +2106,7 @@ export function runSimilaritySearch(
     reference = {
       requestCode: baseline.requestNo || baseline.temporaryNo || 'TMP-DRAFT-FORM',
       rootTypeId: baseline.rootTypeId || rootTypeId,
-      softTypeId: baseline.softTypeId || softTypeId,
+      softTypeId: baseline.softTypeId || candidateTypeId,
       objectId: baseline.temporaryNo || baseline.requestNo || 'FORM-DRAFT',
       objectName: `表单录入基准 (${baseline.requestNo || baseline.temporaryNo || '未命名申请'})`,
       specification: String(baseline.values.spec_description || baseline.values.spec_model || '--'),
@@ -2095,7 +2130,7 @@ export function runSimilaritySearch(
   const candidatePool = mockPartDatabase.filter(
     p =>
       p.rootTypeId === rootTypeId &&
-      p.softTypeId === softTypeId &&
+      p.softTypeId === candidateTypeId &&
       p.objectId !== reference.objectId &&
       p.requestCode !== reference.requestCode
   );

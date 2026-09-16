@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { SourceAttributeDetails } from './SourceAttributeDetails';
 import {
+  Boxes,
   Link,
-  Shield
+  Shield,
+  Tags
 } from 'lucide-react';
 import {
   SourceFieldMeta,
@@ -10,6 +12,8 @@ import {
   FieldMappingItem,
   ManticoreFieldType,
   HyperlinkConfig,
+  SimilarityBusinessRole,
+  ClassificationDisplayMode,
   resolveSourceDisplayName
 } from '../../stage1MappingTypes';
 import { HelpTooltip } from '../ui/HelpTooltip';
@@ -26,6 +30,8 @@ export interface FieldMappingFormData {
   isDisplayInResult: boolean;
   isFulltextSearch: boolean;
   isUniqueKey: boolean;
+  similarityBusinessRole: SimilarityBusinessRole;
+  classificationDisplayMode: ClassificationDisplayMode;
   isEnableHyperlink: boolean;
   hyperlinkConfig?: HyperlinkConfig;
   displayType?: FieldMappingItem['displayType'];
@@ -96,6 +102,61 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             <div className="md:col-span-2"><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">来源属性特征</span><SourceAttributeDetails meta={sourceMeta} compact /></div>
           </div>
         ) : <div className="rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] p-3 text-center text-ty-xs text-[var(--ty-font-sub-color)]">请先选择 PLM 来源属性</div>}
+      </div>
+
+      {/* 二阶段相似度作用范围角色。它是业务角色，不是 Manticore 存储类型。 */}
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Boxes className="w-4 h-4 text-[var(--ty-primary-color)]" />
+          <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">相似度规则范围角色</h4>
+          <HelpTooltip label="查看相似度规则范围角色说明" content="类型属性和分类属性用于二阶段识别规则作用范围，不是 Manticore 存储类型。每个对象类型最多各指定一个；首次发布后锁定，重置接入后可重新指定。" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-3 items-start">
+          <div className="space-y-1">
+            <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">业务角色</label>
+            <select
+              value={formData.similarityBusinessRole}
+              disabled={schemaLocked}
+              onChange={event => onChange({ similarityBusinessRole: event.target.value as SimilarityBusinessRole })}
+              className={`w-full h-8 px-3 border rounded-ty-sm text-ty-xs ${errors.similarityBusinessRole ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'} ${schemaLocked ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)] cursor-not-allowed' : 'bg-white cursor-pointer'}`}
+            >
+              <option value="NONE">普通属性（不用于识别规则范围）</option>
+              <option value="TYPE_ATTRIBUTE">类型属性（识别零部件类型）</option>
+              <option value="CLASSIFICATION_ATTRIBUTE">分类属性（识别分类路径）</option>
+            </select>
+            {errors.similarityBusinessRole && <p className="text-ty-2xs text-[var(--ty-red-color)]">{errors.similarityBusinessRole}</p>}
+            {schemaLocked && <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">当前角色已随接入发布锁定；重置接入后才能更换。</p>}
+          </div>
+
+          {formData.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' ? (
+            <div className="space-y-1 rounded-ty-sm border border-[var(--ty-primary-lighter-color)] bg-[var(--ty-primary-lightest-color)]/40 p-3">
+              <label className="text-ty-xs font-semibold text-[var(--ty-font-main-color)] flex items-center gap-1.5"><Tags className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />分类显示方式</label>
+              <select
+                value={formData.classificationDisplayMode}
+                onChange={event => onChange({ classificationDisplayMode: event.target.value as ClassificationDisplayMode })}
+                className="w-full h-8 px-3 bg-white border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs cursor-pointer"
+              >
+                <option value="CURRENT_VALUE">当前值</option>
+                <option value="FULL_PATH">完整路径</option>
+                <option value="REVERSE_FULL_PATH">反向完整路径</option>
+              </select>
+              <div className="text-ty-2xs text-[var(--ty-font-sub-color)] leading-relaxed">
+                示例：{formData.classificationDisplayMode === 'CURRENT_VALUE'
+                  ? '六角头螺栓'
+                  : formData.classificationDisplayMode === 'FULL_PATH'
+                  ? '零部件 / 紧固件 / 螺栓 / 六角头螺栓'
+                  : '六角头螺栓 / 螺栓 / 紧固件 / 零部件'}
+              </div>
+              <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">显示方式发布后仍可修改，只影响分类值展示，不改变规则匹配。</p>
+            </div>
+          ) : (
+            <div className="rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-3 text-ty-xs text-[var(--ty-font-sub-color)]">
+              {formData.similarityBusinessRole === 'TYPE_ATTRIBUTE'
+                ? '二阶段将读取该属性值确定类型通用规则；例如：自制件（IN_HOUSE）。'
+                : '普通属性可以继续用于查询、展示或相似度评分，但不决定规则作用范围。'}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

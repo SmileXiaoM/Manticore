@@ -23,7 +23,6 @@ import {
   MatchConfig,
   ChangeRecord,
   SimilarityGroupConfigStatus,
-  SimilarityGroupingConfig,
   SimilarityTierConfigMap,
   isObjectRulesModified,
   restoreObjectRules,
@@ -32,8 +31,11 @@ import {
 } from '../types';
 import {
   rootTypeOptions,
-  similarityGroupingOptions,
-  getSimilarityGroupValueOptions,
+  softTypeOptions,
+  similarityClassificationOptions,
+  buildSimilarityRuleScopeKey,
+  parseSimilarityRuleScopeKey,
+  getSimilarityRuleScopeLabel,
   stage1MappedFields,
   mockUnitCatalog,
   convertToBaseUnit,
@@ -71,12 +73,6 @@ interface FieldSimilarityViewProps {
   activeTierConfigs: SimilarityTierConfigMap;
   onUpdateActiveTierConfigs: (configs: SimilarityTierConfigMap) => void;
   previewedSavedSignatures: Record<string, string>;
-  editingGroupingConfig: SimilarityGroupingConfig;
-  onUpdateEditingGroupingConfig: (config: SimilarityGroupingConfig) => void;
-  savedGroupingConfig: SimilarityGroupingConfig;
-  onUpdateSavedGroupingConfig: (config: SimilarityGroupingConfig) => void;
-  activeGroupingConfig: SimilarityGroupingConfig;
-  onUpdateActiveGroupingConfig: (config: SimilarityGroupingConfig) => void;
   canManageConfig?: boolean;
   onNavigate?: (view: string) => void;
 }
@@ -124,24 +120,48 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   activeTierConfigs,
   onUpdateActiveTierConfigs,
   previewedSavedSignatures,
-  editingGroupingConfig,
-  onUpdateEditingGroupingConfig,
-  savedGroupingConfig,
-  onUpdateSavedGroupingConfig,
-  activeGroupingConfig,
-  onUpdateActiveGroupingConfig,
   canManageConfig = true,
   onNavigate
 }) => {
   const { notify, confirm } = useFeedback();
-  // 二阶段相似度搜索只面向零部件。softTypeId 继续承载既有数据中的“分组属性值”。
+  // 二阶段相似度搜索只面向零部件。softTypeId 作为规则集范围键：类型通用或分类专用。
   const selectedRootTypeId = 'PART';
   const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
+  const [ruleSetTypeFilter, setRuleSetTypeFilter] = useState('ALL');
+  const [ruleSetKindFilter, setRuleSetKindFilter] = useState<'ALL' | 'TYPE_GENERIC' | 'CLASSIFICATION_SPECIFIC'>('ALL');
+  const [ruleSetStatusFilter, setRuleSetStatusFilter] = useState<'ALL' | 'ENABLED' | 'DISABLED' | 'UNCONFIGURED'>('ALL');
 
-  // 分组属性值随当前草稿中的分组依据联动。
+  const ruleTypeOptions = useMemo(() => softTypeOptions.filter(option => option.rootTypeId === selectedRootTypeId), [selectedRootTypeId]);
+  const currentScope = parseSimilarityRuleScopeKey(selectedSoftTypeId);
+  const currentTypeObj = ruleTypeOptions.find(option => option.id === currentScope.typeId);
+  const currentClassification = similarityClassificationOptions.find(option => option.typeId === currentScope.typeId && option.id === currentScope.classificationId);
+  const currentScopeLabel = getSimilarityRuleScopeLabel(selectedSoftTypeId);
+  const availableClassifications = similarityClassificationOptions.filter(option => option.typeId === currentScope.typeId);
   const availableSoftTypes = useMemo(() => {
-    return getSimilarityGroupValueOptions(editingGroupingConfig.propertyCode);
-  }, [editingGroupingConfig.propertyCode]);
+    const scopes = ruleTypeOptions.flatMap(type => [
+      { ...type, id: type.id, name: getSimilarityRuleScopeLabel(type.id) },
+      ...similarityClassificationOptions.filter(item => item.typeId === type.id).map(item => ({
+        id: buildSimilarityRuleScopeKey(type.id, item.id),
+        rootTypeId: selectedRootTypeId,
+        code: item.code,
+        name: getSimilarityRuleScopeLabel(buildSimilarityRuleScopeKey(type.id, item.id)),
+        description: item.path
+      }))
+    ]);
+    return scopes;
+  }, [ruleTypeOptions, selectedRootTypeId]);
+  const visibleRuleScopes = useMemo(() => availableSoftTypes.filter(scope => {
+    const parsed = parseSimilarityRuleScopeKey(scope.id);
+    if (ruleSetTypeFilter !== 'ALL' && parsed.typeId !== ruleSetTypeFilter) return false;
+    if (ruleSetKindFilter === 'TYPE_GENERIC' && parsed.classificationId) return false;
+    if (ruleSetKindFilter === 'CLASSIFICATION_SPECIFIC' && !parsed.classificationId) return false;
+    const ruleCount = editingRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === scope.id).length;
+    const status = objectConfigStatus[scope.id];
+    if (ruleSetStatusFilter === 'ENABLED' && !status?.enabled) return false;
+    if (ruleSetStatusFilter === 'DISABLED' && (status?.enabled || !status?.configVersion || status.configVersion === '-')) return false;
+    if (ruleSetStatusFilter === 'UNCONFIGURED' && ruleCount > 0) return false;
+    return true;
+  }), [availableSoftTypes, editingRules, objectConfigStatus, ruleSetKindFilter, ruleSetStatusFilter, ruleSetTypeFilter, selectedRootTypeId]);
 
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === selectedRootTypeId);
   const currentSoftTypeObj = availableSoftTypes.find(st => st.id === selectedSoftTypeId);
@@ -210,9 +230,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   }, [selectedRootTypeId, selectedSoftTypeId]);
 
   useEffect(() => {
-    if (!availableSoftTypes.some(option => option.id === selectedSoftTypeId)) {
-      setSelectedSoftTypeId(availableSoftTypes[0]?.id || '');
-    }
+    if (!availableSoftTypes.some(option => option.id === selectedSoftTypeId)) setSelectedSoftTypeId('IN_HOUSE');
   }, [availableSoftTypes, selectedSoftTypeId]);
 
   // 当前上下文下的编辑中规则列表
@@ -287,24 +305,22 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   // 检查是否有未保存修改
   const isModified = useMemo(() => {
     const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
-    const groupingChanged = editingGroupingConfig.propertyCode !== savedGroupingConfig.propertyCode;
-    return groupingChanged || tierChanged || isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentTierConfig.highStart, currentTierConfig.mediumStart, editingGroupingConfig.propertyCode, savedGroupingConfig.propertyCode, editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
+    return tierChanged || isObjectRulesModified(editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentTierConfig.highStart, currentTierConfig.mediumStart, editingRules, savedRules, selectedRootTypeId, selectedSoftTypeId]);
   const hasSavedDraft = useMemo(() => {
     const tierChanged = currentSavedTierConfig.highStart !== currentActiveTierConfig.highStart || currentSavedTierConfig.mediumStart !== currentActiveTierConfig.mediumStart;
-    const groupingChanged = savedGroupingConfig.propertyCode !== activeGroupingConfig.propertyCode;
-    return groupingChanged || tierChanged || isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
-  }, [savedRules, activeRules, currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentActiveTierConfig.highStart, currentActiveTierConfig.mediumStart, savedGroupingConfig.propertyCode, activeGroupingConfig.propertyCode, selectedRootTypeId, selectedSoftTypeId]);
+    return tierChanged || isObjectRulesModified(savedRules, activeRules, selectedRootTypeId, selectedSoftTypeId);
+  }, [savedRules, activeRules, currentSavedTierConfig.highStart, currentSavedTierConfig.mediumStart, currentActiveTierConfig.highStart, currentActiveTierConfig.mediumStart, selectedRootTypeId, selectedSoftTypeId]);
   const currentScopeSavedRules = useMemo(() => savedRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId), [savedRules, selectedRootTypeId, selectedSoftTypeId]);
   const savedScoreRulesCount = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).length;
   const savedScoreWeight = currentScopeSavedRules.filter(rule => rule.enabled && rule.isScoreActive).reduce((sum, rule) => sum + rule.weight, 0);
   const savedVersionSignature = useMemo(
-    () => createSimilarityVersionSignature(savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig, savedGroupingConfig.propertyCode),
-    [savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig, savedGroupingConfig.propertyCode]
+    () => createSimilarityVersionSignature(savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig, 'stage1_type_and_classification_roles'),
+    [savedRules, selectedRootTypeId, selectedSoftTypeId, currentSavedTierConfig]
   );
   const isSavedPreviewValid = previewedSavedSignatures[selectedSoftTypeId] === savedVersionSignature;
   const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
-  const hasPublishedVersion = activeGroupingConfig.propertyCode === editingGroupingConfig.propertyCode && currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
+  const hasPublishedVersion = currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
   const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100 || !isSavedPreviewValid;
   const publishButtonLabel = !hasPublishedVersion ? '发布规则' : currentGroupStatus.enabled ? '发布更新' : '发布规则';
   const publishButtonTitle = isModified
@@ -335,13 +351,10 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const availableStage1Fields = useMemo(() => {
     const fields = stage1MappedFields.filter(field => {
       if (field.rootTypeId !== selectedRootTypeId || !field.enabled) return false;
-      if (editingGroupingConfig.propertyCode === 'business_classification') {
-        return !field.softTypeId || field.softTypeId === selectedSoftTypeId;
-      }
-      return true;
+      return !field.softTypeId || field.softTypeId === currentScope.typeId;
     });
     return Array.from(new Map(fields.map(field => [field.fieldCode, field])).values());
-  }, [editingGroupingConfig.propertyCode, selectedRootTypeId, selectedSoftTypeId]);
+  }, [selectedRootTypeId, currentScope.typeId]);
   const unconfiguredStage1Fields = useMemo(
     () => availableStage1Fields.filter(
       field => !currentScopeEditingRules.some(rule => rule.propertyCode === field.fieldCode)
@@ -355,7 +368,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const handleOpenCreateModal = () => {
     const unconfigured = unconfiguredStage1Fields[0];
     if (!unconfigured) {
-      notify('当前分组值的可展示对比字段均已配置，不能重复新增同一字段规则。', 'warning');
+      notify('当前规则集的可展示对比字段均已配置，不能重复新增同一字段规则。', 'warning');
       return;
     }
 
@@ -527,7 +540,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
     if (currentScopeEditingRules.some(rule => rule.id !== editingRuleId && rule.propertyCode === formPropertyCode)) {
-      notify('保存失败：同一分组值下，一个字段只能配置一条规则。', 'warning');
+      notify('保存失败：同一规则集下，一个字段只能配置一条规则。', 'warning');
       return;
     }
     const selectedField = availableStage1Fields.find(field => field.fieldCode === formPropertyCode);
@@ -569,7 +582,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       rootTypeId: selectedRootTypeId,
       rootTypeName: currentRootTypeObj?.name.split(' ')[0] || selectedRootTypeId,
       softTypeId: selectedSoftTypeId,
-      softTypeName: currentSoftTypeObj?.name.split(' ')[0] || selectedSoftTypeId,
+      softTypeName: currentScopeLabel,
       fieldName: formFieldName,
       propertyCode: formPropertyCode,
       fieldType: formFieldType,
@@ -706,7 +719,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     onUpdateEditingRules(updated);
   };
 
-  // 保存当前软类型的配置 (保存草稿)
+  // 保存当前规则集配置（保存草稿）
   const handleSaveDraft = () => {
     if (!canManageConfig) {
       notify('仅配置管理员可修改并保存相似度规则。', 'warning');
@@ -717,7 +730,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       return;
     }
     const savedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    // 将当前软类型的 editingRules 同步到 savedRules
+    // 将当前规则集的 editingRules 同步到 savedRules
     const otherSavedRules = savedRules.filter(
       r => !(r.rootTypeId === selectedRootTypeId && r.softTypeId === selectedSoftTypeId)
     );
@@ -733,15 +746,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       ...savedTierConfigs,
       [selectedSoftTypeId]: { ...currentTierConfig, configVersion: 'v2.5.0-saved', lastModifiedAt: savedAt }
     });
-    onUpdateSavedGroupingConfig({
-      ...editingGroupingConfig,
-      configVersion: 'v2.5.0-saved',
-      lastModifiedAt: savedAt
-    });
 
     // 记录变更
     const tierChanged = currentTierConfig.highStart !== currentSavedTierConfig.highStart || currentTierConfig.mediumStart !== currentSavedTierConfig.mediumStart;
-    const groupingChanged = editingGroupingConfig.propertyCode !== savedGroupingConfig.propertyCode;
     const newRecord: ChangeRecord = {
       id: `CR-${Date.now()}`,
       objectType: `${currentRootTypeObj?.name.split(' ')[0]} / ${currentSoftTypeObj?.name.split(' ')[0]}`,
@@ -750,9 +757,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-saved',
       operationType: '保存',
-      summary: `保存了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的 ${thisSavedRules.length} 项字段规则${tierChanged ? '、相似度分档' : ''}${groupingChanged ? '及分组依据' : ''}。保存草稿不影响当前应用版本。`,
-      beforeSummary: groupingChanged || tierChanged ? `${groupingChanged ? `分组依据：${savedGroupingConfig.propertyName}；` : ''}${tierChanged ? `相似度分档：${formatSimilarityTierRange(currentSavedTierConfig)}` : ''}` : undefined,
-      afterSummary: groupingChanged || tierChanged ? `${groupingChanged ? `分组依据：${editingGroupingConfig.propertyName}；` : ''}${tierChanged ? `相似度分档：${formatSimilarityTierRange(currentTierConfig)}` : ''}` : undefined,
+      summary: `保存了【${currentScopeLabel}】的 ${thisSavedRules.length} 项字段规则${tierChanged ? '及相似度分档' : ''}。保存草稿不影响当前应用版本。`,
+      beforeSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentSavedTierConfig)}` : undefined,
+      afterSummary: tierChanged ? `相似度分档：${formatSimilarityTierRange(currentTierConfig)}` : undefined,
       operator: '李晓华 (数据标准管理员)',
       time: savedAt,
       result: 'SUCCESS'
@@ -761,7 +768,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     notify('配置已保存为草稿，可在查询预览中选择“草稿版本”进行验证。', 'success');
   };
 
-  // 发布已保存且预览成功的当前分组版本
+  // 发布已保存且预览成功的当前规则集版本
   const handlePublishActive = async () => {
     if (!canManageConfig) {
       notify('仅配置管理员可发布相似度规则。', 'warning');
@@ -805,11 +812,6 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       ...activeTierConfigs,
       [selectedSoftTypeId]: { ...currentSavedTierConfig, configVersion: 'v2.5.0-release', lastModifiedAt: publishedAt }
     });
-    onUpdateActiveGroupingConfig({
-      ...savedGroupingConfig,
-      configVersion: 'v2.5.0-release',
-      lastModifiedAt: publishedAt
-    });
     const remainsEnabled = hasPublishedVersion ? currentGroupStatus.enabled : false;
     onUpdateConfigStatus({
       ...objectConfigStatus,
@@ -825,9 +827,9 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: 'v2.5.0-release',
       operationType: '发布',
-      summary: `发布了【${currentRootTypeObj?.name} - ${currentSoftTypeObj?.name}】的草稿版本（${savedScoreRulesCount} 个评分字段）；${remainsEnabled ? '已启用规则持续生效' : hasPublishedVersion ? '保持停用' : '首次发布后保持停用，需手动启用'}。`,
-      beforeSummary: `分组依据：${activeGroupingConfig.propertyName}；当前应用分档：${formatSimilarityTierRange(currentActiveTierConfig)}`,
-      afterSummary: `分组依据：${savedGroupingConfig.propertyName}；新发布分档：${formatSimilarityTierRange(currentSavedTierConfig)}`,
+      summary: `发布了【${currentScopeLabel}】的草稿版本（${savedScoreRulesCount} 个评分字段）；${remainsEnabled ? '已启用规则持续生效' : hasPublishedVersion ? '保持停用' : '首次发布后保持停用，需手动启用'}。`,
+      beforeSummary: `当前应用分档：${formatSimilarityTierRange(currentActiveTierConfig)}`,
+      afterSummary: `新发布分档：${formatSimilarityTierRange(currentSavedTierConfig)}`,
       operator: '李晓华 (数据标准管理员)',
       time: new Date().toISOString().replace('T', ' ').slice(0, 19),
       result: 'SUCCESS'
@@ -840,7 +842,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
     if (currentGroupStatus.enabled) {
       const accepted = await confirm({
         title: `停用“${currentSoftTypeObj?.name.split(' ')[0]}”相似度规则`,
-        message: '停用后，该分组值的零部件不再参与相似度搜索，也不会使用其他分组规则兜底。配置会继续保留。',
+        message: currentScope.classificationId ? '停用后，该分类专用规则不再使用；查询时仍可按优先级回退到同类型通用规则。配置会继续保留。' : '停用后，该类型通用规则不再使用；没有可用分类专用规则的对象将无法执行相似度搜索。配置会继续保留。',
         confirmText: '确认停用',
         tone: 'danger'
       });
@@ -849,7 +851,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       const activeScopeRules = activeRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId && rule.isScoreActive && rule.enabled);
       const activeWeight = activeScopeRules.reduce((sum, rule) => sum + rule.weight, 0);
       if (!activeScopeRules.length || activeWeight !== 100) {
-        notify('当前分组值没有可直接启用的完整正式规则，请先将评分权重配置为 100% 并发布。', 'warning');
+        notify('当前规则集没有可直接启用的完整正式规则，请先将评分权重配置为 100% 并发布。', 'warning');
         return;
       }
     }
@@ -868,7 +870,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       groupValueName: currentSoftTypeObj?.name.split(' ')[0],
       configVersion: currentGroupStatus.configVersion,
       operationType: nextEnabled ? '启用' : '停用',
-      summary: `${nextEnabled ? '启用' : '停用'}【${currentSoftTypeObj?.name}】分组值的相似度搜索。`,
+      summary: `${nextEnabled ? '启用' : '停用'}【${currentScopeLabel}】相似度规则。`,
       beforeSummary: nextEnabled ? '停用，不参与计算' : '启用，按正式规则参与计算',
       afterSummary: nextEnabled ? '启用，按正式规则参与计算' : '停用，不参与计算且不兜底',
       operator: '李晓华 (数据标准管理员)',
@@ -876,15 +878,15 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
       result: 'SUCCESS'
     };
     onUpdateChangeRecords([newRecord, ...changeRecords]);
-    notify(nextEnabled ? '分组值已启用，将按正式规则参与相似度搜索。' : '分组值已停用，不再参与相似度搜索。', 'success');
+    notify(nextEnabled ? '规则集已启用，将按正式规则参与相似度搜索。' : '规则集已停用，应用端将重新按优先级解析可用规则。', 'success');
   };
 
   const handleChangeGroupValue = async (nextGroupValue: string) => {
     if (nextGroupValue === selectedSoftTypeId) return;
     if (isModified) {
       const accepted = await confirm({
-        title: '切换分组属性值',
-        message: '当前分组值存在未保存编辑。切换后这些临时修改将被放弃，已保存草稿和正式规则不会受到影响。',
+        title: '切换规则集',
+        message: '当前规则集存在未保存编辑。切换后这些临时修改将被放弃，已保存草稿和正式规则不会受到影响。',
         confirmText: '放弃并切换',
         tone: 'danger'
       });
@@ -1058,7 +1060,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <SlidersHorizontal className="w-5 h-5 text-[var(--ty-primary-color)]" />
             <h1 className="text-ty-xl font-semibold text-[var(--ty-font-main-color)] tracking-tight">字段相似度规则</h1>
-            <HelpTooltip label="查看字段相似度规则说明" content="为零部件按当前分组依据的不同取值分别定义相似度规则；管理员的修改先保存为草稿。" />
+            <HelpTooltip label="查看字段相似度规则说明" content="类型属性确定必选范围，分类属性可进一步建立分类专用规则。分类专用优先，同类型通用规则作为兜底；管理员修改先保存为草稿。" />
           </div>
 
           {/* 操作按钮区 */}
@@ -1081,7 +1083,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <button
               onClick={handleSaveDraft}
               disabled={!canManageConfig || Boolean(tierConfigError)}
-              title={!canManageConfig ? '仅配置管理员可保存' : tierConfigError || '保存当前分组草稿'}
+              title={!canManageConfig ? '仅配置管理员可保存' : tierConfigError || '保存当前规则集草稿'}
               className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
               id="save-draft-btn"
             >
@@ -1111,92 +1113,83 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           </div>
         </div>
 
-        {/* 固定对象类型、草稿分组依据与分组值 */}
+        {/* 规则集总览：跨类型、跨分类集中查看并进入维护 */}
+        <div className="pt-3 border-t border-[var(--ty-border-color)] space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">规则集总览</h2>
+              <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-0.5">类型为必选范围；分类可选。分类专用规则优先，未命中时使用同类型通用规则，两者不叠加。</p>
+            </div>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">当前显示 {visibleRuleScopes.length} / {availableSoftTypes.length} 个范围</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={ruleSetTypeFilter} onChange={event => setRuleSetTypeFilter(event.target.value)} className="h-8 min-w-44 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
+              <option value="ALL">全部类型</option>
+              {ruleTypeOptions.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+            <select value={ruleSetKindFilter} onChange={event => setRuleSetKindFilter(event.target.value as typeof ruleSetKindFilter)} className="h-8 min-w-40 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
+              <option value="ALL">全部规则性质</option><option value="TYPE_GENERIC">类型通用</option><option value="CLASSIFICATION_SPECIFIC">分类专用</option>
+            </select>
+            <select value={ruleSetStatusFilter} onChange={event => setRuleSetStatusFilter(event.target.value as typeof ruleSetStatusFilter)} className="h-8 min-w-40 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs">
+              <option value="ALL">全部状态</option><option value="ENABLED">已启用</option><option value="DISABLED">已停用</option><option value="UNCONFIGURED">未配置</option>
+            </select>
+          </div>
+          <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-x-auto">
+            <table className="ty-data-table w-full min-w-[760px] text-left text-ty-xs border-collapse">
+              <thead><tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold">
+                <th className="py-2 px-3">类型</th><th className="py-2 px-3">分类范围</th><th className="py-2 px-3 w-28">规则性质</th><th className="py-2 px-3 w-24">字段规则</th><th className="py-2 px-3 w-24">状态</th><th className="py-2 px-3 w-20 text-right">操作</th>
+              </tr></thead>
+              <tbody className="divide-y divide-[var(--ty-border-light-color)]">
+                {visibleRuleScopes.map(scope => {
+                  const parsed = parseSimilarityRuleScopeKey(scope.id);
+                  const type = ruleTypeOptions.find(item => item.id === parsed.typeId);
+                  const classification = similarityClassificationOptions.find(item => item.id === parsed.classificationId);
+                  const ruleCount = editingRules.filter(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === scope.id).length;
+                  const status = objectConfigStatus[scope.id];
+                  return <tr key={scope.id} className={scope.id === selectedSoftTypeId ? 'bg-[var(--ty-primary-lightest-color)]/50' : 'hover:bg-[var(--ty-fill-weak-dark-color)]'}>
+                    <td className="py-2 px-3 font-semibold">{type?.name || parsed.typeId}</td>
+                    <td className="py-2 px-3">{classification?.name || '全部分类'}</td>
+                    <td className="py-2 px-3"><span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)]">{classification ? '分类专用' : '类型通用'}</span></td>
+                    <td className="py-2 px-3 font-mono">{ruleCount} 项</td>
+                    <td className="py-2 px-3"><span className={status?.enabled ? 'text-[var(--ty-green-color)]' : status?.configVersion && status.configVersion !== '-' ? 'text-[var(--ty-orange-color)]' : 'text-[var(--ty-font-sub-light-color)]'}>{status?.enabled ? '已启用' : status?.configVersion && status.configVersion !== '-' ? '已停用' : ruleCount ? '草稿' : '未配置'}</span></td>
+                    <td className="py-2 px-3 text-right"><button type="button" onClick={() => void handleChangeGroupValue(scope.id)} className="text-[var(--ty-primary-color)] font-medium cursor-pointer">{scope.id === selectedSoftTypeId ? '当前' : ruleCount ? '维护' : '新建'}</button></td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 当前规则集范围 */}
         <div className="pt-3 border-t border-[var(--ty-border-color)] grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              对象类型
-            </label>
-            <div id="root-type-selector" className="h-8 px-3 flex items-center justify-between border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium">
-              <span>{currentRootTypeObj?.name}</span>
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span>
-            </div>
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />对象类型</label>
+            <div id="root-type-selector" className="h-8 px-3 flex items-center justify-between border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium"><span>{currentRootTypeObj?.name}</span><span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span></div>
           </div>
-
           <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              分组依据
-              <HelpTooltip
-                label="查看分组依据说明"
-                content={<span>管理员可从已发布的 Manticore 单值属性中选择。修改先进入草稿，不影响当前已发布版本；多值属性不能作为分组依据。</span>}
-              />
-            </label>
-            <select
-              id="grouping-property-selector"
-              value={editingGroupingConfig.propertyCode}
-              disabled={!canManageConfig}
-              onChange={event => {
-                const option = similarityGroupingOptions.find(item => item.propertyCode === event.target.value);
-                if (!option) return;
-                const nextGroupValues = getSimilarityGroupValueOptions(option.propertyCode);
-                onUpdateEditingGroupingConfig({
-                  propertyCode: option.propertyCode,
-                  propertyName: option.propertyName,
-                  configVersion: editingGroupingConfig.configVersion,
-                  lastModifiedAt: editingGroupingConfig.lastModifiedAt
-                });
-                setSelectedSoftTypeId(nextGroupValues[0]?.id || '');
-                setFilterKeyword('');
-                setFilterScoreActive('ALL');
-                setFilterMismatchAction('ALL');
-                setPage(1);
-              }}
-              className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden disabled:bg-[var(--ty-fill-weak-dark-color)] disabled:text-[var(--ty-font-sub-color)]"
-            >
-              {similarityGroupingOptions.map(option => (
-                <option key={option.propertyCode} value={option.propertyCode}>
-                  {option.propertyName} ({option.propertyCode})
-                </option>
-              ))}
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />类型属性值 <span className="text-[var(--ty-red-color)]">*</span></label>
+            <select value={currentScope.typeId} onChange={event => void handleChangeGroupValue(event.target.value)} className="w-full h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden" id="rule-type-selector">
+              {ruleTypeOptions.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
             </select>
-            <span className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
-              {editingGroupingConfig.propertyCode === savedGroupingConfig.propertyCode ? '当前草稿分组依据' : '已修改 · 保存草稿后进入待预览版本'}
-            </span>
+            <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">来自一阶段标记的“类型属性”，规则集必须选择。</span>
           </div>
-
           <div className="flex flex-col gap-1">
-            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              {editingGroupingConfig.propertyName}值
-            </label>
+            <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />分类属性值（可选）</label>
             <div className="flex items-center gap-2">
-              <select
-                value={selectedSoftTypeId}
-                onChange={e => void handleChangeGroupValue(e.target.value)}
-                className="min-w-0 flex-1 h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden"
-                id="soft-type-selector"
-              >
-                {availableSoftTypes.map(st => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))}
+              <select value={currentScope.classificationId || ''} onChange={event => void handleChangeGroupValue(buildSimilarityRuleScopeKey(currentScope.typeId, event.target.value || undefined))} className="min-w-0 flex-1 h-8 text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm px-3 bg-[var(--ty-fill-white-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden" id="rule-classification-selector">
+                <option value="">不限定分类（类型通用）</option>
+                {availableClassifications.map(item => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
               </select>
-              <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>
-                {!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}
-              </button>
+              <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>{!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}</button>
             </div>
-            <span className={`mt-1 text-ty-2xs ${hasPublishedVersion && currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{!hasPublishedVersion ? '草稿分组值 · 配置并发布后方可启用' : currentGroupStatus.enabled ? '已启用 · 应用端使用正式规则' : '已停用 · 不参与计算且不兜底'}</span>
+            <span className={`text-ty-2xs ${hasPublishedVersion && currentGroupStatus.enabled ? 'text-[var(--ty-green-color)]' : 'text-[var(--ty-font-sub-color)]'}`}>{currentClassification ? `限定路径：${currentClassification.path}` : '未选分类时覆盖该类型下全部分类。'} {!hasPublishedVersion ? '配置并发布后方可启用。' : currentGroupStatus.enabled ? '正式规则已启用。' : '正式规则已停用。'}</span>
           </div>
-
         </div>
-        <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
-          当前值：{currentSoftTypeObj?.description}。未命中已启用分组值的零部件不参与相似度搜索，不使用兜底规则。
-        </p>
+        <div className="px-3 py-2 rounded-ty-sm border border-[var(--ty-primary-color)]/20 bg-[var(--ty-primary-lightest-color)]/40 text-ty-2xs text-[var(--ty-font-sub-color)]">
+          当前维护：<strong className="text-[var(--ty-font-main-color)]">{currentScopeLabel}</strong>。应用端先查找同类型同分类的专用规则；没有可用专用规则时再使用类型通用规则。
+        </div>
 
-        {/* 分组级相似度分档：跟随当前分组和规则版本 */}
+        {/* 规则集相似度分档：跟随当前范围和规则版本 */}
         <div className="pt-3 border-t border-[var(--ty-border-color)] flex flex-col xl:flex-row xl:items-start gap-3">
           <div className="xl:w-64 shrink-0">
             <div className="flex items-center gap-1">
@@ -1206,7 +1199,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 content="按保留两位小数后的展示分数判定标签。分档只改变标签，不改变得分、排序或候选资格。"
               />
             </div>
-            <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">跟随当前分组和规则版本；仅配置管理员可修改。</p>
+            <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">跟随当前类型/分类范围和规则版本；仅配置管理员可修改。</p>
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
             <label className="text-ty-xs text-[var(--ty-font-sub-color)] space-y-1">
@@ -1269,7 +1262,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
           <div>
             <span className="text-ty-2xs font-medium text-[var(--ty-font-sub-color)] block">当前规则上下文</span>
             <span className="text-ty-xs font-bold text-[var(--ty-font-main-color)] mt-0.5 block">
-              {editingGroupingConfig.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
+              {currentScopeLabel}
             </span>
           </div>
           <span className="min-h-6 px-2 inline-flex items-center text-ty-2xs font-semibold bg-[var(--ty-fill-color)] text-[var(--ty-font-main-color)] rounded-ty-sm border border-[var(--ty-border-color)]">
@@ -1394,16 +1387,16 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
             <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值尚未配置相似度规则</h3>
+            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前规则集尚未配置字段规则</h3>
             <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-2 leading-relaxed">
-              {editingGroupingConfig.propertyName}“{currentSoftTypeObj?.name.split(' ')[0]}”暂无字段规则，不会沿用其他分组值的配置。请先配置规则并确保参与评分字段权重合计为 100%。
+              “{currentScopeLabel}”暂无字段规则。分类专用与类型通用规则分别维护，请确保当前规则集参与评分字段权重合计为 100%。
             </p>
             <button
               onClick={handleOpenCreateModal}
               className="mt-4 h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              为当前分组值配置规则
+              为当前规则集配置规则
             </button>
           </div>
         ) : filteredRules.length === 0 ? (
@@ -1670,7 +1663,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                   {currentRootTypeObj?.name}
                 </span>
                 <span className="min-h-6 px-2 inline-flex items-center rounded-ty-sm bg-[var(--ty-fill-color)] text-ty-2xs text-[var(--ty-font-main-color)] border border-[var(--ty-border-color)]">
-                  {editingGroupingConfig.propertyName} = {currentSoftTypeObj?.name}
+                  {currentScopeLabel}
                 </span>
               </div>
               <button
@@ -1716,7 +1709,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                     </select>
                   )}
                   <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">
-                    新增字段默认仅用于展示对比，不增加评分权重；同一分组值下一个字段只能配置一条规则。多值属性当前不能参与评分。
+                    新增字段默认仅用于展示对比，不增加评分权重；同一规则集下一个字段只能配置一条规则。多值属性当前不能参与评分。
                   </p>
                   {formPropertyCode === 'core_material' && (
                     <p className="text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">

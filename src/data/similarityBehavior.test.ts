@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateFieldMatchRate, getSimilarityGroupValueOptions, initialFieldRules, mockPartDatabase, runSimilaritySearch } from '../data';
+import { buildSimilarityRuleScopeKey, calculateFieldMatchRate, initialFieldRules, mockPartDatabase, resolveSimilarityRuleScope, runSimilaritySearch } from '../data';
 import { FieldSimilarityRule } from '../types';
 import { createSimilarityVersionSignature, resolveSimilarityTier, validateSimilarityTierConfig } from '../similarityTier';
 
@@ -53,20 +53,35 @@ test('similarity tier uses the displayed two-decimal score and validates boundar
   assert.match(validateSimilarityTierConfig({ ...config, highStart: 85.001 }), /两位小数/);
 });
 
-test('changing the grouping property invalidates the saved draft preview signature', () => {
+test('changing the scope model invalidates the saved draft preview signature', () => {
   const tier = { highStart: 85, mediumStart: 70, configVersion: 'test', lastModifiedAt: '-' };
-  const original = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'business_classification');
-  const changed = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'source_type');
+  const original = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'stage1-role-v1');
+  const changed = createSimilarityVersionSignature(initialFieldRules, 'PART', 'IN_HOUSE', tier, 'stage1-role-v2');
   assert.notEqual(original, changed);
 });
 
-test('group values follow the selected grouping property without reusing another property values', () => {
-  assert.deepEqual(
-    getSimilarityGroupValueOptions('product_family').map(option => option.code),
-    ['FASTENER', 'SHEET_METAL', 'TRANSMISSION']
-  );
-  assert.equal(getSimilarityGroupValueOptions('product_family').some(option => option.id === 'IN_HOUSE'), false);
-  assert.equal(getSimilarityGroupValueOptions('business_classification').some(option => option.id === 'IN_HOUSE'), true);
+test('rule scope resolves classification-specific first and falls back to type-generic', () => {
+  const specificKey = buildSimilarityRuleScopeKey('IN_HOUSE', 'HEX_HEAD_BOLT');
+  const statuses = {
+    IN_HOUSE: { enabled: true, configVersion: 'v2.5.0' },
+    [specificKey]: { enabled: true, configVersion: 'v2.5.0' }
+  };
+  const specific = resolveSimilarityRuleScope('IN_HOUSE', '/紧固件/螺栓/六角头螺栓', initialFieldRules, statuses);
+  assert.equal(specific?.scopeKey, specificKey);
+  assert.equal(specific?.kind, 'CLASSIFICATION_SPECIFIC');
+
+  const generic = resolveSimilarityRuleScope('IN_HOUSE', '/紧固件/螺栓/六角头螺栓', initialFieldRules, {
+    ...statuses,
+    [specificKey]: { enabled: false, configVersion: 'v2.5.0' }
+  });
+  assert.equal(generic?.scopeKey, 'IN_HOUSE');
+  assert.equal(generic?.kind, 'TYPE_GENERIC');
+
+  const unavailable = resolveSimilarityRuleScope('IN_HOUSE', '/紧固件/螺栓/六角头螺栓', initialFieldRules, {
+    IN_HOUSE: { enabled: false, configVersion: 'v2.5.0' },
+    [specificKey]: { enabled: false, configVersion: 'v2.5.0' }
+  });
+  assert.equal(unavailable, null);
 });
 
 test('non-scoring fields are shown without changing scoring counters', () => {

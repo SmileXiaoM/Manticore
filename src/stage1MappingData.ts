@@ -92,8 +92,8 @@ export const initialMappingObjectTypes: MappingObjectType[] = [
     sourceSystemId: 'PLM_WINCHILL',
     sourceSystemName: 'Windchill PLM 核心系统',
     description: '工程物料、标准件、电子元器件及装配体根对象',
-    configuredFieldCount: 99,
-    formalQueryableFieldCount: 99,
+    configuredFieldCount: 100,
+    formalQueryableFieldCount: 100,
     draftFieldCount: 2, // 1 个纯草稿 + 1 个已配置字段的草稿修改
     manticoreDocCount: 38400, // 当前 Manticore 检索底座中的索引记录总数
     configStatus: 'CONFIGURED_WITH_DRAFT',
@@ -339,6 +339,36 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       updatedBy: '李晓华 (数据标准管理员)'
     },
     {
+      id: 'MAP-P05-TYPE',
+      rootTypeId: 'PART',
+      sourceSystemId: 'PLM_WINCHILL',
+      sourceFieldKey: 'iba_business_classification',
+      sourceFieldName: 'businessClassification',
+      sourceDisplayName: 'PLM 业务分类',
+      sourceDataType: 'ENUM',
+      sourceDataTypeLabel: '枚举',
+      manticoreField: 'business_classification',
+      manticoreType: 'STRING',
+      displayTitle: 'PLM 业务分类',
+      displayType: 'ENUM_BADGE',
+      queryCapability: 'QUERY_CONDITION',
+      isQueryCondition: true,
+      isSortable: true,
+      isDisplayInResult: true,
+      isFulltextSearch: false,
+      isUniqueKey: false,
+      similarityBusinessRole: 'TYPE_ATTRIBUTE',
+      defaultColumnWidth: 180,
+      displayOrder: 5,
+      defaultDisplayOrder: 5,
+      configStatus: 'CONFIGURED',
+      hasDraftModification: false,
+      isDataImpactingChange: false,
+      isInFormalQueryBase: true,
+      updatedAt: '2026-08-28 14:20:00',
+      updatedBy: '李晓华 (数据标准管理员)'
+    },
+    {
       id: 'MAP-P05',
       rootTypeId: 'PART',
       sourceSystemId: 'PLM_WINCHILL',
@@ -357,6 +387,8 @@ export const initialFieldMappings: Record<string, FieldMappingItem[]> = {
       isDisplayInResult: true,
       isFulltextSearch: false,
       isUniqueKey: false,
+      similarityBusinessRole: 'CLASSIFICATION_ATTRIBUTE',
+      classificationDisplayMode: 'FULL_PATH',
       defaultColumnWidth: 220,
       displayOrder: 5,
 
@@ -733,6 +765,36 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         updatedBy: '李晓华 (数据标准管理员)'
       },
       {
+        id: 'MAP-P05-TYPE',
+        rootTypeId: 'PART',
+        sourceSystemId: 'PLM_WINCHILL',
+        sourceFieldKey: 'iba_business_classification',
+        sourceFieldName: 'businessClassification',
+        sourceDisplayName: 'PLM 业务分类',
+        sourceDataType: 'ENUM',
+        sourceDataTypeLabel: '枚举',
+        manticoreField: 'business_classification',
+        manticoreType: 'STRING',
+        displayTitle: 'PLM 业务分类',
+        displayType: 'ENUM_BADGE',
+        queryCapability: 'QUERY_CONDITION',
+        isQueryCondition: true,
+        isSortable: true,
+        isDisplayInResult: true,
+        isFulltextSearch: false,
+        isUniqueKey: false,
+        similarityBusinessRole: 'TYPE_ATTRIBUTE',
+        defaultColumnWidth: 180,
+        displayOrder: 5,
+        defaultDisplayOrder: 5,
+        configStatus: 'CONFIGURED',
+        hasDraftModification: false,
+        isDataImpactingChange: false,
+        isInFormalQueryBase: true,
+        updatedAt: '2026-08-28 14:20:00',
+        updatedBy: '李晓华 (数据标准管理员)'
+      },
+      {
         id: 'MAP-P05',
         rootTypeId: 'PART',
         sourceSystemId: 'PLM_WINCHILL',
@@ -751,6 +813,8 @@ export const initialQuerySnapshots: Record<string, QueryBaseSnapshot> = {
         isDisplayInResult: true,
         isFulltextSearch: false,
         isUniqueKey: false,
+        similarityBusinessRole: 'CLASSIFICATION_ATTRIBUTE',
+        classificationDisplayMode: 'FULL_PATH',
         defaultColumnWidth: 220,
         displayOrder: 5,
 
@@ -943,6 +1007,14 @@ export const initialSourceFieldBaselines: Record<string, Record<string, SourceFi
       sourceDataTypeLabel: '分类树',
       isRequired: false
     },
+    iba_business_classification: {
+      sourceFieldKey: 'iba_business_classification',
+      sourceFieldName: 'businessClassification',
+      sourceDisplayName: 'PLM 业务分类',
+      sourceDataType: 'ENUM',
+      sourceDataTypeLabel: '枚举',
+      isRequired: true
+    },
     iba_surface_treatment: {
       sourceFieldKey: 'iba_surface_treatment',
       sourceFieldName: 'surfaceTreatment',
@@ -1031,6 +1103,21 @@ export const mockSourceFieldMetas: Record<string, SourceFieldMeta[]> = {
       unitFamily: '长度 (Length)',
       defaultUnit: 'mm',
       isRequired: false
+    },
+    {
+      sourceFieldKey: 'iba_business_classification',
+      isExampleMetadata: true,
+      sourceTables: ['example_part_master'], attributeKind: 'HARD', isMultiValue: false, hasEnumDefinition: true, enumDefinition: { code: 'EXAMPLE_BUSINESS_CLASSIFICATION', name: 'PLM 业务分类（示例）' },
+      sourceFieldName: 'businessClassification',
+      sourceDisplayName: 'PLM 业务分类',
+      sourceDataType: 'ENUM',
+      sourceDataTypeLabel: '枚举',
+      enumOptions: [
+        { code: 'IN_HOUSE', label: '自制件' },
+        { code: 'PURCHASED', label: '外购件' },
+        { code: 'HEADED', label: '带头类' }
+      ],
+      isRequired: true
     },
     {
       sourceFieldKey: 'iba_classification_path',

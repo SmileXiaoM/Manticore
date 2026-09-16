@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import {
   rootTypeOptions,
-  getSimilarityGroupValueOptions,
+  buildSimilarityRuleScopeKey,
+  parseSimilarityRuleScopeKey,
+  getSimilarityRuleScopeLabel,
   mockFormBaselines,
   runSimilaritySearch,
   formatFieldWithFallback
@@ -30,7 +32,6 @@ import {
   SimilarityBaseline,
   ObjectType,
   SimilarityGroupConfigStatus,
-  SimilarityGroupingConfig,
   SimilarityTierConfig,
   SimilarityTierConfigMap
 } from '../types';
@@ -45,8 +46,6 @@ interface QueryPreviewViewProps {
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   savedTierConfigs: SimilarityTierConfigMap;
   activeTierConfigs: SimilarityTierConfigMap;
-  savedGroupingConfig: SimilarityGroupingConfig;
-  activeGroupingConfig: SimilarityGroupingConfig;
   onPreviewSuccess?: (groupValueId: string, signature: string) => void;
   onNavigate?: (view: string) => void;
 }
@@ -63,7 +62,8 @@ interface LastRunContext {
 }
 
 const getManualBaselineSeed = (softTypeId: string) => {
-  const example = mockFormBaselines.find(item => item.rootTypeId === 'PART' && item.softTypeId === softTypeId);
+  const { typeId } = parseSimilarityRuleScopeKey(softTypeId);
+  const example = mockFormBaselines.find(item => item.rootTypeId === 'PART' && item.softTypeId === typeId);
   return {
     values: { ...(example?.values || {}) },
     units: { ...(example?.units || {}) }
@@ -76,21 +76,18 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   objectConfigStatus,
   savedTierConfigs,
   activeTierConfigs,
-  savedGroupingConfig,
-  activeGroupingConfig,
   onPreviewSuccess,
   onNavigate
 }) => {
   const { notify } = useFeedback();
   // 1. 查询条件状态
   const rootTypeId = 'PART';
-  const [softTypeId, setSoftTypeId] = useState<string>('IN_HOUSE');
+  const [softTypeId, setSoftTypeId] = useState<string>(buildSimilarityRuleScopeKey('IN_HOUSE', 'HEX_HEAD_BOLT'));
   const [manualValues, setManualValues] = useState<Record<string, any>>(() => getManualBaselineSeed('IN_HOUSE').values);
   const [manualUnits, setManualUnits] = useState<Record<string, string>>(() => getManualBaselineSeed('IN_HOUSE').units);
 
   // 调试规则版本
   const [ruleVersion, setRuleVersion] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
-  const currentGroupingConfig = ruleVersion === 'DRAFT' ? savedGroupingConfig : activeGroupingConfig;
 
   // 运行加载态与上一次运行上下文快照
   const [isSearching, setIsSearching] = useState(false);
@@ -107,8 +104,10 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const excludedPage = paginateRows<ExcludedCandidate>(lastRunContext?.searchResult.excludedCandidates || [], page, pageSize);
 
   const availableSoftTypes = useMemo(() => {
-    return getSimilarityGroupValueOptions(currentGroupingConfig.propertyCode);
-  }, [currentGroupingConfig.propertyCode]);
+    const sourceRules = ruleVersion === 'DRAFT' ? savedRules : activeRules;
+    const keys = Array.from(new Set<string>(sourceRules.filter(rule => rule.rootTypeId === rootTypeId).map(rule => rule.softTypeId)));
+    return keys.map(id => ({ id, name: getSimilarityRuleScopeLabel(id) }));
+  }, [activeRules, ruleVersion, savedRules]);
 
   // 切换分组值或版本时，重新载入该上下文的手工试算示例值。
   useEffect(() => {
@@ -142,7 +141,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   // 执行沙盒试算
   const handleRunTrial = () => {
     if (publishedVersionUnavailable) {
-      notify('当前分组值尚无已发布版本，请切换到草稿版本进行沙盒试算。', 'warning');
+      notify('当前规则集尚无已发布版本，请切换到草稿版本进行沙盒试算。', 'warning');
       return;
     }
     const scoreWeight = currentScopeRules
@@ -152,11 +151,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       notify(`暂不能试算：参与评分字段权重合计必须为 100%，当前为 ${scoreWeight}%。`, 'warning');
       return;
     }
+    const { typeId } = parseSimilarityRuleScopeKey(softTypeId);
     const baseline: SimilarityBaseline = {
       type: 'FORM_VALUES',
       requestNo: '手工属性试算',
       rootTypeId,
-      softTypeId,
+      softTypeId: typeId,
       values: manualValues,
       units: manualUnits
     };
@@ -180,7 +180,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       if (ruleVersion === 'DRAFT' && !result.errorCode) {
         onPreviewSuccess?.(
           softTypeId,
-          createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig, savedGroupingConfig.propertyCode)
+          createSimilarityVersionSignature(savedRules, rootTypeId, softTypeId, currentTierConfig, 'stage1_type_and_classification_roles')
         );
         notify('草稿版本试算成功，当前版本已满足发布前预览要求。', 'success');
       }
@@ -249,7 +249,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <button
               onClick={handleRunTrial}
               disabled={isSearching || totalWeight !== 100 || currentScopeRules.length === 0 || publishedVersionUnavailable}
-              title={publishedVersionUnavailable ? '当前分组值尚无已发布版本' : totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
+              title={publishedVersionUnavailable ? '当前规则范围尚无已发布版本' : totalWeight === 100 ? '按所选规则版本进行试算' : `权重合计必须为 100%，当前为 ${totalWeight}%`}
               className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 transition-colors disabled:opacity-50 cursor-pointer"
               id="run-trial-btn"
             >
@@ -272,11 +272,11 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             </div>
           </div>
 
-          {/* 2. 分组属性值 */}
+          {/* 2. 规则集范围 */}
           <div className="flex flex-col gap-1">
             <label className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />
-              {currentGroupingConfig.propertyName}值
+              规则集范围
             </label>
             <select
               value={softTypeId}
@@ -347,7 +347,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               })}
             </div>
           ) : (
-            <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前分组值尚未配置可试算字段。</div>
+            <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前规则集尚未配置可试算字段。</div>
           )}
         </div>
 
@@ -357,7 +357,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <div>
               <span className="text-[var(--ty-font-sub-light-color)]">上下文：</span>
               <span className="font-bold text-[var(--ty-font-main-color)]">
-                {currentRootTypeObj?.name.split(' ')[0]} / {currentGroupingConfig.propertyName} = {currentSoftTypeObj?.name.split(' ')[0]}
+                {currentRootTypeObj?.name.split(' ')[0]} / {currentSoftTypeObj?.name}
               </span>
               <span className={`ml-2 min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${groupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{groupEnabled ? '已启用' : '已停用'}</span>
             </div>
@@ -423,7 +423,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <AlertTriangle className="w-6 h-6" />
           </div>
           <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">尚无已发布版本</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">当前分组值还没有可预览的已发布配置，可切换到“草稿版本”进行沙盒试算。</p>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">当前规则集还没有可预览的已发布配置，可切换到“草稿版本”进行沙盒试算。</p>
         </div>
       ) : !lastRunContext ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center" id="initial-guide-container">
@@ -432,7 +432,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            选择分组属性值和规则版本，填写试算属性后，系统将进行候选召回、门槛过滤与算分模拟。
+            选择类型通用或分类专用规则集及规则版本，填写试算属性后，系统将进行候选召回、门槛过滤与算分模拟。
           </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
@@ -440,7 +440,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前分组值尚未配置相似度规则</h3>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">当前规则集尚未配置相似度规则</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {lastRunContext.searchResult.errorMessage}
           </p>

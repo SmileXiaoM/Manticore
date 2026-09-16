@@ -301,6 +301,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       isDisplayInResult: true,
       isFulltextSearch: isLongText,
       isUniqueKey: false,
+      similarityBusinessRole: 'NONE',
+      classificationDisplayMode: 'FULL_PATH',
       isEnableHyperlink: isLink,
       hyperlinkConfig: {
         urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
@@ -521,6 +523,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
       const isDisplayInRes = custom ? custom.isDisplayInResult : true;
       const isFulltext = custom ? custom.isFulltextSearch : (c.suggestedManticoreType === 'TEXT');
       const isUnique = custom ? custom.isUniqueKey : false;
+      const similarityBusinessRole = custom ? custom.similarityBusinessRole : 'NONE';
+      const classificationDisplayMode = custom ? custom.classificationDisplayMode : 'FULL_PATH';
       const colWidth = custom ? custom.defaultColumnWidth : 150;
       const hyperlink = isEnableHyperlink ? (custom?.hyperlinkConfig ?? {
         urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
@@ -568,6 +572,8 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         isDisplayInResult: isDisplayInRes,
         isFulltextSearch: isFulltext,
         isUniqueKey: isUnique,
+        similarityBusinessRole,
+        classificationDisplayMode,
         defaultColumnWidth: colWidth,
         hyperlinkConfig: hyperlink,
         configStatus: 'DRAFT',

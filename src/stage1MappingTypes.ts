@@ -157,6 +157,10 @@ export type ManticoreFieldType =
   | 'JSON'
   | 'MULTI_VALUE';
 
+// 二阶段相似度规则用于识别作用范围的业务角色。该角色不改变 Manticore 存储类型。
+export type SimilarityBusinessRole = 'NONE' | 'TYPE_ATTRIBUTE' | 'CLASSIFICATION_ATTRIBUTE';
+export type ClassificationDisplayMode = 'CURRENT_VALUE' | 'FULL_PATH' | 'REVERSE_FULL_PATH';
+
 // 超链接配置
 export interface HyperlinkConfig {
   urlTemplate: string;
@@ -200,6 +204,8 @@ export interface FieldMappingItem {
   isSortable: boolean;
   isFulltextSearch?: boolean;
   isUniqueKey?: boolean;
+  similarityBusinessRole?: SimilarityBusinessRole;
+  classificationDisplayMode?: ClassificationDisplayMode;
 
   defaultColumnWidth?: number;
   displayOrder?: number; // 展示顺序（大于0的正整数；允许重复，相同值的属性相邻展示）
@@ -275,6 +281,7 @@ export function checkIsDataImpactingChange(
     isFulltextSearch?: boolean;
     queryCapability?: 'QUERY_CONDITION' | 'FULLTEXT_SEARCH' | 'BOTH' | 'NONE';
     isUniqueKey?: boolean;
+    similarityBusinessRole?: SimilarityBusinessRole;
     sourceFieldKey?: string;
   }
 ): boolean {
@@ -326,6 +333,14 @@ export function checkIsDataImpactingChange(
   if (
     draftOrNew.isUniqueKey !== undefined &&
     draftOrNew.isUniqueKey !== baseField.isUniqueKey
+  ) {
+    return true;
+  }
+
+  // 9. 类型属性/分类属性角色决定二阶段规则作用范围，变更后需重新同步。
+  if (
+    draftOrNew.similarityBusinessRole !== undefined &&
+    draftOrNew.similarityBusinessRole !== (baseField.similarityBusinessRole || 'NONE')
   ) {
     return true;
   }

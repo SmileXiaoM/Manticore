@@ -706,6 +706,10 @@ export const FieldDetailModal: React.FC<FieldDetailModalProps> = ({
               <div><span className="text-[var(--ty-font-sub-light-color)]">展示顺序:</span> <span className="font-mono font-bold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-color)] min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)]">{field.displayOrder ?? field.defaultDisplayOrder ?? '-'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">唯一主键:</span> <span className="text-[var(--ty-font-main-color)]">{field.isUniqueKey ? '是' : '否'}</span></div>
               <div><span className="text-[var(--ty-font-sub-light-color)]">排序支持:</span> <span className="text-[var(--ty-font-main-color)]">{field.isSortable ? '支持' : '不支持'}</span></div>
+              <div><span className="text-[var(--ty-font-sub-light-color)]">相似度范围角色:</span> <span className="text-[var(--ty-font-main-color)]">{field.similarityBusinessRole === 'TYPE_ATTRIBUTE' ? '类型属性' : field.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' ? '分类属性' : '普通属性'}</span></div>
+              {field.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' && (
+                <div><span className="text-[var(--ty-font-sub-light-color)]">分类显示方式:</span> <span className="text-[var(--ty-font-main-color)]">{field.classificationDisplayMode === 'CURRENT_VALUE' ? '当前值' : field.classificationDisplayMode === 'REVERSE_FULL_PATH' ? '反向完整路径' : '完整路径'}</span></div>
+              )}
             </div>
           </div>
 

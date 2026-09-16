@@ -468,7 +468,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       {/* 字段配置主表格 (PLM 来源字段与 Manticore 检索字段相邻排列) */}
       <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="ty-data-table w-full min-w-[1580px] text-left text-ty-xs">
+          <table className="ty-data-table w-full min-w-[1740px] text-left text-ty-xs">
             <thead className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)] font-semibold sticky top-0 z-10">
               <tr>
                 <th className="w-10 py-2 px-2 text-center">
@@ -487,6 +487,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 <th className="min-w-40 py-2 px-2">前台显示名称</th>
                 <th className="min-w-24 py-2 px-2 text-center"><span className="inline-flex items-center gap-1">展示顺序<HelpTooltip label="查看展示顺序规则" content="数字越小越靠前；允许相同顺序号，相同顺序的属性会相邻展示。" /></span></th>
                 <th className="min-w-32 py-2 px-2">PLM 业务类型</th>
+                <th className="min-w-40 py-2 px-2">相似度范围角色</th>
                 <th className="min-w-24 py-2 px-2">底层类型</th>
                 <th className="min-w-28 py-2 px-2">查询能力</th>
                 <th className="w-16 py-2 px-2 text-center">排序</th>
@@ -562,6 +563,22 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                       {field.defaultUnit && (
                         <span className="text-ty-2xs font-mono text-[var(--ty-font-sub-light-color)] ml-1">({field.defaultUnit})</span>
                       )}
+                    </td>
+
+                    {/* 类型/分类属性是二阶段规则范围角色，不是底层存储类型 */}
+                    <td className="py-2 px-2 break-words">
+                      {(() => {
+                        const role = field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE';
+                        if (role === 'TYPE_ATTRIBUTE') {
+                          return <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-blue-lightest-color)] text-[var(--ty-blue-color)] border border-[var(--ty-blue-color)]/30 font-medium">类型属性</span>;
+                        }
+                        if (role === 'CLASSIFICATION_ATTRIBUTE') {
+                          const mode = field.draftData?.classificationDisplayMode ?? field.classificationDisplayMode ?? 'FULL_PATH';
+                          const modeLabel = mode === 'CURRENT_VALUE' ? '当前值' : mode === 'REVERSE_FULL_PATH' ? '反向路径' : '完整路径';
+                          return <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border border-[var(--ty-green-color)]/30 font-medium">分类属性 · {modeLabel}</span>;
+                        }
+                        return <span className="text-[var(--ty-font-sub-light-color)]">普通属性</span>;
+                      })()}
                     </td>
 
                     {/* 5. Manticore 底层存储类型 */}
@@ -670,7 +687,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={14} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
+                  <td colSpan={15} className="py-12 text-center text-[var(--ty-font-sub-light-color)]">
                     <FileSpreadsheet className="w-8 h-8 text-[var(--ty-icon-lighter-color)] mx-auto mb-2" />
                     未找到符合条件的字段映射记录
                   </td>

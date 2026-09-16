@@ -15,7 +15,8 @@ import {
 import {
   rootTypeOptions,
   softTypeOptions,
-  getSimilarityGroupValueOptions,
+  resolveSimilarityRuleScope,
+  parseSimilarityRuleScopeKey,
   mockFormBaselines,
   mockPartDatabase,
   stage1MappedFields,
@@ -28,7 +29,6 @@ import {
   SearchRunResult,
   SimilarityBaseline,
   SimilarityGroupConfigStatus,
-  SimilarityGroupingConfig,
   SimilarityTierConfigMap
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
@@ -40,7 +40,6 @@ interface ClientFindSimilarViewProps {
   rules: FieldSimilarityRule[];
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   tierConfigs: SimilarityTierConfigMap;
-  groupingConfig: SimilarityGroupingConfig;
   onNavigate?: (view: string) => void;
 }
 
@@ -59,7 +58,6 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   rules,
   objectConfigStatus,
   tierConfigs,
-  groupingConfig,
   onNavigate
 }) => {
   const { notify } = useFeedback();
@@ -125,20 +123,22 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
       notify('未找到对应的已有物料。', 'warning');
       return;
     }
-    if (objectConfigStatus[matchedPart.softTypeId]?.enabled !== true) {
+    const resolvedScope = resolveSimilarityRuleScope(matchedPart.softTypeId, matchedPart.classificationPath, rules, objectConfigStatus);
+    if (!resolvedScope) {
       setSoftTypeId(matchedPart.softTypeId);
-      setSearchResult({ reference: matchedPart, baselineType: 'EXISTING_PART', scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '该物料所属分组值已停用或尚未发布启用。' });
-      notify('该物料所属分组值未启用相似度规则，因此不参与搜索。', 'warning');
+      setSearchResult({ reference: matchedPart, baselineType: 'EXISTING_PART', scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '该物料的类型及分类均没有可用的已发布规则。' });
+      notify('未解析到可用规则，因此不执行相似度搜索。', 'warning');
       return;
     }
-    runApplicationSearch({ type: 'EXISTING_PART', objectId: matchedPart.objectId }, matchedPart.softTypeId);
+    runApplicationSearch({ type: 'EXISTING_PART', objectId: matchedPart.objectId }, resolvedScope.scopeKey);
   };
 
   const handleAttributeSearch = () => {
-    if (objectConfigStatus[attributeSoftTypeId]?.enabled !== true) {
+    const resolvedScope = resolveSimilarityRuleScope(attributeSoftTypeId, String(attributeValues.category_path || ''), rules, objectConfigStatus);
+    if (!resolvedScope) {
       setSoftTypeId(attributeSoftTypeId);
-      setSearchResult({ reference: null, baselineType: 'FORM_VALUES', scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '所选分组值已停用或尚未发布启用。' });
-      notify('所选分组值未启用相似度规则，因此不能按属性查询。', 'warning');
+      setSearchResult({ reference: null, baselineType: 'FORM_VALUES', scoredCandidates: [], excludedCandidates: [], errorCode: 'NO_RULES', errorMessage: '所填类型及分类均没有可用的已发布规则。' });
+      notify('未解析到可用规则，因此不能按属性查询。', 'warning');
       return;
     }
     runApplicationSearch({
@@ -149,7 +149,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
       softTypeId: attributeSoftTypeId,
       values: attributeValues,
       units: attributeUnits
-    }, attributeSoftTypeId);
+    }, resolvedScope.scopeKey);
   };
 
   const handleFormSearch = () => {
@@ -158,8 +158,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
       notify('当前业务表单数据不可用。', 'warning');
       return;
     }
-    if (objectConfigStatus[formItem.softTypeId]?.enabled !== true) {
-      notify('当前表单所属分组值未启用相似度规则，因此不参与搜索。', 'warning');
+    const resolvedScope = resolveSimilarityRuleScope(formItem.softTypeId, String(formItem.values.category_path || ''), rules, objectConfigStatus);
+    if (!resolvedScope) {
+      notify('当前表单的类型及分类均没有可用规则；这不影响保存表单。', 'warning');
       return;
     }
     const baseline: SimilarityBaseline = {
@@ -173,7 +174,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     };
     setIsFormSearching(true);
     setTimeout(() => {
-      const result = runSimilaritySearch(rootTypeId, formItem.softTypeId, baseline, rules, undefined, getSimilarityTierConfig(tierConfigs, formItem.softTypeId));
+      const result = runSimilaritySearch(rootTypeId, resolvedScope.scopeKey, baseline, rules, undefined, getSimilarityTierConfig(tierConfigs, resolvedScope.scopeKey));
       setFormSearchResult(result);
       setIsFormSearching(false);
       setIsFormResultOpen(true);
@@ -202,6 +203,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
     setIsFormExampleOpen(false);
   };
 
+  const handleConfirmForm = () => {
+    notify(`申请单 ${currentForm?.requestNo || ''} 已按示意保存；是否存在相似度规则不影响业务表单保存。`, 'success');
+    handleCloseFormExample();
+  };
+
   const handleReset = () => {
     setSoftTypeId('IN_HOUSE');
     setExistingPartId('PART-2026-000100');
@@ -218,10 +224,11 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
   // 动态展示列 (由一阶段已映射关键字段驱动)
   const keyDisplayColumns = useMemo(() => {
+    const displayTypeId = parseSimilarityRuleScopeKey(softTypeId).typeId;
     return stage1MappedFields.filter(
       f =>
         f.rootTypeId === rootTypeId &&
-        (!f.softTypeId || f.softTypeId === softTypeId) &&
+        (!f.softTypeId || f.softTypeId === displayTypeId) &&
         f.isKeyDisplayColumn
     );
   }, [rootTypeId, softTypeId]);
@@ -282,23 +289,26 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
   const currentRootTypeObj = rootTypeOptions.find(rt => rt.id === rootTypeId);
   const currentForm = mockFormBaselines.find(form => form.id === selectedFormId);
   const availableFormBaselines = mockFormBaselines.filter(form => form.rootTypeId === rootTypeId);
-  const availableGroupValues = getSimilarityGroupValueOptions(groupingConfig.propertyCode);
+  const availableGroupValues = softTypeOptions.filter(option => option.rootTypeId === rootTypeId);
   const detectedExistingPart = mockPartDatabase.find(part => {
     const lookup = existingPartId.trim().toUpperCase();
     return part.rootTypeId === rootTypeId && Boolean(lookup) && (part.objectId.toUpperCase() === lookup || part.requestCode.toUpperCase() === lookup);
   });
   const detectedSoftType = softTypeOptions.find(option => option.id === detectedExistingPart?.softTypeId);
   const formSoftType = softTypeOptions.find(option => option.id === currentForm?.softTypeId);
-  const formGroupEnabled = currentForm ? objectConfigStatus[currentForm.softTypeId]?.enabled === true : false;
-  const attributeGroupEnabled = objectConfigStatus[attributeSoftTypeId]?.enabled === true;
+  const existingResolvedScope = detectedExistingPart ? resolveSimilarityRuleScope(detectedExistingPart.softTypeId, detectedExistingPart.classificationPath, rules, objectConfigStatus) : null;
+  const formResolvedScope = currentForm ? resolveSimilarityRuleScope(currentForm.softTypeId, String(currentForm.values.category_path || ''), rules, objectConfigStatus) : null;
+  const attributeResolvedScope = resolveSimilarityRuleScope(attributeSoftTypeId, String(attributeValues.category_path || ''), rules, objectConfigStatus);
+  const formGroupEnabled = Boolean(formResolvedScope);
+  const attributeGroupEnabled = Boolean(attributeResolvedScope);
   const attributeInputRules = Array.from(new Map<string, FieldSimilarityRule>(
     rules
-      .filter(rule => rule.rootTypeId === rootTypeId && rule.softTypeId === attributeSoftTypeId && rule.enabled && rule.isAppEndActive)
+      .filter(rule => rule.rootTypeId === rootTypeId && rule.softTypeId === attributeResolvedScope?.scopeKey && rule.enabled && rule.isAppEndActive)
       .map(rule => [rule.propertyCode, rule])
   ).values());
   const formInputRules = Array.from(new Map<string, FieldSimilarityRule>(
     rules
-      .filter(rule => rule.rootTypeId === rootTypeId && rule.softTypeId === currentForm?.softTypeId && rule.enabled && rule.isAppEndActive)
+      .filter(rule => rule.rootTypeId === rootTypeId && rule.softTypeId === formResolvedScope?.scopeKey && rule.enabled && rule.isAppEndActive)
       .map(rule => [rule.propertyCode, rule])
   ).values());
 
@@ -362,9 +372,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                 <input value={existingPartId} onChange={event => setExistingPartId(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') handleExistingSearch(); }} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden" placeholder="例如 PART-2026-000100" id="client-existing-part-input" />
               </label>
               <div className="flex flex-col gap-1">
-                <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />识别到的{groupingConfig.propertyName}</span>
+                <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />识别到的规则范围</span>
                 <div className="h-8 px-3 flex items-center gap-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-ty-xs">
-                  {detectedExistingPart ? <><strong>{detectedSoftType?.name || detectedExistingPart.softTypeId}</strong><span className="text-[var(--ty-font-sub-light-color)]">由已有对象自动识别</span><span className={`ml-auto min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${objectConfigStatus[detectedExistingPart.softTypeId]?.enabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{objectConfigStatus[detectedExistingPart.softTypeId]?.enabled ? '规则已启用' : '规则未启用'}</span></> : <span className="text-[var(--ty-font-sub-light-color)]">输入有效对象后自动显示</span>}
+                  {detectedExistingPart ? <><strong>{existingResolvedScope?.label || detectedSoftType?.name || detectedExistingPart.softTypeId}</strong><span className="text-[var(--ty-font-sub-light-color)]">由类型与分类自动解析</span><span className={`ml-auto min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${existingResolvedScope ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{existingResolvedScope ? existingResolvedScope.kind === 'CLASSIFICATION_SPECIFIC' ? '分类专用' : '类型通用' : '无可用规则'}</span></> : <span className="text-[var(--ty-font-sub-light-color)]">输入有效对象后自动显示</span>}
                 </div>
               </div>
             </div>
@@ -384,7 +394,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                 <div className="h-8 px-3 flex items-center justify-between rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-ty-xs font-medium"><span>{currentRootTypeObj?.name}</span><span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">固定范围</span></div>
               </div>
               <label className="flex flex-col gap-1">
-                <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />{groupingConfig.propertyName}值</span>
+                <span className="text-ty-xs font-semibold text-[var(--ty-font-sub-color)] flex items-center gap-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" />类型属性值</span>
                 <select value={attributeSoftTypeId} onChange={event => handleAttributeGroupChange(event.target.value)} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden">
                   {availableGroupValues.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
                 </select>
@@ -393,7 +403,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
             <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
               <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex items-center justify-between gap-2">
                 <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">查询属性</span>
-                <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border text-ty-2xs ${attributeGroupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{attributeGroupEnabled ? '规则已启用' : '规则未启用 · 不参与查询'}</span>
+                <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border text-ty-2xs ${attributeGroupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{attributeResolvedScope ? `将使用：${attributeResolvedScope.kind === 'CLASSIFICATION_SPECIFIC' ? '分类专用规则' : '类型通用规则'}` : '无可用规则'}</span>
               </div>
               {attributeInputRules.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3 p-3">
@@ -403,13 +413,13 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                     return <label key={rule.propertyCode} className="min-w-0"><span className="mb-1 flex items-center justify-between gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]"><span>{rule.fieldName}</span><span className={rule.isScoreActive ? 'text-[var(--ty-primary-color)]' : 'text-[var(--ty-font-sub-light-color)]'}>{rule.isScoreActive ? '参与评分' : '仅展示对比'}</span></span><div className="relative"><input type={isNumeric ? 'number' : 'text'} step={isNumeric ? 'any' : undefined} value={attributeValues[rule.propertyCode] ?? ''} onChange={event => setAttributeValues(values => ({ ...values, [rule.propertyCode]: event.target.value }))} className={`w-full h-8 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] px-3 text-ty-xs text-[var(--ty-font-main-color)] focus:border-[var(--ty-primary-color)] focus:outline-hidden ${unit ? 'pr-12' : ''}`} placeholder={`输入${rule.fieldName}`} />{unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ty-2xs text-[var(--ty-font-sub-light-color)]">{unit}</span>}</div></label>;
                   })}
                 </div>
-              ) : <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">所选分组值尚无可用的已发布字段规则。</div>}
+              ) : <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前类型及分类尚无可用的已发布字段规则。</div>}
             </div>
             <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm flex flex-wrap items-center justify-between gap-2">
               <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">直接使用填写的属性作为查询基准，不创建或修改业务对象。</span>
               <div className="flex items-center gap-2">
                 <button onClick={handleReset} className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-sub-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer"><RotateCcw className="w-3.5 h-3.5" />重置</button>
-                <button onClick={handleAttributeSearch} disabled={isSearching || !attributeGroupEnabled || attributeInputRules.length === 0} title={attributeGroupEnabled ? '按填写的属性条件查找相似件' : '所选分组值未启用规则'} className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 disabled:opacity-50 cursor-pointer" id="client-attribute-search-btn"><Search className="w-3.5 h-3.5" />{isSearching ? '正在查找...' : '查找相似件'}</button>
+                <button onClick={handleAttributeSearch} disabled={isSearching || !attributeGroupEnabled || attributeInputRules.length === 0} title={attributeGroupEnabled ? '按填写的属性条件查找相似件' : '当前类型及分类没有可用规则'} className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 disabled:opacity-50 cursor-pointer" id="client-attribute-search-btn"><Search className="w-3.5 h-3.5" />{isSearching ? '正在查找...' : '查找相似件'}</button>
               </div>
             </div>
           </>
@@ -431,7 +441,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">{queryMode === 'EXISTING_OBJECT' ? '输入已有对象并点击“查找相似件”' : '填写属性条件并点击“查找相似件”'}</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            {queryMode === 'EXISTING_OBJECT' ? '系统读取该对象的已索引属性，按其分组属性值自动应用已发布且启用的规则。' : '系统使用当前填写的属性作为查询基准，不创建或修改业务对象。'}
+            {queryMode === 'EXISTING_OBJECT' ? '系统读取该对象的类型与分类，优先应用分类专用规则，否则使用类型通用规则。' : '系统使用当前填写的属性作为查询基准，不创建或修改业务对象。'}
           </p>
         </div>
       ) : searchResult.errorCode === 'NO_RULES' ? (
@@ -439,7 +449,7 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3">
             <Info className="w-6 h-6" />
           </div>
-          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前分组值尚未启用相似度规则</h3>
+          <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">当前类型及分类没有可用规则</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
             {searchResult.errorMessage}
           </p>
@@ -665,9 +675,9 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
 
               <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm flex flex-wrap items-center gap-x-6 gap-y-1 text-ty-xs">
                 <span className="inline-flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">当前对象：</span><strong>{currentRootTypeObj?.name}</strong></span>
-                <span className="inline-flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">{groupingConfig.propertyName}：</span><strong>{formSoftType?.name || currentForm?.softTypeId || '--'}</strong></span>
-                <span className="text-[var(--ty-font-sub-color)]">由当前表单内容自动识别</span>
-                <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${formGroupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{formGroupEnabled ? '规则已启用' : '规则未启用 · 不参与查询'}</span>
+                <span className="inline-flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--ty-font-sub-light-color)]" /><span className="text-[var(--ty-font-sub-color)]">类型属性值：</span><strong>{formSoftType?.name || currentForm?.softTypeId || '--'}</strong></span>
+                <span className="text-[var(--ty-font-sub-color)]">由当前表单的类型与分类自动解析</span>
+                <span className={`min-h-6 px-2 inline-flex items-center rounded-ty-xs border ${formGroupEnabled ? 'bg-[var(--ty-green-lightest-color)] text-[var(--ty-green-color)] border-[var(--ty-green-color)]/30' : 'bg-[var(--ty-fill-color)] text-[var(--ty-font-sub-color)] border-[var(--ty-border-color)]'}`}>{formResolvedScope ? `将使用：${formResolvedScope.kind === 'CLASSIFICATION_SPECIFIC' ? '分类专用规则' : '类型通用规则'}` : '无可用规则 · 仍可保存'}</span>
               </div>
 
               <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
@@ -688,24 +698,25 @@ export const ClientFindSimilarView: React.FC<ClientFindSimilarViewProps> = ({
                       </label>
                     ))}
                   </div>
-                ) : <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前表单所属分组值尚无可用字段规则。</div>}
+                ) : <div className="p-6 text-center text-ty-xs text-[var(--ty-font-sub-color)]">当前表单没有可用字段规则；可以继续保存，但不显示查找相似件入口。</div>}
               </div>
             </div>
 
             <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3">
-              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">使用当前已填写字段作为查询基准，不保存或修改表单数据。</span>
+              <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">查找相似件只读取当前已填写字段；确认按钮按正常业务表单保存。</span>
               <div className="flex items-center gap-2">
                 <button onClick={handleCloseFormExample} className="h-8 px-4 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer">取消</button>
-                <button
+                <button onClick={handleConfirmForm} className="h-8 px-4 text-ty-xs font-semibold text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] cursor-pointer">确认</button>
+                {formResolvedScope && formInputRules.length > 0 && <button
                   onClick={handleFormSearch}
                   disabled={isFormSearching || !formGroupEnabled || formInputRules.length === 0}
-                  title={formGroupEnabled ? '使用当前表单字段查找相似件' : '当前表单所属分组值未启用规则'}
+                  title="使用当前表单字段查找相似件"
                   className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 disabled:opacity-50 cursor-pointer"
                   id="form-embedded-search-btn"
                 >
                   <Search className="w-3.5 h-3.5" />
                   {isFormSearching ? '正在查找...' : '查找相似件'}
-                </button>
+                </button>}
               </div>
             </div>
           </section>

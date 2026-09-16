@@ -9,6 +9,7 @@ export const DEFAULT_SIMILARITY_TIER: SimilarityTierConfig = {
 
 export const initialSimilarityTierConfigs: SimilarityTierConfigMap = {
   IN_HOUSE: { ...DEFAULT_SIMILARITY_TIER, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
+  'IN_HOUSE::CLASS::HEX_HEAD_BOLT': { ...DEFAULT_SIMILARITY_TIER, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
   PURCHASED: { ...DEFAULT_SIMILARITY_TIER, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
   HEADED: { ...DEFAULT_SIMILARITY_TIER, configVersion: 'v1.0.0' },
   STAMPING_UNCONFIGURED: { ...DEFAULT_SIMILARITY_TIER }
@@ -51,13 +52,13 @@ export function formatSimilarityTierRange(config: Pick<SimilarityTierConfig, 'hi
 export function createSimilarityVersionSignature(
   rules: FieldSimilarityRule[],
   rootTypeId: string,
-  groupValueId: string,
+  scopeKey: string,
   tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'>,
-  groupingPropertyCode: string
+  scopeModelVersion: string
 ): string {
   return JSON.stringify({
-    rules: normalizeRulesForCompare(rules, rootTypeId, groupValueId),
-    groupingPropertyCode,
+    rules: normalizeRulesForCompare(rules, rootTypeId, scopeKey),
+    scopeModelVersion,
     tier: {
       highStart: Number(tierConfig.highStart.toFixed(2)),
       mediumStart: Number(tierConfig.mediumStart.toFixed(2))

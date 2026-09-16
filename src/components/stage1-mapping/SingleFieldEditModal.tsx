@@ -45,7 +45,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 }) => {
   const isEditingExisting = !!editingField;
   const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
-  const schemaLocked = Boolean(currentRootType.serviceStarted && isEditingExisting);
+  // 发布后锁定结构角色；重置会把字段转回草稿，从而允许重新指定。
+  const schemaLocked = Boolean(currentRootType.serviceStarted && isEditingConfigured);
 
   const prevOpenRef = useRef(false);
   const prevEditingFieldIdRef = useRef<string | null>(null);
@@ -64,6 +65,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     isDisplayInResult: true,
     isFulltextSearch: false,
     isUniqueKey: false,
+    similarityBusinessRole: 'NONE',
+    classificationDisplayMode: 'FULL_PATH',
     isEnableHyperlink: false,
     hyperlinkConfig: {
       urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
@@ -135,6 +138,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isDisplayInResult: initialDisplayInResult,
         isFulltextSearch: initialFulltext,
         isUniqueKey: draft?.isUniqueKey ?? editingField.isUniqueKey ?? false,
+        similarityBusinessRole: draft?.similarityBusinessRole ?? editingField.similarityBusinessRole ?? 'NONE',
+        classificationDisplayMode: draft?.classificationDisplayMode ?? editingField.classificationDisplayMode ?? 'FULL_PATH',
         isEnableHyperlink: initialEnableHyperlink,
         hyperlinkConfig: draft?.hyperlinkConfig ?? editingField.hyperlinkConfig ?? {
           urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
@@ -179,6 +184,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isDisplayInResult: true,
         isFulltextSearch: isLongText,
         isUniqueKey: false,
+        similarityBusinessRole: 'NONE',
+        classificationDisplayMode: 'FULL_PATH',
         isEnableHyperlink: false,
         hyperlinkConfig: {
           urlTemplate: 'https://plm.internal.corp/app/view?oid={oid}&type={otype}',
@@ -250,7 +257,9 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         manticoreType: suggestedType,
         displayType: suggestedDisplay,
         isSortable: suggestedSortable,
-        isFulltextSearch: suggestedFulltext
+        isFulltextSearch: suggestedFulltext,
+        similarityBusinessRole: 'NONE',
+        classificationDisplayMode: 'FULL_PATH'
       }));
     } else {
       setFormData(prev => ({ ...prev, selectedSourceKey: key }));
@@ -261,7 +270,11 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     setFormData(prev => ({
       ...prev,
       ...partial,
-      ...(schemaLocked ? { manticoreType: prev.manticoreType, isUniqueKey: prev.isUniqueKey } : {})
+      ...(schemaLocked ? {
+        manticoreType: prev.manticoreType,
+        isUniqueKey: prev.isUniqueKey,
+        similarityBusinessRole: prev.similarityBusinessRole
+      } : {})
     }));
   };
 
@@ -296,6 +309,18 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     if (formData.isEnableHyperlink || formData.displayType === 'LINK') {
       if (!formData.hyperlinkConfig?.urlTemplate?.trim()) {
         newErrors.urlTemplate = '超链接 URL 模板不能为空';
+      }
+    }
+
+    if (formData.similarityBusinessRole !== 'NONE') {
+      const duplicatedRole = existingFields.find(field => {
+        if (field.rootTypeId !== currentRootType.id || field.id === editingField?.id) return false;
+        const effectiveRole = field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE';
+        return effectiveRole === formData.similarityBusinessRole;
+      });
+      if (duplicatedRole) {
+        const roleName = formData.similarityBusinessRole === 'TYPE_ATTRIBUTE' ? '类型属性' : '分类属性';
+        newErrors.similarityBusinessRole = `当前对象类型已由“${duplicatedRole.displayTitle}”担任${roleName}，每种角色最多指定一个。`;
       }
     }
 
@@ -345,6 +370,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isFulltextSearch: formData.isFulltextSearch,
         queryCapability: derivedQueryCapability,
         isUniqueKey: formData.isUniqueKey,
+        similarityBusinessRole: formData.similarityBusinessRole,
         sourceFieldKey: meta.sourceFieldKey
       }
     );
@@ -366,6 +392,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
           isDisplayInResult: formData.isDisplayInResult,
           isFulltextSearch: formData.isFulltextSearch,
           isUniqueKey: formData.isUniqueKey,
+          similarityBusinessRole: formData.similarityBusinessRole,
+          classificationDisplayMode: formData.classificationDisplayMode,
           defaultColumnWidth: formData.defaultColumnWidth,
           hyperlinkConfig: finalHyperlinkConfig,
           isDataImpactingChange: isDataImpacting
@@ -402,6 +430,8 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
         isDisplayInResult: formData.isDisplayInResult,
         isFulltextSearch: formData.isFulltextSearch,
         isUniqueKey: formData.isUniqueKey,
+        similarityBusinessRole: formData.similarityBusinessRole,
+        classificationDisplayMode: formData.classificationDisplayMode,
         defaultColumnWidth: formData.defaultColumnWidth,
         hyperlinkConfig: finalHyperlinkConfig,
         configStatus: 'DRAFT',

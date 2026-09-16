@@ -28,8 +28,7 @@ import {
   initialAlignmentRules,
   initialThresholdRules,
   initialHardRules,
-  initialCategoryCoverages,
-  similarityGroupingDefinition
+  initialCategoryCoverages
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
 import { getCurrentTargetSyncRecords, initialTargetSyncRecords, TargetSyncRecord } from './data/targetSyncRecords';
@@ -50,7 +49,6 @@ import {
   CategoryCoverage,
   ChangeRecord,
   SimilarityGroupConfigStatus,
-  SimilarityGroupingConfig,
   SimilarityTierConfigMap,
   isObjectRulesModified,
   restoreObjectRules
@@ -68,15 +66,6 @@ export default function App() {
   const [editingTierConfigs, setEditingTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
   const [savedTierConfigs, setSavedTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
   const [activeTierConfigs, setActiveTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
-  const initialGroupingConfig: SimilarityGroupingConfig = {
-    propertyCode: similarityGroupingDefinition.propertyCode,
-    propertyName: similarityGroupingDefinition.propertyName,
-    configVersion: 'v2.5.0',
-    lastModifiedAt: '2026-07-15 16:30:12'
-  };
-  const [editingGroupingConfig, setEditingGroupingConfig] = useState<SimilarityGroupingConfig>(() => ({ ...initialGroupingConfig }));
-  const [savedGroupingConfig, setSavedGroupingConfig] = useState<SimilarityGroupingConfig>(() => ({ ...initialGroupingConfig }));
-  const [activeGroupingConfig, setActiveGroupingConfig] = useState<SimilarityGroupingConfig>(() => ({ ...initialGroupingConfig }));
   const [previewedSavedSignatures, setPreviewedSavedSignatures] = useState<Record<string, string>>({});
 
   // 4. 配置变更审计记录
@@ -212,8 +201,7 @@ export default function App() {
       const saved = savedTierConfigs[groupValueId];
       return editing?.highStart !== saved?.highStart || editing?.mediumStart !== saved?.mediumStart;
     });
-    const hasGroupingChanges = editingGroupingConfig.propertyCode !== savedGroupingConfig.propertyCode;
-    const isModified = hasRuleChanges || hasTierChanges || hasGroupingChanges;
+    const isModified = hasRuleChanges || hasTierChanges;
 
     if (currentView === 'field-rules' && newView !== 'field-rules' && isModified) {
       setPendingView(newView);
@@ -229,7 +217,6 @@ export default function App() {
     const restored = restoreObjectRules(editingFieldRules, savedFieldRules, 'PART');
     setEditingFieldRules(restored);
     setEditingTierConfigs(structuredClone(savedTierConfigs));
-    setEditingGroupingConfig({ ...savedGroupingConfig });
     if (pendingView) {
       setCurrentView(pendingView);
     }
@@ -245,6 +232,7 @@ export default function App() {
   // Explicit independent configuration status per object type
   const [objectConfigStatus, setObjectConfigStatus] = useState<Record<string, SimilarityGroupConfigStatus>>({
     IN_HOUSE: { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
+    'IN_HOUSE::CLASS::HEX_HEAD_BOLT': { enabled: true, configVersion: 'v2.5.0', lastModifiedAt: '2026-07-15 16:30:12' },
     PURCHASED: { enabled: true, configVersion: 'v1.0.0', lastModifiedAt: '2026-07-12 11:20:00' },
     HEADED: { enabled: false, configVersion: 'v1.0.0', lastModifiedAt: '-' },
     STAMPING_UNCONFIGURED: { enabled: false, configVersion: '-', lastModifiedAt: '-' },
@@ -353,12 +341,6 @@ export default function App() {
                 activeTierConfigs={activeTierConfigs}
                 onUpdateActiveTierConfigs={setActiveTierConfigs}
                 previewedSavedSignatures={previewedSavedSignatures}
-                editingGroupingConfig={editingGroupingConfig}
-                onUpdateEditingGroupingConfig={setEditingGroupingConfig}
-                savedGroupingConfig={savedGroupingConfig}
-                onUpdateSavedGroupingConfig={setSavedGroupingConfig}
-                activeGroupingConfig={activeGroupingConfig}
-                onUpdateActiveGroupingConfig={setActiveGroupingConfig}
                 onNavigate={handleNavigate}
               />
             )}
@@ -374,8 +356,6 @@ export default function App() {
                 objectConfigStatus={objectConfigStatus}
                 savedTierConfigs={savedTierConfigs}
                 activeTierConfigs={activeTierConfigs}
-                savedGroupingConfig={savedGroupingConfig}
-                activeGroupingConfig={activeGroupingConfig}
                 onPreviewSuccess={(groupValueId, signature) => setPreviewedSavedSignatures(previous => ({ ...previous, [groupValueId]: signature }))}
                 onNavigate={handleNavigate}
               />
@@ -386,7 +366,6 @@ export default function App() {
                 rules={activeFieldRules}
                 objectConfigStatus={objectConfigStatus}
                 tierConfigs={activeTierConfigs}
-                groupingConfig={activeGroupingConfig}
                 onNavigate={handleNavigate}
               />
             )}
