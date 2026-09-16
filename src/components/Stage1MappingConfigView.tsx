@@ -26,7 +26,10 @@ import { FieldMappingListView } from './stage1-mapping/FieldMappingListView';
 import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
 import { BatchImportModal } from './stage1-mapping/BatchImportModal';
 import { BatchDisplayOrderModal } from './stage1-mapping/BatchDisplayOrderModal';
-import { BatchFieldCapabilityChanges } from './stage1-mapping/BatchFieldCapabilityModal';
+import {
+  BatchFieldCapabilityChanges,
+  BatchFieldCapabilityUpdate
+} from './stage1-mapping/BatchFieldCapabilityModal';
 import {
   PublishConfigModal,
   Stage1QueryPreviewModal,
@@ -307,22 +310,29 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
   };
 
   // 从外层字段列表批量修改展示与检索能力；所有修改先进入当前根类型草稿。
-  const handleBatchUpdateCapabilities = (fieldIds: string[], changes: BatchFieldCapabilityChanges) => {
-    if (fieldIds.length === 0 || Object.keys(changes).length === 0) return;
-    const selectedIds = new Set(fieldIds);
+  const handleBatchUpdateCapabilities = (updates: BatchFieldCapabilityUpdate[]) => {
+    if (updates.length === 0) return;
+    const updateByFieldId = new Map(updates.map(update => [update.fieldId, update]));
     const textSkippedCount = fieldMappings.filter(field =>
-      selectedIds.has(field.id) &&
+      updateByFieldId.has(field.id) &&
       (field.draftData?.manticoreType ?? field.manticoreType) === 'TEXT' &&
-      changes.isSortable === true
+      updateByFieldId.get(field.id)?.isSortable === true
     ).length;
 
     commitRuntime(previous => {
       const nextMappings = previous.fieldMappings.map(field => {
-        if (field.rootTypeId !== currentRootType.id || !selectedIds.has(field.id)) return field;
+        const update = updateByFieldId.get(field.id);
+        if (field.rootTypeId !== currentRootType.id || !update) return field;
 
         const currentEffective = { ...field, ...(field.draftData || {}) };
-        const appliedChanges: BatchFieldCapabilityChanges = { ...changes };
-        if (currentEffective.manticoreType === 'TEXT' && changes.isSortable === true) {
+        const appliedChanges: BatchFieldCapabilityChanges = {
+          defaultColumnWidth: update.defaultColumnWidth,
+          isDisplayInResult: update.isDisplayInResult,
+          isFulltextSearch: update.isFulltextSearch,
+          isQueryCondition: update.isQueryCondition,
+          isSortable: update.isSortable
+        };
+        if (currentEffective.manticoreType === 'TEXT' && update.isSortable === true) {
           appliedChanges.isSortable = false;
         }
         const nextQueryCondition = appliedChanges.isQueryCondition ?? currentEffective.isQueryCondition ?? false;
@@ -365,7 +375,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     });
 
     const skipText = textSkippedCount > 0 ? `；${textSkippedCount} 个 TEXT 属性保持不支持排序` : '';
-    setOperationMessage(`已将 ${Object.keys(changes).length} 个配置项应用到 ${fieldIds.length} 个属性并保存为草稿${skipText}。`);
+    setOperationMessage(`已完成 ${updates.length} 个属性的批量设置并保存为草稿${skipText}。`);
   };
 
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)

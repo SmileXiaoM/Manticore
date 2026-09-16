@@ -32,7 +32,11 @@ import {
 } from '../../stage1MappingTypes';
 import { FieldMappingForm, FieldMappingFormData } from './FieldMappingForm';
 import { HelpTooltip } from '../ui/HelpTooltip';
-import { BatchFieldCapabilityChanges, BatchFieldCapabilityModal } from './BatchFieldCapabilityModal';
+import {
+  BatchFieldCapabilityItem,
+  BatchFieldCapabilityModal,
+  BatchFieldCapabilityUpdate
+} from './BatchFieldCapabilityModal';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -313,26 +317,43 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const getCurrentCandidateConfig = (candidate: BatchImportCandidate): FieldMappingFormData =>
     candidateCustomConfigs[candidate.sourceFieldMeta.sourceFieldKey] ?? buildDefaultCandidateConfig(candidate);
 
-  const applyCombinedBatchSettings = (changes: BatchFieldCapabilityChanges) => {
-    let sortableSkipped = 0;
+  const selectedCapabilityItems = useMemo<BatchFieldCapabilityItem[]>(() => selectedCandidates.map(candidate => {
+    const current = getCurrentCandidateConfig(candidate);
+    return {
+      id: candidate.sourceFieldMeta.sourceFieldKey,
+      displayName: current.displayTitle,
+      fieldCode: current.manticoreField,
+      manticoreType: current.manticoreType,
+      defaultColumnWidth: current.defaultColumnWidth,
+      isDisplayInResult: current.isDisplayInResult,
+      isFulltextSearch: current.isFulltextSearch,
+      isQueryCondition: current.isQueryCondition,
+      isSortable: current.manticoreType === 'TEXT' ? false : current.isSortable
+    };
+  }), [selectedCandidates, candidateCustomConfigs]);
+
+  const applyCombinedBatchSettings = (updates: BatchFieldCapabilityUpdate[]) => {
+    const updateByKey = new Map(updates.map(update => [update.fieldId, update]));
     setCandidateCustomConfigs(previous => {
       const next = { ...previous };
       selectedCandidates.forEach(candidate => {
         const key = candidate.sourceFieldMeta.sourceFieldKey;
+        const update = updateByKey.get(key);
+        if (!update) return;
         const current = previous[key] ?? buildDefaultCandidateConfig(candidate);
-        const nextConfig = { ...current, ...changes };
-        if (changes.isSortable === true && current.manticoreType === 'TEXT') {
-          nextConfig.isSortable = false;
-          sortableSkipped += 1;
-        }
-        next[key] = nextConfig;
+        next[key] = {
+          ...current,
+          defaultColumnWidth: update.defaultColumnWidth ?? current.defaultColumnWidth,
+          isDisplayInResult: update.isDisplayInResult ?? current.isDisplayInResult,
+          isFulltextSearch: update.isFulltextSearch ?? current.isFulltextSearch,
+          isQueryCondition: update.isQueryCondition ?? current.isQueryCondition,
+          isSortable: current.manticoreType === 'TEXT' ? false : (update.isSortable ?? current.isSortable)
+        };
       });
       return next;
     });
 
-    const settingCount = Object.keys(changes).length;
-    const skipText = sortableSkipped > 0 ? `；${sortableSkipped} 个 TEXT 字段保持不支持排序` : '';
-    setBatchOperationMessage(`已将 ${settingCount} 个配置项应用到 ${selectedCount} 个待导入属性${skipText}`);
+    setBatchOperationMessage(`已完成 ${updates.length} 个待导入属性的批量设置`);
     setBatchErrorMessage(null);
     setIsBatchSettingsOpen(false);
   };
@@ -596,8 +617,6 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         );
     }
   };
-
-  const selectedTextCount = selectedCandidates.filter(candidate => getCurrentCandidateConfig(candidate).manticoreType === 'TEXT').length;
 
   if (!isOpen) return null;
 
@@ -1051,8 +1070,7 @@ export const BatchImportModal: React.FC<BatchImportModalProps> = ({
         <BatchFieldCapabilityModal
           isOpen={isBatchSettingsOpen}
           onClose={() => setIsBatchSettingsOpen(false)}
-          selectedCount={selectedCount}
-          selectedTextCount={selectedTextCount}
+          items={selectedCapabilityItems}
           scopeLabel="待导入属性"
           onApply={applyCombinedBatchSettings}
         />

@@ -31,7 +31,11 @@ import { isFieldHyperlinkValid } from '../../stage1HyperlinkUtils';
 import { FloatingMoreMenu } from './FloatingMoreMenu';
 import { HelpTooltip } from '../ui/HelpTooltip';
 import { TablePagination } from '../ui/TablePagination';
-import { BatchFieldCapabilityChanges, BatchFieldCapabilityModal } from './BatchFieldCapabilityModal';
+import {
+  BatchFieldCapabilityItem,
+  BatchFieldCapabilityModal,
+  BatchFieldCapabilityUpdate
+} from './BatchFieldCapabilityModal';
 
 interface FieldMappingListViewProps {
   currentRootType: MappingObjectType;
@@ -40,7 +44,7 @@ interface FieldMappingListViewProps {
   onOpenCreateSingle: () => void;
   onOpenBatchImport: () => void;
   onOpenBatchDisplayOrder: () => void;
-  onBatchUpdateCapabilities: (fieldIds: string[], changes: BatchFieldCapabilityChanges) => void;
+  onBatchUpdateCapabilities: (updates: BatchFieldCapabilityUpdate[]) => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
   onDiscardDraft: (field: FieldMappingItem) => void;
@@ -144,7 +148,20 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     () => rootTypeFields.filter(field => selectedFieldIds.includes(field.id)),
     [rootTypeFields, selectedFieldIds]
   );
-  const selectedTextCount = selectedFields.filter(field => (field.draftData?.manticoreType ?? field.manticoreType) === 'TEXT').length;
+  const selectedCapabilityItems = useMemo<BatchFieldCapabilityItem[]>(() => selectedFields.map(field => {
+    const effective = { ...field, ...(field.draftData || {}) };
+    return {
+      id: field.id,
+      displayName: effective.displayTitle,
+      fieldCode: effective.manticoreField,
+      manticoreType: effective.manticoreType,
+      defaultColumnWidth: effective.defaultColumnWidth ?? 150,
+      isDisplayInResult: effective.isDisplayInResult,
+      isFulltextSearch: effective.isFulltextSearch ?? (effective.queryCapability === 'FULLTEXT_SEARCH' || effective.queryCapability === 'BOTH'),
+      isQueryCondition: effective.isQueryCondition ?? (effective.queryCapability === 'QUERY_CONDITION' || effective.queryCapability === 'BOTH'),
+      isSortable: effective.manticoreType === 'TEXT' ? false : effective.isSortable
+    };
+  }), [selectedFields]);
   const selectableIdsInView = filteredFields.map(field => field.id);
   const allFilteredSelected = selectableIdsInView.length > 0 && selectableIdsInView.every(id => selectedFieldIds.includes(id));
   const someFilteredSelected = selectableIdsInView.some(id => selectedFieldIds.includes(id));
@@ -157,8 +174,8 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
     setSelectedFieldIds(previous => Array.from(new Set([...previous, ...selectableIdsInView])));
   };
 
-  const applyBatchSettings = (changes: BatchFieldCapabilityChanges) => {
-    onBatchUpdateCapabilities(selectedFieldIds, changes);
+  const applyBatchSettings = (updates: BatchFieldCapabilityUpdate[]) => {
+    onBatchUpdateCapabilities(updates);
     setIsBatchSettingsOpen(false);
     setSelectedFieldIds([]);
   };
@@ -689,8 +706,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
       <BatchFieldCapabilityModal
         isOpen={isBatchSettingsOpen}
         onClose={() => setIsBatchSettingsOpen(false)}
-        selectedCount={selectedFieldIds.length}
-        selectedTextCount={selectedTextCount}
+        items={selectedCapabilityItems}
         scopeLabel="已有属性"
         onApply={applyBatchSettings}
       />
