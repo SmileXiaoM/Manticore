@@ -27,6 +27,10 @@ import { SingleFieldEditModal } from './stage1-mapping/SingleFieldEditModal';
 import { BatchImportModal } from './stage1-mapping/BatchImportModal';
 import { BatchDisplayOrderModal } from './stage1-mapping/BatchDisplayOrderModal';
 import {
+  SimilarityScopeAttributesModal,
+  SimilarityScopeAttributesUpdate
+} from './stage1-mapping/SimilarityScopeAttributesModal';
+import {
   BatchFieldCapabilityChanges,
   BatchFieldCapabilityUpdate
 } from './stage1-mapping/BatchFieldCapabilityModal';
@@ -125,6 +129,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
 
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [isBatchDisplayOrderOpen, setIsBatchDisplayOrderOpen] = useState(false);
+  const [isSimilarityScopeAttributesOpen, setIsSimilarityScopeAttributesOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isQueryPreviewOpen, setIsQueryPreviewOpen] = useState(false);
 
@@ -378,6 +383,63 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
     setOperationMessage(`已完成 ${updates.length} 个属性的批量设置并保存为草稿${skipText}。`);
   };
 
+  // 根类型统一定义二阶段的类型属性、分类属性与分类值显示方式；修改先进入草稿。
+  const handleSaveSimilarityScopeAttributes = (update: SimilarityScopeAttributesUpdate) => {
+    commitRuntime(previous => {
+      const nextMappings = previous.fieldMappings.map(field => {
+        if (field.rootTypeId !== currentRootType.id) return field;
+
+        const currentEffective = { ...field, ...(field.draftData || {}) };
+        const currentRole = currentEffective.similarityBusinessRole || 'NONE';
+        const nextRole = field.id === update.typeFieldId
+          ? 'TYPE_ATTRIBUTE' as const
+          : field.id === update.classificationFieldId
+          ? 'CLASSIFICATION_ATTRIBUTE' as const
+          : 'NONE' as const;
+        const nextDisplayMode = nextRole === 'CLASSIFICATION_ATTRIBUTE'
+          ? update.classificationDisplayMode
+          : currentEffective.classificationDisplayMode || 'FULL_PATH';
+        const roleChanged = currentRole !== nextRole;
+        const displayModeChanged = nextRole === 'CLASSIFICATION_ATTRIBUTE'
+          && currentEffective.classificationDisplayMode !== nextDisplayMode;
+
+        if (!roleChanged && !displayModeChanged) return field;
+
+        if (field.configStatus === 'CONFIGURED') {
+          const nextDraft = {
+            ...(field.draftData || {}),
+            similarityBusinessRole: nextRole,
+            classificationDisplayMode: nextDisplayMode
+          };
+          return {
+            ...field,
+            hasDraftModification: true,
+            draftData: nextDraft,
+            isDataImpactingChange: checkIsDataImpactingChange(field, nextDraft),
+            updatedAt: '刚刚 (类型与分类属性草稿)',
+            updatedBy: '当前用户'
+          };
+        }
+
+        return {
+          ...field,
+          similarityBusinessRole: nextRole,
+          classificationDisplayMode: nextDisplayMode,
+          isDataImpactingChange: roleChanged || field.isDataImpactingChange,
+          updatedAt: '刚刚 (类型与分类属性草稿)',
+          updatedBy: '当前用户'
+        };
+      });
+
+      return {
+        ...previous,
+        fieldMappings: nextMappings,
+        mappingObjects: deriveRootTypeStats(previous.mappingObjects, currentRootType.id, nextMappings)
+      };
+    });
+    setOperationMessage('类型属性、分类属性及分类显示方式已保存为草稿；发布配置后用于二阶段规则范围识别。');
+  };
+
   // 执行生效配置 (草稿生效，不生成配置版本；如果有数据影响变更，根类型标记为 PENDING 待同步)
   const handleConfirmPublish = async (startService: boolean) => {
     await new Promise(resolve => setTimeout(resolve, publishRunOptions?.delayMs ?? 360));
@@ -554,6 +616,7 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           onOpenCreateSingle={handleOpenCreateSingle}
           onOpenBatchImport={() => setIsBatchImportOpen(true)}
           onOpenBatchDisplayOrder={() => setIsBatchDisplayOrderOpen(true)}
+          onOpenSimilarityScopeAttributes={() => setIsSimilarityScopeAttributesOpen(true)}
           onBatchUpdateCapabilities={handleBatchUpdateCapabilities}
           onEditField={handleEditField}
           onViewFieldDetail={handleViewFieldDetail}
@@ -602,7 +665,17 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
         hasPermission={hasPermission}
       />
 
-      {/* 模态框 4：生效配置影响确认 */}
+      {/* 模态框 4：根类型统一设置类型属性、分类属性与分类值显示方式 */}
+      <SimilarityScopeAttributesModal
+        isOpen={isSimilarityScopeAttributesOpen}
+        onClose={() => setIsSimilarityScopeAttributesOpen(false)}
+        currentRootType={currentRootType}
+        fields={fieldMappings}
+        onSave={handleSaveSimilarityScopeAttributes}
+        hasPermission={hasPermission}
+      />
+
+      {/* 模态框 5：生效配置影响确认 */}
       <PublishConfigModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}

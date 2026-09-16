@@ -19,6 +19,8 @@ import {
   Link,
   Undo2,
   Settings2,
+  Layers3,
+  Tags,
   X
 } from 'lucide-react';
 import { ExecutionSchedule, scheduleLabel } from '../../data/operations';
@@ -44,6 +46,7 @@ interface FieldMappingListViewProps {
   onOpenCreateSingle: () => void;
   onOpenBatchImport: () => void;
   onOpenBatchDisplayOrder: () => void;
+  onOpenSimilarityScopeAttributes: () => void;
   onBatchUpdateCapabilities: (updates: BatchFieldCapabilityUpdate[]) => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
@@ -64,6 +67,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onOpenCreateSingle,
   onOpenBatchImport,
   onOpenBatchDisplayOrder,
+  onOpenSimilarityScopeAttributes,
   onBatchUpdateCapabilities,
   onEditField,
   onViewFieldDetail,
@@ -106,6 +110,10 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
 
   const totalDraftWorkItemCount = draftOnlyCount + modifiedDraftCount;
   const configuredCount = rootTypeFields.filter(f => f.configStatus === 'CONFIGURED').length;
+  const typeAttribute = rootTypeFields.find(field => (field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE') === 'TYPE_ATTRIBUTE');
+  const classificationAttribute = rootTypeFields.find(field => (field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE') === 'CLASSIFICATION_ATTRIBUTE');
+  const classificationDisplayMode = classificationAttribute?.draftData?.classificationDisplayMode ?? classificationAttribute?.classificationDisplayMode ?? 'FULL_PATH';
+  const classificationDisplayModeLabel = classificationDisplayMode === 'CURRENT_VALUE' ? '当前值' : classificationDisplayMode === 'REVERSE_FULL_PATH' ? '反向完整路径' : '完整路径';
 
   // 列表筛选过滤
   const filteredFields = useMemo(() => {
@@ -393,6 +401,21 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
             ]}
           />
         </div>
+      </div>
+
+      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 min-w-0">
+          <div className="flex items-center gap-2">
+            <Layers3 className="w-4 h-4 text-[var(--ty-primary-color)]" />
+            <div><span className="block text-ty-2xs text-[var(--ty-font-sub-color)]">类型属性（必选）</span><strong className="text-ty-xs">{typeAttribute ? `${typeAttribute.draftData?.displayTitle ?? typeAttribute.displayTitle}（${typeAttribute.manticoreField}）` : '尚未设置'}</strong></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tags className="w-4 h-4 text-[var(--ty-green-color)]" />
+            <div><span className="block text-ty-2xs text-[var(--ty-font-sub-color)]">分类属性（可选）</span><strong className="text-ty-xs">{classificationAttribute ? `${classificationAttribute.draftData?.displayTitle ?? classificationAttribute.displayTitle}（${classificationAttribute.manticoreField}）` : '未设置'}</strong>{classificationAttribute && <span className="ml-2 min-h-5 px-1.5 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-color)] text-ty-2xs font-normal">显示：{classificationDisplayModeLabel}</span>}</div>
+          </div>
+          {(typeAttribute?.hasDraftModification || classificationAttribute?.hasDraftModification) && <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] text-ty-2xs font-medium">有待发布草稿</span>}
+        </div>
+        <button type="button" onClick={onOpenSimilarityScopeAttributes} disabled={!hasPermission} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-white text-ty-xs font-medium inline-flex items-center gap-1.5 hover:bg-[var(--ty-primary-lightest-color)] disabled:opacity-40"><Settings2 className="w-3.5 h-3.5" />设置类型/分类属性</button>
       </div>
 
       {/* 筛选与搜索工具条 (统一 32px 控件高度) */}

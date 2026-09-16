@@ -52,7 +52,7 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
       <div className="overflow-x-auto">
         <table className="ty-data-table w-full min-w-[1480px] text-ty-xs">
           <thead className="bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
-            <tr><th className="w-12 px-3 py-2 text-center">序号</th><th className="px-3 py-2 text-left">对象类型</th><th className="px-3 py-2 text-left">来源系统</th><th className="px-3 py-2 text-left">接入状态</th><th className="px-3 py-2 text-left">同步服务</th><th className="px-3 py-2 text-left">中间表检查频率</th><th className="px-3 py-2 text-right">已配置</th><th className="px-3 py-2 text-right">待发布草稿</th><th className="px-3 py-2 text-left">配置状态</th><th className="px-3 py-2 text-left">字段约束</th><th className="px-3 py-2 text-left">最近处理</th><th className="px-3 py-2 text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)]">操作</th></tr>
+            <tr><th className="w-12 px-3 py-2 text-center">序号</th><th className="px-3 py-2 text-left">对象类型</th><th className="px-3 py-2 text-left">来源系统</th><th className="px-3 py-2 text-left">接入状态</th><th className="px-3 py-2 text-left">同步服务</th><th className="px-3 py-2 text-left">中间表检查频率</th><th className="px-3 py-2 text-right">已配置</th><th className="px-3 py-2 text-right">待发布草稿</th><th className="px-3 py-2 text-left">配置状态</th><th className="px-3 py-2 text-left">物理字段约束</th><th className="px-3 py-2 text-left">最近处理</th><th className="px-3 py-2 text-center sticky right-0 bg-[var(--ty-fill-weak-dark-color)]">操作</th></tr>
           </thead>
           <tbody className="divide-y divide-[var(--ty-border-light-color)]">
             {pageRows.map((root, index) => <tr key={root.id} className="hover:bg-[var(--ty-fill-weak-dark-color)]/50">
@@ -65,7 +65,7 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
               <td className="px-3 py-3 text-right font-mono font-semibold">{root.configuredFieldCount}</td>
               <td className="px-3 py-3 text-right font-mono font-semibold text-[var(--ty-orange-color)]">{root.draftFieldCount}</td>
               <td className="px-3 py-3"><span className="inline-flex min-h-6 px-2 items-center rounded-ty-xs bg-[var(--ty-fill-color)] border border-[var(--ty-border-color)]">{root.configStatus === 'CONFIGURED' ? '已配置' : root.configStatus === 'CONFIGURED_WITH_DRAFT' ? '已配置 · 有草稿' : root.configStatus === 'DRAFTING' ? '草稿中' : '未配置'}</span></td>
-              <td className="px-3 py-3">{root.serviceStarted ? '类型与唯一键已锁定' : '发布后锁定'}</td>
+              <td className="px-3 py-3">{root.serviceStarted ? '存储类型与唯一键已锁定' : '首次发布后锁定'}</td>
               <td className="px-3 py-3 font-mono whitespace-nowrap">{root.lastSyncedAt || '—'}</td>
               <td className="px-3 py-3 text-center sticky right-0 bg-[var(--ty-fill-white-color)]">
                 <div className="flex items-center justify-center gap-1">

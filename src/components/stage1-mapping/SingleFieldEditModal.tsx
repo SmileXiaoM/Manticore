@@ -45,7 +45,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 }) => {
   const isEditingExisting = !!editingField;
   const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
-  // 发布后锁定结构角色；重置会把字段转回草稿，从而允许重新指定。
+  // 同步服务开启后锁定 Manticore 存储类型与唯一键；相似度范围角色在列表顶部单独维护。
   const schemaLocked = Boolean(currentRootType.serviceStarted && isEditingConfigured);
 
   const prevOpenRef = useRef(false);
@@ -272,8 +272,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
       ...partial,
       ...(schemaLocked ? {
         manticoreType: prev.manticoreType,
-        isUniqueKey: prev.isUniqueKey,
-        similarityBusinessRole: prev.similarityBusinessRole
+        isUniqueKey: prev.isUniqueKey
       } : {})
     }));
   };
@@ -309,18 +308,6 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     if (formData.isEnableHyperlink || formData.displayType === 'LINK') {
       if (!formData.hyperlinkConfig?.urlTemplate?.trim()) {
         newErrors.urlTemplate = '超链接 URL 模板不能为空';
-      }
-    }
-
-    if (formData.similarityBusinessRole !== 'NONE') {
-      const duplicatedRole = existingFields.find(field => {
-        if (field.rootTypeId !== currentRootType.id || field.id === editingField?.id) return false;
-        const effectiveRole = field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE';
-        return effectiveRole === formData.similarityBusinessRole;
-      });
-      if (duplicatedRole) {
-        const roleName = formData.similarityBusinessRole === 'TYPE_ATTRIBUTE' ? '类型属性' : '分类属性';
-        newErrors.similarityBusinessRole = `当前对象类型已由“${duplicatedRole.displayTitle}”担任${roleName}，每种角色最多指定一个。`;
       }
     }
 
