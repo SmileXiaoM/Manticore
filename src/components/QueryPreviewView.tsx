@@ -48,6 +48,8 @@ interface QueryPreviewViewProps {
   activeTierConfigs: SimilarityTierConfigMap;
   onPreviewSuccess?: (groupValueId: string, signature: string) => void;
   onNavigate?: (view: string) => void;
+  initialSoftTypeId?: string;
+  onReturnToRuleSet?: (scopeId: string) => void;
 }
 
 interface LastRunContext {
@@ -77,14 +79,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   savedTierConfigs,
   activeTierConfigs,
   onPreviewSuccess,
-  onNavigate
+  onNavigate,
+  initialSoftTypeId,
+  onReturnToRuleSet
 }) => {
   const { notify } = useFeedback();
   // 1. 查询条件状态
   const rootTypeId = 'PART';
-  const [softTypeId, setSoftTypeId] = useState<string>(buildSimilarityRuleScopeKey('IN_HOUSE', 'HEX_HEAD_BOLT'));
-  const [manualValues, setManualValues] = useState<Record<string, any>>(() => getManualBaselineSeed('IN_HOUSE').values);
-  const [manualUnits, setManualUnits] = useState<Record<string, string>>(() => getManualBaselineSeed('IN_HOUSE').units);
+  const initialPreviewScopeId = initialSoftTypeId || buildSimilarityRuleScopeKey('IN_HOUSE', 'HEX_HEAD_BOLT');
+  const [softTypeId, setSoftTypeId] = useState<string>(initialPreviewScopeId);
+  const [manualValues, setManualValues] = useState<Record<string, any>>(() => getManualBaselineSeed(initialPreviewScopeId).values);
+  const [manualUnits, setManualUnits] = useState<Record<string, string>>(() => getManualBaselineSeed(initialPreviewScopeId).units);
 
   // 调试规则版本
   const [ruleVersion, setRuleVersion] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
@@ -222,6 +227,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   const previewInputRules = Array.from(
     new Map<string, FieldSimilarityRule>(currentScopeRules.map(rule => [rule.propertyCode, rule])).values()
   );
+  const draftPreviewSucceeded = lastRunContext?.ruleVersion === 'DRAFT' && !lastRunContext.searchResult.errorCode;
 
   return (
     <div className="space-y-4" id="query-preview-view-container">
@@ -238,6 +244,17 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {draftPreviewSucceeded && onReturnToRuleSet && (
+              <button
+                type="button"
+                onClick={() => onReturnToRuleSet(lastRunContext.softTypeId)}
+                className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-semibold text-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 cursor-pointer"
+                id="return-to-rule-set-publish-btn"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                返回规则集发布
+              </button>
+            )}
             <button
               onClick={handleReset}
               title="仅重置本页临时试算条件，不修改已保存规则"

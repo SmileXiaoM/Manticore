@@ -76,7 +76,8 @@ interface FieldSimilarityViewProps {
   previewedSavedSignatures: Record<string, string>;
   fieldMappings?: FieldMappingItem[];
   canManageConfig?: boolean;
-  onNavigate?: (view: string) => void;
+  initialScopeId?: string;
+  onOpenQueryPreview?: (scopeId: string) => void;
 }
 
 const getAllowedMatchTypes = (fieldType: string): string[] => {
@@ -124,13 +125,14 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   previewedSavedSignatures,
   fieldMappings = [],
   canManageConfig = true,
-  onNavigate
+  initialScopeId,
+  onOpenQueryPreview
 }) => {
   const { notify, confirm } = useFeedback();
   // 二阶段相似度搜索只面向零部件。softTypeId 作为规则集范围键：类型通用或分类专用。
   const selectedRootTypeId = 'PART';
-  const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>('IN_HOUSE');
-  const [pageMode, setPageMode] = useState<'LIST' | 'DETAIL'>('LIST');
+  const [selectedSoftTypeId, setSelectedSoftTypeId] = useState<string>(initialScopeId || 'IN_HOUSE');
+  const [pageMode, setPageMode] = useState<'LIST' | 'DETAIL'>(initialScopeId ? 'DETAIL' : 'LIST');
   const [isCreateRuleSetOpen, setIsCreateRuleSetOpen] = useState(false);
   const [createdScopeIds, setCreatedScopeIds] = useState<string[]>([]);
   const [newRuleSetTypeId, setNewRuleSetTypeId] = useState('IN_HOUSE');
@@ -342,6 +344,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
   const isCurrentDraftPreviewValid = !isModified && isSavedPreviewValid;
   const hasPublishedVersion = currentGroupStatus.configVersion !== '-' && activeRules.some(rule => rule.rootTypeId === selectedRootTypeId && rule.softTypeId === selectedSoftTypeId);
   const publishDisabled = !canManageConfig || Boolean(tierConfigError) || isModified || !hasSavedDraft || savedScoreRulesCount === 0 || savedScoreWeight !== 100 || !isSavedPreviewValid;
+  const draftNeedsPreview = hasSavedDraft && !isModified && !tierConfigError && savedScoreRulesCount > 0 && savedScoreWeight === 100 && !isSavedPreviewValid;
   const publishButtonLabel = !hasPublishedVersion ? '发布规则' : currentGroupStatus.enabled ? '发布更新' : '发布规则';
   const publishButtonTitle = isModified
     ? '请先保存当前编辑'
@@ -1283,7 +1286,7 @@ export const FieldSimilarityView: React.FC<FieldSimilarityViewProps> = ({
                 )}
                 <button onClick={handleSaveDraft} disabled={!canManageConfig || Boolean(tierConfigError)} title={!canManageConfig ? '仅配置管理员可保存' : tierConfigError || '保存当前规则集草稿'} className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-color)] bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:bg-[var(--ty-fill-color)] disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer" id="save-draft-btn"><Save className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />保存草稿</button>
                 <button onClick={handlePublishActive} disabled={publishDisabled} title={publishButtonTitle} className="h-8 inline-flex items-center gap-2 px-4 text-ty-xs font-semibold text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] rounded-ty-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer" id="publish-active-btn"><CheckCircle2 className="w-3.5 h-3.5" />{publishButtonLabel}</button>
-                {onNavigate && <button onClick={() => onNavigate('query-preview')} className="h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-color)] rounded-ty-sm hover:text-[var(--ty-primary-color)] cursor-pointer" id="goto-query-preview-btn">前往查询预览<ChevronRight className="w-3.5 h-3.5" /></button>}
+                {onOpenQueryPreview && <button onClick={() => onOpenQueryPreview(selectedSoftTypeId)} className={`h-8 inline-flex items-center gap-2 px-3 text-ty-xs font-medium border rounded-ty-sm cursor-pointer ${draftNeedsPreview ? 'text-[var(--ty-font-white-color)] bg-[var(--ty-primary-color)] border-[var(--ty-primary-color)] hover:opacity-90' : 'text-[var(--ty-font-main-light-color)] bg-[var(--ty-fill-weak-dark-color)] border-[var(--ty-border-color)] hover:text-[var(--ty-primary-color)]'}`} id="goto-query-preview-btn">{draftNeedsPreview ? '预览草稿' : '前往查询预览'}<ChevronRight className="w-3.5 h-3.5" /></button>}
                 <button type="button" disabled={!hasPublishedVersion} onClick={handleToggleGroupStatus} className={`h-8 min-w-20 px-3 rounded-ty-sm border text-ty-xs font-medium disabled:cursor-not-allowed ${!hasPublishedVersion ? 'border-[var(--ty-border-color)] text-[var(--ty-font-sub-light-color)] bg-[var(--ty-fill-weak-dark-color)]' : currentGroupStatus.enabled ? 'border-[var(--ty-orange-color)] text-[var(--ty-orange-color)] bg-[var(--ty-fill-white-color)]' : 'border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)]'}`}>{!hasPublishedVersion ? '未发布' : currentGroupStatus.enabled ? '停用' : '启用'}</button>
               </div>
             </div>

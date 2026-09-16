@@ -150,6 +150,7 @@ export default function App() {
 
   // View Router State
   const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [similarityWorkflowScopeId, setSimilarityWorkflowScopeId] = useState<string | undefined>();
   const [selectedRootFilter, setSelectedRootFilter] = useState<string>('ALL');
   const [focusedSyncTaskId, setFocusedSyncTaskId] = useState<string | undefined>();
   const [targetPresenceReturnView, setTargetPresenceReturnView] = useState<string>('dashboard');
@@ -342,7 +343,11 @@ export default function App() {
                 onUpdateActiveTierConfigs={setActiveTierConfigs}
                 previewedSavedSignatures={previewedSavedSignatures}
                 fieldMappings={flatFieldMappings}
-                onNavigate={handleNavigate}
+                initialScopeId={similarityWorkflowScopeId}
+                onOpenQueryPreview={(scopeId) => {
+                  setSimilarityWorkflowScopeId(scopeId);
+                  handleNavigate('query-preview');
+                }}
               />
             )}
 
@@ -359,6 +364,11 @@ export default function App() {
                 activeTierConfigs={activeTierConfigs}
                 onPreviewSuccess={(groupValueId, signature) => setPreviewedSavedSignatures(previous => ({ ...previous, [groupValueId]: signature }))}
                 onNavigate={handleNavigate}
+                initialSoftTypeId={similarityWorkflowScopeId}
+                onReturnToRuleSet={(scopeId) => {
+                  setSimilarityWorkflowScopeId(scopeId);
+                  handleNavigate('field-rules');
+                }}
               />
             )}
 
