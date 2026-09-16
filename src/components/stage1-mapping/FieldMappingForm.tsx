@@ -46,6 +46,7 @@ export interface FieldMappingFormProps {
   isEditingConfigured?: boolean;
   sourceReadonly?: boolean;
   schemaLocked?: boolean;
+  roleReplacementName?: string;
 }
 
 export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
@@ -56,7 +57,8 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
   errors,
   isEditingConfigured = false,
   sourceReadonly = false,
-  schemaLocked = false
+  schemaLocked = false,
+  roleReplacementName
 }) => {
   // 解析显示名与兜底判断
   const displayNameResolved = useMemo(() => {
@@ -77,6 +79,10 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
     openTarget: '_blank',
     onMissingParam: 'HIDE_LINK_SHOW_TEXT'
   };
+  const isScopeRoleEligible = !sourceMeta?.isMultiValue
+    && formData.manticoreType !== 'TEXT'
+    && formData.manticoreType !== 'MULTI_VALUE'
+    && formData.manticoreType !== 'JSON';
 
   const updateHyperlink = (partial: Partial<HyperlinkConfig>) => {
     onChange({
@@ -102,34 +108,6 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
             <div className="md:col-span-2"><span className="text-ty-2xs text-[var(--ty-font-sub-color)] block">来源属性特征</span><SourceAttributeDetails meta={sourceMeta} compact /></div>
           </div>
         ) : <div className="rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)] border border-[var(--ty-border-light-color)] p-3 text-center text-ty-xs text-[var(--ty-font-sub-color)]">请先选择 PLM 来源属性</div>}
-      </div>
-
-      {/* 二阶段相似度作用范围角色在根类型级统一维护，此处只展示当前状态。 */}
-      <div className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-lg p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Boxes className="w-4 h-4 text-[var(--ty-primary-color)]" />
-          <h4 className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">相似度规则范围角色</h4>
-          <HelpTooltip label="查看相似度规则范围角色说明" content="类型属性和分类属性用于二阶段识别规则作用范围，不是 Manticore 存储类型。请在字段列表顶部统一设置；修改先保存为草稿，发布配置后生效。" />
-        </div>
-        <div className="rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-ty-xs">
-            {formData.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' ? <Tags className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" /> : <Boxes className="w-3.5 h-3.5 text-[var(--ty-font-sub-color)]" />}
-            <span className="text-[var(--ty-font-sub-color)]">当前角色</span>
-            <strong>
-              {formData.similarityBusinessRole === 'TYPE_ATTRIBUTE'
-                ? '类型属性'
-                : formData.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE'
-                ? '分类属性'
-                : '普通属性'}
-            </strong>
-            {formData.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' && (
-              <span className="min-h-5 px-1.5 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-white text-ty-2xs">
-                显示：{formData.classificationDisplayMode === 'CURRENT_VALUE' ? '当前值' : formData.classificationDisplayMode === 'REVERSE_FULL_PATH' ? '反向完整路径' : '完整路径'}
-              </span>
-            )}
-          </div>
-          <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">请在字段列表顶部通过“设置类型/分类属性”统一调整。</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -256,7 +234,11 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
           </label>
           <select
             value={formData.manticoreType}
-            onChange={e => onChange({ manticoreType: e.target.value as ManticoreFieldType })}
+            onChange={e => {
+              const manticoreType = e.target.value as ManticoreFieldType;
+              const supportsScopeRole = !sourceMeta?.isMultiValue && manticoreType !== 'TEXT' && manticoreType !== 'MULTI_VALUE' && manticoreType !== 'JSON';
+              onChange({ manticoreType, ...(supportsScopeRole ? {} : { similarityBusinessRole: 'NONE' }) });
+            }}
             disabled={isEditingConfigured || schemaLocked}
             className={`w-full h-8 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs font-mono text-[var(--ty-font-main-color)] focus:outline-hidden focus:border-[var(--ty-primary-color)] ${
               isEditingConfigured || schemaLocked ? 'bg-[var(--ty-fill-weak-dark-color)] cursor-not-allowed opacity-80' : 'cursor-pointer'
@@ -327,6 +309,60 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
                 支持排序 (非 TEXT)
               </span>
             </label>
+
+            <div className="pt-3 mt-1 border-t border-[var(--ty-border-color)] space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Boxes className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+                <label htmlFor="similarity-business-role" className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">相似度规则范围用途</label>
+                <HelpTooltip label="查看相似度规则范围用途说明" content="普通属性不决定规则范围；类型属性用于识别零部件类型；分类属性用于识别分类专用规则。每个根类型只能各有一个类型属性和分类属性。" />
+              </div>
+              <select
+                id="similarity-business-role"
+                aria-label="相似度规则范围用途"
+                value={formData.similarityBusinessRole}
+                disabled={!isScopeRoleEligible}
+                onChange={event => onChange({ similarityBusinessRole: event.target.value as SimilarityBusinessRole })}
+                className={`w-full h-8 px-3 border rounded-ty-sm text-ty-xs ${errors.similarityBusinessRole ? 'border-[var(--ty-red-color)]' : 'border-[var(--ty-border-color)]'} ${!isScopeRoleEligible ? 'bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-light-color)] cursor-not-allowed' : 'bg-white cursor-pointer'}`}
+              >
+                <option value="NONE">普通属性</option>
+                <option value="TYPE_ATTRIBUTE">作为类型属性</option>
+                <option value="CLASSIFICATION_ATTRIBUTE">作为分类属性</option>
+              </select>
+              {errors.similarityBusinessRole && <p className="text-ty-2xs text-[var(--ty-red-color)]">{errors.similarityBusinessRole}</p>}
+              {roleReplacementName && formData.similarityBusinessRole !== 'NONE' && (
+                <p className="text-ty-2xs text-[var(--ty-orange-color)]">保存后将替换“{roleReplacementName}”的同类范围用途，两项修改一起进入草稿。</p>
+              )}
+              {!isScopeRoleEligible && (
+                <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">{sourceMeta?.isMultiValue ? '多值来源属性不能作为类型属性或分类属性。' : '当前存储类型不能作为类型属性或分类属性。'}</p>
+              )}
+
+              {formData.similarityBusinessRole === 'CLASSIFICATION_ATTRIBUTE' && (
+                <div className="rounded-ty-sm border border-[var(--ty-primary-lighter-color)] bg-[var(--ty-primary-lightest-color)]/35 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Tags className="w-3.5 h-3.5 text-[var(--ty-primary-color)]" />
+                    <label htmlFor="classification-display-mode" className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">分类显示方式</label>
+                  </div>
+                  <select
+                    id="classification-display-mode"
+                    aria-label="分类显示方式"
+                    value={formData.classificationDisplayMode}
+                    onChange={event => onChange({ classificationDisplayMode: event.target.value as ClassificationDisplayMode })}
+                    className="w-full h-8 px-3 bg-white border border-[var(--ty-border-color)] rounded-ty-sm text-ty-xs cursor-pointer"
+                  >
+                    <option value="CURRENT_VALUE">当前值</option>
+                    <option value="FULL_PATH">完整路径</option>
+                    <option value="REVERSE_FULL_PATH">反向完整路径</option>
+                  </select>
+                  <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+                    示例：{formData.classificationDisplayMode === 'CURRENT_VALUE'
+                      ? '六角头螺栓'
+                      : formData.classificationDisplayMode === 'FULL_PATH'
+                      ? '零部件 / 紧固件 / 螺栓 / 六角头螺栓'
+                      : '六角头螺栓 / 螺栓 / 紧固件 / 零部件'}
+                  </p>
+                </div>
+              )}
+            </div>
 
             <label className="flex items-center space-x-2 cursor-pointer hover:bg-[var(--ty-fill-weak-dark-color)] p-1 rounded-ty-sm transition-colors">
               <input

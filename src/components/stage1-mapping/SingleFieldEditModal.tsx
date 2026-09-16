@@ -45,7 +45,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
 }) => {
   const isEditingExisting = !!editingField;
   const isEditingConfigured = editingField?.configStatus === 'CONFIGURED';
-  // 同步服务开启后锁定 Manticore 存储类型与唯一键；相似度范围角色在列表顶部单独维护。
+  // 同步服务开启后只锁定 Manticore 存储类型与唯一键；相似度范围用途仍可作为草稿修改。
   const schemaLocked = Boolean(currentRootType.serviceStarted && isEditingConfigured);
 
   const prevOpenRef = useRef(false);
@@ -208,6 +208,15 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     return initialSnapshot !== '' && JSON.stringify(formData) !== initialSnapshot;
   }, [initialSnapshot, formData]);
 
+  const roleReplacementField = useMemo(() => {
+    if (formData.similarityBusinessRole === 'NONE') return undefined;
+    return existingFields.find(field => {
+      if (field.rootTypeId !== currentRootType.id || field.id === editingField?.id) return false;
+      const effectiveRole = field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE';
+      return effectiveRole === formData.similarityBusinessRole;
+    });
+  }, [currentRootType.id, editingField?.id, existingFields, formData.similarityBusinessRole]);
+
   const handleRequestClose = () => {
     if (isDirty) {
       setShowUnsavedConfirm(true);
@@ -308,6 +317,21 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
     if (formData.isEnableHyperlink || formData.displayType === 'LINK') {
       if (!formData.hyperlinkConfig?.urlTemplate?.trim()) {
         newErrors.urlTemplate = '超链接 URL 模板不能为空';
+      }
+    }
+
+    if (formData.similarityBusinessRole !== 'NONE' && currentSelectedMeta?.isMultiValue) {
+      newErrors.similarityBusinessRole = '多值来源属性不能作为类型属性或分类属性。';
+    }
+
+    const initialRole = editingField?.draftData?.similarityBusinessRole ?? editingField?.similarityBusinessRole ?? 'NONE';
+    if (initialRole === 'TYPE_ATTRIBUTE' && formData.similarityBusinessRole !== 'TYPE_ATTRIBUTE') {
+      const anotherTypeAttribute = existingFields.some(field => {
+        if (field.rootTypeId !== currentRootType.id || field.id === editingField?.id) return false;
+        return (field.draftData?.similarityBusinessRole ?? field.similarityBusinessRole ?? 'NONE') === 'TYPE_ATTRIBUTE';
+      });
+      if (!anotherTypeAttribute) {
+        newErrors.similarityBusinessRole = '每个根类型必须保留一个类型属性。请先将其他属性设为类型属性。';
       }
     }
 
@@ -514,6 +538,7 @@ export const SingleFieldEditModal: React.FC<SingleFieldEditModalProps> = ({
             isEditingConfigured={isEditingConfigured}
             sourceReadonly={isEditingExisting}
             schemaLocked={schemaLocked}
+            roleReplacementName={roleReplacementField?.draftData?.displayTitle ?? roleReplacementField?.displayTitle}
           />
         </div>
 

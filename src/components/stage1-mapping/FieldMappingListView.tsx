@@ -46,7 +46,6 @@ interface FieldMappingListViewProps {
   onOpenCreateSingle: () => void;
   onOpenBatchImport: () => void;
   onOpenBatchDisplayOrder: () => void;
-  onOpenSimilarityScopeAttributes: () => void;
   onBatchUpdateCapabilities: (updates: BatchFieldCapabilityUpdate[]) => void;
   onEditField: (field: FieldMappingItem) => void;
   onViewFieldDetail: (field: FieldMappingItem) => void;
@@ -67,7 +66,6 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
   onOpenCreateSingle,
   onOpenBatchImport,
   onOpenBatchDisplayOrder,
-  onOpenSimilarityScopeAttributes,
   onBatchUpdateCapabilities,
   onEditField,
   onViewFieldDetail,
@@ -415,7 +413,7 @@ export const FieldMappingListView: React.FC<FieldMappingListViewProps> = ({
           </div>
           {(typeAttribute?.hasDraftModification || classificationAttribute?.hasDraftModification) && <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-orange-color)]/30 bg-[var(--ty-orange-lightest-color)] text-[var(--ty-orange-color)] text-ty-2xs font-medium">有待发布草稿</span>}
         </div>
-        <button type="button" onClick={onOpenSimilarityScopeAttributes} disabled={!hasPermission} className="h-8 px-3 rounded-ty-sm border border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-white text-ty-xs font-medium inline-flex items-center gap-1.5 hover:bg-[var(--ty-primary-lightest-color)] disabled:opacity-40"><Settings2 className="w-3.5 h-3.5" />设置类型/分类属性</button>
+        <span className="text-ty-2xs text-[var(--ty-font-sub-color)]">在对应属性的“编辑”中调整</span>
       </div>
 
       {/* 筛选与搜索工具条 (统一 32px 控件高度) */}
