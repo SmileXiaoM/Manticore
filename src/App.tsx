@@ -341,6 +341,7 @@ export default function App() {
                 activeTierConfigs={activeTierConfigs}
                 onUpdateActiveTierConfigs={setActiveTierConfigs}
                 previewedSavedSignatures={previewedSavedSignatures}
+                fieldMappings={flatFieldMappings}
                 onNavigate={handleNavigate}
               />
             )}
