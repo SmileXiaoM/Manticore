@@ -649,7 +649,7 @@
 .data-consistency-check .field-detail-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   padding: 12px 24px;
   border-top: 1px solid var(--ty-border-light-color);

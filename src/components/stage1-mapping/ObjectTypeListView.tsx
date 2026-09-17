@@ -36,11 +36,11 @@ export const ObjectTypeListView = ({ sourceSystems, mappingObjects, schedules, o
 
   return <div className="space-y-4">
     <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[
-      ['对象类型', mappingObjects.length, '按根类型独立接入'],
-      ['已启用', enabled, '停用后不再轮询'],
-      ['已配置字段', configured, '当前生效字段'],
-      ['待发布草稿', drafts, '新增与草稿修改'],
-    ].map(([label, value, note]) => <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4"><span className="text-ty-xs text-[var(--ty-font-sub-color)]">{label}</span><strong className="block text-ty-xl font-mono mt-1">{value}</strong><span className="block text-ty-2xs text-[var(--ty-font-sub-color)] mt-1">{note}</span></div>)}</section>
+      ['对象类型', mappingObjects.length],
+      ['已启用', enabled],
+      ['已配置字段', configured],
+      ['待发布草稿', drafts],
+    ].map(([label, value]) => <div key={String(label)} className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-4"><span className="text-ty-xs text-[var(--ty-font-sub-color)]">{label}</span><strong className="block text-ty-xl font-mono mt-1">{value}</strong></div>)}</section>
 
     <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm p-3 flex flex-wrap items-center gap-3">
       <label className="text-ty-xs text-[var(--ty-font-sub-color)] flex items-center gap-2">来源系统<select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="h-8 min-w-48 px-3 bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm"><option value="ALL">全部来源系统</option>{sourceSystems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}</select></label>

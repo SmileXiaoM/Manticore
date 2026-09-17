@@ -33,12 +33,14 @@ import {
   ObjectType,
   SimilarityGroupConfigStatus,
   SimilarityTierConfig,
-  SimilarityTierConfigMap
+  SimilarityTierConfigMap,
+  SimilarityRuntimeConfig
 } from '../types';
 import { useFeedback } from './ui/FeedbackProvider';
 import { paginateRows, TablePagination } from './ui/TablePagination';
 import { HelpTooltip } from './ui/HelpTooltip';
 import { createSimilarityVersionSignature, formatSimilarityTierRange, getSimilarityTierConfig } from '../similarityTier';
+import { SimilarityRunSummary } from './SimilarityRunSummary';
 
 interface QueryPreviewViewProps {
   savedRules: FieldSimilarityRule[];
@@ -46,6 +48,7 @@ interface QueryPreviewViewProps {
   objectConfigStatus: Record<string, SimilarityGroupConfigStatus>;
   savedTierConfigs: SimilarityTierConfigMap;
   activeTierConfigs: SimilarityTierConfigMap;
+  runtimeConfig: SimilarityRuntimeConfig;
   onPreviewSuccess?: (groupValueId: string, signature: string) => void;
   onNavigate?: (view: string) => void;
   initialSoftTypeId?: string;
@@ -78,6 +81,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
   objectConfigStatus,
   savedTierConfigs,
   activeTierConfigs,
+  runtimeConfig,
   onPreviewSuccess,
   onNavigate,
   initialSoftTypeId,
@@ -156,6 +160,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
       notify(`暂不能试算：参与评分字段权重合计必须为 100%，当前为 ${scoreWeight}%。`, 'warning');
       return;
     }
+    const invalidRelativeDeviationReference = currentScopeRules.find(rule => {
+      if (!rule.enabled || !rule.isScoreActive || rule.matchConfig?.kind !== 'RELATIVE_DEVIATION_DECAY') return false;
+      const value = manualValues[rule.propertyCode];
+      return value === undefined || value === null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) === 0;
+    });
+    if (invalidRelativeDeviationReference) {
+      setLastRunContext(null);
+      notify('参考值必须为非零有效数字，无法计算相对偏差。', 'warning');
+      return;
+    }
     const { typeId } = parseSimilarityRuleScopeKey(softTypeId);
     const baseline: SimilarityBaseline = {
       type: 'FORM_VALUES',
@@ -170,7 +184,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
     setSelectedCandidate(null);
 
     setTimeout(() => {
-      const result = runSimilaritySearch(rootTypeId, softTypeId, baseline, currentRules, undefined, currentTierConfig);
+      const result = runSimilaritySearch(rootTypeId, softTypeId, baseline, currentRules, undefined, currentTierConfig, runtimeConfig);
       const snapshot: LastRunContext = {
         rootTypeId,
         softTypeId,
@@ -285,7 +299,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
               对象类型
             </label>
             <div id="preview-root-type-select" className="w-full h-8 px-3 flex items-center justify-between text-ty-xs font-medium border border-[var(--ty-border-color)] rounded-ty-sm bg-[var(--ty-fill-weak-dark-color)]">
-              <span>{currentRootTypeObj?.name}</span><span className="text-ty-2xs text-[var(--ty-font-sub-color)]">固定范围</span>
+              <span>{currentRootTypeObj?.name}</span>
             </div>
           </div>
 
@@ -329,16 +343,16 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
         <div className="rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden">
           <div className="px-3 py-2 bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-2">
-            <div>
+            <div className="flex items-center gap-1">
               <span className="text-ty-xs font-semibold text-[var(--ty-font-main-color)]">试算属性</span>
-              <span className="ml-2 text-ty-2xs text-[var(--ty-font-sub-color)]">手工输入本次查询基准，仅用于沙盒验证，不修改业务对象或表单。</span>
+              <HelpTooltip label="查看试算属性说明" content="手工输入仅用于本次沙盒试算，不修改业务对象或表单。" />
             </div>
             <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">共 {previewInputRules.length} 个对比字段</span>
           </div>
           {previewInputRules.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3 p-3">
               {previewInputRules.map(rule => {
-                const isNumeric = rule.matchConfig?.kind === 'NUMERIC_TOLERANCE' || rule.matchConfig?.kind === 'NUMERIC_DECAY';
+                const isNumeric = rule.matchConfig?.kind === 'NUMERIC_TOLERANCE' || rule.matchConfig?.kind === 'NUMERIC_DECAY' || rule.matchConfig?.kind === 'RELATIVE_DEVIATION_DECAY';
                 const unit = rule.displayUnit && rule.displayUnit !== '无' ? rule.displayUnit : '';
                 return (
                   <label key={rule.propertyCode} className="min-w-0">
@@ -432,7 +446,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <RotateCcw className="w-6 h-6" />
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">正在执行沙盒相似度试算...</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">计算属性差异、评估门槛过滤与相似度综合得分</p>
         </div>
       ) : publishedVersionUnavailable ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
@@ -440,7 +453,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <AlertTriangle className="w-6 h-6" />
           </div>
           <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">尚无已发布版本</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">当前规则集还没有可预览的已发布配置，可切换到“草稿版本”进行沙盒试算。</p>
         </div>
       ) : !lastRunContext ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center" id="initial-guide-container">
@@ -448,9 +460,6 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
             <Play className="w-6 h-6 fill-current ml-0.5" />
           </div>
           <h3 className="text-ty-sm font-bold text-[var(--ty-font-main-color)]">点击“启动沙盒试算”开始验证</h3>
-          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">
-            选择类型通用或分类专用规则集及规则版本，填写试算属性后，系统将进行候选召回、门槛过滤与算分模拟。
-          </p>
         </div>
       ) : lastRunContext.searchResult.errorCode === 'NO_RULES' ? (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
@@ -475,6 +484,12 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
           <div className="w-12 h-12 rounded-full bg-[var(--ty-red-lightest-color)] border border-[var(--ty-red-color)]/30 text-[var(--ty-red-color)] mx-auto flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6" /></div>
           <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">试算属性不可用</h3>
           <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{lastRunContext.searchResult.errorMessage || '请检查已填写的试算属性后重新运行。'}</p>
+        </div>
+      ) : lastRunContext.searchResult.errorCode ? (
+        <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--ty-orange-lightest-color)] border border-[var(--ty-orange-color)]/30 text-[var(--ty-orange-color)] mx-auto flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6" /></div>
+          <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">试算条件不可用</h3>
+          <p className="text-ty-xs text-[var(--ty-font-sub-color)] max-w-md mx-auto mt-1 leading-relaxed">{lastRunContext.searchResult.errorMessage || '请检查试算条件后重新运行。'}</p>
         </div>
       ) : (
         <div className="bg-[var(--ty-fill-white-color)] rounded-ty-sm border border-[var(--ty-border-color)] overflow-hidden space-y-0">
@@ -520,15 +535,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                 </div>
               </div>
 
-              <div className="text-right text-ty-xs">
-                <span className="text-[var(--ty-font-sub-light-color)] block">候选召回池</span>
-                <span className="font-semibold text-[var(--ty-font-main-color)]">
-                  共召回{' '}
-                  {lastRunContext.searchResult.scoredCandidates.length +
-                    lastRunContext.searchResult.excludedCandidates.length}{' '}
-                  项候选件
-                </span>
-              </div>
+              <SimilarityRunSummary result={lastRunContext.searchResult} className="justify-end text-right" />
             </div>
           )}
 
@@ -801,11 +808,9 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
 
             {/* 抽屉内容列表 */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              <div className="px-3 py-2 rounded-ty-sm bg-[var(--ty-primary-lightest-color)] border border-[var(--ty-primary-color)]/25 text-ty-2xs text-[var(--ty-font-main-light-color)] leading-relaxed">
-                相似度仅依据参与评分的字段计算。仅展示、不参与评分的属性即使不同，也不会影响相似度得分。
-              </div>
-              <div className="text-ty-xs font-bold text-[var(--ty-font-main-color)]">
-                评分与属性对比明细 ({selectedCandidate.compareFields.length} 项)
+              <div className="flex items-center gap-1 text-ty-xs font-bold text-[var(--ty-font-main-color)]">
+                <span>评分与属性对比明细 ({selectedCandidate.compareFields.length} 项)</span>
+                <HelpTooltip label="查看明细口径" content="相似度仅依据参与评分的字段计算。仅展示属性即使不同，也不会影响相似度得分。" />
               </div>
 
               <div className="space-y-3">
@@ -876,9 +881,7 @@ export const QueryPreviewView: React.FC<QueryPreviewViewProps> = ({
                               字段原始分：{f.missingSide === 'REFERENCE' || f.candidateMissingHandling === 'SKIP' ? '—' : `${(f.matchRate * 100).toFixed(2)} 分`}
                             </span>
                           </>
-                        ) : (
-                          <span>{f.hasDifference ? '两侧值存在差异' : '两侧值相同'}；仅用于展示对比，不进入总分、覆盖率、评分命中数或差异数。</span>
-                        )}
+                        ) : <span>{f.hasDifference ? '值不同' : '值相同'}</span>}
                       </div>
                     </div>
                   );

@@ -134,6 +134,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
             </button>
 
             <button
+              onClick={() => onNavigate('client-find-similar-v2')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
+                currentView === 'client-find-similar-v2'
+                  ? 'bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] font-semibold'
+                  : 'text-[var(--ty-font-placeholder-color)] hover:text-[var(--ty-font-white-color)] hover:bg-[var(--ty-fill-darkest-color)]/50'
+              }`}
+              id="sidebar-nav-client-find-similar-v2"
+            >
+              <Eye className="w-3.5 h-3.5 text-[var(--ty-primary-hover-color)]" />
+              <span>应用端查找相似件 V2.0</span>
+              {currentView === 'client-find-similar-v2' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--ty-fill-white-color)] ml-auto"></span>}
+            </button>
+
+            <button
               onClick={() => onNavigate('publish-records')}
               className={`w-full flex items-center space-x-3 px-3 py-2 rounded-ty-sm text-ty-ss font-medium transition-colors text-left cursor-pointer ${
                 currentView === 'publish-records'

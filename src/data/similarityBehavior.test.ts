@@ -43,6 +43,63 @@ test('two-percent bidirectional tolerance converts units before judging the boun
   );
 });
 
+test('relative deviation decay converts units and scores only within the configured maximum', () => {
+  const relativeRule: FieldSimilarityRule = {
+    ...initialFieldRules.find(rule => rule.id === 'R-INHOUSE-02')!,
+    matchType: '相对偏差衰减',
+    matchConfig: { kind: 'RELATIVE_DEVIATION_DECAY', maxDeviationPercent: 10 },
+    mismatchAction: 'EXCLUDE_CANDIDATE'
+  };
+  const reference = { units: { nominal_diameter: 'm' } };
+  const withinRangeCandidate = { units: { nominal_diameter: 'cm' } };
+  const exceededCandidate = { units: { nominal_diameter: 'm' } };
+
+  assert.ok(Math.abs(calculateFieldMatchRate(relativeRule, 1, 105, withinRangeCandidate, reference) - 0.95) < 1e-12);
+  assert.ok(Math.abs(calculateFieldMatchRate(relativeRule, 1, 1.1, exceededCandidate, reference) - 0.9) < 1e-12);
+  assert.equal(calculateFieldMatchRate(relativeRule, 1, 1.11, exceededCandidate, reference), 0);
+  assert.equal(calculateFieldMatchRate(relativeRule, 0, 0, exceededCandidate, reference), 0);
+});
+
+test('relative deviation gate keeps in-range candidates and excludes only values beyond the maximum', () => {
+  const rules = initialFieldRules.map(rule => rule.id === 'R-INHOUSE-02'
+    ? {
+        ...rule,
+        matchType: '相对偏差衰减',
+        matchConfig: { kind: 'RELATIVE_DEVIATION_DECAY' as const, maxDeviationPercent: 10 },
+        mismatchAction: 'EXCLUDE_CANDIDATE' as const
+      }
+    : rule
+  );
+  const result = runSimilaritySearch('PART', 'IN_HOUSE', { type: 'EXISTING_PART', objectId: 'PART-2026-000100' }, rules);
+
+  assert.ok(result.scoredCandidates.some(candidate => candidate.objectId === 'PART-A-001'));
+  const excluded = result.excludedCandidates.find(candidate => candidate.objectId === 'PART-X-001');
+  assert.ok(excluded);
+  assert.match(excluded.matchingRequirement, /相对偏差 60\.00% 超过最大允许偏差 10\.00%/);
+});
+
+test('relative deviation search rejects a zero reference before scoring', () => {
+  const relativeRule: FieldSimilarityRule = {
+    ...initialFieldRules.find(rule => rule.id === 'R-INHOUSE-02')!,
+    matchType: '相对偏差衰减',
+    matchConfig: { kind: 'RELATIVE_DEVIATION_DECAY', maxDeviationPercent: 10 }
+  };
+  const result = runSimilaritySearch(
+    'PART',
+    'IN_HOUSE',
+    {
+      type: 'FORM_VALUES',
+      rootTypeId: 'PART',
+      softTypeId: 'IN_HOUSE',
+      values: { nominal_diameter: 0 },
+      units: { nominal_diameter: 'mm' }
+    },
+    [relativeRule]
+  );
+  assert.equal(result.errorCode, 'QUERY_ERROR');
+  assert.equal(result.errorMessage, '参考值必须为非零有效数字，无法计算相对偏差。');
+});
+
 test('similarity tier uses the displayed two-decimal score and validates boundaries', () => {
   const config = { highStart: 85, mediumStart: 70, configVersion: 'test', lastModifiedAt: '-' };
   assert.equal(resolveSimilarityTier(84.999, config), '高相似');
@@ -199,5 +256,53 @@ test('candidate missing policy keeps coverage stable and changes only the scorin
   } finally {
     const index = mockPartDatabase.findIndex(item => item.objectId === testCandidate.objectId);
     if (index >= 0) mockPartDatabase.splice(index, 1);
+  }
+});
+
+test('TopK is applied after stable score sorting and before result pagination', () => {
+  const seed = mockPartDatabase.find(item => item.objectId === 'PART-A-001');
+  assert.ok(seed);
+  const additions = Array.from({ length: 105 }, (_, index) => ({
+    ...seed,
+    objectId: `PART-TOPK-${String(index).padStart(3, '0')}`,
+    requestCode: `REQ-TOPK-${String(index).padStart(3, '0')}`,
+    attributes: { ...seed.attributes },
+    units: { ...seed.units }
+  }));
+  mockPartDatabase.push(...additions);
+
+  try {
+    const allResults = runSimilaritySearch(
+      'PART',
+      'IN_HOUSE',
+      { type: 'EXISTING_PART', objectId: 'PART-2026-000100' },
+      initialFieldRules,
+      undefined,
+      undefined,
+      { topK: 500 }
+    );
+    const top100Results = runSimilaritySearch(
+      'PART',
+      'IN_HOUSE',
+      { type: 'EXISTING_PART', objectId: 'PART-2026-000100' },
+      initialFieldRules,
+      undefined,
+      undefined,
+      { topK: 100 }
+    );
+
+    assert.ok((allResults.scoredCount || 0) > 100);
+    assert.equal(top100Results.topK, 100);
+    assert.equal(top100Results.returnedCount, 100);
+    assert.equal(top100Results.scoredCandidates.length, 100);
+    assert.deepEqual(
+      top100Results.scoredCandidates.map(item => item.objectId),
+      allResults.scoredCandidates.slice(0, 100).map(item => item.objectId)
+    );
+  } finally {
+    const addedIds = new Set(additions.map(item => item.objectId));
+    for (let index = mockPartDatabase.length - 1; index >= 0; index -= 1) {
+      if (addedIds.has(mockPartDatabase[index].objectId)) mockPartDatabase.splice(index, 1);
+    }
   }
 });

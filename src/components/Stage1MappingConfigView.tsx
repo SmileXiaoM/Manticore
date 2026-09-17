@@ -551,7 +551,6 @@ export const Stage1MappingConfigView: React.FC<Stage1MappingConfigViewProps> = (
           <h1 className="text-ty-xl font-semibold">接入配置</h1>
           <HelpTooltip label="查看接入配置说明" content="维护字段映射、接入启停与中间表检查频率；常驻服务逐条写入 Manticore。" />
         </div>
-        <span className="text-ty-xs text-[var(--ty-font-sub-color)]">配置范围按根类型隔离</span>
       </header>
       {operationMessage && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] px-3 py-2 text-ty-xs">

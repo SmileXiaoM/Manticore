@@ -15,6 +15,7 @@ import { FieldSimilarityView } from './components/FieldSimilarityView';
 import { PublishRecordView } from './components/PublishRecordView';
 import { QueryPreviewView } from './components/QueryPreviewView';
 import { ClientFindSimilarView } from './components/ClientFindSimilarView';
+import { ClientFindSimilarV2View } from './components/ClientFindSimilarV2View';
 import { DataProcessingView } from './components/DataProcessingView';
 import { ThreeStandardDecisionView } from './components/ThreeStandardDecisionView';
 import { ManticoreSyncQueueView } from './components/ManticoreSyncQueueView';
@@ -28,7 +29,8 @@ import {
   initialAlignmentRules,
   initialThresholdRules,
   initialHardRules,
-  initialCategoryCoverages
+  initialCategoryCoverages,
+  DEFAULT_SIMILARITY_RUNTIME_CONFIG
 } from './data';
 import { initialSyncBatches } from './syncQualityData';
 import { getCurrentTargetSyncRecords, initialTargetSyncRecords, TargetSyncRecord } from './data/targetSyncRecords';
@@ -50,6 +52,7 @@ import {
   ChangeRecord,
   SimilarityGroupConfigStatus,
   SimilarityTierConfigMap,
+  SimilarityRuntimeConfig,
   isObjectRulesModified,
   restoreObjectRules
 } from './types';
@@ -66,6 +69,7 @@ export default function App() {
   const [editingTierConfigs, setEditingTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
   const [savedTierConfigs, setSavedTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
   const [activeTierConfigs, setActiveTierConfigs] = useState<SimilarityTierConfigMap>(() => structuredClone(initialSimilarityTierConfigs));
+  const [similarityRuntimeConfig, setSimilarityRuntimeConfig] = useState<SimilarityRuntimeConfig>(() => ({ ...DEFAULT_SIMILARITY_RUNTIME_CONFIG }));
   const [previewedSavedSignatures, setPreviewedSavedSignatures] = useState<Record<string, string>>({});
 
   // 4. 配置变更审计记录
@@ -343,6 +347,8 @@ export default function App() {
                 onUpdateActiveTierConfigs={setActiveTierConfigs}
                 previewedSavedSignatures={previewedSavedSignatures}
                 fieldMappings={flatFieldMappings}
+                similarityRuntimeConfig={similarityRuntimeConfig}
+                onUpdateSimilarityRuntimeConfig={setSimilarityRuntimeConfig}
                 initialScopeId={similarityWorkflowScopeId}
                 onOpenQueryPreview={(scopeId) => {
                   setSimilarityWorkflowScopeId(scopeId);
@@ -362,6 +368,7 @@ export default function App() {
                 objectConfigStatus={objectConfigStatus}
                 savedTierConfigs={savedTierConfigs}
                 activeTierConfigs={activeTierConfigs}
+                runtimeConfig={similarityRuntimeConfig}
                 onPreviewSuccess={(groupValueId, signature) => setPreviewedSavedSignatures(previous => ({ ...previous, [groupValueId]: signature }))}
                 onNavigate={handleNavigate}
                 initialSoftTypeId={similarityWorkflowScopeId}
@@ -377,7 +384,17 @@ export default function App() {
                 rules={activeFieldRules}
                 objectConfigStatus={objectConfigStatus}
                 tierConfigs={activeTierConfigs}
+                runtimeConfig={similarityRuntimeConfig}
                 onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'client-find-similar-v2' && (
+              <ClientFindSimilarV2View
+                rules={activeFieldRules}
+                objectConfigStatus={objectConfigStatus}
+                tierConfigs={activeTierConfigs}
+                runtimeConfig={similarityRuntimeConfig}
               />
             )}
 

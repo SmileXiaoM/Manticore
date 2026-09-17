@@ -342,7 +342,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               <FileCheck2 size={20} className="page-title-icon" />
               <h1>数据一致性核验</h1>
               <HelpTooltip label="查看数据一致性核验说明" content="查看 PLM 与 Manticore 的核验记录，并按对象、字段继续定位差异。" />
-              <span className="prototype-note">原型演示</span>
             </div>
           </div>
           <div className="page-actions">
@@ -387,7 +386,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               ))}
             </select>
           </label>
-          <span className="muted context-note">核验差异是业务结果；任务失败、待复查和无法比对分别记录。</span>
         </div>
       </header>
 
@@ -780,7 +778,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </div>
               <fieldset>
                 <legend>固定核验属性</legend>
-                <p className="muted">选择需要逐字段比对的属性。</p>
                 <ConsistencyFieldSelect
                   key={draft.rootTypeCode}
                   fields={draftFormal.snapshot?.includedFields || []}
@@ -836,7 +833,7 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                 </label>
               </fieldset>
               <fieldset>
-                <legend>自动核验</legend>
+                <legend className="inline-flex items-center gap-1">自动核验<HelpTooltip label="查看自动核验范围说明" content="频率随方案保存。自动任务固定按本方案的全部对象范围抽样；手动发起仍可选择其他运行方式。" /></legend>
                 <label className="inline-control">
                   <input
                     type="checkbox"
@@ -850,7 +847,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
                   />
                   启用该方案的自动核验
                 </label>
-                <p className="muted">频率随方案保存。自动任务固定按本方案的全部对象范围抽样，手动发起仍可选择其他运行方式。</p>
                 {draft.schedule?.enabled && (
                   <div className="form-grid">
                     <label>
@@ -1170,7 +1166,6 @@ export const DataConsistencyCheckView: React.FC<DataConsistencyCheckViewProps> =
               </table>
             </div>
             <div className="field-detail-footer">
-              <span className="muted">默认仅展示差异、目标缺失和无法比对字段。</span>
               <button type="button" onClick={() => setObjectId(null)}>关闭</button>
             </div>
           </div>

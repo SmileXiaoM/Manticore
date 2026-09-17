@@ -142,11 +142,10 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
 
         {/* 展示顺序数字输入框 */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <label className="block text-ty-xs font-semibold text-[var(--ty-font-main-color)]">
-              展示顺序 <span className="text-[var(--ty-red-color)]">*</span>
+              <span className="inline-flex items-center gap-1">展示顺序 <span className="text-[var(--ty-red-color)]">*</span><HelpTooltip label="查看展示顺序规则" content="数字越小越靠前；允许与其他属性使用相同顺序号。" /></span>
             </label>
-            <span className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">控制结果列展示排位</span>
           </div>
           <div className="relative">
             <input
@@ -167,13 +166,7 @@ export const FieldMappingForm: React.FC<FieldMappingFormProps> = ({
               位
             </span>
           </div>
-          {errors.displayOrder ? (
-            <p className="text-ty-2xs text-[var(--ty-red-color)] font-medium">{errors.displayOrder}</p>
-          ) : (
-            <p className="text-ty-2xs text-[var(--ty-font-sub-light-color)]">
-              数字越小越靠前；允许与其他属性相同，相同顺序的属性会排在一起。
-            </p>
-          )}
+          {errors.displayOrder && <p className="text-ty-2xs text-[var(--ty-red-color)] font-medium">{errors.displayOrder}</p>}
         </div>
 
         {/* 默认表格列宽 */}

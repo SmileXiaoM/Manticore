@@ -28,10 +28,15 @@ import {
   SoftTypeOption,
   UnitCatalog,
   MismatchAction,
-  SimilarityTierConfig
+  SimilarityTierConfig,
+  SimilarityRuntimeConfig,
+  SimilarityTopK
 } from './types';
 import unitCatalogData from './unit-catalog.json';
 import { DEFAULT_SIMILARITY_TIER, resolveSimilarityTier } from './similarityTier';
+
+export const SIMILARITY_TOP_K_OPTIONS: SimilarityTopK[] = [100, 200, 500];
+export const DEFAULT_SIMILARITY_RUNTIME_CONFIG: SimilarityRuntimeConfig = { topK: 200 };
 
 // Unit Catalog Model - Read-Only Versioned Simulation
 export const mockUnitCatalog: UnitCatalog = unitCatalogData as UnitCatalog;
@@ -1525,10 +1530,10 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
     rootTypeId: 'PART',
     softTypeId: 'IN_HOUSE',
     objectId: 'PART-A-004',
-    objectName: '六角螺钉 M10 x 45 (跨度相似)',
+    objectName: '六角螺钉 M10 x 45 (跨分类相似)',
     specification: 'M10 x 45',
     material: 'SUS316',
-    classificationPath: '/紧固件/螺栓/六角头螺栓',
+    classificationPath: '/紧固件/螺钉/六角头螺钉',
     lifecycleState: '有效',
     attributes: {
       spec_description: '六角螺钉 M10 x 45 防腐件',
@@ -1536,7 +1541,7 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
       nominal_diameter: 10,
       length: 45,
       thread_pitch: 1.5,
-      category_path: '/紧固件/螺栓/六角头螺栓',
+      category_path: '/紧固件/螺钉/六角头螺钉',
       surface_treatment: '钝化'
     },
     units: {
@@ -1822,7 +1827,38 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
       working_voltage: 'V',
       working_temp: 'K'
     }
-  }
+  },
+  // V2 筛选高值场景：同一候选集内保留大量不同规格值，用于验证值筛选的搜索、分段加载与已选项保留。
+  ...Array.from({ length: 64 }, (_, index) => {
+    const sequence = String(index + 1).padStart(2, '0');
+    const length = 38 + (index % 27);
+    const material = ['SUS304', 'A2-70', 'SUS316'][index % 3];
+    return {
+      requestCode: `REQ-2026-HIGH-VALUE-${sequence}`,
+      rootTypeId: 'PART',
+      softTypeId: 'IN_HOUSE',
+      objectId: `PART-FACET-${sequence}`,
+      objectName: `六角头螺栓 M10 x ${length}（规格值样例 ${sequence}）`,
+      specification: `M10 x ${length}`,
+      material,
+      classificationPath: '/紧固件/螺栓/六角头螺栓',
+      lifecycleState: '有效',
+      attributes: {
+        spec_description: `六角头螺栓 M10 x ${length} 规格值样例 ${sequence}`,
+        core_material: material,
+        nominal_diameter: 10,
+        length,
+        thread_pitch: 1.5,
+        category_path: '/紧固件/螺栓/六角头螺栓',
+        surface_treatment: index % 2 === 0 ? '钝化' : '酸洗'
+      },
+      units: {
+        nominal_diameter: 'mm',
+        length: 'mm',
+        thread_pitch: 'mm'
+      }
+    };
+  })
 ];
 
 function resolveAndConvertToBase(
@@ -1988,6 +2024,15 @@ export function calculateFieldMatchRate(
     return Math.max(0, Math.min(1.0, rate));
   }
 
+  // RELATIVE DEVIATION DECAY
+  if (matchKind === 'RELATIVE_DEVIATION_DECAY') {
+    const relativeDeviation = calculateRelativeDeviation(rule, refVal, candVal, cand, reference);
+    const maxDeviation = (config as any).maxDeviationPercent / 100;
+    if (relativeDeviation === null || !Number.isFinite(maxDeviation) || maxDeviation <= 0 || maxDeviation > 1) return 0.0;
+    if (relativeDeviation - maxDeviation > 1e-12) return 0.0;
+    return Math.max(0, Math.min(1.0, 1.0 - relativeDeviation));
+  }
+
   // NATIVE HIERARCHY
   if (matchKind === 'NATIVE_HIERARCHY') {
     const p1 = String(refVal).replace(/^\/|\/$/g, '').split('/');
@@ -2014,9 +2059,7 @@ export function calculateFieldMatchRate(
     const candDist = p2.length - c;
     const gap = refDist + candDist;
 
-    if (gap > maxGap) {
-      return 0.0;
-    }
+    if (gap > maxGap) return 0.0;
 
     const rate = 1.0 - (gap * deduction / 100);
     return Math.max(0, Math.min(1.0, rate));
@@ -2041,6 +2084,39 @@ export function calculateFieldMatchRate(
   return String(refVal) === String(candVal) ? 1.0 : 0.0;
 }
 
+/**
+ * Returns the unit-normalized relative deviation for the dedicated relative-deviation mode.
+ * A zero or invalid reference has no meaningful relative deviation and is represented by null.
+ */
+export function calculateRelativeDeviation(
+  rule: FieldSimilarityRule,
+  refVal: any,
+  candVal: any,
+  cand: any,
+  reference: any
+): number | null {
+  if (isSimilarityValueMissing(refVal) || isSimilarityValueMissing(candVal)) return null;
+
+  const isUnitField = rule.fieldType?.includes('NUMBER_WITH_UNIT');
+  let referenceValue: number;
+  let candidateValue: number;
+
+  if (isUnitField) {
+    try {
+      referenceValue = resolveAndConvertToBase(refVal, rule.propertyCode, reference, rule.unitFamily || '');
+      candidateValue = resolveAndConvertToBase(candVal, rule.propertyCode, cand, rule.unitFamily || '');
+    } catch (e) {
+      return null;
+    }
+  } else {
+    referenceValue = Number(refVal);
+    candidateValue = Number(candVal);
+  }
+
+  if (!Number.isFinite(referenceValue) || !Number.isFinite(candidateValue) || referenceValue === 0) return null;
+  return Math.abs(candidateValue - referenceValue) / Math.abs(referenceValue);
+}
+
 export function isSimilarityValueMissing(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 }
@@ -2058,7 +2134,8 @@ export function runSimilaritySearch(
   baseline: SimilarityBaseline,
   rules: FieldSimilarityRule[],
   keywordFilter?: string,
-  tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'> = DEFAULT_SIMILARITY_TIER
+  tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'> = DEFAULT_SIMILARITY_TIER,
+  runtimeConfig: SimilarityRuntimeConfig = DEFAULT_SIMILARITY_RUNTIME_CONFIG
 ): SearchRunResult {
   const { typeId: candidateTypeId } = parseSimilarityRuleScopeKey(softTypeId);
   // 1. 过滤当前根类型与软类型的规则
@@ -2126,6 +2203,23 @@ export function runSimilaritySearch(
     };
   }
 
+  const invalidRelativeDeviationReference = currentScopeRules.find(rule => {
+    if (!rule.enabled || !rule.isScoreActive || rule.matchConfig?.kind !== 'RELATIVE_DEVIATION_DECAY') return false;
+    const rawValue = reference.attributes[rule.propertyCode];
+    return isSimilarityValueMissing(rawValue) || !Number.isFinite(Number(rawValue)) || Number(rawValue) === 0;
+  });
+  if (invalidRelativeDeviationReference) {
+    return {
+      reference,
+      baselineType: baseline.type,
+      formBaselineInfo,
+      scoredCandidates: [],
+      excludedCandidates: [],
+      errorCode: 'QUERY_ERROR',
+      errorMessage: '参考值必须为非零有效数字，无法计算相对偏差。'
+    };
+  }
+
   // 3. 获取候选件候选池 (同根类型同软类型下，除自身外的所有候选件)
   const candidatePool = mockPartDatabase.filter(
     p =>
@@ -2170,11 +2264,22 @@ export function runSimilaritySearch(
 
         // 仅双方都有值且不满足匹配要求时触发门槛排除。
         const matchRate = calculateFieldMatchRate(rule, refVal, candVal, cand, reference);
-        if (matchRate < 1.0) {
+        const isRelativeDeviationOutOfRange = rule.matchConfig?.kind === 'RELATIVE_DEVIATION_DECAY'
+          && (() => {
+            const deviation = calculateRelativeDeviation(rule, refVal, candVal, cand, reference);
+            return deviation !== null && deviation - rule.matchConfig.maxDeviationPercent / 100 > 1e-12;
+          })();
+        const shouldExclude = rule.matchConfig?.kind === 'RELATIVE_DEVIATION_DECAY'
+          ? isRelativeDeviationOutOfRange
+          : matchRate < 1.0;
+        if (shouldExclude) {
           isExcluded = true;
           let reqDesc = rule.matchType;
           if (rule.matchConfig?.kind === 'NUMERIC_TOLERANCE') {
             reqDesc = `容差 ±${(rule.matchConfig as any).toleranceValue}${rule.displayUnit || ''}`;
+          } else if (rule.matchConfig?.kind === 'RELATIVE_DEVIATION_DECAY') {
+            const deviation = calculateRelativeDeviation(rule, refVal, candVal, cand, reference) || 0;
+            reqDesc = `相对偏差 ${(deviation * 100).toFixed(2)}% 超过最大允许偏差 ${rule.matchConfig.maxDeviationPercent.toFixed(2)}%`;
           } else if (rule.matchConfig?.kind === 'EXACT') {
             reqDesc = `精确一致 (${refVal})`;
           }
@@ -2288,7 +2393,17 @@ export function runSimilaritySearch(
       numeratorScore += weightedScore;
 
       let reason = '';
-      if (matchRate === 1.0) {
+      if (rule.matchConfig?.kind === 'RELATIVE_DEVIATION_DECAY') {
+        const deviation = calculateRelativeDeviation(rule, refVal, candVal, cand, reference);
+        const maxDeviation = rule.matchConfig.maxDeviationPercent / 100;
+        if (deviation === null) {
+          reason = '参考值必须为非零有效数字，无法计算相对偏差。';
+        } else if (deviation - maxDeviation > 1e-12) {
+          reason = `相对偏差 ${(deviation * 100).toFixed(2)}% 超过最大允许偏差 ${rule.matchConfig.maxDeviationPercent.toFixed(2)}%；${rule.mismatchAction === 'EXCLUDE_CANDIDATE' ? '候选已按门槛排除' : '该字段记 0 分，候选继续计算'}`;
+        } else {
+          reason = `相对偏差 ${(deviation * 100).toFixed(2)}%，字段得分 ${(matchRate * 100).toFixed(2)} 分`;
+        }
+      } else if (matchRate === 1.0) {
         if (rule.matchConfig?.kind === 'NUMERIC_TOLERANCE') {
           reason = `${rule.fieldName}偏差在容差范围内，本字段得满分；两侧数值可以不同`;
         } else if (rule.matchConfig?.kind === 'NUMERIC_DECAY') {
@@ -2400,15 +2515,24 @@ export function runSimilaritySearch(
     });
   }
 
-  // 必须按未舍入原始分值从高到低严格排序
-  scoredCandidates.sort((a, b) => b.rawSimilarityScore - a.rawSimilarityScore);
+  // 先按未舍入原始分值稳定排序，再截取全局 TopK；分页只能处理这一结果集。
+  scoredCandidates.sort((a, b) => b.rawSimilarityScore - a.rawSimilarityScore || a.objectId.localeCompare(b.objectId));
+  const topK = SIMILARITY_TOP_K_OPTIONS.includes(runtimeConfig.topK)
+    ? runtimeConfig.topK
+    : DEFAULT_SIMILARITY_RUNTIME_CONFIG.topK;
+  const scoredCount = scoredCandidates.length;
+  const returnedCandidates = scoredCandidates.slice(0, topK);
 
   return {
     reference,
     baselineType: baseline.type,
     formBaselineInfo,
-    scoredCandidates,
-    excludedCandidates
+    scoredCandidates: returnedCandidates,
+    excludedCandidates,
+    candidateCount: filteredPool.length,
+    scoredCount,
+    returnedCount: returnedCandidates.length,
+    topK
   };
 }
 

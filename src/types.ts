@@ -82,6 +82,10 @@ export type MatchConfig =
       direction: 'BOTH' | 'HIGHER' | 'LOWER';
     }
   | {
+      kind: 'RELATIVE_DEVIATION_DECAY';
+      maxDeviationPercent: number;
+    }
+  | {
       kind: 'DATE_TOLERANCE';
       toleranceValue: number;
       toleranceUnit: 'DAY' | 'HOUR';
@@ -93,6 +97,12 @@ export type MatchConfig =
       relation: 'PARENT_CHILD' | 'ANCESTOR_DESCENDANT';
       deductionPerLevel: number;
     };
+
+export type SimilarityTopK = 100 | 200 | 500;
+
+export type SimilarityRuntimeConfig = {
+  topK: SimilarityTopK;
+};
 
 export interface FieldSimilarityRule {
   id: string;
@@ -440,6 +450,11 @@ export type SearchRunResult = {
   };
   scoredCandidates: ScoredCandidate[];
   excludedCandidates: ExcludedCandidate[];
+  /** Scoring diagnostics after the current user's data-permission boundary. */
+  candidateCount?: number;
+  scoredCount?: number;
+  returnedCount?: number;
+  topK?: SimilarityTopK;
   errorCode?: 'REFERENCE_NOT_FOUND' | 'OBJECT_TYPE_MISMATCH' | 'NO_RULES' | 'NO_PERMISSION' | 'QUERY_ERROR';
   errorMessage?: string;
 };

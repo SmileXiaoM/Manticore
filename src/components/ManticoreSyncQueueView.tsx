@@ -287,8 +287,8 @@ export function ManticoreSyncQueueView({
       </section>
 
       <div className="bg-[var(--ty-primary-lightest-color)]/35 border border-[var(--ty-primary-color)]/20 rounded-ty-sm px-3 py-2 text-ty-xs flex flex-wrap items-center justify-between gap-2">
-        <span>{selectedRoot ? `${rootName[selectedRoot.id]}：${selectedRoot.accessEnabled ? scheduleLabel(schedules.find((item) => item.rootTypeCode === selectedRoot.id), selectedRoot.pollingIntervalMinutes) : '已停用，不再轮询中间表'}` : '各对象类型按自己的检查频率轮询，队列按单条记录处理。'}</span>
-        <span className="text-[var(--ty-font-sub-color)]">默认只看每个业务对象的最新记录；历史失败 {historicalFailureCount} 条</span>
+        <span>{selectedRoot ? `${rootName[selectedRoot.id]}：${selectedRoot.accessEnabled ? scheduleLabel(schedules.find((item) => item.rootTypeCode === selectedRoot.id), selectedRoot.pollingIntervalMinutes) : '已停用'}` : '全部对象类型'}</span>
+        <div className="flex items-center gap-1 text-[var(--ty-font-sub-color)]"><span>历史失败 {historicalFailureCount} 条</span><HelpTooltip label="查看队列范围说明" content="各对象类型按各自检查频率轮询，队列按单条记录处理。默认显示每个业务对象的最新记录。" /></div>
       </div>
 
       {feedback && (
@@ -300,7 +300,7 @@ export function ManticoreSyncQueueView({
 
       <section className="bg-[var(--ty-fill-white-color)] border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--ty-border-color)] flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-ty-sm font-semibold">同步记录</h2><p className="text-ty-xs text-[var(--ty-font-sub-color)] mt-1">{recordScope === 'CURRENT' ? `共 ${visible.length} 个业务对象；只有当前失败记录可重新入队。` : `共 ${visible.length} 条处理记录；历史记录只读保留。`}</p></div>
+          <div><h2 className="text-ty-sm font-semibold">同步记录 <span className="ml-1 text-ty-xs font-normal text-[var(--ty-font-sub-color)]">{visible.length} 条</span></h2></div>
           <button type="button" disabled={!selectedFailedIds.length} onClick={() => setRetryConfirmIds(selectedFailedIds)} className="h-8 px-3 rounded-ty-sm text-ty-xs border border-[var(--ty-primary-color)] text-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] disabled:border-[var(--ty-border-color)] disabled:text-[var(--ty-font-sub-light-color)] disabled:cursor-not-allowed inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5" />批量重新入队{selectedFailedIds.length ? `（${selectedFailedIds.length}）` : ''}</button>
         </div>
         <div className="overflow-auto max-h-88">
