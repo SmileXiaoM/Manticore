@@ -6,10 +6,7 @@ import {
   Eye,
   FileCheck2,
   Filter,
-  Grid2X2,
-  ImageOff,
   Layers3,
-  List,
   Package,
   Search,
   SlidersHorizontal,
@@ -49,7 +46,6 @@ interface ClientFindSimilarV2ViewProps {
   tierConfigs: SimilarityTierConfigMap;
   runtimeConfig: SimilarityRuntimeConfig;
 }
-type ViewMode = "LIST" | "GRID";
 type QueryMode = "EXISTING_PART" | "CONDITIONS";
 type FacetKind = "VALUE" | "NUMBER";
 type NumericRange = { from: string; to: string };
@@ -71,8 +67,6 @@ type ResultAttribute = {
 
 const EMPTY_VALUE_FILTERS: Record<string, string[]> = {};
 const EMPTY_NUMERIC_FILTERS: Record<string, NumericRange> = {};
-const VIEW_MODE_STORAGE_KEY =
-  "manticore.user.xiaohua.application-similarity.v2.view-mode";
 const formatNumber = (value: number) =>
   Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 const isNumericRule = (rule: FieldSimilarityRule) =>
@@ -196,16 +190,6 @@ const getCandidateMeta = (candidate: ScoredCandidate) => ({
     candidate.classificationPath.split("/").filter(Boolean).at(-1) || "未分类",
   source: "IntePLM V21",
 });
-const getInitialViewMode = (): ViewMode => {
-  try {
-    return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "GRID"
-      ? "GRID"
-      : "LIST";
-  } catch {
-    return "LIST";
-  }
-};
-
 export const ClientFindSimilarV2View: React.FC<
   ClientFindSimilarV2ViewProps
 > = ({ rules, objectConfigStatus, tierConfigs, runtimeConfig }) => {
@@ -228,7 +212,6 @@ export const ClientFindSimilarV2View: React.FC<
     null,
   );
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [valueFilters, setValueFilters] =
@@ -247,6 +230,17 @@ export const ClientFindSimilarV2View: React.FC<
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isFormEntryOpen, setIsFormEntryOpen] = useState(false);
   const [formEntryId, setFormEntryId] = useState("FORM-001");
+  const [isFormSearching, setIsFormSearching] = useState(false);
+  const [isFormResultOpen, setIsFormResultOpen] = useState(false);
+  const [formSearchResult, setFormSearchResult] =
+    useState<SearchRunResult | null>(null);
+  const [isReplacementOpen, setIsReplacementOpen] = useState(false);
+  const [replacementTargetId, setReplacementTargetId] = useState<string | null>(
+    null,
+  );
+  const [replacementCandidateId, setReplacementCandidateId] = useState<
+    string | null
+  >(null);
 
   const resetResultControls = () => {
     setPreview(null);
@@ -454,19 +448,31 @@ export const ClientFindSimilarV2View: React.FC<
       notify("当前表单未配置相似度规则，仍可正常确认保存。", "warning");
       return;
     }
-    executeSearch(
-      {
-        type: "FORM_VALUES",
-        requestNo: currentFormEntry.requestNo,
-        temporaryNo: currentFormEntry.temporaryNo,
-        rootTypeId: currentFormEntry.rootTypeId,
-        softTypeId: currentFormEntry.softTypeId,
-        values: currentFormEntry.values,
-        units: currentFormEntry.units,
-      },
-      formEntryScope.scopeKey,
-    );
-    setIsFormEntryOpen(false);
+    const baseline: SimilarityBaseline = {
+      type: "FORM_VALUES",
+      requestNo: currentFormEntry.requestNo,
+      temporaryNo: currentFormEntry.temporaryNo,
+      rootTypeId: currentFormEntry.rootTypeId,
+      softTypeId: currentFormEntry.softTypeId,
+      values: currentFormEntry.values,
+      units: currentFormEntry.units,
+    };
+    setIsFormSearching(true);
+    window.setTimeout(() => {
+      setFormSearchResult(
+        runSimilaritySearch(
+          "PART",
+          formEntryScope.scopeKey,
+          baseline,
+          rules,
+          undefined,
+          getSimilarityTierConfig(tierConfigs, formEntryScope.scopeKey),
+          runtimeConfig,
+        ),
+      );
+      setIsFormSearching(false);
+      setIsFormResultOpen(true);
+    }, 240);
   };
   useEffect(() => {
     const timer = window.setTimeout(
@@ -481,14 +487,6 @@ export const ClientFindSimilarV2View: React.FC<
     setSearchRequest(null);
     resetResultControls();
   }, [queryMode]);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
-    } catch {
-      // A private browser session may prohibit persistence; the view remains usable in memory.
-    }
-  }, [viewMode]);
-
   const suggestions = useMemo(() => {
     const keyword = referenceInput.trim().toLowerCase();
     const parts = mockPartDatabase.filter((part) => part.rootTypeId === "PART");
@@ -865,10 +863,45 @@ export const ClientFindSimilarV2View: React.FC<
       return;
     }
     if (compareIds.length >= 4) {
-      notify("一次最多可对比 4 件候选件。", "warning");
+      setReplacementTargetId(null);
+      setReplacementCandidateId(candidate.objectId);
+      setIsReplacementOpen(true);
       return;
     }
     setCompareCandidates((previous) => [...previous, candidate]);
+  };
+  const replaceCompareCandidate = (
+    currentCandidateId: string,
+    nextCandidateId: string,
+  ) => {
+    const nextCandidate = filteredCandidates.find(
+      (candidate) => candidate.objectId === nextCandidateId,
+    );
+    if (!nextCandidate) return;
+    setCompareCandidates((previous) => {
+      if (previous.some((candidate) => candidate.objectId === nextCandidateId)) {
+        return previous;
+      }
+      return previous.map((candidate) =>
+        candidate.objectId === currentCandidateId ? nextCandidate : candidate,
+      );
+    });
+    notify(`已更换为候选件 ${nextCandidate.objectId}。`, "success");
+  };
+  const openReplacementDialog = (targetCandidateId: string) => {
+    setReplacementTargetId(targetCandidateId);
+    setReplacementCandidateId(null);
+    setIsReplacementOpen(true);
+  };
+  const closeReplacementDialog = () => {
+    setIsReplacementOpen(false);
+    setReplacementTargetId(null);
+    setReplacementCandidateId(null);
+  };
+  const confirmReplacement = () => {
+    if (!replacementTargetId || !replacementCandidateId) return;
+    replaceCompareCandidate(replacementTargetId, replacementCandidateId);
+    closeReplacementDialog();
   };
   const exportCurrentTopK = () => {
     if (!result || filteredCandidates.length === 0) {
@@ -1110,24 +1143,6 @@ export const ClientFindSimilarV2View: React.FC<
                 <ChevronRight className="w-3.5 h-3.5" />
               )}
             </button>
-            <div className="inline-flex h-8 items-center rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] p-0.5">
-              <button
-                title="列表视图"
-                aria-label="列表视图"
-                onClick={() => setViewMode("LIST")}
-                className={`w-7 h-6 inline-flex items-center justify-center rounded-ty-xs cursor-pointer ${viewMode === "LIST" ? "bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)]" : "text-[var(--ty-font-sub-color)]"}`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-              <button
-                title="缩略卡片视图"
-                aria-label="缩略卡片视图"
-                onClick={() => setViewMode("GRID")}
-                className={`w-7 h-6 inline-flex items-center justify-center rounded-ty-xs cursor-pointer ${viewMode === "GRID" ? "bg-[var(--ty-primary-lightest-color)] text-[var(--ty-primary-color)]" : "text-[var(--ty-font-sub-color)]"}`}
-              >
-                <Grid2X2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
           </div>
         </div>
         <div
@@ -1199,7 +1214,7 @@ export const ClientFindSimilarV2View: React.FC<
                   hasActiveFilters={hasActiveFilters}
                   onClear={clearResultFilters}
                 />
-              ) : viewMode === "LIST" ? (
+              ) : (
                 <CandidateTable
                   candidates={pageCandidates}
                   resultAttributes={resultAttributes}
@@ -1207,24 +1222,6 @@ export const ClientFindSimilarV2View: React.FC<
                   onPreview={setPreview}
                   onToggleCompare={toggleCompare}
                 />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-3">
-                  {pageCandidates.map((candidate, index) => (
-                    <CandidateCard
-                      key={candidate.objectId}
-                      candidate={candidate}
-                      index={index}
-                      resultAttributes={resultAttributes}
-                      selected={compareIds.includes(candidate.objectId)}
-                      compareDisabled={
-                        !compareIds.includes(candidate.objectId) &&
-                        compareIds.length >= 4
-                      }
-                      onPreview={() => setPreview(candidate)}
-                      onToggle={() => toggleCompare(candidate)}
-                    />
-                  ))}
-                </div>
               )}
               <TablePagination
                 total={filteredCandidates.length}
@@ -1245,9 +1242,12 @@ export const ClientFindSimilarV2View: React.FC<
       {isFormEntryOpen && (
         <div
           className="fixed inset-0 z-[70] bg-ty-overlay flex items-center justify-center p-4"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setIsFormEntryOpen(false)
-          }
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsFormResultOpen(false);
+              setIsFormEntryOpen(false);
+            }
+          }}
         >
           <section
             role="dialog"
@@ -1268,7 +1268,10 @@ export const ClientFindSimilarV2View: React.FC<
               <button
                 type="button"
                 aria-label="关闭新建或编辑零部件"
-                onClick={() => setIsFormEntryOpen(false)}
+                onClick={() => {
+                  setIsFormResultOpen(false);
+                  setIsFormEntryOpen(false);
+                }}
                 className="p-2 cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -1281,7 +1284,11 @@ export const ClientFindSimilarV2View: React.FC<
                 </span>
                 <select
                   value={formEntryId}
-                  onChange={(event) => setFormEntryId(event.target.value)}
+                  onChange={(event) => {
+                    setFormEntryId(event.target.value);
+                    setFormSearchResult(null);
+                    setIsFormResultOpen(false);
+                  }}
                   className="w-full h-8 rounded-ty-sm border border-[var(--ty-border-color)] px-2 text-ty-xs"
                 >
                   {formEntries.map((entry) => (
@@ -1327,7 +1334,10 @@ export const ClientFindSimilarV2View: React.FC<
             <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsFormEntryOpen(false)}
+                onClick={() => {
+                  setIsFormResultOpen(false);
+                  setIsFormEntryOpen(false);
+                }}
                 className="h-8 px-4 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs cursor-pointer"
               >
                 取消
@@ -1336,6 +1346,7 @@ export const ClientFindSimilarV2View: React.FC<
                 type="button"
                 onClick={() => {
                   notify("业务表单已按示意确认保存。", "success");
+                  setIsFormResultOpen(false);
                   setIsFormEntryOpen(false);
                 }}
                 className="h-8 px-4 rounded-ty-sm bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)] text-ty-xs font-semibold cursor-pointer"
@@ -1346,15 +1357,128 @@ export const ClientFindSimilarV2View: React.FC<
                 <button
                   type="button"
                   onClick={handleFormEntrySearch}
-                  className="h-8 px-4 inline-flex items-center gap-1.5 rounded-ty-sm border border-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] text-ty-xs font-semibold cursor-pointer"
+                  disabled={isFormSearching}
+                  className="h-8 px-4 inline-flex items-center gap-1.5 rounded-ty-sm border border-[var(--ty-primary-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)] text-ty-xs font-semibold disabled:opacity-50 cursor-pointer"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  查找相似件
+                  {isFormSearching ? "正在查询" : "查找相似件"}
                 </button>
               )}
             </div>
           </section>
         </div>
+      )}
+      {isFormEntryOpen && isFormResultOpen && formSearchResult && (
+        <div
+          className="fixed inset-0 z-[80] bg-ty-overlay flex items-center justify-center p-4"
+          role="presentation"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setIsFormResultOpen(false)
+          }
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="v2-form-result-title"
+            className="w-[min(1080px,96vw)] max-h-[86vh] overflow-hidden rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] shadow-ty-lg flex flex-col"
+          >
+            <div className="p-4 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Search className="w-5 h-5 text-[var(--ty-primary-color)]" />
+                  <h2 id="v2-form-result-title" className="text-ty-lg font-semibold">
+                    相似件查询结果
+                  </h2>
+                  <span className="min-h-6 px-2 inline-flex items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-color)] text-ty-2xs text-[var(--ty-font-sub-color)]">
+                    来自当前新建/编辑表单
+                  </span>
+                </div>
+                <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">
+                  {currentFormEntry?.requestNo || "当前表单"} · {getTypeAttributeName(currentFormEntry?.softTypeId || "")}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="关闭相似件查询结果"
+                onClick={() => setIsFormResultOpen(false)}
+                className="shrink-0 p-2 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {formSearchResult.errorCode ? (
+                <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
+                  {formSearchResult.errorMessage || "当前表单暂不能查询相似件。"}
+                </div>
+              ) : formSearchResult.scoredCandidates.length === 0 ? (
+                <div className="p-10 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
+                  未找到符合当前表单属性的相似件。
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-ty-sm border border-[var(--ty-border-color)]">
+                  <table className="ty-data-table w-full min-w-[760px] text-left text-ty-xs border-collapse">
+                    <thead>
+                      <tr className="bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)] text-[var(--ty-font-sub-color)]">
+                        <th className="p-3 w-12 text-center">序号</th>
+                        <th className="p-3">候选件</th>
+                        <th className="p-3 w-32">候选件编码</th>
+                        <th className="p-3 w-24">相似度</th>
+                        <th className="p-3 w-24">分档</th>
+                        <th className="p-3 w-24">覆盖率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formSearchResult.scoredCandidates.map((candidate, index) => (
+                        <tr
+                          key={candidate.objectId}
+                          className="border-b last:border-b-0 border-[var(--ty-border-light-color)]"
+                        >
+                          <td className="p-3 text-center font-mono text-[var(--ty-font-sub-color)]">
+                            {index + 1}
+                          </td>
+                          <td className="p-3 font-medium">{candidate.objectName}</td>
+                          <td className="p-3 font-mono text-[var(--ty-font-sub-color)]">
+                            {candidate.objectId}
+                          </td>
+                          <td className="p-3 font-mono font-semibold text-[var(--ty-primary-color)]">
+                            {candidate.similarityScore.toFixed(2)}%
+                          </td>
+                          <td className="p-3">{candidate.similarityTier}</td>
+                          <td className="p-3 font-mono">{candidate.coverageRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="p-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] flex flex-wrap items-center justify-between gap-3">
+              <SimilarityRunSummary result={formSearchResult} />
+              <button
+                type="button"
+                onClick={() => setIsFormResultOpen(false)}
+                className="h-8 px-4 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs cursor-pointer"
+              >
+                返回表单
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {isReplacementOpen && (
+        <CandidateReplacementDialog
+          reference={result?.reference || null}
+          selectedCandidates={selectedCompare}
+          availableCandidates={filteredCandidates}
+          resultAttributes={resultAttributes}
+          targetCandidateId={replacementTargetId}
+          replacementCandidateId={replacementCandidateId}
+          onSelectTarget={setReplacementTargetId}
+          onSelectCandidate={setReplacementCandidateId}
+          onCancel={closeReplacementDialog}
+          onConfirm={confirmReplacement}
+        />
       )}
       {selectedCompare.length > 0 && (
         <>
@@ -1387,6 +1511,7 @@ export const ClientFindSimilarV2View: React.FC<
                   setIsCompareOpen(false);
                 }}
                 onToggle={toggleCompare}
+                onOpenReplace={openReplacementDialog}
               />
             </div>
           )}
@@ -2101,7 +2226,7 @@ const CandidateTable: React.FC<{
       <tbody>
         {candidates.map((candidate) => {
           const meta = getCandidateMeta(candidate);
-          const compareDisabled =
+          const compareAtLimit =
             !compareIds.includes(candidate.objectId) && compareIds.length >= 4;
           return (
             <tr
@@ -2112,14 +2237,15 @@ const CandidateTable: React.FC<{
                 <span
                   className="inline-flex"
                   title={
-                    compareDisabled ? "最多选择 4 件；请先移除已选候选。" : undefined
+                    compareAtLimit
+                      ? "已选满 4 件；勾选此件后选择要替换的候选。"
+                      : undefined
                   }
                 >
                   <input
                     aria-label={`加入对比 ${candidate.objectId}`}
                     type="checkbox"
                     checked={compareIds.includes(candidate.objectId)}
-                    disabled={compareDisabled}
                     onChange={() => onToggleCompare(candidate)}
                   />
                 </span>
@@ -2171,103 +2297,281 @@ const CandidateTable: React.FC<{
     </table>
   </div>
 );
-const CandidateCard: React.FC<{
-  candidate: ScoredCandidate;
-  index: number;
+const CandidateReplacementDialog: React.FC<{
+  reference: ReferenceObject | null;
+  selectedCandidates: ScoredCandidate[];
+  availableCandidates: ScoredCandidate[];
   resultAttributes: ResultAttribute[];
-  selected: boolean;
-  compareDisabled: boolean;
-  onPreview: () => void;
-  onToggle: () => void;
+  targetCandidateId: string | null;
+  replacementCandidateId: string | null;
+  onSelectTarget: (candidateId: string) => void;
+  onSelectCandidate: (candidateId: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
 }> = ({
-  candidate,
-  index,
+  reference,
+  selectedCandidates,
+  availableCandidates,
   resultAttributes,
-  selected,
-  compareDisabled,
-  onPreview,
-  onToggle,
+  targetCandidateId,
+  replacementCandidateId,
+  onSelectTarget,
+  onSelectCandidate,
+  onCancel,
+  onConfirm,
 }) => {
-  const meta = getCandidateMeta(candidate);
-  const hasImage = index % 3 !== 2;
+  const [keyword, setKeyword] = useState("");
+  const selectedIds = useMemo(
+    () => new Set(selectedCandidates.map((candidate) => candidate.objectId)),
+    [selectedCandidates],
+  );
+  const candidateOptions = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    return availableCandidates
+      .filter((candidate) => !selectedIds.has(candidate.objectId))
+      .filter(
+        (candidate) =>
+          !normalizedKeyword ||
+          [
+            candidate.objectId,
+            candidate.objectName,
+            ...resultAttributes.map((attribute) =>
+              getResultAttributeValue(candidate, attribute.rule),
+            ),
+          ].some((value) => value.toLowerCase().includes(normalizedKeyword)),
+      )
+      .slice(0, 12);
+  }, [availableCandidates, keyword, resultAttributes, selectedIds]);
+  const selectedTarget = selectedCandidates.find(
+    (candidate) => candidate.objectId === targetCandidateId,
+  );
+  const selectedReplacement = availableCandidates.find(
+    (candidate) => candidate.objectId === replacementCandidateId,
+  );
+  const summaryAttributes = resultAttributes.slice(0, 3);
+
   return (
-    <article className="border border-[var(--ty-border-color)] rounded-ty-sm overflow-hidden bg-[var(--ty-fill-white-color)]">
-      <div className="h-28 flex items-center justify-center bg-[var(--ty-fill-weak-dark-color)] border-b border-[var(--ty-border-color)]">
-        {hasImage ? (
-          <Package className="w-9 h-9 text-[var(--ty-primary-color)]" />
-        ) : (
-          <div className="text-center text-[var(--ty-font-sub-light-color)]">
-            <ImageOff className="w-7 h-7 mx-auto" />
-            <span className="text-ty-2xs">暂无缩略图</span>
-          </div>
-        )}
-      </div>
-      <div className="p-3 space-y-2">
-        <div className="min-w-0">
-          <div
-            className="truncate text-ty-xs font-semibold"
-            title={candidate.objectName}
-          >
-            {candidate.objectName}
-          </div>
-          <div className="font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
-            {candidate.objectId}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
-          <span>类型 {meta.type}</span>
-          <span>来源 {meta.source}</span>
-          <span className="col-span-2 truncate" title={candidate.classificationPath}>
-            分类 {meta.category}
-          </span>
-          <span>
-            属性相似{" "}
-            <strong className="font-mono text-[var(--ty-primary-color)]">
-              {candidate.similarityScore.toFixed(2)}%
-            </strong>
-          </span>
-          <span>覆盖 {candidate.coverageRate}%</span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[var(--ty-border-light-color)] pt-2 text-ty-2xs">
-          {resultAttributes.map((attribute) => (
-            <div key={attribute.fieldKey} className="min-w-0">
-              <span className="block truncate text-[var(--ty-font-sub-color)]">
-                {attribute.label}
-              </span>
-              <strong
-                className="block truncate text-[var(--ty-font-main-color)]"
-                title={getResultAttributeValue(candidate, attribute.rule)}
+    <div
+      className="fixed inset-0 z-[90] bg-ty-overlay flex items-center justify-center p-4"
+      onMouseDown={(event) => event.target === event.currentTarget && onCancel()}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="v2-replacement-dialog-title"
+        className="w-[min(1180px,96vw)] max-h-[88vh] overflow-hidden rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] shadow-ty-lg flex flex-col"
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Layers3 className="h-5 w-5 text-[var(--ty-primary-color)]" />
+              <h2
+                id="v2-replacement-dialog-title"
+                className="text-ty-lg font-semibold text-[var(--ty-font-main-color)]"
               >
-                {getResultAttributeValue(candidate, attribute.rule)}
-              </strong>
+                替换对比候选
+              </h2>
+              <span className="inline-flex min-h-6 items-center rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] px-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                最多保留 4 件
+              </span>
             </div>
-          ))}
-        </div>
-        <div className="flex gap-2">
+            <p className="mt-1 text-ty-xs text-[var(--ty-font-sub-color)]">
+              查询基准：{reference ? `${reference.objectId} · ${reference.objectName}` : "当前基准"}
+            </p>
+          </div>
           <button
             type="button"
-            onClick={onPreview}
-            className="flex-1 h-8 inline-flex justify-center items-center gap-1 rounded-ty-sm border border-[var(--ty-border-color)] text-ty-xs text-[var(--ty-primary-color)] cursor-pointer"
+            aria-label="关闭替换对比候选"
+            onClick={onCancel}
+            className="shrink-0 p-2 text-[var(--ty-font-sub-color)] cursor-pointer"
           >
-            <Eye className="w-3.5 h-3.5" />
-            详情
+            <X className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            disabled={compareDisabled}
-            title={
-              compareDisabled ? "最多选择 4 件；请先移除已选候选。" : undefined
-            }
-            className={`flex-1 h-8 rounded-ty-sm text-ty-xs cursor-pointer disabled:opacity-50 ${selected ? "bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]" : "border border-[var(--ty-border-color)] text-[var(--ty-font-main-color)]"}`}
-          >
-            {selected ? "已加入对比" : "加入对比"}
-          </button>
+        </header>
+
+        <div className="grid flex-1 min-h-0 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-h-0 overflow-auto p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">
+                  选择拟加入的候选件
+                </h3>
+                <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                  候选来自当前查询结果；已在对比中的候选不会重复显示。
+                </p>
+              </div>
+              <input
+                autoFocus={!replacementCandidateId}
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="输入编码、名称、材质或规格"
+                aria-label="搜索可替换候选"
+                className="h-8 w-full sm:w-64 rounded-ty-xs border border-[var(--ty-border-color)] px-2 text-ty-xs"
+              />
+            </div>
+
+            {selectedReplacement && (
+              <div className="mb-3 rounded-ty-sm border border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)] px-3 py-2 text-ty-xs">
+                <span className="text-[var(--ty-font-sub-color)]">拟加入：</span>
+                <strong className="ml-1 text-[var(--ty-font-main-color)]">
+                  {selectedReplacement.objectName}
+                </strong>
+                <span className="ml-2 font-mono text-[var(--ty-font-sub-color)]">
+                  {selectedReplacement.objectId}
+                </span>
+                <span className="ml-2 font-mono font-semibold text-[var(--ty-primary-color)]">
+                  {selectedReplacement.similarityScore.toFixed(2)}%
+                </span>
+              </div>
+            )}
+
+            <div className="overflow-x-auto rounded-ty-sm border border-[var(--ty-border-color)]">
+              <table className="ty-data-table min-w-[760px] w-full text-left text-ty-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] text-[var(--ty-font-sub-color)]">
+                    <th className="w-20 p-2.5">选择</th>
+                    <th className="p-2.5">候选件</th>
+                    <th className="w-24 p-2.5">相似度</th>
+                    <th className="w-20 p-2.5">覆盖率</th>
+                    {summaryAttributes.map((attribute) => (
+                      <th key={attribute.fieldKey} className="min-w-28 p-2.5">
+                        {attribute.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidateOptions.map((candidate) => {
+                    const selected = candidate.objectId === replacementCandidateId;
+                    return (
+                      <tr
+                        key={candidate.objectId}
+                        className={`border-b last:border-b-0 border-[var(--ty-border-light-color)] ${selected ? "bg-[var(--ty-primary-lightest-color)]" : "hover:bg-[var(--ty-fill-weak-dark-color)]"}`}
+                      >
+                        <td className="p-2.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectCandidate(candidate.objectId)}
+                            className={`h-7 px-2 rounded-ty-xs border text-ty-2xs cursor-pointer ${selected ? "border-[var(--ty-primary-color)] bg-[var(--ty-primary-color)] text-[var(--ty-font-white-color)]" : "border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-[var(--ty-primary-color)]"}`}
+                          >
+                            {selected ? "已选择" : "选择"}
+                          </button>
+                        </td>
+                        <td className="p-2.5">
+                          <span className="block max-w-64 truncate font-medium text-[var(--ty-font-main-color)]" title={candidate.objectName}>
+                            {candidate.objectName}
+                          </span>
+                          <span className="mt-0.5 block font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
+                            {candidate.objectId} · {candidate.similarityTier}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-mono font-semibold text-[var(--ty-primary-color)]">
+                          {candidate.similarityScore.toFixed(2)}%
+                        </td>
+                        <td className="p-2.5 font-mono">{candidate.coverageRate}%</td>
+                        {summaryAttributes.map((attribute) => (
+                          <td key={attribute.fieldKey} className="max-w-36 p-2.5">
+                            <span
+                              className="block truncate"
+                              title={getResultAttributeValue(candidate, attribute.rule)}
+                            >
+                              {getResultAttributeValue(candidate, attribute.rule)}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {candidateOptions.length === 0 && (
+                <p className="px-3 py-8 text-center text-ty-xs text-[var(--ty-font-sub-color)]">
+                  当前查询结果中没有符合条件的可替换候选件。
+                </p>
+              )}
+            </div>
+          </div>
+
+          <aside className="min-h-0 overflow-auto border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-4 lg:border-l lg:border-t-0">
+            <h3 className="text-ty-sm font-semibold text-[var(--ty-font-main-color)]">
+              选择要替换的已选件
+            </h3>
+            <p className="mt-1 text-ty-2xs text-[var(--ty-font-sub-color)]">
+              对比栏位保持不变，只替换当前选中的这一件。
+            </p>
+            <div className="mt-3 space-y-2">
+              {selectedCandidates.map((candidate) => {
+                const selected = candidate.objectId === targetCandidateId;
+                return (
+                  <button
+                    type="button"
+                    key={candidate.objectId}
+                    onClick={() => onSelectTarget(candidate.objectId)}
+                    className={`w-full rounded-ty-sm border p-3 text-left cursor-pointer ${selected ? "border-[var(--ty-primary-color)] bg-[var(--ty-primary-lightest-color)]" : "border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] hover:border-[var(--ty-primary-color)]"}`}
+                  >
+                    <span className="block truncate text-ty-xs font-semibold text-[var(--ty-font-main-color)]" title={candidate.objectName}>
+                      {candidate.objectName}
+                    </span>
+                    <span className="mt-1 block font-mono text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      {candidate.objectId}
+                    </span>
+                    <span className="mt-1 block font-mono text-ty-2xs text-[var(--ty-primary-color)]">
+                      {candidate.similarityScore.toFixed(2)}% · 覆盖 {candidate.coverageRate}%
+                    </span>
+                    <span className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-[var(--ty-border-light-color)] pt-2 text-ty-2xs text-[var(--ty-font-sub-color)]">
+                      {summaryAttributes.slice(0, 2).map((attribute) => (
+                        <span key={attribute.fieldKey} className="min-w-0">
+                          <span className="block truncate">{attribute.label}</span>
+                          <strong
+                            className="block truncate text-[var(--ty-font-main-color)]"
+                            title={getResultAttributeValue(candidate, attribute.rule)}
+                          >
+                            {getResultAttributeValue(candidate, attribute.rule)}
+                          </strong>
+                        </span>
+                      ))}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {!selectedTarget && (
+              <p className="mt-3 text-ty-2xs text-[var(--ty-orange-color)]">
+                请先选择一件需要替换的候选。
+              </p>
+            )}
+          </aside>
         </div>
-      </div>
-    </article>
+
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ty-border-color)] bg-[var(--ty-fill-weak-dark-color)] p-3">
+          <p className="text-ty-2xs text-[var(--ty-font-sub-color)]">
+            {selectedTarget && selectedReplacement
+              ? `将以 ${selectedReplacement.objectId} 替换 ${selectedTarget.objectId}`
+              : "请选择拟加入候选和要替换的已选件。"}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="h-8 px-4 rounded-ty-sm border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-xs cursor-pointer"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              disabled={!selectedTarget || !selectedReplacement}
+              onClick={onConfirm}
+              className="h-8 px-4 rounded-ty-sm bg-[var(--ty-primary-color)] text-ty-xs font-semibold text-[var(--ty-font-white-color)] disabled:opacity-50 cursor-pointer"
+            >
+              确认替换
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
   );
 };
+
 const CompareTray: React.FC<{
   count: number;
   outsideCurrentFilters: number;
@@ -2326,6 +2630,7 @@ const ComparePanel: React.FC<{
   onClose: () => void;
   onClear: () => void;
   onToggle: (candidate: ScoredCandidate) => void;
+  onOpenReplace: (candidateId: string) => void;
 }> = ({
   candidates,
   reference,
@@ -2335,7 +2640,9 @@ const ComparePanel: React.FC<{
   onClose,
   onClear,
   onToggle,
-}) => (
+  onOpenReplace,
+}) => {
+  return (
   <section
     role="dialog"
     aria-modal="true"
@@ -2412,14 +2719,24 @@ const ComparePanel: React.FC<{
                           </span>
                         )}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => onToggle(candidate)}
-                        aria-label={`移除 ${candidate.objectId}`}
-                        className="shrink-0 p-1 rounded-ty-xs hover:bg-[var(--ty-fill-color)] cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onOpenReplace(candidate.objectId)}
+                          aria-label={`更换 ${candidate.objectId}`}
+                          className="h-6 px-1.5 rounded-ty-xs border border-[var(--ty-border-color)] bg-[var(--ty-fill-white-color)] text-ty-2xs text-[var(--ty-primary-color)] cursor-pointer"
+                        >
+                          更换
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onToggle(candidate)}
+                          aria-label={`移除 ${candidate.objectId}`}
+                          className="p-1 rounded-ty-xs hover:bg-[var(--ty-fill-color)] cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
                     </div>
                   </th>
                 ))}
@@ -2573,7 +2890,8 @@ const ComparePanel: React.FC<{
       )}
     </div>
   </section>
-);
+  );
+};
 const FieldDetailTable: React.FC<{
   fields: CompareFieldResult[];
   showScore: boolean;
