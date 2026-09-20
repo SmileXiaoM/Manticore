@@ -1828,11 +1828,17 @@ export const mockPartDatabase: (ReferenceObject & { customDisplay?: Record<strin
       working_temp: 'K'
     }
   },
-  // V2 筛选高值场景：同一候选集内保留大量不同规格值，用于验证值筛选的搜索、分段加载与已选项保留。
+  // V2 高值分面场景：规格描述和主要材质均保留足够多的不同值，
+  // 用于验证枚举值搜索、分段加载与已选项保留。
   ...Array.from({ length: 64 }, (_, index) => {
     const sequence = String(index + 1).padStart(2, '0');
     const length = 38 + (index % 27);
-    const material = ['SUS304', 'A2-70', 'SUS316'][index % 3];
+    const material = [
+      'SUS304', 'SUS316', 'A2-70', 'A4-80', '45#', '40Cr',
+      '42CrMo', '35CrMo', '20CrMnTi', 'GCr15', 'Q235B', 'Q345B',
+      '6061-T6', '7075-T6', 'H62', 'C1100', 'PA66-GF30', 'POM',
+      'PEEK', 'PTFE', 'TC4', 'TA2', 'Inconel 718', '17-4PH'
+    ][index % 24];
     return {
       requestCode: `REQ-2026-HIGH-VALUE-${sequence}`,
       rootTypeId: 'PART',
