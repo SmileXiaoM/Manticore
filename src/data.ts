@@ -2141,7 +2141,8 @@ export function runSimilaritySearch(
   rules: FieldSimilarityRule[],
   keywordFilter?: string,
   tierConfig: Pick<SimilarityTierConfig, 'highStart' | 'mediumStart'> = DEFAULT_SIMILARITY_TIER,
-  runtimeConfig: SimilarityRuntimeConfig = DEFAULT_SIMILARITY_RUNTIME_CONFIG
+  runtimeConfig: SimilarityRuntimeConfig = DEFAULT_SIMILARITY_RUNTIME_CONFIG,
+  candidateFilter?: (candidate: ReferenceObject) => boolean
 ): SearchRunResult {
   const { typeId: candidateTypeId } = parseSimilarityRuleScopeKey(softTypeId);
   // 1. 过滤当前根类型与软类型的规则
@@ -2236,7 +2237,7 @@ export function runSimilaritySearch(
   );
 
   // 关键字过滤 (应用端搜索用)
-  const filteredPool = keywordFilter && keywordFilter.trim()
+  const keywordFilteredPool = keywordFilter && keywordFilter.trim()
     ? candidatePool.filter(
         c =>
           c.objectId.toLowerCase().includes(keywordFilter.toLowerCase()) ||
@@ -2244,6 +2245,11 @@ export function runSimilaritySearch(
           c.specification.toLowerCase().includes(keywordFilter.toLowerCase())
       )
     : candidatePool;
+
+  // 业务筛选必须发生在评分、排序和 TopK 截取之前，避免原 TopK 外的候选被遗漏。
+  const filteredPool = candidateFilter
+    ? keywordFilteredPool.filter(candidateFilter)
+    : keywordFilteredPool;
 
   const scoredCandidates: ScoredCandidate[] = [];
   const excludedCandidates: ExcludedCandidate[] = [];
@@ -2534,6 +2540,7 @@ export function runSimilaritySearch(
     baselineType: baseline.type,
     formBaselineInfo,
     scoredCandidates: returnedCandidates,
+    preTopKScoredCandidates: scoredCandidates,
     excludedCandidates,
     candidateCount: filteredPool.length,
     scoredCount,

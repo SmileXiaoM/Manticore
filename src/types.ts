@@ -449,6 +449,11 @@ export type SearchRunResult = {
     values: Record<string, any>;
   };
   scoredCandidates: ScoredCandidate[];
+  /**
+   * 已完成评分、尚未截取 TopK 的候选集合。
+   * 仅供应用端动态分面计算，页面结果仍只能使用 scoredCandidates。
+   */
+  preTopKScoredCandidates?: ScoredCandidate[];
   excludedCandidates: ExcludedCandidate[];
   /** Scoring diagnostics after the current user's data-permission boundary. */
   candidateCount?: number;
