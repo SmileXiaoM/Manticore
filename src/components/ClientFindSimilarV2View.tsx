@@ -677,8 +677,13 @@ export const ClientFindSimilarV2View: React.FC<
         }
         const counts = new Map<string, number>();
         const selectedValues = valueFilters[facet.fieldKey] || [];
+        // 分面应优先基于截取 TopK 前的完整评分集统计；在异步查询切换或旧结果
+        // 未附带该集合时，回退到当前可用结果，不能把已有候选误显示成“无属性值”。
         const statisticsCandidates =
-          facetStatisticsResult?.preTopKScoredCandidates || [];
+          facetStatisticsResult?.preTopKScoredCandidates ??
+          facetStatisticsResult?.scoredCandidates ??
+          result?.preTopKScoredCandidates ??
+          candidates;
         statisticsCandidates
           .filter((candidate) =>
             matchesResultFilters(candidate, facet.fieldKey),
@@ -702,6 +707,8 @@ export const ClientFindSimilarV2View: React.FC<
     [
       facetDefinitions,
       facetStatisticsResult,
+      result,
+      candidates,
       valueFilters,
       numericFilters,
     ],
